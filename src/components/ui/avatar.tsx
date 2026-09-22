@@ -29,7 +29,13 @@ const AvatarFallback = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <AvatarPrimitive.Fallback
     ref={ref}
-    className={cn("flex h-full w-full items-center justify-center rounded-full bg-muted", className)}
+    /* Iniciais em emerald claro com tinta verde fechada (6,26:1). A paleta de
+       cores geradas por hash, que pinta iniciais brancas sobre ciano e cinza,
+       sai na varredura de avatar desta onda. */
+    className={cn(
+      "flex h-full w-full items-center justify-center rounded-full bg-[color:var(--accent-100)] text-[color:var(--accent-800)] text-[13px] font-medium",
+      className,
+    )}
     {...props}
   />
 ));

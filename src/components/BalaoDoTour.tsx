@@ -18,12 +18,12 @@
  * uma saliência num canto lê como enfeite.
  */
 
-const VERDE = "#00E599";
-const SOBRE_VERDE = "#04140D";
-const SUPERFICIE = "#0C1115";
+const VERDE = VENDA.verde;
+const SOBRE_VERDE = VENDA.sobreVerde;
+const SUPERFICIE = VENDA.superficie;
 /** Um degrau acima do fundo do balão, para a barra de baixo se destacar. */
 const SUPERFICIE_2 = "#151D22";
-const BORDA = "rgba(0, 229, 153, 0.45)";
+const BORDA = VENDA.bordaAtiva;
 /**
  * Halo atrás do balão. Era verde e virou preto -- o brilho de marca passou para
  * o cartão, e repeti-lo aqui somaria dois verdes na mesma borda.
@@ -68,6 +68,7 @@ const TEXTO_SUAVE = "#D1D1D1";
 const TEXTO_FRACO = "rgba(244, 246, 244, 0.55)";
 
 import type { ReactNode } from "react";
+import { VENDA } from "@/lib/superficie-de-venda";
 
 interface Props {
   passo: number;
@@ -231,7 +232,7 @@ export function BalaoDoTour({
         />
 
         <p
-          className="text-[15px] leading-[1.5]"
+          className="text-[14px] leading-[1.5]"
           style={{
             color: TEXTO_SUAVE,
             marginLeft: RESPIRO + folgaDoTexto,
@@ -255,7 +256,7 @@ export function BalaoDoTour({
           borderTop: `1px solid ${BORDA_INTERNA}`,
         }}
       >
-        <span className="text-[11px] font-normal shrink-0" style={{ color: TEXTO_FRACO }}>
+        <span className="text-[12px] font-normal shrink-0" style={{ color: TEXTO_FRACO }}>
           Etapa {passo} de {total}
         </span>
         <div className="flex items-center gap-1 shrink-0">

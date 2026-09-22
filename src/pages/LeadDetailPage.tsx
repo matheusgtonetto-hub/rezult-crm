@@ -49,6 +49,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ItensDoNegocio } from "@/components/ItensDoNegocio";
 import {
   ArrowLeft,
   Trophy,
@@ -96,6 +97,7 @@ import type { ActivitySubmitData } from "@/components/ActivityDialog";
 import { toast } from "sonner";
 import type { ActivityType } from "@/data/mockData";
 import { variantesDeTelefone } from "@/lib/telefone";
+import { tintaSobre } from "@/lib/contraste";
 
 type TabKey = "anotacoes" | "atividades" | "email" | "arquivos";
 
@@ -242,7 +244,7 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
 
   return (
     <div ref={wrapRef} className="group">
-      <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Cidade</label>
+      <label className="block mb-1" style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>Cidade</label>
       {editing ? (
         <input
           ref={inputRef}
@@ -253,18 +255,18 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
             if (e.key === "Escape") { setQuery(value ?? ""); setEditing(false); setRect(null); }
           }}
           placeholder="Digite o nome da cidade…"
-          style={{ width: "100%", border: "1px solid #128A68", borderRadius: 8, padding: "6px 10px", fontSize: 13, outline: "none", color: "#111", background: "#FFF" }}
+          style={{ width: "100%", border: "1px solid var(--accent-700)", borderRadius: 8, padding: "6px 10px", fontSize: 13, outline: "none", color: "var(--text-heading)", background: "var(--surface-card)" }}
         />
       ) : hasValue ? (
         <div
-          className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 cursor-text hover:bg-[#F5F5F5] transition-colors"
+          className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 cursor-text hover:bg-[color:var(--neutral-50)] transition-colors"
           onClick={openEdit}
         >
-          <span style={{ fontSize: 13, color: "#111111" }}>{value}</span>
-          <Pencil size={12} className="opacity-0 group-hover:opacity-60 transition-opacity" color="#AAAAAA" />
+          <span style={{ fontSize: 13, color: "var(--text-heading)" }}>{value}</span>
+          <Pencil size={12} className="opacity-0 group-hover:opacity-60 transition-opacity" color="var(--text-subtle)" />
         </div>
       ) : (
-        <button onClick={openEdit} className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors w-full" style={{ fontSize: 12, color: "#AAAAAA", fontStyle: "italic" }}>
+        <button onClick={openEdit} className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[color:var(--neutral-50)] transition-colors w-full" style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>
           + Adicionar
         </button>
       )}
@@ -277,8 +279,8 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
             top: dropTop,
             left: rect!.left,
             width: rect!.width,
-            background: "#FFF",
-            border: "1px solid #E5E5E5",
+            background: "var(--surface-card)",
+            border: "1px solid var(--border-default)",
             borderRadius: 10,
             boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
             zIndex: 99999,
@@ -287,19 +289,19 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
           }}
         >
           {loading && filtered.length === 0 ? (
-            <div style={{ padding: "12px 14px", fontSize: 13, color: "#AAA" }}>Carregando cidades…</div>
+            <div style={{ padding: "12px 14px", fontSize: 13, color: "var(--text-muted)" }}>Carregando cidades…</div>
           ) : filtered.length === 0 ? (
-            <div style={{ padding: "12px 14px", fontSize: 13, color: "#AAA" }}>Nenhuma cidade encontrada</div>
+            <div style={{ padding: "12px 14px", fontSize: 13, color: "var(--text-muted)" }}>Nenhuma cidade encontrada</div>
           ) : filtered.map(c => (
             <button
               key={`${c.nome}-${c.sigla}`}
               onMouseDown={e => { e.preventDefault(); commit(`${c.nome} - ${c.sigla}`); }}
-              style={{ width: "100%", textAlign: "left", padding: "9px 14px", background: "transparent", border: "none", fontSize: 13, color: "#111", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+              style={{ width: "100%", textAlign: "left", padding: "9px 14px", background: "transparent", border: "none", fontSize: 13, color: "var(--text-heading)", cursor: "pointer", display: "flex", justifyContent: "space-between", alignItems: "center" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
             >
               <span>{c.nome}</span>
-              <span style={{ fontSize: 11, color: "#AAA", fontWeight: 700 }}>{c.sigla}</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>{c.sigla}</span>
             </button>
           ))}
         </div>,
@@ -354,7 +356,7 @@ function EditableField({
 
   return (
     <div className="group">
-      <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>{label}</label>
+      <label className="block mb-1" style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>{label}</label>
       {editing ? (
         <Input
           ref={inputRef}
@@ -370,22 +372,22 @@ function EditableField({
         />
       ) : hasValue ? (
         <div
-          className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 cursor-text hover:bg-[#F5F5F5] transition-colors"
+          className="flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 cursor-text hover:bg-[color:var(--neutral-50)] transition-colors"
           onClick={() => setEditing(true)}
         >
-          <span className={valueClassName} style={{ fontSize: 13, color: "#111111", ...valueStyle }}>
+          <span className={valueClassName} style={{ fontSize: 13, color: "var(--text-heading)", ...valueStyle }}>
             {display ? display(String(value)) : String(value)}
           </span>
           <div className="flex items-center gap-1.5">
             {rightAdornment}
-            <Pencil size={12} className="opacity-0 group-hover:opacity-60 transition-opacity" color="#AAAAAA" />
+            <Pencil size={12} className="opacity-0 group-hover:opacity-60 transition-opacity" color="var(--text-subtle)" />
           </div>
         </div>
       ) : (
         <button
           onClick={() => setEditing(true)}
-          className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors w-full"
-          style={{ fontSize: 12, color: "#AAAAAA", fontStyle: "italic" }}
+          className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[color:var(--neutral-50)] transition-colors w-full"
+          style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}
         >
           + Adicionar
         </button>
@@ -399,15 +401,15 @@ function UtmSection({ lead, updateField }: { lead: import("@/data/mockData").Lea
   const hasAny = !!(lead.utmSource || lead.utmMedium || lead.utmCampaign || lead.utmTerm || lead.utmContent);
   return (
     <>
-      <div style={{ borderTop: "1px solid #E5E5E5", margin: "8px 0 4px" }} />
+      <div style={{ borderTop: "1px solid var(--border-default)", margin: "8px 0 4px" }} />
       <button
         onClick={() => setOpen(v => !v)}
         style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", background: "transparent", border: "none", cursor: "pointer", padding: "2px 0" }}
       >
-        <span style={{ fontSize: 11, fontWeight: 700, color: "#AAA", letterSpacing: 0.5 }}>
-          PARÂMETROS UTM{hasAny && !open ? <span style={{ marginLeft: 6, background: "#E1F5EE", color: "#128A68", borderRadius: 100, padding: "1px 6px", fontSize: 10 }}>preenchido</span> : null}
+        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 0.5 }}>
+          PARÂMETROS UTM{hasAny && !open ? <span style={{ marginLeft: 6, background: "var(--accent-50)", color: "var(--accent-800)", borderRadius: 100, padding: "1px 6px", fontSize: 12 }}>preenchido</span> : null}
         </span>
-        <ChevronDown size={13} color="#AAA" style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.2s" }} />
+        <ChevronDown size={13} color="var(--text-subtle)" style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.2s" }} />
       </button>
       {open && (
         <div className="space-y-2 pt-1">
@@ -427,7 +429,7 @@ function NewLeadTaskButton({ onAdd }: { onAdd: (title: string) => void }) {
   const [title, setTitle] = useState("");
   if (!open) {
     return (
-      <Button size="sm" className="rounded-md h-8" style={{ background: "#128A68", color: "#FFFFFF" }} onClick={() => setOpen(true)}>
+      <Button size="sm" className="rounded-md h-8" style={{ background: "var(--surface-accent)", color: "var(--text-on-accent)" }} onClick={() => setOpen(true)}>
         <Plus size={14} className="mr-1" /> Nova tarefa
       </Button>
     );
@@ -445,7 +447,7 @@ function NewLeadTaskButton({ onAdd }: { onAdd: (title: string) => void }) {
         placeholder="Título da tarefa..."
         className="h-8 text-sm rounded-md focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
       />
-      <Button size="sm" className="h-8 rounded-md" style={{ background: "#128A68", color: "#FFFFFF" }}
+      <Button size="sm" className="h-8 rounded-md" style={{ background: "var(--surface-accent)", color: "var(--text-on-accent)" }}
         onClick={() => { onAdd(title); setTitle(""); setOpen(false); toast.success("Tarefa criada!"); }}
       >
         Salvar
@@ -477,6 +479,7 @@ export default function LeadDetailPage() {
     memberAvatars,
     products,
     markLeadWon,
+    recalcularValorDoNegocio,
     markLeadLost,
     markLeadOpen,
     lossReasons,
@@ -806,14 +809,34 @@ export default function LeadDetailPage() {
   }, [lead?.id]);
 
   const [showWonProductDialog, setShowWonProductDialog] = useState(false);
-  const [wonProductId, setWonProductId] = useState<string>("none");
+  /**
+   * O campo de valor do diálogo de ganho já foi digitado?
+   *
+   * Enquanto NÃO foi, ele acompanha a soma dos produtos -- a pessoa pode
+   * acrescentar um item com o diálogo aberto e ver o total subir. Assim que
+   * alguém digita, o campo para de se mexer sozinho: seria pior ver o número
+   * que acabou de escrever ser trocado.
+   */
+  const [valorTocado, setValorTocado] = useState(false);
+
+  /**
+   * Com o diálogo aberto, o campo de valor segue a soma dos produtos.
+   *
+   * Quem acrescenta um item ali dentro vê o total subir na hora. Depois que
+   * alguém digita (`valorTocado`), o campo fica quieto: trocar o número que a
+   * pessoa acabou de escrever seria pior do que não acompanhar.
+   */
+  useEffect(() => {
+    if (!showWonProductDialog || valorTocado) return;
+    setWonCustomValue(lead?.value && lead.value > 0 ? fmtBRL(lead.value) : "");
+  }, [showWonProductDialog, valorTocado, lead?.value]);
   const [wonCustomValue, setWonCustomValue] = useState<string>("");
   const [showLostReasonDialog, setShowLostReasonDialog] = useState(false);
   const [selectedLossReasonId, setSelectedLossReasonId] = useState<string>("none");
 
   if (!lead) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen gap-3" style={{ background: "#F4F6F8" }}>
+      <div className="flex flex-col items-center justify-center h-[var(--altura-util)] gap-3" style={{ background: "#F4F6F8" }}>
         <p className="text-sm text-muted-foreground">Lead não encontrado.</p>
         <Button onClick={() => navigate("/pipeline")} variant="outline" className="rounded-lg">
           <ArrowLeft size={14} className="mr-1.5" /> Voltar ao pipeline
@@ -843,7 +866,7 @@ export default function LeadDetailPage() {
     });
   };
 
-  const respColor = memberColors[lead.responsible] || "#888888";
+  const respColor = memberColors[lead.responsible] || "var(--neutral-700)";
   const leadResps = lead.responsibles?.length ? lead.responsibles : (lead.responsible ? [lead.responsible] : []);
   const initials = lead.name
     .split(" ")
@@ -946,10 +969,25 @@ export default function LeadDetailPage() {
     new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 
   const handleWon = () => {
-    setWonProductId("none");
-    if (lead.productId) {
+    setValorTocado(false);
+    if ((lead.itens?.length ?? 0) > 0) {
+      // Com itens, o valor do negócio JÁ é a soma deles (ou o total ajustado à
+      // mão). É esse número que o diálogo abre, e não o preço de tabela de um
+      // dos produtos.
+      setWonCustomValue(lead.value > 0 ? fmtBRL(lead.value) : "");
+    } else if (lead.productId) {
+      /*
+       * O campo abre com o valor DO NEGÓCIO, e só cai no padrão do produto
+       * quando o negócio ainda não tem valor.
+       *
+       * Era o contrário -- `prod?.defaultValue ?? lead.value` --, e isso
+       * apagava a negociação: num negócio fechado a R$ 800 com um produto de
+       * tabela R$ 1.000, o diálogo abria mostrando 1.000 e, confirmado sem
+       * reparar, gravava 1.000 por cima. O dashboard então somava o preço de
+       * tabela como se fosse receita. Reportado pelo Geomar em 20/09/2026.
+       */
       const prod = products.find(p => p.id === lead.productId);
-      const v = prod?.defaultValue ?? lead.value ?? 0;
+      const v = lead.value > 0 ? lead.value : (prod?.defaultValue ?? 0);
       setWonCustomValue(v > 0 ? fmtBRL(v) : "");
     } else {
       setWonCustomValue("");
@@ -958,20 +996,18 @@ export default function LeadDetailPage() {
   };
 
   const handleConfirmWon = async () => {
-    let prodName: string | undefined;
     const customVal = parseFloat(wonCustomValue.replace(/\./g, "").replace(",", ".")) || 0;
-    let finalValue = lead.value;
-    if (wonProductId && wonProductId !== "none") {
-      const prod = products.find(p => p.id === wonProductId);
-      prodName = prod?.name;
-      finalValue = customVal;
-      await updateLead(lead.id, { productId: wonProductId, value: finalValue });
-    } else if (lead.productId) {
-      const prod = products.find(p => p.id === lead.productId);
-      prodName = prod?.name;
-      finalValue = customVal || lead.value;
-      if (finalValue !== lead.value) await updateLead(lead.id, { value: finalValue });
-    }
+    const itens = (lead.itens ?? []).slice().sort((x, y) => x.posicao - y.posicao);
+    // Todos os produtos entram na descrição da atividade: com dois itens,
+    // registrar só o primeiro faria o histórico contar meia venda.
+    const prodName = itens.length > 0
+      ? itens.map(i => products.find(p => p.id === i.productId)?.name ?? "produto removido").join(", ")
+      : undefined;
+    const finalValue = customVal || lead.value;
+    // Valor diferente da soma = fechou com desconto. `updateLead` liga a
+    // bandeira de valor manual, então o total não volta a ser recalculado
+    // depois -- ver `ItensDoNegocio`.
+    if (finalValue !== lead.value) await updateLead(lead.id, { value: finalValue });
     setShowWonProductDialog(false);
     markLeadWon(lead.id, prodName, finalValue);
     toast.success("Negócio marcado como ganho!");
@@ -1035,14 +1071,14 @@ export default function LeadDetailPage() {
 
   return (
     <>
-    <div style={{ background: "#F4F6F8", height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div style={{ background: "#F4F6F8", height: "var(--altura-util)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* TOPBAR — altura fixa; a página inteira não rola mais, então não
           precisa mais ser sticky (ver CONTENT logo abaixo). */}
       <div
         style={{
           height: 50,
-          background: "#FFFFFF",
-          borderBottom: "1px solid #EEEEEE",
+          background: "var(--surface-card)",
+          borderBottom: "1px solid var(--border-default)",
           flexShrink: 0,
         }}
         className="flex items-center justify-between px-4"
@@ -1050,8 +1086,8 @@ export default function LeadDetailPage() {
         {/* Esquerda */}
         <button
           onClick={() => navigate("/pipeline")}
-          className="flex items-center gap-1.5 text-sm hover:bg-[#F0F0F0] rounded-md px-2 py-1.5 transition-colors"
-          style={{ color: "#111111" }}
+          className="flex items-center gap-1.5 text-sm hover:bg-[color:var(--neutral-100)] rounded-md px-2 py-1.5 transition-colors"
+          style={{ color: "var(--text-heading)" }}
         >
           <ArrowLeft size={16} />
           <span style={{ fontWeight: 500 }}>{pipeline?.name ?? "Sem negócio"}</span>
@@ -1066,8 +1102,8 @@ export default function LeadDetailPage() {
                 className="flex items-center gap-1.5 px-2.5 h-7 rounded-lg text-xs font-semibold"
                 style={
                   lead.dealStatus === "won"
-                    ? { background: "#DCFCE7", color: "#128A68" }
-                    : { background: "#FEE2E2", color: "#E24B4A" }
+                    ? { background: "var(--accent-50)", color: "var(--accent-800)" }
+                    : { background: "var(--danger-bg)", color: "var(--danger-fg)" }
                 }
               >
                 {lead.dealStatus === "won"
@@ -1088,14 +1124,14 @@ export default function LeadDetailPage() {
               <button
                 onClick={handleWon}
                 className="flex items-center gap-1.5 text-xs font-semibold"
-                style={{ background: "#128A68", color: "#FFFFFF", borderRadius: 4, padding: "4px 12px" }}
+                style={{ background: "var(--surface-accent)", color: "var(--text-on-accent)", borderRadius: 10, padding: "4px 12px" }}
               >
                 Ganho
               </button>
               <button
                 onClick={handleLost}
                 className="flex items-center gap-1.5 text-xs font-semibold"
-                style={{ background: "#E24B4A", color: "#FFFFFF", borderRadius: 4, padding: "4px 12px" }}
+                style={{ background: "var(--danger-400)", color: "#FFFFFF", borderRadius: 10, padding: "4px 12px" }}
               >
                 Perdido
               </button>
@@ -1103,26 +1139,26 @@ export default function LeadDetailPage() {
           )}
 
           {/* Divisor */}
-          <div className="w-px h-6 bg-[#EEEEEE] mx-1" />
+          <div className="w-px h-6 bg-[color:var(--neutral-100)] mx-1" />
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button disabled={pipelinePerms.blockChangeAttendant} className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent">
                 {leadResps.length === 0 ? (
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: "#AAAAAA" }}>S</div>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: "var(--text-muted)" }}>S</div>
                 ) : (
                   <div className="flex items-center shrink-0">
                     {leadResps.slice(0, 3).map((name, idx) => {
                       const av = memberAvatars[name];
-                      const cl = memberColors[name] ?? "#AAAAAA";
+                      const cl = memberColors[name] ?? "var(--neutral-700)";
                       return av ? (
                         <img key={name} src={av} alt={name} className="rounded-full object-cover" style={{ width: 28, height: 28, marginLeft: idx > 0 ? -8 : 0, outline: "2px solid hsl(var(--background))" }} />
                       ) : (
-                        <div key={name} className="rounded-full flex items-center justify-center text-white text-[10px] font-bold" style={{ width: 28, height: 28, background: cl, marginLeft: idx > 0 ? -8 : 0, outline: "2px solid hsl(var(--background))" }}>{name[0]}</div>
+                        <div key={name} className="rounded-full flex items-center justify-center text-[12px] font-bold" style={{ width: 28, height: 28, background: cl, color: tintaSobre(cl), marginLeft: idx > 0 ? -8 : 0, outline: "2px solid hsl(var(--background))" }}>{name[0]}</div>
                       );
                     })}
                     {leadResps.length > 3 && (
-                      <div className="rounded-full flex items-center justify-center font-semibold text-[9px]" style={{ width: 28, height: 28, background: "#E5E5E5", color: "#555", marginLeft: -8, outline: "2px solid hsl(var(--background))" }}>+{leadResps.length - 3}</div>
+                      <div className="rounded-full flex items-center justify-center font-semibold text-[12px]" style={{ width: 28, height: 28, background: "var(--neutral-200)", color: "var(--text-muted)", marginLeft: -8, outline: "2px solid hsl(var(--background))" }}>+{leadResps.length - 3}</div>
                     )}
                   </div>
                 )}
@@ -1134,7 +1170,7 @@ export default function LeadDetailPage() {
                     <ChevronDown size={12} className="text-muted-foreground" />
                   </div>
                   {leadResps.length === 1 && memberEmails[leadResps[0]] && (
-                    <span className="text-[10px] text-muted-foreground">{memberEmails[leadResps[0]]}</span>
+                    <span className="text-[12px] text-muted-foreground">{memberEmails[leadResps[0]]}</span>
                   )}
                 </div>
               </button>
@@ -1159,17 +1195,17 @@ export default function LeadDetailPage() {
                   }}
                   className="flex items-center gap-2"
                 >
-                  <div className="flex items-center justify-center rounded shrink-0" style={{ width: 14, height: 14, border: selected ? `2px solid ${memberColors[m] || "#128A68"}` : "1.5px solid #CCC", background: selected ? (memberColors[m] || "#128A68") : "transparent" }}>
+                  <div className="flex items-center justify-center rounded shrink-0" style={{ width: 14, height: 14, border: selected ? `2px solid ${memberColors[m] || "var(--neutral-700)"}` : "1.5px solid var(--border-strong)", background: selected ? (memberColors[m] || "var(--neutral-700)") : "transparent" }}>
                     {selected && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                   </div>
                   {memberAvatars[m] ? (
                     <img src={memberAvatars[m]} alt={m} className="w-6 h-6 rounded-full object-cover shrink-0" />
                   ) : (
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: memberColors[m] || "#888" }}>{m[0]}</div>
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: memberColors[m] || "var(--neutral-700)" }}>{m[0]}</div>
                   )}
                   <div className="flex flex-col leading-tight">
                     <span className="text-xs font-medium" style={{ fontWeight: selected ? 600 : 400 }}>{m}</span>
-                    {memberEmails[m] && <span className="text-[10px] text-muted-foreground">{memberEmails[m]}</span>}
+                    {memberEmails[m] && <span className="text-[12px] text-muted-foreground">{memberEmails[m]}</span>}
                   </div>
                 </DropdownMenuItem>
               )})}
@@ -1177,7 +1213,7 @@ export default function LeadDetailPage() {
           </DropdownMenu>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="w-8 h-8 rounded-md hover:bg-[#F0F0F0] flex items-center justify-center text-muted-foreground">
+              <button className="w-8 h-8 rounded-md hover:bg-[color:var(--neutral-100)] flex items-center justify-center text-muted-foreground">
                 <MoreHorizontal size={16} />
               </button>
             </DropdownMenuTrigger>
@@ -1196,8 +1232,8 @@ export default function LeadDetailPage() {
       <div
         style={{
           height: 65,
-          background: "#FFFFFF",
-          borderBottom: "1px solid #E5E5E5",
+          background: "var(--surface-card)",
+          borderBottom: "1px solid var(--border-default)",
           paddingLeft: 16,
           paddingRight: 16,
           flexShrink: 0,
@@ -1209,10 +1245,10 @@ export default function LeadDetailPage() {
           <ProfileAvatar name={lead.name} avatarUrl={leadAvatarUrl} size={40} onError={refetchLeadAvatar} />
           <div className="flex flex-col min-w-0">
             <div className="flex items-baseline gap-1">
-              <span className="font-bold truncate" style={{ fontSize: 16, color: "#111111" }}>{lead.name}</span>
-              <span className="text-[11px] text-muted-foreground shrink-0">#{lead.dealNumber}</span>
+              <span className="font-bold truncate" style={{ fontSize: 14, color: "var(--text-heading)" }}>{lead.name}</span>
+              <span className="text-[12px] text-muted-foreground shrink-0">#{lead.dealNumber}</span>
             </div>
-            <span className="text-[10px] text-muted-foreground truncate">
+            <span className="text-[12px] text-muted-foreground truncate">
               {pipeline ? <>{pipeline.name} → {stages[activeIdx]?.title ?? "—"}</> : "Lead sem negócio"}
             </span>
           </div>
@@ -1223,8 +1259,20 @@ export default function LeadDetailPage() {
           {stages.map((s, idx) => {
             const isActive = idx === activeIdx;
             const isPast = idx < activeIdx;
-            const bg = isActive ? "#128A68" : isPast ? "#E1F5EE" : "#F5F5F5";
-            const color = isActive ? "#FFFFFF" : isPast ? "#085041" : "#AAAAAA";
+            /*
+             * As três situações da trilha, em tokens.
+             *
+             * A etapa CONCLUÍDA estava em `#E1F5EE`, um verde claro escrito à
+             * mão que não existe na rampa, com tinta `--accent-700`: 3,98:1,
+             * abaixo do mínimo de 4,5 para 12px. Agora é o `--accent-100` da
+             * rampa com tinta `--accent-800`, que dá 6,26:1.
+             *
+             * A ATIVA mantém o `--accent-700` de fundo com tinta branca
+             * (4,52:1). O emerald da marca (`--accent-400`) não serve de fundo
+             * aqui: com branco por cima daria 1,85:1.
+             */
+            const bg = isActive ? "var(--accent-700)" : isPast ? "var(--accent-100)" : "var(--neutral-50)";
+            const color = isActive ? "var(--text-inverse)" : isPast ? "var(--accent-800)" : "var(--text-muted)";
             const stageRef = lead.stageEnteredAt ? lead.stageEnteredAt.split("T")[0] : lead.entryDate;
             const days = idx === activeIdx ? daysBetween(stageRef, today) : isPast ? 2 : 0;
             return (
@@ -1237,6 +1285,11 @@ export default function LeadDetailPage() {
                   style={{
                     background: bg,
                     color,
+                    /* 10px, a pedido do dono em 21/09/2026. É abaixo do piso de
+                       12px da matriz (seção 3.2): a trilha tem até oito etapas
+                       lado a lado no topo do negócio, e o nome inteiro só cabe
+                       nesse corpo. O peso 600 e o contraste medido (4,52:1 na
+                       ativa, 6,26:1 na concluída) seguram a leitura. */
                     fontSize: 10,
                     fontWeight: 600,
                     padding: "3px 14px",
@@ -1247,7 +1300,7 @@ export default function LeadDetailPage() {
                 >
                   {s.title}
                 </div>
-                <span style={{ fontSize: 9, color: "#AAAAAA", marginTop: 2 }}>
+                <span style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
                   {days} {days === 1 ? "dia" : "dias"}
                 </span>
               </button>
@@ -1271,23 +1324,23 @@ export default function LeadDetailPage() {
             <section
               key={key}
               style={{
-                background: "#FFFFFF",
+                background: "var(--surface-card)",
                 borderRadius: 10,
                 boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                border: "1px solid #E5E7EB",
+                border: "1px solid var(--border-default)",
               }}
             >
               <button
                 onClick={() => toggleSection(key)}
                 className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[#F0FAF6] transition-colors rounded-t-[10px]"
-                style={{ borderLeft: "3px solid #128A68", paddingLeft: 8 }}
+                style={{ borderLeft: "3px solid var(--accent-700)", paddingLeft: 8 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#128A68", letterSpacing: 0.4, textTransform: "uppercase" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-700)", letterSpacing: 0.4, textTransform: "uppercase" }}>
                   {SECTION_TITLES[key]}
                 </span>
                 <ChevronDown
                   size={14}
-                  color="#128A68"
+                  color="var(--accent-700)"
                   style={{
                     transform: openSections[key] ? "rotate(0deg)" : "rotate(-90deg)",
                     transition: "transform 0.2s",
@@ -1296,7 +1349,7 @@ export default function LeadDetailPage() {
               </button>
 
               {openSections[key] && (
-                <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "#E5E7EB" }}>
+                <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "var(--border-default)" }}>
                   {key === "negocio" && (
                     <div className="pt-2 space-y-2">
                       <EditableField
@@ -1304,34 +1357,40 @@ export default function LeadDetailPage() {
                         value={lead.value ?? 0}
                         type="number"
                         display={v => formatBRL(Number(v) || 0)}
-                        valueStyle={{ color: "#000000", fontWeight: 700, fontSize: 15 }}
+                        valueStyle={{ color: "var(--text-heading)", fontWeight: 700, fontSize: 14 }}
                         onSave={v => updateField("value", Number(v.replace(/[^\d,.-]/g, "").replace(",", ".")) || 0)}
                       />
+                      {/* De onde vem o número acima.
+                          Por padrão ele soma os produtos; digitar um valor é
+                          dizer "este é o total", e aí ele para de acompanhar os
+                          itens -- é o desconto no fechamento. A linha existe
+                          para essa diferença não ficar invisível: sem ela, um
+                          valor que não muda ao adicionar produto parece defeito. */}
+                      {lead.valorManual && (
+                        <p className="text-[12px] text-muted-foreground -mt-1">
+                          Valor ajustado à mão.{" "}
+                          <button
+                            type="button"
+                            onClick={() => recalcularValorDoNegocio(lead.id)}
+                            className="text-[color:var(--accent-800)] hover:underline font-medium"
+                          >
+                            Voltar a somar os produtos
+                          </button>
+                        </p>
+                      )}
+                      {/* Os produtos vêm logo abaixo do valor, e antes do
+                          pipeline: são eles que FORMAM o número de cima, e ler
+                          os dois juntos é o que deixa a conta à vista. O
+                          pipeline diz outra coisa -- onde o negócio está --, e
+                          por isso desceu.
+
+                          Vários produtos por negócio desde 20/09/2026. Era um
+                          seletor único que, ao trocar de produto, sobrescrevia
+                          o valor do negócio com o preço de tabela. */}
+                      <ItensDoNegocio leadId={lead.id} itens={lead.itens ?? []} />
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Pipeline</label>
-                        <p style={{ fontSize: 13, color: "#111111" }}>{pipeline?.name ?? "Sem negócio ainda"}</p>
-                      </div>
-                      <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Produto</label>
-                        <Select
-                          value={lead.productId || "none"}
-                          onValueChange={v => {
-                            const pid = v === "none" ? undefined : v;
-                            const prod = products.find(p => p.id === pid);
-                            updateField("productId", pid);
-                            updateField("value", prod?.defaultValue ?? 0);
-                          }}
-                        >
-                          <SelectTrigger className="h-9 rounded-md text-sm focus:ring-0 focus:ring-offset-0 focus:border-primary">
-                            <SelectValue placeholder="Sem produto" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="none">Sem produto</SelectItem>
-                            {products.map(p => (
-                              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>Pipeline</label>
+                        <p style={{ fontSize: 13, color: "var(--text-heading)" }}>{pipeline?.name ?? "Sem negócio ainda"}</p>
                       </div>
                       {/* Os responsáveis saíram daqui. O seletor do cabeçalho,
                           ao lado de Ganho e Perdido, escreve o mesmo campo
@@ -1340,14 +1399,14 @@ export default function LeadDetailPage() {
                           mesmo dado na mesma tela só rendem dúvida sobre qual
                           deles vale. */}
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Data de entrada</label>
-                        <p style={{ fontSize: 13, color: "#111111" }}>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>Data de entrada</label>
+                        <p style={{ fontSize: 13, color: "var(--text-heading)" }}>
                           {new Date(lead.entryDate).toLocaleDateString("pt-BR")}
                         </p>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>Próxima atividade</label>
-                        <p style={{ fontSize: 13, color: "#111111" }}>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>Próxima atividade</label>
+                        <p style={{ fontSize: 13, color: "var(--text-heading)" }}>
                           {(() => {
                             const next = (lead.activities ?? [])
                               .filter(a => a.scheduledAt && !a.completedAt && new Date(a.scheduledAt) > new Date())
@@ -1389,10 +1448,10 @@ export default function LeadDetailPage() {
                       />
                       {/* Multi-email */}
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "#128A68", fontWeight: 600 }}>E-mail</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "var(--accent-800)", fontWeight: 600 }}>E-mail</label>
                         {(lead.emails ?? (lead.email ? [lead.email] : [])).map((em, idx) => (
-                          <div key={idx} className="group flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors">
-                            <span style={{ fontSize: 13, color: "#111111" }}>{em}</span>
+                          <div key={idx} className="group flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 hover:bg-[color:var(--neutral-50)] transition-colors">
+                            <span style={{ fontSize: 13, color: "var(--text-heading)" }}>{em}</span>
                             <button
                               onClick={() => {
                                 const updated = (lead.emails ?? (lead.email ? [lead.email] : [])).filter((_, i) => i !== idx);
@@ -1400,7 +1459,7 @@ export default function LeadDetailPage() {
                               }}
                               className="opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
                             >
-                              <X size={12} color="#AAAAAA" />
+                              <X size={12} color="var(--text-subtle)" />
                             </button>
                           </div>
                         ))}
@@ -1431,8 +1490,8 @@ export default function LeadDetailPage() {
                         ) : (
                           <button
                             onClick={() => setAddEmailMode(true)}
-                            className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[#F5F5F5] transition-colors w-full"
-                            style={{ fontSize: 12, color: "#AAAAAA", fontStyle: "italic" }}
+                            className="text-left rounded-md px-2 py-1.5 -mx-2 hover:bg-[color:var(--neutral-50)] transition-colors w-full"
+                            style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}
                           >
                             + Adicionar
                           </button>
@@ -1447,7 +1506,7 @@ export default function LeadDetailPage() {
                     const defaultGroup = customFieldGroups.find(g => g.isDefault);
                     if (!defaultGroup || defaultGroup.items.length === 0) {
                       return (
-                        <p className="text-[11px] text-[#AAAAAA] text-center py-4">
+                        <p className="text-[12px] text-[color:var(--text-muted)] text-center py-4">
                           Adicione perguntas em Configurações → Campos adicionais.
                         </p>
                       );
@@ -1465,9 +1524,9 @@ export default function LeadDetailPage() {
                             const isYes = val === "Sim";
                             return (
                               <div key={f.id} className="flex items-center justify-between gap-2">
-                                <label className="block" style={{ fontSize: 11, color: "#AAAAAA" }}>{f.label}</label>
+                                <label className="block" style={{ fontSize: 12, color: "var(--text-muted)" }}>{f.label}</label>
                                 <div className="flex items-center gap-2">
-                                  <span style={{ fontSize: 12, color: isYes ? "#128A68" : "#AAAAAA" }}>
+                                  <span style={{ fontSize: 12, color: isYes ? "var(--accent-700)" : "var(--text-muted)" }}>
                                     {isYes ? "Sim" : "Não"}
                                   </span>
                                   <Switch checked={isYes} onCheckedChange={v => saveValue(v ? "Sim" : "Não")} />
@@ -1493,7 +1552,7 @@ export default function LeadDetailPage() {
                   {key === "origemTags" && (
                     <>
                       <div className="pt-2">
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">Canal</label>
+                        <label className="text-[12px] text-muted-foreground block mb-0.5">Canal</label>
                         <Select value={lead.origin} onValueChange={v => updateField("origin", v)}>
                           <SelectTrigger className="h-9 rounded-md text-sm focus:ring-0 focus:ring-offset-0 focus:border-primary">
                             <SelectValue />
@@ -1507,17 +1566,17 @@ export default function LeadDetailPage() {
                       </div>
                       <UtmSection lead={lead} updateField={updateField} />
 
-                      <div style={{ borderTop: "1px solid #E5E5E5", margin: "8px 0 4px" }} />
+                      <div style={{ borderTop: "1px solid var(--border-default)", margin: "8px 0 4px" }} />
 
                       <div className="space-y-2">
-                        <label className="text-[11px] text-muted-foreground block mb-0.5">Tags</label>
+                        <label className="text-[12px] text-muted-foreground block mb-0.5">Tags</label>
                         <div className="flex flex-wrap gap-1.5">
                           {(lead.tags || []).map(tagName => {
                             const t = crmTags.find(x => x.name === tagName);
                             return (
                               <span
                                 key={tagName}
-                                className="text-[10px] pl-2 pr-1 py-0.5 rounded-full text-white font-medium inline-flex items-center gap-1"
+                                className="text-[12px] pl-2 pr-1 py-0.5 rounded-full text-white font-medium inline-flex items-center gap-1"
                                 style={{ background: t?.color || "#888" }}
                               >
                                 {tagName}
@@ -1543,7 +1602,7 @@ export default function LeadDetailPage() {
                               variant="outline"
                               size="sm"
                               className="rounded-md h-8 text-xs"
-                              style={{ borderColor: "#128A68", color: "#128A68" }}
+                              style={{ borderColor: "var(--accent-700)", color: "var(--accent-700)" }}
                             >
                               <Plus size={12} className="mr-1" /> Tag
                             </Button>
@@ -1586,23 +1645,23 @@ export default function LeadDetailPage() {
             <section
               key={g.id}
               style={{
-                background: "#FFFFFF",
+                background: "var(--surface-card)",
                 borderRadius: 10,
                 boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                border: "1px solid #E5E7EB",
+                border: "1px solid var(--border-default)",
               }}
             >
               <button
                 onClick={() => toggleSection(g.id)}
                 className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[#F0FAF6] transition-colors rounded-t-[10px]"
-                style={{ borderLeft: "3px solid #128A68", paddingLeft: 8 }}
+                style={{ borderLeft: "3px solid var(--accent-700)", paddingLeft: 8 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#128A68", letterSpacing: 0.4, textTransform: "uppercase" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-700)", letterSpacing: 0.4, textTransform: "uppercase" }}>
                   {g.name}
                 </span>
                 <ChevronDown
                   size={14}
-                  color="#128A68"
+                  color="var(--accent-700)"
                   style={{
                     transform: openSections[g.id] !== false ? "rotate(0deg)" : "rotate(-90deg)",
                     transition: "transform 0.2s",
@@ -1611,9 +1670,9 @@ export default function LeadDetailPage() {
               </button>
 
               {openSections[g.id] !== false && (
-                <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "#E5E7EB" }}>
+                <div className="px-3 pb-3 space-y-2.5 border-t" style={{ borderColor: "var(--border-default)" }}>
                   {g.items.length === 0 ? (
-                    <p className="text-[11px] text-[#AAAAAA] text-center py-4">
+                    <p className="text-[12px] text-[color:var(--text-muted)] text-center py-4">
                       Adicione perguntas em Configurações → Campos adicionais.
                     </p>
                   ) : (
@@ -1629,9 +1688,9 @@ export default function LeadDetailPage() {
                           const isYes = val === "Sim";
                           return (
                             <div key={f.id} className="flex items-center justify-between gap-2">
-                              <label className="block" style={{ fontSize: 11, color: "#AAAAAA" }}>{f.label}</label>
+                              <label className="block" style={{ fontSize: 12, color: "var(--text-muted)" }}>{f.label}</label>
                               <div className="flex items-center gap-2">
-                                <span style={{ fontSize: 12, color: isYes ? "#128A68" : "#AAAAAA" }}>
+                                <span style={{ fontSize: 12, color: isYes ? "var(--accent-700)" : "var(--text-muted)" }}>
                                   {isYes ? "Sim" : "Não"}
                                 </span>
                                 <Switch checked={isYes} onCheckedChange={v => saveValue(v ? "Sim" : "Não")} />
@@ -1663,10 +1722,10 @@ export default function LeadDetailPage() {
         <section
           style={{
             flex: 1,
-            background: "#FFFFFF",
+            background: "var(--surface-card)",
             borderRadius: 10,
             boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-            border: "1px solid #E5E7EB",
+            border: "1px solid var(--border-default)",
             minWidth: 0,
             marginRight: "clamp(0px, calc((100vw - 960px) * 0.30), 60px)",
             display: "flex",
@@ -1675,7 +1734,7 @@ export default function LeadDetailPage() {
           }}
         >
           {/* Tabs */}
-          <div className="flex items-center gap-1 px-4 border-b" style={{ borderColor: "#E5E5E5", flexShrink: 0 }}>
+          <div className="flex items-center gap-1 px-4 border-b" style={{ borderColor: "var(--border-default)", flexShrink: 0 }}>
             {TABS.map(t => {
               const active = tab === t.key;
               return (
@@ -1684,9 +1743,9 @@ export default function LeadDetailPage() {
                   onClick={() => setTab(t.key)}
                   className="px-3 py-3 text-sm transition-colors"
                   style={{
-                    color: active ? "#128A68" : "#333333",
+                    color: active ? "var(--accent-700)" : "var(--text-body)",
                     fontWeight: active ? 600 : 400,
-                    borderBottom: active ? "2px solid #128A68" : "2px solid transparent",
+                    borderBottom: active ? "2px solid var(--accent-700)" : "2px solid transparent",
                     marginBottom: -1,
                   }}
                 >
@@ -1701,9 +1760,9 @@ export default function LeadDetailPage() {
               <div className="space-y-3">
                 <div
                   style={{
-                    border: `1px solid ${newNoteActive ? "hsl(var(--primary))" : "#E5E5E5"}`,
+                    border: `1px solid ${newNoteActive ? "hsl(var(--primary))" : "var(--border-default)"}`,
                     borderRadius: 10,
-                    background: "#FAFAFA",
+                    background: "var(--neutral-25)",
                     padding: 12,
                     transition: "border-color 0.15s",
                   }}
@@ -1720,7 +1779,7 @@ export default function LeadDetailPage() {
                     data-placeholder="Escreva uma anotação, @nome..."
                     className="note-content bg-white border border-card-border rounded-md text-sm px-3 py-2 outline-none focus:ring-1 focus:ring-primary empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
                     style={{
-                      color: "#111111",
+                      color: "var(--text-heading)",
                       minHeight: newNoteActive ? 80 : 38,
                       wordBreak: "break-word",
                       transition: "min-height 0.15s",
@@ -1768,7 +1827,7 @@ export default function LeadDetailPage() {
                             onClick={handleSaveNote}
                             size="sm"
                             className="rounded-md h-7 text-xs"
-                            style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }}
+                            style={{ background: "hsl(var(--primary))", color: "var(--text-on-accent)" }}
                           >
                             Salvar
                           </Button>
@@ -1795,17 +1854,17 @@ export default function LeadDetailPage() {
                     return (
                       <div key={n.id} className="flex gap-3 pb-3">
                         <div className="flex flex-col items-center flex-shrink-0" style={{ width: 22 }}>
-                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: "#F5F5F4", border: "1px solid #E5E5E5" }}>
-                            <StickyNote size={10} color="#888888" />
+                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: "#F5F5F4", border: "1px solid var(--border-default)" }}>
+                            <StickyNote size={10} color="var(--text-subtle)" />
                           </div>
-                          {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "#E5E5E5", minHeight: 12 }} />}
+                          {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "var(--neutral-200)", minHeight: 12 }} />}
                         </div>
                         <div className="flex-1 min-w-0">
                       <div
                         style={{
-                          background: "#FFFBEB",
-                          border: "1px solid #FCD34D",
-                          borderRadius: 5,
+                          background: "var(--warning-bg)",
+                          border: "1px solid var(--warning-400)",
+                          borderRadius: 6,
                           padding: 15,
                         }}
                       >
@@ -1814,16 +1873,16 @@ export default function LeadDetailPage() {
                             <img src={memberAvatars[authorName]} alt={authorName} className="w-6 h-6 rounded-full object-cover shrink-0" />
                           ) : (
                             <div
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                              style={{ background: memberColors[authorName] || "#888888" }}
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[12px] font-bold"
+                              style={{ background: memberColors[authorName] || "var(--neutral-700)" }}
                             >
                               {authorName?.[0] ?? "?"}
                             </div>
                           ); })()}
-                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{n.userName ?? lead.responsible}</span>
-                          <span className="text-[11px] text-muted-foreground">{fmtActivityDate(n.date)}</span>
+                          <span className="text-xs font-semibold" style={{ color: "var(--text-heading)" }}>{n.userName ?? lead.responsible}</span>
+                          <span className="text-[12px] text-muted-foreground">{fmtActivityDate(n.date)}</span>
                           {n.pinned && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#D97706" }}>
+                            <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--warning-bg)", color: "var(--warning-fg)" }}>
                               Fixada
                             </span>
                           )}
@@ -1833,12 +1892,12 @@ export default function LeadDetailPage() {
                               className="flex items-center justify-center rounded-md transition-colors"
                               style={{
                                 width: 24, height: 24,
-                                background: n.pinned ? "#FEF3C7" : "transparent",
-                                color: n.pinned ? "#D97706" : undefined,
+                                background: n.pinned ? "var(--warning-bg)" : "transparent",
+                                color: n.pinned ? "var(--warning-fg)" : undefined,
                               }}
                               title={n.pinned ? "Desafixar anotação" : "Fixar anotação no topo"}
                             >
-                              <Pin size={13} className={n.pinned ? "" : "text-muted-foreground"} style={n.pinned ? { color: "#D97706" } : {}} />
+                              <Pin size={13} className={n.pinned ? "" : "text-muted-foreground"} style={n.pinned ? { color: "var(--warning-fg)" } : {}} />
                             </button>
                             <button
                               onClick={() => startEditing(n.id, n.description)}
@@ -1870,7 +1929,7 @@ export default function LeadDetailPage() {
                               onMouseUp={handleEditKey}
                               onSelect={handleEditKey}
                               className="note-content bg-white border border-card-border rounded-md text-sm mt-1 px-3 py-2 min-h-[70px] outline-none focus:ring-1 focus:ring-primary"
-                              style={{ color: "#111111", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                              style={{ color: "var(--text-heading)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
                             />
                             <div className="flex items-center justify-between pt-2 mt-2 border-t border-card-border">
                               <div className="flex items-center gap-0.5">
@@ -1905,7 +1964,7 @@ export default function LeadDetailPage() {
                                 <Button
                                   size="sm"
                                   className="rounded-md h-7 text-xs"
-                                  style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }}
+                                  style={{ background: "hsl(var(--primary))", color: "var(--text-on-accent)" }}
                                   onClick={() => {
                                     const html = DOMPurify.sanitize(editingDivRef.current?.innerHTML ?? "");
                                     if (html.trim()) {
@@ -1923,7 +1982,7 @@ export default function LeadDetailPage() {
                         ) : (
                           <div
                             className="text-sm note-content"
-                            style={{ color: "#111111" }}
+                            style={{ color: "var(--text-heading)" }}
                             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(n.description) }}
                           />
                         )}
@@ -1953,20 +2012,20 @@ export default function LeadDetailPage() {
                     return (
                       <div key={item.id} className="flex gap-3 pb-3">
                         <div className="flex flex-col items-center flex-shrink-0" style={{ width: 22 }}>
-                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: isCompleted ? "#DCFCE7" : isNoShow ? "#FEF3C7" : isOverdue ? "#FEE2E2" : "#ECFDF5", border: `1px solid ${isCompleted ? "#128A68" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "rgba(18,138,104,0.4)"}` }}>
-                            <TypeIcon size={10} color={isCompleted ? "#128A68" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "#128A68"} />
+                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: isCompleted ? "var(--accent-50)" : isNoShow ? "var(--warning-bg)" : isOverdue ? "var(--danger-bg)" : "var(--accent-50)", border: `1px solid ${isCompleted ? "var(--accent-700)" : isNoShow ? "var(--warning-400)" : isOverdue ? "var(--danger-400)" : "rgba(18,138,104,0.4)"}` }}>
+                            <TypeIcon size={10} color={isCompleted ? "var(--accent-700)" : isNoShow ? "var(--warning-fg)" : isOverdue ? "var(--danger-fg)" : "var(--accent-700)"} />
                           </div>
-                          {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "#E5E5E5", minHeight: 12 }} />}
+                          {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "var(--neutral-200)", minHeight: 12 }} />}
                         </div>
                         <div className="flex-1 min-w-0">
                       <div
                         className="group"
                         style={{
-                          background: item.pinned ? "#FFFBEB" : "#FAFAF7",
+                          background: item.pinned ? "var(--warning-bg)" : "#FAFAF7",
                           border: item.pinned
                             ? "1px solid #FCD34D"
                             : isCompleted
-                            ? "1.5px solid #128A68"
+                            ? "1.5px solid var(--accent-700)"
                             : isNoShow
                             ? "1.5px solid #E24B4A"
                             : isOverdue
@@ -1985,36 +2044,36 @@ export default function LeadDetailPage() {
                             />
                           ) : (
                             <div
-                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-                              style={{ background: memberColors[authorName] || "#888888" }}
+                              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0"
+                              style={{ background: memberColors[authorName] || "var(--neutral-700)" }}
                             >
                               {authorName?.[0] ?? "?"}
                             </div>
                           ); })()}
-                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{item.userName ?? lead.responsible}</span>
-                          <span className="text-[11px] text-muted-foreground"><span className="font-medium">Criado:</span> {fmtActivityDate(item.date)}</span>
+                          <span className="text-xs font-semibold" style={{ color: "var(--text-heading)" }}>{item.userName ?? lead.responsible}</span>
+                          <span className="text-[12px] text-muted-foreground"><span className="font-medium">Criado:</span> {fmtActivityDate(item.date)}</span>
                           {item.pinned && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#D97706" }}>
+                            <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--warning-bg)", color: "var(--warning-fg)" }}>
                               Fixada
                             </span>
                           )}
                           <div className="ml-auto flex items-center gap-1">
                             {isCompleted ? (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#DCFCE7", color: "#128A68" }}>Realizada</span>
+                              <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "var(--accent-50)", color: "var(--accent-800)" }}>Realizada</span>
                             ) : isNoShow ? (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#FEF3C7", color: "#D97706" }}>No-show</span>
+                              <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "var(--warning-bg)", color: "var(--warning-fg)" }}>No-show</span>
                             ) : (
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#F0F0F0", color: "#555555" }}>
+                              <span className="text-[12px] font-medium px-1.5 py-0.5 rounded-full mr-1" style={{ background: "var(--neutral-100)", color: "var(--text-muted)" }}>
                                 {typeLabels[item.type] ?? item.type}
                               </span>
                             )}
                             <button
                               onClick={() => pinActivity(lead.id, item.id, !item.pinned)}
                               className="flex items-center justify-center rounded-md transition-colors"
-                              style={{ width: 24, height: 24, background: item.pinned ? "#FEF3C7" : "transparent" }}
+                              style={{ width: 24, height: 24, background: item.pinned ? "var(--warning-bg)" : "transparent" }}
                               title={item.pinned ? "Desafixar atividade" : "Fixar atividade"}
                             >
-                              <Pin size={13} style={{ color: item.pinned ? "#D97706" : "#AAAAAA" }} />
+                              <Pin size={13} style={{ color: item.pinned ? "var(--warning-fg)" : "var(--text-muted)" }} />
                             </button>
                             <button
                               onClick={() => openEditActivityDialog(item)}
@@ -2045,23 +2104,23 @@ export default function LeadDetailPage() {
                                 className="flex-shrink-0 mt-0.5 transition-all"
                                 style={{
                                   width: 18, height: 18, borderRadius: "50%",
-                                  border: `2px solid ${isCompleted ? "#128A68" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "#AAAAAA"}`,
-                                  background: isCompleted ? "#128A68" : isNoShow ? "#FEF9C3" : "transparent",
+                                  border: `2px solid ${isCompleted ? "var(--accent-700)" : isNoShow ? "var(--warning-400)" : isOverdue ? "var(--danger-400)" : "#AAAAAA"}`,
+                                  background: isCompleted ? "var(--accent-700)" : isNoShow ? "var(--warning-bg)" : "transparent",
                                   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
                                 }}
                               >
                                 {isCompleted && <Check size={10} color="#FFFFFF" />}
-                                {isNoShow && <X size={10} color="#D97706" />}
+                                {isNoShow && <X size={10} color="var(--warning-fg)" />}
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start" className="w-44">
                               {!isCompleted && !isNoShow ? (
                                 <>
                                   <DropdownMenuItem onClick={() => completeActivity(lead.id, item.id)} className="text-xs">
-                                    <Check size={12} className="mr-2 text-green-600" /> Marcar como realizada
+                                    <Check size={12} className="mr-2 text-[color:var(--accent-700)]" /> Marcar como realizada
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => markNoShow(lead.id, item.id)} className="text-xs">
-                                    <X size={12} className="mr-2 text-amber-600" /> No-show
+                                    <X size={12} className="mr-2 text-[color:var(--warning-fg)]" /> No-show
                                   </DropdownMenuItem>
                                 </>
                               ) : (
@@ -2077,42 +2136,42 @@ export default function LeadDetailPage() {
 
                           <div className="flex-1 min-w-0 space-y-1.5">
                             {/* Título */}
-                            <p className="text-sm font-semibold" style={{ color: "#111111" }}>{item.title || item.description}</p>
+                            <p className="text-sm font-semibold" style={{ color: "var(--text-heading)" }}>{item.title || item.description}</p>
                             {/* Tarefa + Data e hora */}
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <p className="text-[10px] text-muted-foreground">Tarefa</p>
+                                <p className="text-[12px] text-muted-foreground">Tarefa</p>
                                 <div className="flex items-center gap-1 mt-0.5">
                                   <TypeIcon size={11} className="text-muted-foreground shrink-0" />
-                                  <span className="text-xs" style={{ color: "#111111" }}>{typeLabels[item.type] ?? item.type}</span>
+                                  <span className="text-xs" style={{ color: "var(--text-heading)" }}>{typeLabels[item.type] ?? item.type}</span>
                                 </div>
                               </div>
                               {scheduledDate && (
                                 <div>
-                                  <p className="text-[10px] text-muted-foreground">Data e hora</p>
-                                  <p className="text-xs mt-0.5" style={{ color: "#111111" }}>{fmtActivityDate(item.scheduledAt!)}</p>
+                                  <p className="text-[12px] text-muted-foreground">Data e hora</p>
+                                  <p className="text-xs mt-0.5" style={{ color: "var(--text-heading)" }}>{fmtActivityDate(item.scheduledAt!)}</p>
                                 </div>
                               )}
                             </div>
                             {/* Badge vencida */}
                             {isOverdue && (
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEE2E2", color: "#E24B4A" }}>Vencida</span>
+                                <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--danger-bg)", color: "var(--danger-fg)" }}>Vencida</span>
                               </div>
                             )}
                             {/* Participantes + Link */}
                             {(item.participants?.length || item.meetLink) ? (
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                  <p className="text-[10px] text-muted-foreground">Participantes</p>
+                                  <p className="text-[12px] text-muted-foreground">Participantes</p>
                                   <div className="flex items-center gap-1 mt-0.5">
                                     {item.participants && item.participants.length > 0 ? (
                                       <>
-                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] border border-card-border bg-background">
+                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[12px] border border-card-border bg-background">
                                           {memberAvatars[item.participants[0]] ? (
                                             <img src={memberAvatars[item.participants[0]]} alt={item.participants[0]} className="w-3.5 h-3.5 rounded-full object-cover shrink-0" />
                                           ) : (
-                                            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[item.participants[0]] ?? "#AAAAAA" }}>
+                                            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: memberColors[item.participants[0]] ?? "var(--text-muted)" }}>
                                               {item.participants[0][0].toUpperCase()}
                                             </div>
                                           )}
@@ -2121,18 +2180,18 @@ export default function LeadDetailPage() {
                                         {item.participants.length > 1 && (
                                           <Popover>
                                             <PopoverTrigger asChild>
-                                              <button className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-card-border hover:bg-muted/80 transition-colors">
+                                              <button className="text-[12px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-card-border hover:bg-muted/80 transition-colors">
                                                 +{item.participants.length - 1}
                                               </button>
                                             </PopoverTrigger>
                                             <PopoverContent align="start" className="w-56 p-2 space-y-1">
-                                              <p className="text-[10px] text-muted-foreground font-medium px-1 mb-1.5">Todos os participantes</p>
+                                              <p className="text-[12px] text-muted-foreground font-medium px-1 mb-1.5">Todos os participantes</p>
                                               {item.participants.map(email => (
                                                 <div key={email} className="flex items-center gap-1.5 px-1 py-0.5 rounded text-xs">
                                                   {memberAvatars[email] ? (
                                                     <img src={memberAvatars[email]} alt={email} className="w-4 h-4 rounded-full object-cover shrink-0" />
                                                   ) : (
-                                                    <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[email] ?? "#AAAAAA" }}>
+                                                    <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: memberColors[email] ?? "var(--neutral-700)" }}>
                                                       {email[0].toUpperCase()}
                                                     </div>
                                                   )}
@@ -2143,16 +2202,16 @@ export default function LeadDetailPage() {
                                           </Popover>
                                         )}
                                       </>
-                                    ) : <span className="text-[10px] text-muted-foreground">—</span>}
+                                    ) : <span className="text-[12px] text-muted-foreground">—</span>}
                                   </div>
                                 </div>
                                 {item.meetLink && (
                                   <div>
-                                    <p className="text-[10px] text-muted-foreground">Link do Meet / Zoom</p>
+                                    <p className="text-[12px] text-muted-foreground">Link do Meet / Zoom</p>
                                     <a href={item.meetLink} target="_blank" rel="noopener noreferrer"
                                       onClick={e => e.stopPropagation()}
                                       className="flex items-center gap-0.5 text-xs mt-0.5"
-                                      style={{ color: "hsl(var(--primary))" }}
+                                      style={{ color: "var(--text-link)" }}
                                     >
                                       <Link size={10} className="shrink-0" /> <span className="truncate">{item.meetLink}</span>
                                     </a>
@@ -2163,8 +2222,8 @@ export default function LeadDetailPage() {
                             {/* Descrição */}
                             {item.title && item.description && (
                               <div>
-                                <p className="text-[10px] text-muted-foreground">Descrição</p>
-                                <p className="text-xs mt-0.5 leading-snug" style={{ color: "#111111" }}>{item.description}</p>
+                                <p className="text-[12px] text-muted-foreground">Descrição</p>
+                                <p className="text-xs mt-0.5 leading-snug" style={{ color: "var(--text-heading)" }}>{item.description}</p>
                               </div>
                             )}
                           </div>
@@ -2181,7 +2240,7 @@ export default function LeadDetailPage() {
                     : item.type === "transfer"
                     ? { c: "#8B5CF6", I: ArrowRightLeft }
                     : item.type === "won"
-                    ? { c: "#128A68", I: Trophy }
+                    ? { c: "var(--accent-700)", I: Trophy }
                     : { c: "#E24B4A", I: XCircle };
                   const Icon = meta.I;
                   return (
@@ -2193,11 +2252,11 @@ export default function LeadDetailPage() {
                         >
                           <Icon size={10} color="#FFFFFF" />
                         </div>
-                        {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "#E5E5E5", minHeight: 12 }} />}
+                        {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "var(--neutral-200)", minHeight: 12 }} />}
                       </div>
                       <div className="flex-1 min-w-0 pt-0.5">
-                        <p className="font-medium" style={{ color: "#111111", fontSize: 13 }}>{item.description}</p>
-                        <p className="text-muted-foreground mt-0.5" style={{ fontSize: 11 }}>
+                        <p className="font-medium" style={{ color: "var(--text-heading)", fontSize: 13 }}>{item.description}</p>
+                        <p className="text-muted-foreground mt-0.5" style={{ fontSize: 12 }}>
                           {fmtActivityDate(item.date)}
                           {item.userName && <> · <span className="font-medium">{item.userName}</span></>}
                         </p>
@@ -2206,7 +2265,7 @@ export default function LeadDetailPage() {
                   );
                 })}
 
-                <div className="text-xs italic text-center py-2" style={{ color: "#AAAAAA" }}>
+                <div className="text-xs italic text-center py-2" style={{ color: "var(--text-muted)" }}>
                   {(() => {
                     const d = lead.created_at ? new Date(lead.created_at) : null;
                     if (!d || isNaN(d.getTime())) return "Negócio criado";
@@ -2245,7 +2304,7 @@ export default function LeadDetailPage() {
                       ) : (
                         <div
                           className="w-5 h-5 rounded-full flex items-center justify-center text-white shrink-0"
-                          style={{ fontSize: 9, fontWeight: 700, background: memberColors[m] || "#888" }}
+                          style={{ fontSize: 12, fontWeight: 700, background: memberColors[m] || "var(--neutral-700)" }}
                         >
                           {m[0]}
                         </div>
@@ -2267,7 +2326,7 @@ export default function LeadDetailPage() {
                     <Button
                       size="sm"
                       className="rounded-md h-8 text-xs"
-                      style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }}
+                      style={{ background: "hsl(var(--primary))", color: "var(--text-on-accent)" }}
                       onClick={openActivityDialog}
                     >
                       <Plus size={13} className="mr-1" /> Nova atividade
@@ -2298,11 +2357,11 @@ export default function LeadDetailPage() {
                         key={act.id}
                         className="group"
                         style={{
-                          background: act.pinned ? "#FFFBEB" : "#FAFAF7",
+                          background: act.pinned ? "var(--warning-bg)" : "#FAFAF7",
                           border: act.pinned
                             ? "1px solid #FCD34D"
                             : isCompleted
-                            ? "1.5px solid #128A68"
+                            ? "1.5px solid var(--accent-700)"
                             : isNoShow
                             ? "1.5px solid #E24B4A"
                             : isOverdue
@@ -2315,34 +2374,34 @@ export default function LeadDetailPage() {
                           {memberAvatars[lead.responsible] ? (
                             <img src={memberAvatars[lead.responsible]} alt={lead.responsible} className="w-6 h-6 rounded-full object-cover shrink-0" />
                           ) : (
-                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: respColor }}>
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: respColor }}>
                               {lead.responsible?.[0] ?? "?"}
                             </div>
                           )}
-                          <span className="text-xs font-semibold" style={{ color: "#111111" }}>{lead.responsible}</span>
-                          <span className="text-[11px] text-muted-foreground"><span className="font-medium">Criado:</span> {fmtActivityDate(act.date)}</span>
+                          <span className="text-xs font-semibold" style={{ color: "var(--text-heading)" }}>{lead.responsible}</span>
+                          <span className="text-[12px] text-muted-foreground"><span className="font-medium">Criado:</span> {fmtActivityDate(act.date)}</span>
                           {act.pinned && (
-                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEF3C7", color: "#D97706" }}>
+                            <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--warning-bg)", color: "var(--warning-fg)" }}>
                               Fixada
                             </span>
                           )}
                           <div className="ml-auto flex items-center gap-1">
                             {isCompleted ? (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#DCFCE7", color: "#128A68" }}>Realizada</span>
+                              <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "var(--accent-50)", color: "var(--accent-800)" }}>Realizada</span>
                             ) : isNoShow ? (
-                              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#FEF3C7", color: "#D97706" }}>No-show</span>
+                              <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded-full mr-1" style={{ background: "var(--warning-bg)", color: "var(--warning-fg)" }}>No-show</span>
                             ) : (
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full mr-1" style={{ background: "#F0F0F0", color: "#555555" }}>
+                              <span className="text-[12px] font-medium px-1.5 py-0.5 rounded-full mr-1" style={{ background: "var(--neutral-100)", color: "var(--text-muted)" }}>
                                 {actTypeLabels[act.type] ?? act.type}
                               </span>
                             )}
                             <button
                               onClick={() => pinActivity(lead.id, act.id, !act.pinned)}
                               className="flex items-center justify-center rounded-md transition-colors"
-                              style={{ width: 24, height: 24, background: act.pinned ? "#FEF3C7" : "transparent" }}
+                              style={{ width: 24, height: 24, background: act.pinned ? "var(--warning-bg)" : "transparent" }}
                               title={act.pinned ? "Desafixar atividade" : "Fixar atividade"}
                             >
-                              <Pin size={13} style={{ color: act.pinned ? "#D97706" : "#AAAAAA" }} />
+                              <Pin size={13} style={{ color: act.pinned ? "var(--warning-fg)" : "var(--text-muted)" }} />
                             </button>
                             <button
                               onClick={() => openEditActivityDialog(act)}
@@ -2370,8 +2429,8 @@ export default function LeadDetailPage() {
                                 className="flex-shrink-0 mt-0.5 transition-all"
                                 style={{
                                   width: 18, height: 18, borderRadius: "50%",
-                                  border: `2px solid ${isCompleted ? "#128A68" : isNoShow ? "#D97706" : isOverdue ? "#E24B4A" : "#AAAAAA"}`,
-                                  background: isCompleted ? "#128A68" : isNoShow ? "#D97706" : "transparent",
+                                  border: `2px solid ${isCompleted ? "var(--accent-700)" : isNoShow ? "var(--warning-400)" : isOverdue ? "var(--danger-400)" : "#AAAAAA"}`,
+                                  background: isCompleted ? "var(--accent-700)" : isNoShow ? "var(--warning-400)" : "transparent",
                                   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
                                 }}
                               >
@@ -2383,10 +2442,10 @@ export default function LeadDetailPage() {
                               {!isCompleted && !isNoShow && (
                                 <>
                                   <DropdownMenuItem onClick={() => completeActivity(lead.id, act.id)}>
-                                    <Check size={13} className="mr-2 text-green-600" /> Marcar como realizada
+                                    <Check size={13} className="mr-2 text-[color:var(--accent-700)]" /> Marcar como realizada
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => markNoShow(lead.id, act.id)}>
-                                    <X size={13} className="mr-2 text-amber-600" /> No-show
+                                    <X size={13} className="mr-2 text-[color:var(--warning-fg)]" /> No-show
                                   </DropdownMenuItem>
                                 </>
                               )}
@@ -2399,42 +2458,42 @@ export default function LeadDetailPage() {
                           </DropdownMenu>
                           <div className="flex-1 min-w-0 space-y-1.5">
                             {/* Título */}
-                            <p className="text-sm font-semibold" style={{ color: "#111111" }}>{act.title || act.description}</p>
+                            <p className="text-sm font-semibold" style={{ color: "var(--text-heading)" }}>{act.title || act.description}</p>
                             {/* Tarefa + Data e hora */}
                             <div className="grid grid-cols-2 gap-2">
                               <div>
-                                <p className="text-[10px] text-muted-foreground">Tarefa</p>
+                                <p className="text-[12px] text-muted-foreground">Tarefa</p>
                                 <div className="flex items-center gap-1 mt-0.5">
                                   <ActTypeIcon size={11} className="text-muted-foreground shrink-0" />
-                                  <span className="text-xs" style={{ color: "#111111" }}>{actTypeLabels[act.type] ?? act.type}</span>
+                                  <span className="text-xs" style={{ color: "var(--text-heading)" }}>{actTypeLabels[act.type] ?? act.type}</span>
                                 </div>
                               </div>
                               {scheduledDate && (
                                 <div>
-                                  <p className="text-[10px] text-muted-foreground">Data e hora</p>
-                                  <p className="text-xs mt-0.5" style={{ color: "#111111" }}>{fmtActivityDate(act.scheduledAt!)}</p>
+                                  <p className="text-[12px] text-muted-foreground">Data e hora</p>
+                                  <p className="text-xs mt-0.5" style={{ color: "var(--text-heading)" }}>{fmtActivityDate(act.scheduledAt!)}</p>
                                 </div>
                               )}
                             </div>
                             {/* Badge vencida */}
                             {isOverdue && (
                               <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "#FEE2E2", color: "#E24B4A" }}>Vencida</span>
+                                <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "var(--danger-bg)", color: "var(--danger-fg)" }}>Vencida</span>
                               </div>
                             )}
                             {/* Participantes + Link */}
                             {(act.participants?.length || act.meetLink) ? (
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                  <p className="text-[10px] text-muted-foreground">Participantes</p>
+                                  <p className="text-[12px] text-muted-foreground">Participantes</p>
                                   <div className="flex items-center gap-1 mt-0.5">
                                     {act.participants && act.participants.length > 0 ? (
                                       <>
-                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] border border-card-border bg-background">
+                                        <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[12px] border border-card-border bg-background">
                                           {memberAvatars[act.participants[0]] ? (
                                             <img src={memberAvatars[act.participants[0]]} alt={act.participants[0]} className="w-3.5 h-3.5 rounded-full object-cover shrink-0" />
                                           ) : (
-                                            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[act.participants[0]] ?? "#AAAAAA" }}>
+                                            <div className="w-3.5 h-3.5 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: memberColors[act.participants[0]] ?? "var(--text-muted)" }}>
                                               {act.participants[0][0].toUpperCase()}
                                             </div>
                                           )}
@@ -2443,18 +2502,18 @@ export default function LeadDetailPage() {
                                         {act.participants.length > 1 && (
                                           <Popover>
                                             <PopoverTrigger asChild>
-                                              <button className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-card-border hover:bg-muted/80 transition-colors">
+                                              <button className="text-[12px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-card-border hover:bg-muted/80 transition-colors">
                                                 +{act.participants.length - 1}
                                               </button>
                                             </PopoverTrigger>
                                             <PopoverContent align="start" className="w-56 p-2 space-y-1">
-                                              <p className="text-[10px] text-muted-foreground font-medium px-1 mb-1.5">Todos os participantes</p>
+                                              <p className="text-[12px] text-muted-foreground font-medium px-1 mb-1.5">Todos os participantes</p>
                                               {act.participants.map(email => (
                                                 <div key={email} className="flex items-center gap-1.5 px-1 py-0.5 rounded text-xs">
                                                   {memberAvatars[email] ? (
                                                     <img src={memberAvatars[email]} alt={email} className="w-4 h-4 rounded-full object-cover shrink-0" />
                                                   ) : (
-                                                    <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0" style={{ background: memberColors[email] ?? "#AAAAAA" }}>
+                                                    <div className="w-4 h-4 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: memberColors[email] ?? "var(--neutral-700)" }}>
                                                       {email[0].toUpperCase()}
                                                     </div>
                                                   )}
@@ -2465,16 +2524,16 @@ export default function LeadDetailPage() {
                                           </Popover>
                                         )}
                                       </>
-                                    ) : <span className="text-[10px] text-muted-foreground">—</span>}
+                                    ) : <span className="text-[12px] text-muted-foreground">—</span>}
                                   </div>
                                 </div>
                                 {act.meetLink && (
                                   <div>
-                                    <p className="text-[10px] text-muted-foreground">Link do Meet / Zoom</p>
+                                    <p className="text-[12px] text-muted-foreground">Link do Meet / Zoom</p>
                                     <a href={act.meetLink} target="_blank" rel="noopener noreferrer"
                                       onClick={e => e.stopPropagation()}
                                       className="flex items-center gap-0.5 text-xs mt-0.5"
-                                      style={{ color: "hsl(var(--primary))" }}
+                                      style={{ color: "var(--text-link)" }}
                                     >
                                       <Link size={10} className="shrink-0" /> <span className="truncate">{act.meetLink}</span>
                                     </a>
@@ -2485,8 +2544,8 @@ export default function LeadDetailPage() {
                             {/* Descrição */}
                             {act.title && act.description && (
                               <div>
-                                <p className="text-[10px] text-muted-foreground">Descrição</p>
-                                <p className="text-xs mt-0.5 leading-snug" style={{ color: "#111111" }}>{act.description}</p>
+                                <p className="text-[12px] text-muted-foreground">Descrição</p>
+                                <p className="text-xs mt-0.5 leading-snug" style={{ color: "var(--text-heading)" }}>{act.description}</p>
                               </div>
                             )}
                           </div>
@@ -2496,7 +2555,7 @@ export default function LeadDetailPage() {
                   })}
 
                 {leadTasks.length === 0 ? (
-                  <div className="text-center py-10 border border-dashed rounded-lg" style={{ borderColor: "#E5E5E5" }}>
+                  <div className="text-center py-10 border border-dashed rounded-lg" style={{ borderColor: "var(--border-default)" }}>
                     <p className="text-sm text-muted-foreground">Nenhuma tarefa para este lead</p>
                   </div>
                 ) : (
@@ -2509,7 +2568,7 @@ export default function LeadDetailPage() {
                       <div
                         key={t.id}
                         className="flex items-center gap-3 p-3 rounded-lg"
-                        style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}
+                        style={{ background: "var(--surface-card)", border: "1px solid var(--border-default)" }}
                       >
                         <Checkbox
                           checked={done}
@@ -2517,21 +2576,21 @@ export default function LeadDetailPage() {
                         />
                         <div
                           className="w-8 h-8 rounded-md flex items-center justify-center shrink-0"
-                          style={{ background: "#E1F5EE", color: "#128A68" }}
+                          style={{ background: "var(--accent-50)", color: "var(--accent-800)" }}
                         >
                           <CheckSquare size={14} />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`text-sm font-medium ${done ? "line-through text-muted-foreground" : ""}`} style={{ color: done ? undefined : "#111111" }}>
+                          <p className={`text-sm font-medium ${done ? "line-through text-muted-foreground" : ""}`} style={{ color: done ? undefined : "var(--text-heading)" }}>
                             {t.title}
                           </p>
                           <p className="text-xs text-muted-foreground">{dueLabel}{dueLabel && " · "}{t.responsible}</p>
                         </div>
                         <Badge
-                          className="border-0 text-[10px]"
+                          className="border-0 text-[12px]"
                           style={{
-                            background: done ? "#E1F5EE" : "#FEF3C7",
-                            color: done ? "#085041" : "#92400E",
+                            background: done ? "var(--accent-50)" : "var(--warning-bg)",
+                            color: done ? "var(--accent-800)" : "var(--warning-fg)",
                           }}
                         >
                           {done ? "Concluída" : "Pendente"}
@@ -2546,8 +2605,8 @@ export default function LeadDetailPage() {
 
             {tab === "email" && (
               <div className="text-center py-16 px-6">
-                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-amber-50 mb-4">
-                  <Mail size={26} className="text-amber-400" />
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[color:var(--warning-bg)] mb-4">
+                  <Mail size={26} className="text-[color:var(--warning-400)]" />
                 </div>
                 <p className="text-sm font-semibold text-gray-700 mb-1">Em breve</p>
                 <p className="text-xs text-muted-foreground max-w-xs mx-auto">
@@ -2562,11 +2621,11 @@ export default function LeadDetailPage() {
                 <input ref={fileUploadRef} type="file" className="hidden" onChange={handleFileUpload} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip" />
                 <div
                   className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/30 transition-colors"
-                  style={{ borderColor: uploading ? "#128A68" : "#E5E5E5" }}
+                  style={{ borderColor: uploading ? "var(--accent-700)" : "var(--border-default)" }}
                   onClick={() => !uploading && fileUploadRef.current?.click()}
                 >
-                  <Upload size={24} className="mx-auto mb-2" style={{ color: uploading ? "#128A68" : "#AAAAAA" }} />
-                  <p className="text-sm font-medium" style={{ color: "#111111" }}>
+                  <Upload size={24} className="mx-auto mb-2" style={{ color: uploading ? "var(--accent-700)" : "var(--text-muted)" }} />
+                  <p className="text-sm font-medium" style={{ color: "var(--text-heading)" }}>
                     {uploading ? "Enviando…" : "Clique para enviar um arquivo"}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">PDF, DOCX, XLSX, imagens</p>
@@ -2578,17 +2637,17 @@ export default function LeadDetailPage() {
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Enviados manualmente</p>
                     <div className="space-y-2">
                       {uploadedFiles.map(f => (
-                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg group" style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}>
-                          <div className="w-9 h-9 rounded-md bg-[#E1F5EE] flex items-center justify-center shrink-0" style={{ color: "#128A68" }}>
+                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg group" style={{ background: "var(--surface-card)", border: "1px solid var(--border-default)" }}>
+                          <div className="w-9 h-9 rounded-md bg-[#E1F5EE] flex items-center justify-center shrink-0" style={{ color: "var(--accent-700)" }}>
                             {f.mimeType.startsWith("image/") ? <ImageIcon size={16} /> : <FileText size={16} />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate" style={{ color: "#111111" }}>{f.name}</p>
+                            <p className="text-sm font-medium truncate" style={{ color: "var(--text-heading)" }}>{f.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {formatBytes(f.size)} · {new Date(f.createdAt).toLocaleDateString("pt-BR")} · {f.uploadedBy}
                             </p>
                           </div>
-                          <button onClick={() => handleDownloadFile(f)} className="text-muted-foreground hover:text-[#128A68] p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Baixar">
+                          <button onClick={() => handleDownloadFile(f)} className="text-muted-foreground hover:text-[color:var(--text-link)] p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Baixar">
                             <Download size={14} />
                           </button>
                           <button onClick={() => handleDeleteFile(f)} disabled={deletingFileId === f.id} className="text-muted-foreground hover:text-[#E24B4A] p-1 opacity-0 group-hover:opacity-100 transition-opacity" title="Excluir">
@@ -2606,17 +2665,17 @@ export default function LeadDetailPage() {
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Via WhatsApp</p>
                     <div className="space-y-2">
                       {waFiles.map(f => (
-                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "#FFFFFF", border: "1px solid #E5E5E5" }}>
-                          <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0" style={{ background: "#F0FDF4", color: "#25D366" }}>
+                        <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg" style={{ background: "var(--surface-card)", border: "1px solid var(--border-default)" }}>
+                          <div className="w-9 h-9 rounded-md flex items-center justify-center shrink-0" style={{ background: "var(--accent-50)", color: "#25D366" }}>
                             {f.type === "image" ? <ImageIcon size={16} /> : <FileText size={16} />}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate" style={{ color: "#111111" }}>{f.name}</p>
+                            <p className="text-sm font-medium truncate" style={{ color: "var(--text-heading)" }}>{f.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {new Date(f.createdAt).toLocaleDateString("pt-BR")} · {f.senderName} · {f.fromMe ? "Enviado" : "Recebido"}
                             </p>
                           </div>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: "#E1F5EE", color: "#128A68" }}>WhatsApp</span>
+                          <span className="text-[12px] font-semibold px-2 py-0.5 rounded-full shrink-0" style={{ background: "var(--accent-50)", color: "var(--accent-800)" }}>WhatsApp</span>
                         </div>
                       ))}
                     </div>
@@ -2684,25 +2743,25 @@ export default function LeadDetailPage() {
             <div className="px-5 pb-4 min-w-0">
               <div className="rounded-md border border-border bg-muted/30 px-4 py-2.5 flex items-center gap-2 min-w-0 overflow-hidden">
                 <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
-                  <span className="text-[11px] text-muted-foreground/50 truncate w-full text-center">{currentCol?.colTitle}</span>
+                  <span className="text-[12px] text-muted-foreground/50 truncate w-full text-center">{currentCol?.colTitle}</span>
                   <span className="block h-[2px] w-full rounded-full bg-muted-foreground/20" />
                 </div>
                 <ChevronRight className="h-3 w-3 text-primary/60 shrink-0" />
                 <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
-                  <span className="text-[11px] text-primary font-semibold truncate w-full text-center">{nextCol?.colTitle}</span>
+                  <span className="text-[12px] text-primary font-semibold truncate w-full text-center">{nextCol?.colTitle}</span>
                   <span className="block h-[2px] w-full rounded-full bg-primary" />
                 </div>
                 {stepsLeft > 1 && (
                   <>
-                    <span className="text-[10px] text-muted-foreground/30 shrink-0">→ ···</span>
+                    <span className="text-[12px] text-muted-foreground/30 shrink-0">→ ···</span>
                     <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
-                      <span className="text-[11px] text-muted-foreground/30 truncate w-full text-center">{finalCol?.colTitle}</span>
+                      <span className="text-[12px] text-muted-foreground/30 truncate w-full text-center">{finalCol?.colTitle}</span>
                       <span className="block h-[2px] w-full rounded-full bg-transparent" />
                     </div>
                   </>
                 )}
                 {totalMoves > 1 && (
-                  <span className="ml-auto text-[10px] text-muted-foreground/40 shrink-0 whitespace-nowrap">
+                  <span className="ml-auto text-[12px] text-muted-foreground/40 shrink-0 whitespace-nowrap">
                     {pa.currentStep + 1}/{totalMoves}
                   </span>
                 )}
@@ -2785,7 +2844,7 @@ export default function LeadDetailPage() {
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <XCircle size={16} style={{ color: "#E24B4A" }} />
+            <XCircle size={16} style={{ color: "var(--danger-fg)" }} />
             Motivo da perda
           </DialogTitle>
         </DialogHeader>
@@ -2828,59 +2887,26 @@ export default function LeadDetailPage() {
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Trophy size={16} style={{ color: "#128A68" }} />
+            <Trophy size={16} style={{ color: "var(--accent-700)" }} />
             Confirmar ganho
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Produto */}
-          <div>
-            <label className="block text-xs font-medium mb-1.5" style={{ color: "#555" }}>
-              Produto{lead.productId ? "" : " *"}
-            </label>
-            {lead.productId ? (
-              <p className="text-sm px-3 py-2 rounded-lg border border-gray-400 bg-muted text-foreground">
-                {products.find(p => p.id === lead.productId)?.name ?? "—"}
-              </p>
-            ) : (
-              <>
-                <p className="text-xs text-muted-foreground mb-2">
-                  Nenhum produto vinculado. Selecione para registrar o ganho.
-                </p>
-                <Select
-                  value={wonProductId}
-                  onValueChange={id => {
-                    setWonProductId(id);
-                    const prod = products.find(p => p.id === id);
-                    setWonCustomValue(prod && prod.defaultValue > 0 ? fmtBRL(prod.defaultValue) : "");
-                  }}
-                >
-                  <SelectTrigger className="rounded-lg border-gray-400 focus:ring-0 focus:ring-offset-0 focus:border-primary">
-                    <SelectValue placeholder="Escolha um produto" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Selecione um produto</SelectItem>
-                    {products.map(p => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name}
-                        {p.defaultValue > 0 && (
-                          <span className="ml-2 text-muted-foreground text-xs">
-                            {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(p.defaultValue)}
-                          </span>
-                        )}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </>
-            )}
-          </div>
+          {/* A MESMA lista da tela, e editável.
+              Quem está fechando pode acrescentar o que entrou no pacote sem sair
+              do diálogo -- antes havia aqui um seletor de UM produto, e fechar
+              uma venda de dois obrigava a cancelar, editar ao lado e voltar. O
+              valor abaixo acompanha a soma enquanto ninguém o digitar.
+
+              Sem rótulo próprio: o componente já traz o dele, e os dois juntos
+              escreviam "Produtos" duas vezes seguidas. */}
+          <ItensDoNegocio leadId={lead.id} itens={lead.itens ?? []} />
 
           {/* Valor da transação — aparece quando produto está selecionado ou já vinculado */}
-          {(lead.productId || (wonProductId && wonProductId !== "none")) && (
+          {(lead.itens?.length ?? 0) > 0 && (
             <div>
-              <label className="block text-xs font-medium mb-1.5" style={{ color: "#555" }}>
+              <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--text-muted)" }}>
                 Valor da transação
               </label>
               <div className="relative">
@@ -2889,7 +2915,7 @@ export default function LeadDetailPage() {
                   type="text"
                   inputMode="decimal"
                   value={wonCustomValue}
-                  onChange={e => setWonCustomValue(e.target.value)}
+                  onChange={e => { setValorTocado(true); setWonCustomValue(e.target.value); }}
                   onBlur={() => {
                     const n = parseFloat(wonCustomValue.replace(/\./g, "").replace(",", "."));
                     if (!isNaN(n)) setWonCustomValue(fmtBRL(n));
@@ -2899,8 +2925,8 @@ export default function LeadDetailPage() {
                   className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-400 bg-background text-foreground focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Valor pré-definido do produto. Altere caso tenha negociado um valor diferente.
+              <p className="text-[12px] text-muted-foreground mt-1">
+                Valor do negócio. Altere se fechou por outro valor.
               </p>
             </div>
           )}
@@ -2913,8 +2939,10 @@ export default function LeadDetailPage() {
           </Button>
           <Button
             className="rounded-lg"
-            disabled={!lead.productId && (!wonProductId || wonProductId === "none")}
-            style={{ background: "#128A68", color: "#FFFFFF" }}
+            // Pelo menos um produto: é o que a atividade de ganho registra, e
+            // sem ele o histórico não diz o que foi vendido.
+            disabled={(lead.itens?.length ?? 0) === 0}
+            style={{ background: "var(--surface-accent)", color: "var(--text-on-accent)" }}
             onClick={handleConfirmWon}
           >
             <Trophy size={14} className="mr-1.5" />

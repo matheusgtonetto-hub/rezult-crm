@@ -27,6 +27,7 @@ import { CreateDealDialog } from "@/components/CreateDealDialog";
 import { ImportLeadsModal } from "@/components/ImportLeadsModal";
 import { LeadDrawer } from "@/components/LeadDrawer";
 import { toast } from "sonner";
+import { tintaSobre } from "@/lib/contraste";
 
 export default function LeadsPage() {
   const { leads, contacts, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, deleteLeadAndContact, deleteContact, crmTags, crmLists } = useCRM();
@@ -106,6 +107,28 @@ export default function LeadsPage() {
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, leads, setSearchParams]);
+
+  /**
+   * Chegada com o status já escolhido (`?status=won|lost|open`).
+   *
+   * É por aqui que entram as setas dos cartões do topo do dashboard: "Total em
+   * vendas" abre esta lista já mostrando só os ganhos. Sem isso a seta levaria
+   * à lista inteira, e a pessoa teria de refazer à mão o recorte que acabou de
+   * clicar.
+   *
+   * O parâmetro é consumido e apagado, como o `?lead=`: ele descreve a CHEGADA,
+   * e não o estado da tela. Mantido na URL, um F5 depois de a pessoa limpar o
+   * filtro traria o filtro de volta.
+   */
+  useEffect(() => {
+    const status = searchParams.get("status");
+    if (!status) return;
+    const validos = ["won", "lost", "open"] as const;
+    const escolhido = validos.find(v => v === status);
+    if (escolhido) setFiltros(f => ({ ...f, dealStatus: [escolhido] }));
+    searchParams.delete("status");
+    setSearchParams(searchParams, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   // Create deal modal
   const [dealTarget, setDealTarget] = useState<Lead | null>(null);
@@ -313,9 +336,9 @@ export default function LeadsPage() {
         `flex-wrap` para os botões descerem para baixo do texto em tela estreita,
         em vez de espremerem o título.
       */}
-      <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-6 mb-6 flex items-start justify-between gap-6 flex-wrap">
+      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-6 mb-6 flex items-start justify-between gap-6 flex-wrap">
         <div className="min-w-0">
-          <h1 className="text-[23px] font-semibold text-foreground">Leads</h1>
+          <h1 className="text-[24px] font-semibold text-foreground">Leads</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
             Consulte, crie, modifique ou remova seus leads
           </p>
@@ -417,7 +440,7 @@ export default function LeadsPage() {
           </Button>
         </div>
       ) : (
-        <div className="bg-card border border-card-border rounded-lg overflow-hidden">
+        <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 overflow-hidden">
           {/* `text-xs` na tabela, e não em cada célula: nome, responsável, contato
               e os cabeçalhos herdam daqui, e a próxima coluna nasce no mesmo
               corpo sem ninguém precisar lembrar. Quem tem tamanho próprio
@@ -474,7 +497,7 @@ export default function LeadsPage() {
                     </div>
                   </TableCell>
                   <TableCell className="text-center">
-                    <span className="text-[11px] px-2 py-0.5 rounded-full font-medium text-muted-foreground border border-card-border">
+                    <span className="text-[12px] px-2 py-0.5 rounded-full font-medium text-muted-foreground border border-card-border">
                       Sem negócio
                     </span>
                   </TableCell>
@@ -488,7 +511,7 @@ export default function LeadsPage() {
                         : (row.contact.tags ?? []).map(tagName => {
                             const t = crmTags.find(x => x.name === tagName);
                             return (
-                              <span key={tagName} className="text-[10px] px-2 rounded-full text-white font-medium" style={{ paddingTop: 1, paddingBottom: 1, background: t?.color || "#888" }}>
+                              <span key={tagName} className="text-[12px] px-2 rounded-full font-medium" style={{ paddingTop: 1, paddingBottom: 1, background: t?.color || "var(--neutral-100)", color: tintaSobre(t?.color) }}>
                                 {tagName}
                               </span>
                             );
@@ -536,7 +559,11 @@ export default function LeadsPage() {
               ) : (
                 <TableRow
                   key={row.lead.id}
-                  className="border-card-border hover:bg-secondary/50 cursor-pointer"
+                  /* `data-state` é o que o TableRow do sistema lê para pintar a
+                     linha selecionada em emerald claro. Sem ele, a marcação
+                     acontecia só dentro da caixa e a linha seguia branca. */
+                  data-state={selectedIds.has(row.lead.id) ? "selected" : undefined}
+                  className="cursor-pointer"
                   onClick={() => setDrawerLeadId(row.lead.id)}
                 >
                   <TableCell className="font-medium text-foreground">
@@ -574,17 +601,18 @@ export default function LeadsPage() {
                           <div className="flex items-center" style={{ gap: 0 }}>
                             {resps.slice(0, 3).map((name, idx) => {
                               const av = memberAvatars[name];
-                              const cl = memberColors[name] ?? "#AAAAAA";
+                              // O cinza claro anterior (#AAAAAA) dava 2,32:1 com a inicial branca.
+                              const cl = memberColors[name] ?? "var(--neutral-700)";
                               return av ? (
                                 <img key={name} src={av} alt={name} title={name} className="rounded-full object-cover" style={{ width: 22, height: 22, marginLeft: idx > 0 ? -6 : 0, outline: "2px solid hsl(var(--card))" }} />
                               ) : (
-                                <div key={name} title={name} className="rounded-full flex items-center justify-center text-white font-semibold" style={{ width: 22, height: 22, background: cl, fontSize: 9, marginLeft: idx > 0 ? -6 : 0, outline: "2px solid hsl(var(--card))" }}>
+                                <div key={name} title={name} className="rounded-full flex items-center justify-center font-semibold" style={{ width: 22, height: 22, background: cl, color: tintaSobre(cl), fontSize: 12, marginLeft: idx > 0 ? -6 : 0, outline: "2px solid hsl(var(--card))" }}>
                                   {name[0].toUpperCase()}
                                 </div>
                               );
                             })}
                             {resps.length > 3 && (
-                              <div className="rounded-full flex items-center justify-center font-semibold" style={{ width: 22, height: 22, background: "#E5E5E5", color: "#555", fontSize: 9, marginLeft: -6, outline: "2px solid hsl(var(--card))" }}>
+                              <div className="rounded-full flex items-center justify-center font-semibold" style={{ width: 22, height: 22, background: "var(--neutral-200)", color: "var(--text-muted)", fontSize: 12, marginLeft: -6, outline: "2px solid hsl(var(--card))" }}>
                                 +{resps.length - 3}
                               </div>
                             )}
@@ -605,12 +633,12 @@ export default function LeadsPage() {
                       return (
                         <div className="flex items-start justify-center" style={{ gap: 25 }}>
                           <div style={{ lineHeight: 1.4 }}>
-                            <div style={{ fontSize: 10 }} className="text-muted-foreground">Receita:</div>
+                            <div style={{ fontSize: 12 }} className="text-muted-foreground">Receita:</div>
                             <div style={{ fontSize: 14 }} className="font-semibold text-foreground">{fmtBRL(total)}</div>
                           </div>
                           <div className="flex flex-col items-center" style={{ lineHeight: 1.4 }}>
-                            <div className="flex items-center justify-center font-semibold text-foreground" style={{ width: 26, height: 26, fontSize: 14, borderRadius: 5, border: "1.5px solid #16a34a", background: "transparent" }}>{count}</div>
-                            <div style={{ fontSize: 8 }} className="text-muted-foreground">Compras</div>
+                            <div className="flex items-center justify-center font-semibold text-foreground" style={{ width: 26, height: 26, fontSize: 14, borderRadius: 8, border: "1.5px solid var(--accent-500)", background: "transparent" }}>{count}</div>
+                            <div style={{ fontSize: 12 }} className="text-muted-foreground">Compras</div>
                           </div>
                         </div>
                       );
@@ -623,7 +651,7 @@ export default function LeadsPage() {
                         : (row.lead.tags ?? []).map(tagName => {
                             const t = crmTags.find(x => x.name === tagName);
                             return (
-                              <span key={tagName} className="text-[10px] px-2 rounded-full text-white font-medium" style={{ paddingTop: 1, paddingBottom: 1, background: t?.color || "#888" }}>
+                              <span key={tagName} className="text-[12px] px-2 rounded-full font-medium" style={{ paddingTop: 1, paddingBottom: 1, background: t?.color || "var(--neutral-100)", color: tintaSobre(t?.color) }}>
                                 {tagName}
                               </span>
                             );

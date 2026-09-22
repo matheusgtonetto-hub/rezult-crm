@@ -4,12 +4,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const alertVariants = cva(
-  "relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground",
+  "relative w-full rounded-2xl border p-4 text-sm [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:size-4",
   {
     variants: {
       variant: {
-        default: "bg-background text-foreground",
-        destructive: "border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive",
+        default: "border-border bg-card text-foreground [&>svg]:text-[color:var(--icon-default)]",
+        soft: "border-[color:var(--accent-200)] bg-[color:var(--accent-50)] text-[color:var(--accent-800)] [&>svg]:text-[color:var(--accent-700)]",
+        warning:
+          "border-[color:var(--warning-400)]/40 bg-[color:var(--warning-bg)] text-[color:var(--warning-fg)] [&>svg]:text-[color:var(--warning-fg)]",
+        destructive:
+          "border-[color:var(--danger-400)]/40 bg-[color:var(--danger-bg)] text-[color:var(--danger-fg)] [&>svg]:text-[color:var(--danger-fg)]",
       },
     },
     defaultVariants: {

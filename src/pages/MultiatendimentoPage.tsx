@@ -27,8 +27,7 @@ import {
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, CheckCheck, FileText, Reply, Copy, Ban, Forward, CornerUpLeft,
   MessageSquare, MessageCircle, Plus, ArrowLeft, ArrowRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
   Download, Pencil, Trash2, Inbox, RefreshCw, BotMessageSquare,
-  StickyNote, ArrowRightLeft, Trophy, XCircle, PlusCircle, Phone, Mail, ArrowLeftRight, CheckSquare,
-  Bold, Italic, Underline, ListOrdered,
+  StickyNote, Phone, Mail, Bold, Italic, Underline, ListOrdered,
   type LucideIcon,
 } from "lucide-react";
 import { ActivityDialog } from "@/components/ActivityDialog";
@@ -58,6 +57,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { tintaSobre, tintaDeChip } from "@/lib/contraste";
+import { ACT_META } from "@/lib/atividades";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
 function nowTime() {
@@ -213,13 +214,13 @@ function makeInitialConvStates(): Record<string, ConvState> {
 function ChannelBadge({ channel }: { channel: Channel }) {
   if (channel === "whatsapp") {
     return (
-      <span style={{ position: "absolute", bottom: -2, right: -2, borderRadius: "50%", border: "2px solid #FFF", background: "#FFF", lineHeight: 0 }}>
-        <svg viewBox="0 0 24 24" width={12} height={12}><circle cx="12" cy="12" r="12" fill="#25D366" /><path fill="#FFF" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" /></svg>
+      <span style={{ position: "absolute", bottom: -2, right: -2, borderRadius: "50%", border: "2px solid var(--surface-card)", background: "var(--surface-card)", lineHeight: 0 }}>
+        <svg viewBox="0 0 24 24" width={12} height={12}><circle cx="12" cy="12" r="12" fill="#25D366" /><path fill="var(--surface-card)" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" /></svg>
       </span>
     );
   }
   return (
-    <span style={{ position: "absolute", bottom: -2, right: -2, width: 14, height: 14, borderRadius: "50%", background: "#E1306C", border: "2px solid #FFF", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 7, fontWeight: 700 }}>I</span>
+    <span style={{ position: "absolute", bottom: -2, right: -2, width: 14, height: 14, borderRadius: "50%", background: "#E1306C", border: "2px solid var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 12, fontWeight: 700 }}>I</span>
   );
 }
 
@@ -291,20 +292,6 @@ const PROFILE_FIELD_DEFS: { key: string; label: string; type?: "text" | "email" 
 
 // Mesma timeline de atividades do LeadDrawer.tsx (aba Histórico) -- mesmos
 // ícones/cores por tipo, pra ficar idêntico ao que abre em /leads.
-const ACT_META: Record<ActivityType, { color: string; bg: string; label: string; Icon: LucideIcon }> = {
-  note:         { color: "#666",    bg: "#F5F5F5", label: "Anotação",        Icon: StickyNote },
-  stage_change: { color: "#378ADD", bg: "#EBF3FC", label: "Etapa alterada",  Icon: ArrowRightLeft },
-  whatsapp:     { color: "#128A68", bg: "#E6F5F0", label: "WhatsApp",        Icon: MessageCircle },
-  won:          { color: "#22C55E", bg: "#DCFCE7", label: "Ganho",           Icon: Trophy },
-  lost:         { color: "#EF4444", bg: "#FEE2E2", label: "Perdido",         Icon: XCircle },
-  created:      { color: "#888",    bg: "#F5F5F5", label: "Criado",          Icon: PlusCircle },
-  meeting:      { color: "#378ADD", bg: "#EBF3FC", label: "Reunião",         Icon: CalendarDays },
-  call:         { color: "#22C55E", bg: "#DCFCE7", label: "Ligação",         Icon: Phone },
-  email:        { color: "#F59E0B", bg: "#FEF3C7", label: "E-mail",          Icon: Mail },
-  follow_up:    { color: "#8B5CF6", bg: "#EDE9FE", label: "Follow-up",       Icon: RefreshCw },
-  task:         { color: "#666",    bg: "#F5F5F5", label: "Tarefa",          Icon: CheckSquare },
-  transfer:     { color: "#8B5CF6", bg: "#EDE9FE", label: "Transferência",   Icon: ArrowLeftRight },
-};
 const fmtHistDate = (d: string) => {
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return d;
@@ -332,7 +319,7 @@ function MuInlineField({ label, value, onSave, type = "text", options }: {
 
   return (
     <div>
-      <span style={{ fontSize: 10, color: "#AAA", display: "block", marginBottom: 2 }}>{label}</span>
+      <span style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 2 }}>{label}</span>
       {editing && editable ? (
         options ? (
           <select
@@ -340,7 +327,7 @@ function MuInlineField({ label, value, onSave, type = "text", options }: {
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
-            style={{ width: "100%", border: "1px solid #128A68", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "#FFF", color: "#111" }}
+            style={{ width: "100%", border: "1px solid var(--accent-700)", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "var(--surface-card)", color: "var(--text-heading)" }}
           >
             {options.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
@@ -352,13 +339,13 @@ function MuInlineField({ label, value, onSave, type = "text", options }: {
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
-            style={{ width: "100%", border: "1px solid #128A68", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none" }}
+            style={{ width: "100%", border: "1px solid var(--accent-700)", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none" }}
           />
         )
       ) : (
         <div
           onClick={() => editable && setEditing(true)}
-          style={{ fontSize: 13, color: value ? "#111" : "#AAA", cursor: editable ? "pointer" : "default", padding: "5px 0" }}
+          style={{ fontSize: 13, color: value ? "var(--text-heading)" : "var(--text-muted)", cursor: editable ? "pointer" : "default", padding: "5px 0" }}
         >
           {value || "—"}
         </div>
@@ -370,16 +357,16 @@ function MuInlineField({ label, value, onSave, type = "text", options }: {
 function Section({ title, children, defaultOpen = false, action }: { title: string; children: React.ReactNode; defaultOpen?: boolean; action?: React.ReactNode }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ borderBottom: "1px solid #F0F0F0" }}>
+    <div style={{ borderBottom: "1px solid var(--neutral-100)" }}>
       <button
         onClick={() => setOpen(!open)}
         style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "transparent", border: "none", cursor: "pointer" }}
-        onMouseEnter={e => (e.currentTarget.style.background = "#F9F9F9")}
+        onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-hover)")}
         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <ChevronDown size={14} color="#AAA" style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.2s" }} />
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{title}</span>
+          <ChevronDown size={14} color="var(--text-subtle)" style={{ transform: open ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform 0.2s" }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>{title}</span>
         </div>
         {action}
       </button>
@@ -390,7 +377,7 @@ function Section({ title, children, defaultOpen = false, action }: { title: stri
 
 function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, borderColor, iconOnly }: { Icon: LucideIcon; count: number | null; isActive: boolean; onClick: () => void; label?: string; color: string; colorBg: string; borderColor: string; iconOnly?: boolean }) {
   const [hovered, setHovered] = useState(false);
-  const border = isActive ? `1px solid ${borderColor}` : "1px solid #E5E5E5";
+  const border = isActive ? `1px solid ${borderColor}` : "1px solid var(--border-default)";
   return (
     <div style={{ position: "relative", display: "flex", flex: iconOnly ? "0 0 auto" : 1, minWidth: 0 }}
       onMouseEnter={() => setHovered(true)}
@@ -399,7 +386,7 @@ function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, bor
       {hovered && label && (
         <div style={{
           position: "absolute", bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)",
-          background: "#111", color: "#FFF", fontSize: 11, fontWeight: 500,
+          background: "var(--text-heading)", color: "#FFF", fontSize: 12, fontWeight: 500,
           padding: "4px 8px", borderRadius: 6, whiteSpace: "nowrap", pointerEvents: "none",
           zIndex: 200, boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
         }}>
@@ -410,11 +397,11 @@ function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, bor
           }} />
         </div>
       )}
-      <button onClick={onClick} style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: iconOnly ? undefined : "100%", gap: iconOnly ? 0 : 5, background: "#FFF", border, borderRadius: 5, padding: iconOnly ? 4 : "4px 10px 4px 4px", fontSize: 12, cursor: "pointer" }}>
-        <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 5, background: colorBg, flexShrink: 0 }}>
+      <button onClick={onClick} style={{ display: "flex", alignItems: "center", justifyContent: "flex-start", width: iconOnly ? undefined : "100%", gap: iconOnly ? 0 : 5, background: "var(--surface-card)", border, borderRadius: 6, padding: iconOnly ? 4 : "4px 10px 4px 4px", fontSize: 12, cursor: "pointer" }}>
+        <span style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 18, height: 18, borderRadius: 6, background: colorBg, flexShrink: 0 }}>
           <Icon size={11} color={color} />
         </span>
-        {!iconOnly && count !== null && <span style={{ color: "#111", fontWeight: 300 }}>{count}</span>}
+        {!iconOnly && count !== null && <span style={{ color: "var(--text-heading)", fontWeight: 300 }}>{count}</span>}
       </button>
     </div>
   );
@@ -427,7 +414,7 @@ function ChatHeaderBtn({ icon: Icon, label, onClick }: { icon: LucideIcon; label
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 100, border: `1px solid ${hover ? "#128A68" : "#E5E5E5"}`, background: "transparent", color: hover ? "#128A68" : "#111", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
+      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 100, border: `1px solid ${hover ? "var(--accent-700)" : "var(--border-default)"}`, background: "transparent", color: hover ? "var(--accent-700)" : "var(--text-heading)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
     >
       <Icon size={12} /> {label}
     </button>
@@ -467,9 +454,9 @@ function DealValueField({ value, onSave }: { value: number; onSave: (v: number) 
   }
   return (
     <div
-      className="rounded-md px-2 py-1.5 -mx-2 cursor-text hover:bg-[#F5F5F5] transition-colors"
+      className="rounded-md px-2 py-1.5 -mx-2 cursor-text hover:bg-[color:var(--neutral-50)] transition-colors"
       onClick={() => setEditing(true)}
-      style={{ fontSize: 14, fontWeight: 700, color: value ? "#128A68" : "#AAAAAA" }}
+      style={{ fontSize: 14, fontWeight: 700, color: value ? "var(--accent-800)" : "var(--text-muted)" }}
     >
       {value ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value) : "Definir valor"}
     </div>
@@ -3198,7 +3185,7 @@ export default function MultiatendimentoPage() {
   const bulkItemStyle = (disabled = false): React.CSSProperties => ({
     display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left",
     background: "none", border: "none", padding: "8px 10px", borderRadius: 8,
-    fontSize: 13, color: disabled ? "#CCC" : "#333", cursor: disabled ? "not-allowed" : "pointer",
+    fontSize: 13, color: disabled ? "var(--neutral-400)" : "var(--text-body)", cursor: disabled ? "not-allowed" : "pointer",
   });
 
   const toggleConvSelected = (id: string) =>
@@ -3290,24 +3277,24 @@ export default function MultiatendimentoPage() {
   ) => {
     const open = fltSecOpen[secKey] ?? false;
     return (
-      <div style={{ borderBottom: "1px solid #F0F0F0" }}>
+      <div style={{ borderBottom: "1px solid var(--neutral-100)" }}>
         <button onClick={() => setFltSecOpen(p => ({ ...p, [secKey]: !open }))} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "none", border: "none", padding: "14px 0", cursor: "pointer" }}>
           <div style={{ textAlign: "left" }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{title}</div>
-            <div style={{ fontSize: 12, color: selected.length ? "#128A68" : "#AAA", marginTop: 2 }}>{selected.length ? `${selected.length} selecionado(s)` : summary}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>{title}</div>
+            <div style={{ fontSize: 12, color: selected.length ? "var(--accent-700)" : "var(--text-muted)", marginTop: 2 }}>{selected.length ? `${selected.length} selecionado(s)` : summary}</div>
           </div>
-          <ChevronDown size={16} color="#AAA" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
+          <ChevronDown size={16} color="var(--text-subtle)" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .15s" }} />
         </button>
         {open && (
           <div style={{ paddingBottom: 12, display: "flex", flexDirection: "column", gap: 2, maxHeight: 200, overflowY: "auto" }}>
-            {options.length === 0 && <div style={{ fontSize: 12, color: "#CCC", padding: "4px 0" }}>Nenhum item cadastrado</div>}
+            {options.length === 0 && <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "4px 0" }}>Nenhum item cadastrado</div>}
             {options.map(o => {
               const on = selected.includes(o.value);
               return (
                 <button key={o.value} onClick={() => toggleInArray(setter, o.value)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: "7px 8px", borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
-                  <div style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid " + (on ? "#128A68" : "#CCC"), background: on ? "#128A68" : "#FFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
+                  <div style={{ width: 16, height: 16, borderRadius: 6, border: "2px solid " + (on ? "var(--accent-700)" : "var(--border-strong)"), background: on ? "var(--accent-700)" : "var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
                   {o.color && <span style={{ width: 8, height: 8, borderRadius: "50%", background: o.color, flexShrink: 0 }} />}
-                  <span style={{ fontSize: 13, color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.label}</span>
+                  <span style={{ fontSize: 13, color: "var(--text-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.label}</span>
                 </button>
               );
             })}
@@ -3326,10 +3313,10 @@ export default function MultiatendimentoPage() {
   // opostos nas duas pontas do mesmo produto. O que cada chip FILTRA não mudou.
   const filters = [
     { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: visibleConvList.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,                            color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
-    { id: "waiting",     icon: Clock,         label: "Mensagem nova", count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "#D97706", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
+    { id: "waiting",     icon: Clock,         label: "Mensagem nova", count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "var(--warning-fg)", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
     { id: "pending",     icon: MessageCircle, label: "Em aberto",     count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
     { id: "agente",      icon: BotMessageSquare, label: "Agente",      count: visibleConvList.filter(c => c.tags.includes("Agente")).length,                                    color: "#6D28D9", colorBg: "#EDE9FE", borderColor: "rgba(109, 40, 217, 0.52)" },
-    { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: visibleConvList.filter(c => convStates[c.id]?.finished).length,                                  color: "#128A68", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
+    { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: visibleConvList.filter(c => convStates[c.id]?.finished).length,                                  color: "var(--accent-700)", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
   const activeFilterMeta = filters.find(f => f.id === activeFilter);
   const activeFilterTitle = activeFilterMeta?.label ?? "Todas as conversas";
@@ -3344,84 +3331,84 @@ export default function MultiatendimentoPage() {
 
   return (
     <div
-      style={{ display: "flex", height: "100vh", width: "100%", background: "hsl(var(--background))" }}
+      style={{ display: "flex", height: "var(--altura-util)", width: "100%", background: "hsl(var(--background))" }}
       onClick={() => { if (instanceOpen) setInstanceOpen(false); if (moreMenuOpen) setMoreMenuOpen(false); if (bulkMenuOpen) setBulkMenuOpen(false); }}
     >
       {/* ── COLUNA 1 — LISTA ─────────────────────────────────────────── */}
-      <aside style={{ width: 350, minWidth: 350, maxWidth: 350, height: "100vh", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", borderRight: "1px solid #e5e7eb", display: "flex", flexDirection: "column", background: "#FFF", position: "relative", zIndex: 2, overflow: "hidden" }}>
-        <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid #F0F0F0" }}>
+      <aside style={{ width: 350, minWidth: 350, maxWidth: 350, height: "var(--altura-util)", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", borderRight: "1px solid var(--border-default)", display: "flex", flexDirection: "column", background: "var(--surface-card)", position: "relative", zIndex: 2, overflow: "hidden" }}>
+        <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid var(--neutral-100)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px" }}>
-              <Search size={14} color="#AAA" />
+            <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 10px" }}>
+              <Search size={14} color="var(--text-subtle)" />
               <input
                 placeholder="Pesquise seus contatos"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111" }}
+                style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "var(--text-heading)" }}
               />
               {searchQuery && (
                 <button onClick={() => setSearchQuery("")} style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 0 }}>
-                  <X size={12} color="#AAA" />
+                  <X size={12} color="var(--text-subtle)" />
                 </button>
               )}
             </div>
             <button
               onClick={() => setNewConvOpen(true)}
               title="Nova conversa"
-              style={{ background: "#128A68", border: "none", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+              style={{ background: "var(--accent-700)", border: "none", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
             >
               <UserPlus size={14} color="#FFF" />
             </button>
             <button
               onClick={() => { setShowMultiSettings(true); setSettingsTab("config"); }}
               title="Configurações do multiatendimento"
-              style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+              style={{ background: "transparent", border: "1px solid var(--border-default)", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
             >
-              <Settings size={14} color="#666" />
+              <Settings size={14} color="var(--text-muted)" />
             </button>
           </div>
 
           {/* título do filtro rápido ativo + número/atualizar unificados + Filtros + ⋯ */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 12 }}>
-            <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#333" }}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "var(--text-body)" }}>
               {activeFilterTitle}
               <button
                 onClick={handleRefreshConversations}
                 disabled={conversationsRefreshing}
                 title="Atualizar conversas"
-                style={{ display: "flex", alignItems: "center", gap: 4, background: "#F0F0F0", color: "#888", border: "none", borderRadius: 999, fontSize: 11, fontWeight: 700, padding: "1px 7px", minWidth: 16, textAlign: "center", cursor: conversationsRefreshing ? "default" : "pointer" }}
+                style={{ display: "flex", alignItems: "center", gap: 4, background: "var(--neutral-100)", color: "var(--text-muted)", border: "none", borderRadius: 999, fontSize: 12, fontWeight: 700, padding: "1px 7px", minWidth: 16, textAlign: "center", cursor: conversationsRefreshing ? "default" : "pointer" }}
               >
                 {activeFilterCount}
-                <RefreshCw size={11} color="#888" className={conversationsRefreshing ? "animate-spin" : undefined} />
+                <RefreshCw size={11} color="var(--text-subtle)" className={conversationsRefreshing ? "animate-spin" : undefined} />
               </button>
             </span>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <button
                 onClick={() => setFilterPanelOpen(true)}
-                style={{ display: "flex", alignItems: "center", gap: 5, background: activeAdvCount ? "#E1F5EE" : "transparent", border: "1px solid " + (activeAdvCount ? "#128A68" : "#E5E5E5"), borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 600, color: activeAdvCount ? "#128A68" : "#666", cursor: "pointer" }}
+                style={{ display: "flex", alignItems: "center", gap: 5, background: activeAdvCount ? "var(--accent-50)" : "transparent", border: "1px solid " + (activeAdvCount ? "var(--accent-700)" : "var(--border-default)"), borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 600, color: activeAdvCount ? "var(--accent-800)" : "var(--text-muted)", cursor: "pointer" }}
               >
                 <Filter size={13} /> Filtros
-                {activeAdvCount > 0 && <span style={{ background: "#128A68", color: "#FFF", borderRadius: 999, fontSize: 10, fontWeight: 700, padding: "0 5px", minWidth: 16, textAlign: "center" }}>{activeAdvCount}</span>}
+                {activeAdvCount > 0 && <span style={{ background: "var(--surface-accent)", color: "var(--text-on-accent)", borderRadius: 999, fontSize: 12, fontWeight: 700, padding: "0 5px", minWidth: 16, textAlign: "center" }}>{activeAdvCount}</span>}
               </button>
               <div style={{ position: "relative" }}>
                 <button
                   onClick={(e) => { e.stopPropagation(); setBulkMenuOpen(v => !v); }}
                   title="Ações em massa"
-                  style={{ background: "transparent", border: "1px solid #E5E5E5", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                  style={{ background: "transparent", border: "1px solid var(--border-default)", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
                 >
-                  <MoreHorizontal size={16} color="#666" />
+                  <MoreHorizontal size={16} color="var(--text-muted)" />
                 </button>
                 {bulkMenuOpen && (
-                  <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 220, background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 50, padding: 6 }}>
+                  <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 6px)", right: 0, width: 220, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 50, padding: 6 }}>
                     <button onClick={() => { setSelectionMode(v => { const nv = !v; if (!nv) setSelectedConvs([]); return nv; }); setBulkMenuOpen(false); }} style={bulkItemStyle()}>
-                      <Eye size={14} color="#128A68" /> {selectionMode ? "Desabilitar seleção" : "Habilitar seleção"}
+                      <Eye size={14} color="var(--accent-700)" /> {selectionMode ? "Desabilitar seleção" : "Habilitar seleção"}
                     </button>
-                    <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.05em", padding: "8px 10px 4px" }}>Ações em massa</div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "8px 10px 4px" }}>Ações em massa</div>
                     {[
-                      { key: "finish", icon: <CheckCircle2 size={14} color="#666" />, label: "Finalizar conversas", onClick: () => bulkFinish() },
-                      { key: "agent",  icon: <UserCheck size={14} color="#666" />,    label: "Transferir atendente", onClick: () => { setBulkAction("agent"); } },
-                      { key: "dept",   icon: <Folder size={14} color="#666" />,       label: "Transferir departamento", onClick: () => { setBulkAction("dept"); } },
-                      { key: "auto",   icon: <Zap size={14} color="#666" />,          label: "Executar automação", onClick: () => { setAutoModalConvs([...selectedConvs]); } },
+                      { key: "finish", icon: <CheckCircle2 size={14} color="var(--text-muted)" />, label: "Finalizar conversas", onClick: () => bulkFinish() },
+                      { key: "agent",  icon: <UserCheck size={14} color="var(--text-muted)" />,    label: "Transferir atendente", onClick: () => { setBulkAction("agent"); } },
+                      { key: "dept",   icon: <Folder size={14} color="var(--text-muted)" />,       label: "Transferir departamento", onClick: () => { setBulkAction("dept"); } },
+                      { key: "auto",   icon: <Zap size={14} color="var(--text-muted)" />,          label: "Executar automação", onClick: () => { setAutoModalConvs([...selectedConvs]); } },
                     ].map(item => {
                       const disabled = !selectionMode || selectedConvs.length === 0;
                       return (
@@ -3444,14 +3431,14 @@ export default function MultiatendimentoPage() {
         </div>
 
         {selectionMode && (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", background: "#F8F8F8", borderBottom: "1px solid #EEEEEE", flexShrink: 0 }}>
-            <button onClick={toggleSelectAll} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#128A68" }}>
-              <div style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid " + (allVisibleSelected ? "#128A68" : "#CCC"), background: allVisibleSelected ? "#128A68" : "#FFF", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", background: "var(--neutral-50)", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
+            <button onClick={toggleSelectAll} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--accent-800)" }}>
+              <div style={{ width: 16, height: 16, borderRadius: 6, border: "2px solid " + (allVisibleSelected ? "var(--accent-700)" : "var(--border-strong)"), background: allVisibleSelected ? "var(--accent-700)" : "var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {allVisibleSelected && <Check size={11} color="#FFF" />}
               </div>
               {allVisibleSelected ? "Desmarcar todas" : "Selecionar todas"}
             </button>
-            <button onClick={() => { setSelectionMode(false); setSelectedConvs([]); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "#888" }}>Sair</button>
+            <button onClick={() => { setSelectionMode(false); setSelectedConvs([]); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "var(--text-muted)" }}>Sair</button>
           </div>
         )}
 
@@ -3482,10 +3469,10 @@ export default function MultiatendimentoPage() {
                     {/* O ícone do WhatsApp no lugar do balão genérico: o que
                         falta aqui é a conexão, não a conversa. Ele pinta por
                         `currentColor`, então a cor vem do contêiner. */}
-                    <div style={{ color: "#1A1A1A", width: 32, margin: "0 auto 8px" }}>
+                    <div style={{ color: "var(--text-heading)", width: 32, margin: "0 auto 8px" }}>
                       <CrmWhatsAppIcon size={32} />
                     </div>
-                    <p style={{ fontSize: 14, fontWeight: 500, fontFamily: "Inter", color: "#1A1A1A" }}>
+                    <p style={{ fontSize: 14, fontWeight: 500, fontFamily: "Inter", color: "var(--text-heading)" }}>
                       Conecte seu WhatsApp para utilizar o multiatendimento
                     </p>
                     <button
@@ -3493,7 +3480,7 @@ export default function MultiatendimentoPage() {
                       onClick={() => navigate("/configuracoes/conexoes?abrir=nova-conexao")}
                       style={{
                         marginTop: 12, display: "inline-flex", alignItems: "center", justifyContent: "center",
-                        background: "#128A68", color: "#FFF", border: "none", borderRadius: 8,
+                        background: "var(--surface-accent)", color: "var(--text-on-accent)", border: "none", borderRadius: 8,
                         padding: "8px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer",
                       }}
                     >
@@ -3502,14 +3489,14 @@ export default function MultiatendimentoPage() {
                   </>
                 ) : (
                   <>
-                    <MessageSquare size={32} color="#1A1A1A" style={{ margin: "0 auto 8px" }} />
-                    <p style={{ fontSize: 15, fontWeight: 700, fontFamily: "Inter", color: "#1A1A1A" }}>Sem conversas iniciadas</p>
+                    <MessageSquare size={32} color="var(--text-heading)" style={{ margin: "0 auto 8px" }} />
+                    <p style={{ fontSize: 14, fontWeight: 700, fontFamily: "Inter", color: "var(--text-heading)" }}>Sem conversas iniciadas</p>
                   </>
                 )
               ) : (
                 <>
-                  <MessageSquare size={32} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
-                  <p style={{ fontSize: 13, color: "#AAA" }}>Nenhuma conversa encontrada</p>
+                  <MessageSquare size={32} color="var(--neutral-300)" style={{ margin: "0 auto 8px" }} />
+                  <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Nenhuma conversa encontrada</p>
                 </>
               )}
             </div>
@@ -3523,12 +3510,12 @@ export default function MultiatendimentoPage() {
               <div
                 key={c.id}
                 onClick={() => { if (selectionMode) { toggleConvSelected(c.id); return; } setActiveId(c.id); updateCs(c.id, { read: true }); }}
-                style={{ padding: "12px 16px", borderBottom: "1px solid #F0F0F0", background: (selectionMode && selected) ? "#E8F5F0" : isActive ? "#E1F5EE" : "transparent", borderLeft: isActive ? "3px solid #128A68" : "3px solid transparent", cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }}
-                onMouseEnter={e => { if (!isActive && !(selectionMode && selected)) e.currentTarget.style.background = "#F9F9F9"; }}
+                style={{ padding: "12px 16px", borderBottom: "1px solid var(--neutral-100)", background: (selectionMode && selected) ? "#E8F5F0" : isActive ? "var(--accent-50)" : "transparent", borderLeft: isActive ? "3px solid var(--accent-700)" : "3px solid transparent", cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }}
+                onMouseEnter={e => { if (!isActive && !(selectionMode && selected)) e.currentTarget.style.background = "var(--surface-hover)"; }}
                 onMouseLeave={e => { if (!isActive && !(selectionMode && selected)) e.currentTarget.style.background = "transparent"; }}
               >
                 {selectionMode && (
-                  <div style={{ width: 18, height: 18, borderRadius: 5, border: "2px solid " + (selected ? "#128A68" : "#CCC"), background: selected ? "#128A68" : "#FFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 6, border: "2px solid " + (selected ? "var(--accent-700)" : "var(--border-strong)"), background: selected ? "var(--accent-700)" : "var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {selected && <Check size={12} color="#FFF" />}
                   </div>
                 )}
@@ -3538,13 +3525,13 @@ export default function MultiatendimentoPage() {
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                    <span style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: isActive ? "#128A68" : "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{convName(c)}</span>
+                    <span style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: isActive ? "var(--accent-800)" : "var(--text-heading)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{convName(c)}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                      <span style={{ fontSize: 11, color: "#AAA" }}>{c.time}</span>
-                      {unread && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#128A68" }} />}
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{c.time}</span>
+                      {unread && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-700)" }} />}
                     </div>
                   </div>
-                  <p style={{ fontSize: 12, color: unread ? "#535353" : "#AAA", fontWeight: unread ? 500 : 400, margin: "2px 0 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{previewText(c)}</p>
+                  <p style={{ fontSize: 12, color: unread ? "var(--text-body)" : "var(--text-muted)", fontWeight: unread ? 500 : 400, margin: "2px 0 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{previewText(c)}</p>
                   {/* Sem as tags do lead aqui. Elas apareciam cortadas nas duas
                       primeiras, com um "+N" para o resto, e a barra lateral
                       direita já mostra a lista inteira -- e lá elas são
@@ -3554,8 +3541,8 @@ export default function MultiatendimentoPage() {
                       existem em lugar nenhum além dela: se o atendimento foi
                       encerrado e se a linha que a recebeu está fora do ar. */}
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {cState?.finished && <span style={{ fontSize: 10, fontWeight: 600, background: "#E1F5EE", color: "#128A68", padding: "2px 6px", borderRadius: 4 }}>✓ Finalizada</span>}
-                    {!isConvInstanceConnected(c) && <span style={{ fontSize: 10, fontWeight: 600, background: "#F5F5F5", color: "#888", padding: "2px 6px", borderRadius: 4 }}>Desconectada</span>}
+                    {cState?.finished && <span style={{ fontSize: 12, fontWeight: 600, background: "var(--accent-50)", color: "var(--accent-800)", padding: "2px 6px", borderRadius: 6 }}>✓ Finalizada</span>}
+                    {!isConvInstanceConnected(c) && <span style={{ fontSize: 12, fontWeight: 600, background: "var(--neutral-50)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: 6 }}>Desconectada</span>}
                   </div>
                 </div>
               </div>
@@ -3565,59 +3552,59 @@ export default function MultiatendimentoPage() {
       </aside>
 
       {/* ── COLUNA 2 — CHAT ──────────────────────────────────────────── */}
-      <section style={{ flex: 1, display: "flex", flexDirection: "column", height: "100vh", background: "hsl(var(--background))", minWidth: 0 }}>
+      <section style={{ flex: 1, display: "flex", flexDirection: "column", height: "var(--altura-util)", background: "hsl(var(--background))", minWidth: 0 }}>
         {active && cs ? (
           <>
             {/* header */}
-            <div style={{ minHeight: 52, background: "#FFF", borderBottom: "1px solid #E5E5E5", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+            <div style={{ minHeight: 52, background: "var(--surface-card)", borderBottom: "1px solid var(--border-default)", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={32} fontSize={11} onError={() => refetchAvatar(active.phone, active.instanceId)} />
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{convName(active)}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-heading)" }}>{convName(active)}</div>
 
                   {/* WhatsApp instance selector */}
                   <div style={{ position: "relative", marginTop: 4 }}>
                     <button
                       onClick={e => { e.stopPropagation(); setInstanceOpen(o => !o); }}
-                      style={{ display: "flex", alignItems: "center", gap: 5, background: instances.length > 0 ? "#E1F5EE" : "#F5F5F5", border: "none", borderRadius: 100, padding: "3px 8px 3px 6px", cursor: "pointer", outline: "none" }}
+                      style={{ display: "flex", alignItems: "center", gap: 5, background: instances.length > 0 ? "var(--accent-50)" : "var(--neutral-50)", border: "none", borderRadius: 100, padding: "3px 8px 3px 6px", cursor: "pointer", outline: "none" }}
                     >
                       <svg viewBox="0 0 24 24" width={12} height={12} style={{ flexShrink: 0 }}>
-                        <circle cx="12" cy="12" r="12" fill={instances.length > 0 ? "#25D366" : "#CCC"} />
-                        <path fill="#FFF" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                        <circle cx="12" cy="12" r="12" fill={instances.length > 0 ? "#25D366" : "var(--neutral-300)"} />
+                        <path fill="var(--surface-card)" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
                       </svg>
-                      <span style={{ fontSize: 11, fontWeight: 600, color: instances.length > 0 ? "#128A68" : "#AAA" }}>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: instances.length > 0 ? "var(--accent-800)" : "var(--text-muted)" }}>
                         {instances.length > 0 ? (instances.find(i => i.instanceId === selectedInstance)?.label ?? instances[0].label) : "Sem instância conectada"}
                       </span>
-                      <ChevronDown size={10} color={instances.length > 0 ? "#128A68" : "#AAA"} />
+                      <ChevronDown size={10} color={instances.length > 0 ? "var(--accent-700)" : "var(--text-muted)"} />
                     </button>
                     {instanceOpen && (
-                      <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 220, zIndex: 50, overflow: "hidden" }}>
+                      <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 220, zIndex: 50, overflow: "hidden" }}>
                         {instances.length > 0 ? (
                           <>
-                            <div style={{ padding: "8px 12px 4px", fontSize: 10, color: "#AAA", fontWeight: 700, letterSpacing: 0.5 }}>INSTÂNCIAS CONECTADAS</div>
+                            <div style={{ padding: "8px 12px 4px", fontSize: 12, color: "var(--text-muted)", fontWeight: 700, letterSpacing: 0.5 }}>INSTÂNCIAS CONECTADAS</div>
                             {instances.map(inst => (
                               <button key={inst.instanceId} onClick={() => switchActiveInstance(inst.instanceId)}
-                                style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: selectedInstance === inst.instanceId ? "#E1F5EE" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-                                onMouseEnter={e => { if (selectedInstance !== inst.instanceId) e.currentTarget.style.background = "#F9F9F9"; }}
+                                style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: selectedInstance === inst.instanceId ? "var(--surface-selected)" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                                onMouseEnter={e => { if (selectedInstance !== inst.instanceId) e.currentTarget.style.background = "var(--surface-hover)"; }}
                                 onMouseLeave={e => { if (selectedInstance !== inst.instanceId) e.currentTarget.style.background = "transparent"; }}
                               >
-                                <svg viewBox="0 0 24 24" width={14} height={14}><circle cx="12" cy="12" r="12" fill="#25D366" /><path fill="#FFF" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" /></svg>
+                                <svg viewBox="0 0 24 24" width={14} height={14}><circle cx="12" cy="12" r="12" fill="#25D366" /><path fill="var(--surface-card)" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" /></svg>
                                 <div>
-                                  <div style={{ fontSize: 12, fontWeight: 600, color: selectedInstance === inst.instanceId ? "#128A68" : "#111" }}>{inst.label}</div>
-                                  <div style={{ fontSize: 10, color: "#AAA" }}>{inst.provider === "cloud_api" ? "WhatsApp Oficial" : inst.provider === "dapi" ? "D-API" : "Z-API"}</div>
+                                  <div style={{ fontSize: 12, fontWeight: 600, color: selectedInstance === inst.instanceId ? "var(--accent-800)" : "var(--text-heading)" }}>{inst.label}</div>
+                                  <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{inst.provider === "cloud_api" ? "WhatsApp Oficial" : inst.provider === "dapi" ? "D-API" : "Z-API"}</div>
                                 </div>
-                                {selectedInstance === inst.instanceId && <CheckCircle2 size={14} color="#128A68" style={{ marginLeft: "auto" }} />}
+                                {selectedInstance === inst.instanceId && <CheckCircle2 size={14} color="var(--accent-700)" style={{ marginLeft: "auto" }} />}
                               </button>
                             ))}
-                            <div style={{ borderTop: "1px solid #F0F0F0", padding: "8px 12px" }}>
-                              <button onClick={() => { setInstanceOpen(false); navigate("/configuracoes"); }} style={{ background: "transparent", border: "none", fontSize: 11, color: "#128A68", fontWeight: 600, cursor: "pointer", padding: 0 }}>+ Gerenciar conexões</button>
+                            <div style={{ borderTop: "1px solid var(--neutral-100)", padding: "8px 12px" }}>
+                              <button onClick={() => { setInstanceOpen(false); navigate("/configuracoes"); }} style={{ background: "transparent", border: "none", fontSize: 12, color: "var(--accent-700)", fontWeight: 600, cursor: "pointer", padding: 0 }}>+ Gerenciar conexões</button>
                             </div>
                           </>
                         ) : (
                           <div style={{ padding: 16 }}>
-                            <p style={{ fontSize: 12, color: "#111", fontWeight: 600, marginBottom: 4 }}>Nenhuma instância conectada</p>
-                            <p style={{ fontSize: 11, color: "#AAA", marginBottom: 10 }}>Conecte um número em Configurações → Conexões.</p>
-                            <button onClick={() => { setInstanceOpen(false); navigate("/configuracoes"); }} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "6px 12px", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Ir para Conexões</button>
+                            <p style={{ fontSize: 12, color: "var(--text-heading)", fontWeight: 600, marginBottom: 4 }}>Nenhuma instância conectada</p>
+                            <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>Conecte um número em Configurações → Conexões.</p>
+                            <button onClick={() => { setInstanceOpen(false); navigate("/configuracoes"); }} style={{ background: "var(--surface-accent)", border: "none", color: "var(--text-on-accent)", borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Ir para Conexões</button>
                           </div>
                         )}
                       </div>
@@ -3646,7 +3633,7 @@ export default function MultiatendimentoPage() {
                           finalizado: "finalizado" }[atendimentoAtivo.status] ?? atendimentoAtivo.status
                       }`
                     : "Atendimento ainda não aberto"}
-                  style={{ fontSize: 12, color: "#128A68", border: "1px solid #128A68", borderRadius: 100, padding: "4px 10px", fontWeight: 600 }}
+                  style={{ fontSize: 12, color: "var(--accent-800)", border: "1px solid var(--accent-700)", borderRadius: 100, padding: "4px 10px", fontWeight: 600 }}
                 >
                   {atendimentoAtivo ? `#${atendimentoAtivo.numero}` : `#${active.id.slice(0, 4).toUpperCase()}`}
                 </span>
@@ -3683,10 +3670,10 @@ export default function MultiatendimentoPage() {
                     onClick={e => { e.stopPropagation(); setMoreMenuOpen(o => !o); }}
                     style={{ background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", padding: 4 }}
                   >
-                    <MoreHorizontal size={18} color="#AAA" />
+                    <MoreHorizontal size={18} color="var(--text-subtle)" />
                   </button>
                   {moreMenuOpen && (
-                    <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "100%", right: 0, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 160, zIndex: 50, overflow: "hidden" }}>
+                    <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "100%", right: 0, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 160, zIndex: 50, overflow: "hidden" }}>
                       {[
                         { label: "Transferir", action: () => {
                           setMoreMenuOpen(false);
@@ -3702,8 +3689,8 @@ export default function MultiatendimentoPage() {
                         } },
                       ].map(item => (
                         <button key={item.label} onClick={item.action}
-                          style={{ width: "100%", display: "block", padding: "10px 14px", background: "transparent", border: "none", textAlign: "left", fontSize: 13, color: "#111", cursor: "pointer" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+                          style={{ width: "100%", display: "block", padding: "10px 14px", background: "transparent", border: "none", textAlign: "left", fontSize: 13, color: "var(--text-heading)", cursor: "pointer" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
                           onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                         >{item.label}</button>
                       ))}
@@ -3714,37 +3701,37 @@ export default function MultiatendimentoPage() {
             </div>
 
             {/* mensagens */}
-            <div style={{ position: "relative", flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", background: "#FAFAFA" }}>
+            <div style={{ position: "relative", flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--neutral-25)" }}>
               <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 0 }}>
-                <div className="chat-watermark-badge" style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(16,185,129,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800, letterSpacing: -0.5, color: "rgba(16,185,129,0.32)" }}>
+                <div className="chat-watermark-badge" style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(16,185,129,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800, letterSpacing: -0.5, color: "rgba(16,185,129,0.32)" }}>
                   RZ
                 </div>
               </div>
               <div data-lista-mensagens style={{ position: "relative", zIndex: 1, flex: 1, overflowY: "auto", padding: 16 }}>
               {cs.messages.length === 0 && (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
-                  <p style={{ fontSize: 18, fontWeight: 700, fontFamily: "Inter", color: "#1A1A1A" }}>Conversas</p>
-                  <p style={{ fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "#1A1A1A" }}>Acompanhe as conversas com seus negócios</p>
+                  <p style={{ fontSize: 18, fontWeight: 700, fontFamily: "Inter", color: "var(--text-heading)" }}>Conversas</p>
+                  <p style={{ fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "var(--text-heading)" }}>Acompanhe as conversas com seus negócios</p>
                 </div>
               )}
               {groupedMessages.map(([date, msgs]) => (
                 <div key={date}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
-                    <div style={{ flex: 1, height: 0.5, background: "#E5E5E5" }} />
-                    <span style={{ fontSize: 11, color: "#AAA", background: "#F5F5F5", borderRadius: 100, padding: "3px 12px" }}>{date}</span>
-                    <div style={{ flex: 1, height: 0.5, background: "#E5E5E5" }} />
+                    <div style={{ flex: 1, height: 0.5, background: "var(--neutral-200)" }} />
+                    <span style={{ fontSize: 12, color: "var(--text-muted)", background: "var(--neutral-50)", borderRadius: 100, padding: "3px 12px" }}>{date}</span>
+                    <div style={{ flex: 1, height: 0.5, background: "var(--neutral-200)" }} />
                   </div>
                   {msgs.map(m => {
                     if (m.kind === "system") {
                       return (
                         <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0" }}>
-                          <div style={{ flex: 1, height: 0.5, background: "#E0E0E0" }} />
-                          <span style={{ fontSize: 11, color: "#888", background: "#F0F0F0", border: "1px solid #E0E0E0", borderRadius: 100, padding: "4px 12px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
-                            <UserCheck size={11} color="#888" />
+                          <div style={{ flex: 1, height: 0.5, background: "var(--neutral-200)" }} />
+                          <span style={{ fontSize: 12, color: "var(--text-muted)", background: "var(--neutral-100)", border: "1px solid var(--border-default)", borderRadius: 100, padding: "4px 12px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
+                            <UserCheck size={11} color="var(--text-subtle)" />
                             {m.text}
-                            <span style={{ color: "#BBB", marginLeft: 2 }}>· {m.time}</span>
+                            <span style={{ color: "var(--neutral-400)", marginLeft: 2 }}>· {m.time}</span>
                           </span>
-                          <div style={{ flex: 1, height: 0.5, background: "#E0E0E0" }} />
+                          <div style={{ flex: 1, height: 0.5, background: "var(--neutral-200)" }} />
                         </div>
                       );
                     }
@@ -3763,21 +3750,21 @@ export default function MultiatendimentoPage() {
                               é o que deixa ver de relance quem respondeu o quê
                               sem ler nome por nome. Vale igual do lado
                               esquerdo em conversa de grupo. */}
-                          <div style={{ fontSize: 11, marginBottom: 2, textAlign: isAgent ? "right" : "left" }}>
+                          <div style={{ fontSize: 12, marginBottom: 2, textAlign: isAgent ? "right" : "left" }}>
                             <span style={{ color: corDoNome(isAgent ? (m.agent ?? "") : convName(active), isAgent ? "atendente" : "cliente"), fontWeight: 600 }}>
                               {isAgent ? m.agent : convName(active)}
                             </span>
-                            <span style={{ color: "#AAA" }}> • {m.time}</span>
+                            <span style={{ color: "var(--text-muted)" }}> • {m.time}</span>
                           </div>
                           {/* Citação: o que esta mensagem responde. Mostra o
                               retrato gravado na entrada, e não o texto da
                               original -- nem toda citada existe na nossa base. */}
                           {m.citacao && (
                             <div style={{
-                              borderLeft: `3px solid ${isAgent ? "rgba(255,255,255,0.55)" : "#128A68"}`,
-                              background: isAgent ? "rgba(255,255,255,0.14)" : "#F5F5F5",
+                              borderLeft: `3px solid ${isAgent ? "rgba(255,255,255,0.55)" : "var(--accent-700)"}`,
+                              background: isAgent ? "rgba(255,255,255,0.14)" : "var(--neutral-50)",
                               borderRadius: 8, padding: "6px 10px", marginBottom: 4,
-                              fontSize: 12, color: isAgent ? "rgba(255,255,255,0.9)" : "#666",
+                              fontSize: 12, color: isAgent ? "rgba(255,255,255,0.9)" : "var(--text-muted)",
                               maxWidth: "100%", whiteSpace: "pre-wrap", overflowWrap: "anywhere",
                               display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
                             }}>
@@ -3791,7 +3778,7 @@ export default function MultiatendimentoPage() {
                             // faria o texto reflowar embaixo do cursor, e balão
                             // que muda de forma quando você chega perto é pior
                             // que balão um pouco mais largo.
-                            padding: m.kind === "image" ? 4 : "10px 30px 10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "#128A68" : "#FFF", color: isAgent ? "#FFF" : "#111", border: isAgent ? "none" : "1px solid #EEE", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "flex-end", gap: 8, minWidth: 0, position: "relative" }}>
+                            padding: m.kind === "image" ? 4 : "10px 30px 10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "var(--accent-700)" : "var(--surface-card)", color: isAgent ? "#FFF" : "var(--text-heading)", border: isAgent ? "none" : "1px solid var(--border-default)", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "flex-end", gap: 8, minWidth: 0, position: "relative" }}>
                             {/* Ação da mensagem, dentro do balão. Ficava do lado
                                 de fora e sumia no caminho do mouse: o vão entre
                                 o balão e o botão já é área sem hover, então o
@@ -3811,13 +3798,13 @@ export default function MultiatendimentoPage() {
                                 title="Opções da mensagem"
                                 style={{
                                   position: "absolute", top: 2, right: 4,
-                                  width: 20, height: 20, borderRadius: 4, border: "none",
+                                  width: 20, height: 20, borderRadius: 6, border: "none",
                                   background: isAgent ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.06)",
                                   display: "flex", alignItems: "center", justifyContent: "center",
                                   cursor: "pointer", padding: 0, zIndex: 2,
                                 }}
                               >
-                                <ChevronDown size={14} color={isAgent ? "#FFF" : "#535353"} />
+                                <ChevronDown size={14} color={isAgent ? "#FFF" : "var(--text-body)"} />
                               </button>
                             )}
                             <MenuDaMensagem
@@ -3827,24 +3814,24 @@ export default function MultiatendimentoPage() {
                               itens={[
                                 // Responder exige o id do provedor: sem ele não há o
                                 // que citar. Mensagens antigas ficam com as demais.
-                                ...(m.messageId ? [{ rotulo: "Responder", icone: <Reply size={14} color="#535353" />, acao: () => setCitando(m) }] : []),
-                                { rotulo: "Encaminhar", icone: <Forward size={14} color="#535353" />, acao: () => setEncaminhando(m) },
+                                ...(m.messageId ? [{ rotulo: "Responder", icone: <Reply size={14} color="var(--text-body)" />, acao: () => setCitando(m) }] : []),
+                                { rotulo: "Encaminhar", icone: <Forward size={14} color="var(--text-body)" />, acao: () => setEncaminhando(m) },
                                 ...(!m.apagadaEm ? [{
-                                  rotulo: "Apagar", icone: <Trash2 size={14} color="#B91C1C" />, destrutivo: true,
+                                  rotulo: "Apagar", icone: <Trash2 size={14} color="var(--danger-fg)" />, destrutivo: true,
                                   submenu: [
                                     // "Para mim" não passa pelo provedor, então funciona
                                     // em qualquer linha e em mensagem antiga sem id.
-                                    { rotulo: "Apagar para mim", icone: <Trash2 size={14} color="#B91C1C" />, destrutivo: true,
+                                    { rotulo: "Apagar para mim", icone: <Trash2 size={14} color="var(--danger-fg)" />, destrutivo: true,
                                       acao: () => apagarMensagem(m, false) },
                                     ...(isAgent && m.messageId ? [{
-                                      rotulo: "Apagar para todos", icone: <Trash2 size={14} color={podeApagar ? "#B91C1C" : "#CCC"} />,
+                                      rotulo: "Apagar para todos", icone: <Trash2 size={14} color={podeApagar ? "var(--danger-fg)" : "var(--neutral-400)"} />,
                                       destrutivo: true, desabilitado: !podeApagar,
                                       motivo: podeApagar ? undefined : "A API oficial do WhatsApp não permite apagar mensagens já enviadas.",
                                       acao: () => apagarMensagem(m, true),
                                     }] : []),
                                   ],
                                 }] : []),
-                                { rotulo: "Copiar", icone: <Copy size={14} color="#535353" />, acao: async () => {
+                                { rotulo: "Copiar", icone: <Copy size={14} color="var(--text-body)" />, acao: async () => {
                                     // A área de transferência pode recusar (Safari é rígido
                                     // com o gesto, e a API não existe fora de HTTPS). Sem o
                                     // catch a falha seria silenciosa: a pessoa acha que
@@ -3883,13 +3870,13 @@ export default function MultiatendimentoPage() {
                                   <img src={m.src} alt={m.caption ?? "imagem"} style={{ maxWidth: 220, maxHeight: 180, display: "block", objectFit: "cover" }} />
                                 ) : (
                                   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 4px" }}>
-                                    <ImageIcon size={18} color={isAgent ? "rgba(255,255,255,0.8)" : "#128A68"} />
+                                    <ImageIcon size={18} color={isAgent ? "rgba(255,255,255,0.8)" : "var(--accent-700)"} />
                                     <span style={{ fontSize: 13, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{m.caption || "Imagem"}</span>
                                   </div>
                                 )}
                                 {m.src && m.caption && <div style={{
                                   padding: "4px 8px 6px", fontSize: 12,
-                                  color: isAgent ? "rgba(255,255,255,0.8)" : "#666",
+                                  color: isAgent ? "var(--surface-card)" : "var(--text-muted)",
                                   // Mesmo tratamento da bolha de texto: legenda
                                   // de imagem é texto do cliente também. Existe
                                   // uma de 501 caracteres com quebras na base,
@@ -3910,15 +3897,15 @@ export default function MultiatendimentoPage() {
                                   title={`Baixar ${m.filename}`}
                                   style={{ display: "flex", alignItems: "center", gap: 8, color: "inherit", textDecoration: "none", cursor: "pointer" }}
                                 >
-                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: isAgent ? "rgba(255,255,255,0.2)" : "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                    <Download size={18} color={isAgent ? "#FFF" : "#128A68"} />
+                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: isAgent ? "rgba(255,255,255,0.2)" : "var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                    <Download size={18} color={isAgent ? "#FFF" : "var(--accent-700)"} />
                                   </div>
                                   <span style={{ fontSize: 13, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "underline" }}>{m.filename}</span>
                                 </a>
                               ) : (
                                 <div title="Arquivo indisponível para download" style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.7 }}>
-                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: isAgent ? "rgba(255,255,255,0.2)" : "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                    <FolderOpen size={18} color={isAgent ? "#FFF" : "#128A68"} />
+                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: isAgent ? "rgba(255,255,255,0.2)" : "var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                    <FolderOpen size={18} color={isAgent ? "#FFF" : "var(--accent-700)"} />
                                   </div>
                                   <span style={{ fontSize: 13, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.filename}</span>
                                 </div>
@@ -3936,8 +3923,8 @@ export default function MultiatendimentoPage() {
                             <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4, width: "100%" }}>
                               {m.botoes.map((rotulo, bi) => (
                                 <div key={bi} style={{
-                                  fontSize: 12, color: "#128A68", background: "#FFF",
-                                  border: "1px solid #D6E9E2", borderRadius: 8,
+                                  fontSize: 12, color: "var(--accent-700)", background: "var(--surface-card)",
+                                  border: "1px solid var(--accent-200)", borderRadius: 8,
                                   padding: "6px 10px", textAlign: "center",
                                   display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                                 }}>
@@ -3977,7 +3964,7 @@ export default function MultiatendimentoPage() {
             </div>
 
             {/* rodapé */}
-            <div style={{ background: "#FFF", borderTop: "1px solid #E5E5E5", padding: "8px 16px", flexShrink: 0, position: "relative" }}>
+            <div style={{ background: "var(--surface-card)", borderTop: "1px solid var(--border-default)", padding: "8px 16px", flexShrink: 0, position: "relative" }}>
               {/* painel de emojis */}
               {/* Bloco de composição: mostra o que está sendo respondido, com
                   saída visível. Sem ele a pessoa clica em responder e não tem
@@ -3986,14 +3973,14 @@ export default function MultiatendimentoPage() {
                 <div style={{
                   display: "flex", alignItems: "flex-start", gap: 8,
                   margin: "0 16px 8px", padding: "8px 10px",
-                  background: "#F5F5F5", borderLeft: "3px solid #128A68", borderRadius: 8,
+                  background: "var(--neutral-50)", borderLeft: "3px solid var(--accent-700)", borderRadius: 8,
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: "#128A68", marginBottom: 2 }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)", marginBottom: 2 }}>
                       Respondendo {citando.from === "agent" ? (citando.agent ?? "você") : convName(active)}
                     </div>
                     <div style={{
-                      fontSize: 12, color: "#666", whiteSpace: "pre-wrap", overflowWrap: "anywhere",
+                      fontSize: 12, color: "var(--text-muted)", whiteSpace: "pre-wrap", overflowWrap: "anywhere",
                       display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
                     }}>
                       {textoDaMensagem(citando)}
@@ -4001,18 +3988,18 @@ export default function MultiatendimentoPage() {
                   </div>
                   <button onClick={() => setCitando(null)} title="Cancelar resposta"
                     style={{ background: "none", border: "none", cursor: "pointer", padding: 2, lineHeight: 0 }}>
-                    <X size={14} color="#888" />
+                    <X size={14} color="var(--text-subtle)" />
                   </button>
                 </div>
               )}
 
               {showEmoji && (
-                <div style={{ position: "absolute", bottom: "100%", left: 16, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 100, width: 280 }}>
+                <div style={{ position: "absolute", bottom: "100%", left: 16, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 100, width: 280 }}>
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                     {EMOJIS.map(e => (
                       <button key={e} onClick={() => insertEmoji(e)}
                         style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", padding: "2px 4px", borderRadius: 6, lineHeight: 1 }}
-                        onMouseEnter={ev => (ev.currentTarget.style.background = "#F5F5F5")}
+                        onMouseEnter={ev => (ev.currentTarget.style.background = "var(--neutral-50)")}
                         onMouseLeave={ev => (ev.currentTarget.style.background = "none")}
                       >{e}</button>
                     ))}
@@ -4022,13 +4009,13 @@ export default function MultiatendimentoPage() {
 
               {/* painel de arquivos da conversa */}
               {showFiles && (
-                <div style={{ position: "absolute", bottom: "100%", left: 16, right: 16, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 16, zIndex: 100 }}>
+                <div style={{ position: "absolute", bottom: "100%", left: 16, right: 16, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 16, zIndex: 100 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                     <span style={{ fontSize: 13, fontWeight: 600 }}>Arquivos da conversa</span>
-                    <button onClick={() => setShowFiles(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><X size={14} color="#AAA" /></button>
+                    <button onClick={() => setShowFiles(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 2 }}><X size={14} color="var(--text-subtle)" /></button>
                   </div>
                   {cs?.messages.filter(m => m.kind === "image" || m.kind === "file").length === 0 ? (
-                    <div style={{ textAlign: "center", color: "#AAA", fontSize: 13, padding: "16px 0" }}>Nenhum arquivo nesta conversa</div>
+                    <div style={{ textAlign: "center", color: "var(--text-muted)", fontSize: 13, padding: "16px 0" }}>Nenhum arquivo nesta conversa</div>
                   ) : (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
                       {cs.messages.filter(m => m.kind === "image" || m.kind === "file").map(m => (
@@ -4037,13 +4024,13 @@ export default function MultiatendimentoPage() {
                         ) : (
                           // Com URL, o chip abre/baixa o arquivo; sem URL, só exibe o nome
                           (m as { url?: string }).url ? (
-                            <a key={m.id} href={(m as { url?: string }).url} target="_blank" rel="noopener noreferrer" download={(m as { filename: string }).filename} style={{ display: "flex", alignItems: "center", gap: 6, background: "#F5F5F5", borderRadius: 8, padding: "6px 10px", fontSize: 12, color: "inherit", textDecoration: "none", cursor: "pointer" }}>
-                              <Download size={14} color="#128A68" />
+                            <a key={m.id} href={(m as { url?: string }).url} target="_blank" rel="noopener noreferrer" download={(m as { filename: string }).filename} style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--neutral-50)", borderRadius: 8, padding: "6px 10px", fontSize: 12, color: "inherit", textDecoration: "none", cursor: "pointer" }}>
+                              <Download size={14} color="var(--accent-700)" />
                               <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "underline" }}>{(m as { filename: string }).filename}</span>
                             </a>
                           ) : (
-                            <div key={m.id} title="Arquivo indisponível para download" style={{ display: "flex", alignItems: "center", gap: 6, background: "#F5F5F5", borderRadius: 8, padding: "6px 10px", fontSize: 12, opacity: 0.7 }}>
-                              <FolderOpen size={14} color="#128A68" />
+                            <div key={m.id} title="Arquivo indisponível para download" style={{ display: "flex", alignItems: "center", gap: 6, background: "var(--neutral-50)", borderRadius: 8, padding: "6px 10px", fontSize: 12, opacity: 0.7 }}>
+                              <FolderOpen size={14} color="var(--accent-700)" />
                               <span style={{ maxWidth: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(m as { filename: string }).filename}</span>
                             </div>
                           )
@@ -4060,24 +4047,24 @@ export default function MultiatendimentoPage() {
               {/* toolbar de ações */}
               <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 6 }}>
                 <span title="Anexar arquivo" onClick={handleAttachClick} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                  <Paperclip size={18} color={cs.finished ? "#DDD" : "#128A68"} />
+                  <Paperclip size={18} color={cs.finished ? "var(--neutral-300)" : "var(--accent-700)"} />
                 </span>
                 <span title="Arquivos da conversa" onClick={() => { setShowFiles(v => !v); setShowEmoji(false); }} style={{ display: "inline-flex", cursor: "pointer" }}>
-                  <FolderOpen size={18} color={cs.finished ? "#DDD" : "#128A68"} />
+                  <FolderOpen size={18} color={cs.finished ? "var(--neutral-300)" : "var(--accent-700)"} />
                 </span>
                 <span title="Emoji" onClick={() => { if (!cs.finished) { setShowEmoji(v => !v); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                  <Smile size={18} color={cs.finished ? "#DDD" : "#128A68"} />
+                  <Smile size={18} color={cs.finished ? "var(--neutral-300)" : "var(--accent-700)"} />
                 </span>
                 <span title={recording ? "Gravando… clique para parar" : "Gravar áudio"} onClick={() => { if (!cs.finished) { if (recording) stopRecording(); else startRecording(); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                  <Mic size={18} color={recording ? "#E53E3E" : (cs.finished ? "#DDD" : "#128A68")} />
+                  <Mic size={18} color={recording ? "#E53E3E" : (cs.finished ? "var(--neutral-300)" : "var(--accent-700)")} />
                 </span>
                 <button
                   onClick={suggestAI}
                   disabled={cs.finished || aiLoading}
                   title="Sugestão de resposta com IA"
-                  style={{ background: "#E1F5EE", borderRadius: 6, padding: 4, display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer", border: "none", opacity: aiLoading ? 0.6 : 1 }}
+                  style={{ background: "var(--accent-50)", borderRadius: 6, padding: 4, display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer", border: "none", opacity: aiLoading ? 0.6 : 1 }}
                 >
-                  <Sparkles size={16} color="#128A68" style={{ animation: aiLoading ? "spin 1s linear infinite" : "none" }} />
+                  <Sparkles size={16} color="var(--accent-700)" style={{ animation: aiLoading ? "spin 1s linear infinite" : "none" }} />
                 </button>
                 {/* Modelos aprovados da Meta. Só aparece na conexão oficial,
                     porque é a única com a regra de janela de 24h. Fica sempre
@@ -4091,21 +4078,21 @@ export default function MultiatendimentoPage() {
                       onClick={() => { setModelosAbertos(v => !v); setShowEmoji(false); setShowFiles(false); setQmPickerOpen(false); }}
                       style={{ display: "inline-flex", cursor: "pointer" }}
                     >
-                      <FileText size={18} color={cs.finished ? "#DDD" : "#128A68"} />
+                      <FileText size={18} color={cs.finished ? "var(--neutral-300)" : "var(--accent-700)"} />
                     </span>
                     {modelosAbertos && (
                       <>
                         <div onClick={() => setModelosAbertos(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-                        <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 340, background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, overflow: "hidden" }}>
+                        <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 340, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, overflow: "hidden" }}>
                           <div style={{ padding: "12px 14px 10px" }}>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Modelos aprovados</span>
-                            <p style={{ fontSize: 11, color: "#888", marginTop: 3, lineHeight: 1.4 }}>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Modelos aprovados</span>
+                            <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.4 }}>
                               {janelaModeloFechada
                                 ? "Passaram 24h sem mensagem deste contato. Pelo WhatsApp oficial, só um modelo aprovado pela Meta retoma a conversa."
                                 : "Textos aprovados pela Meta. Vão direto ao contato, sem edição."}
                             </p>
                           </div>
-                          <div style={{ height: 1, background: "#EEEEEE" }} />
+                          <div style={{ height: 1, background: "var(--neutral-100)" }} />
                           <div style={{ padding: 12 }}>
                             <WhatsappTemplatePicker
                               wabaId={instanciaAtual?.wabaId ?? null}
@@ -4121,7 +4108,7 @@ export default function MultiatendimentoPage() {
                 )}
                 <div style={{ position: "relative", display: "inline-flex" }}>
                   <span title="Mensagens rápidas" onClick={() => { if (!cs.finished) { setQmPickerOpen(v => !v); setShowEmoji(false); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
-                    <Zap size={18} color={cs.finished ? "#DDD" : "#128A68"} />
+                    <Zap size={18} color={cs.finished ? "var(--neutral-300)" : "var(--accent-700)"} />
                   </span>
                   {qmPickerOpen && (
                     <>
@@ -4130,40 +4117,40 @@ export default function MultiatendimentoPage() {
                           título e contagem, divisória, lista rolável e rodapé
                           com a ação. Sem isso a lista aparecia solta, sem dizer
                           o que era nem o que dava para fazer ali. */}
-                      <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 320, background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, overflow: "hidden" }}>
+                      <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 320, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, overflow: "hidden" }}>
                         <div style={{ padding: "12px 14px 10px" }}>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Mensagens rápidas</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Mensagens rápidas</span>
                             {qmList.length > 0 && (
-                              <span style={{ fontSize: 11, color: "#767676", background: "#F5F5F5", borderRadius: 20, padding: "1px 8px" }}>{qmList.length}</span>
+                              <span style={{ fontSize: 12, color: "var(--text-muted)", background: "var(--neutral-50)", borderRadius: 20, padding: "1px 8px" }}>{qmList.length}</span>
                             )}
                           </div>
-                          <p style={{ fontSize: 11, color: "#888", marginTop: 3, lineHeight: 1.4 }}>
+                          <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.4 }}>
                             Textos prontos seus. Vão para o campo de digitação e você edita antes de enviar.
                           </p>
                         </div>
-                        <div style={{ height: 1, background: "#EEEEEE" }} />
+                        <div style={{ height: 1, background: "var(--neutral-100)" }} />
 
                         <div style={{ maxHeight: 240, overflowY: "auto", padding: 6 }}>
                           {qmList.length === 0 ? (
-                            <div style={{ padding: "18px 12px", textAlign: "center", fontSize: 12, color: "#888", lineHeight: 1.5 }}>
+                            <div style={{ padding: "18px 12px", textAlign: "center", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
                               Nenhuma mensagem rápida ainda.<br />Crie a primeira para responder o de sempre em um clique.
                             </div>
                           ) : qmList.map(q => (
                             <button key={q.id} onClick={() => insertQuickMessage(q)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
-                              onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+                              onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
                               onMouseLeave={e => (e.currentTarget.style.background = "none")}
                             >
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
-                                {q.shortcut && <span style={{ fontSize: 10, fontWeight: 600, color: "#128A68", background: "#E1F5EE", borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>}
+                                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
+                                {q.shortcut && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)", background: "var(--accent-50)", borderRadius: 6, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>}
                               </div>
-                              <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
+                              <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
                             </button>
                           ))}
                         </div>
 
-                        <div style={{ height: 1, background: "#EEEEEE" }} />
+                        <div style={{ height: 1, background: "var(--neutral-100)" }} />
                         {/* Leva direto para a aba certa, já com o formulário
                             aberto: criar uma mensagem rápida é o que a pessoa
                             quer fazer quando percebe que falta uma. */}
@@ -4174,8 +4161,8 @@ export default function MultiatendimentoPage() {
                             setShowMultiSettings(true);
                             openNewQuickMessage();
                           }}
-                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: "10px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#128A68" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+                          style={{ width: "100%", display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", padding: "10px 14px", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--accent-700)" }}
+                          onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
                           onMouseLeave={e => (e.currentTarget.style.background = "none")}
                         >
                           <Plus size={13} /> Criar mensagem rápida
@@ -4197,25 +4184,25 @@ export default function MultiatendimentoPage() {
                   <span style={{ fontSize: 13, color: "#E53E3E", fontVariantNumeric: "tabular-nums" }}>
                     {String(Math.floor(recordingTime / 60)).padStart(2, "0")}:{String(recordingTime % 60).padStart(2, "0")}
                   </span>
-                  <span style={{ fontSize: 13, color: "#AAA", flex: 1 }}>Gravando áudio…</span>
-                  <button onClick={cancelRecording} style={{ background: "none", border: "1px solid #E5E5E5", borderRadius: 8, padding: "4px 10px", fontSize: 12, color: "#666", cursor: "pointer" }}>Cancelar</button>
-                  <button onClick={stopRecording} style={{ background: "#128A68", border: "none", borderRadius: 8, padding: "4px 12px", fontSize: 12, color: "#FFF", fontWeight: 600, cursor: "pointer" }}>Enviar</button>
+                  <span style={{ fontSize: 13, color: "var(--text-muted)", flex: 1 }}>Gravando áudio…</span>
+                  <button onClick={cancelRecording} style={{ background: "none", border: "1px solid var(--border-default)", borderRadius: 8, padding: "4px 10px", fontSize: 12, color: "var(--text-muted)", cursor: "pointer" }}>Cancelar</button>
+                  <button onClick={stopRecording} style={{ background: "var(--surface-accent)", border: "none", borderRadius: 8, padding: "4px 12px", fontSize: 12, color: "var(--text-on-accent)", fontWeight: 600, cursor: "pointer" }}>Enviar</button>
                 </div>
               ) : (
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 8, position: "relative" }}>
                   {shortcutSuggestions.length > 0 && (
-                    <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, width: 300, maxHeight: 220, overflowY: "auto", background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 6 }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 8px 6px" }}>Mensagens rápidas · Tab para inserir</div>
+                    <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, width: 300, maxHeight: 220, overflowY: "auto", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 6 }}>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 8px 6px" }}>Mensagens rápidas · Tab para inserir</div>
                       {shortcutSuggestions.map(q => (
                         <button key={q.id} onMouseDown={e => { e.preventDefault(); expandShortcut(q); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+                          onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
                           onMouseLeave={e => (e.currentTarget.style.background = "none")}
                         >
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: "#128A68", background: "#E1F5EE", borderRadius: 5, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)", background: "var(--accent-50)", borderRadius: 6, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
                           </div>
-                          <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
+                          <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
                         </button>
                       ))}
                     </div>
@@ -4247,14 +4234,14 @@ export default function MultiatendimentoPage() {
                       : "Mensagem..."
                     }
                     disabled={cs.finished || janelaModeloFechada}
-                    style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, lineHeight: "20px", color: "#111", padding: "4px 0", fontFamily: "inherit", resize: "none", overflowY: "auto", maxHeight: ALTURA_MAX_MENSAGEM, opacity: cs.finished || janelaModeloFechada ? 0.5 : 1 }}
+                    style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 14, lineHeight: "20px", color: "var(--text-heading)", padding: "4px 0", fontFamily: "inherit", resize: "none", overflowY: "auto", maxHeight: ALTURA_MAX_MENSAGEM, opacity: cs.finished || janelaModeloFechada ? 0.5 : 1 }}
                   />
                   <button
                     onClick={() => { sendMessage(); setShowEmoji(false); }}
                     disabled={!inputValue.trim() || cs.finished || janelaModeloFechada}
-                    style={{ background: inputValue.trim() && !cs.finished && !janelaModeloFechada ? "#128A68" : "#E5E5E5", border: "none", borderRadius: 8, padding: "6px 10px", cursor: inputValue.trim() && !cs.finished && !janelaModeloFechada ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}
+                    style={{ background: inputValue.trim() && !cs.finished && !janelaModeloFechada ? "var(--accent-700)" : "var(--neutral-200)", border: "none", borderRadius: 8, padding: "6px 10px", cursor: inputValue.trim() && !cs.finished && !janelaModeloFechada ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}
                   >
-                    <Send size={16} color={inputValue.trim() && !cs.finished && !janelaModeloFechada ? "#FFF" : "#AAA"} />
+                    <Send size={16} color={inputValue.trim() && !cs.finished && !janelaModeloFechada ? "#FFF" : "var(--text-muted)"} />
                   </button>
                 </div>
               )}
@@ -4262,8 +4249,8 @@ export default function MultiatendimentoPage() {
           </>
         ) : (
           <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Inter", color: "#1A1A1A" }}>Selecione uma conversa</div>
-            <div style={{ fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "#1A1A1A" }}>Escolha um contato à esquerda para iniciar o atendimento</div>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Inter", color: "var(--text-heading)" }}>Selecione uma conversa</div>
+            <div style={{ fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "var(--text-heading)" }}>Escolha um contato à esquerda para iniciar o atendimento</div>
           </div>
         )}
       </section>
@@ -4277,10 +4264,10 @@ export default function MultiatendimentoPage() {
           onClick={() => { setEncaminhando(null); setBuscaDestino(""); }}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center" }}
         >
-          <div onClick={e => e.stopPropagation()} style={{ width: 380, maxHeight: "70vh", background: "#FFF", borderRadius: 14, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-            <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #EEE" }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#111", marginBottom: 8 }}>Encaminhar para</div>
-              <div style={{ fontSize: 12, color: "#888", marginBottom: 10, whiteSpace: "pre-wrap", overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 380, maxHeight: "70vh", background: "var(--surface-card)", borderRadius: 16, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)", marginBottom: 8 }}>Encaminhar para</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10, whiteSpace: "pre-wrap", overflowWrap: "anywhere", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
                 {textoDaMensagem(encaminhando)}
               </div>
               <input
@@ -4288,7 +4275,7 @@ export default function MultiatendimentoPage() {
                 value={buscaDestino}
                 onChange={e => setBuscaDestino(e.target.value)}
                 placeholder="Buscar conversa..."
-                style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none" }}
+                style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 10px", fontSize: 13, outline: "none" }}
               />
             </div>
             <div style={{ overflowY: "auto", padding: 6 }}>
@@ -4305,18 +4292,18 @@ export default function MultiatendimentoPage() {
                     disabled={enviandoEncaminho}
                     onClick={() => encaminharPara(c)}
                     style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", background: "none", border: "none", cursor: enviandoEncaminho ? "wait" : "pointer", padding: "8px 10px", borderRadius: 8, textAlign: "left" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+                    onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
                     onMouseLeave={e => (e.currentTarget.style.background = "none")}
                   >
                     <ConvAvatar name={convName(c)} avatarUrl={convAvatars[c.phone?.replace(/\D/g, "") ?? ""]} size={30} fontSize={11} />
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{convName(c)}</div>
-                      <div style={{ fontSize: 11, color: "#888" }}>{c.phone}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{convName(c)}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{c.phone}</div>
                     </div>
                   </button>
                 ))}
               {convList.filter(c => c.id !== activeId && !!c.phone).length === 0 && (
-                <div style={{ padding: 16, fontSize: 13, color: "#888", textAlign: "center" }}>Nenhuma outra conversa para encaminhar.</div>
+                <div style={{ padding: 16, fontSize: 13, color: "var(--text-muted)", textAlign: "center" }}>Nenhuma outra conversa para encaminhar.</div>
               )}
             </div>
           </div>
@@ -4346,15 +4333,15 @@ export default function MultiatendimentoPage() {
 
       {/* ── COLUNA 3 — PERFIL + GESTÃO ───────────────────────────────── */}
       {active && cs && (
-        <aside style={{ width: 350, minWidth: 350, height: "100vh", borderLeft: "1px solid #E5E5E5", overflowY: "auto", background: "#FFF" }}>
+        <aside style={{ width: 350, minWidth: 350, height: "var(--altura-util)", borderLeft: "1px solid var(--border-default)", overflowY: "auto", background: "var(--surface-card)" }}>
             {/* HEADER */}
-            <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
+            <div style={{ padding: "16px", borderBottom: "1px solid var(--neutral-100)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={40} fontSize={13} onError={() => refetchAvatar(active.phone, active.instanceId)} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{convName(active)}</span>
-                    <ExternalLink size={12} color="#128A68" style={{ cursor: "pointer" }} onClick={() => effectiveLead && navigate(`/pipeline/lead/${effectiveLead.id}`)} />
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{convName(active)}</span>
+                    <ExternalLink size={12} color="var(--accent-700)" style={{ cursor: "pointer" }} onClick={() => effectiveLead && navigate(`/pipeline/lead/${effectiveLead.id}`)} />
                   </div>
                   {/* Tags inline + picker */}
                   <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 4, marginTop: 5 }}>
@@ -4377,14 +4364,14 @@ export default function MultiatendimentoPage() {
                              saiu do arquivo junto com as tags de lá, e este é
                              agora o único lugar que mostra tag no
                              multiatendimento. */
-                          style={{ background: tag?.color ? `${tag.color}20` : "#F5F5F5", color: tag?.color || "#666", border: `1px solid ${tag?.color || "#E5E5E5"}`, borderRadius: 4, padding: "2px 6px", fontSize: 10, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+                          style={{ background: tag?.color ? `${tag.color}20` : "var(--neutral-50)", color: tag?.color ? tintaDeChip(tag.color, 0.125) : "var(--text-muted)", border: `1px solid ${tag?.color || "var(--border-default)"}`, borderRadius: 6, padding: "2px 6px", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
                         >
                           {tagName}
                         </span>
                       );
                     })}
                     {convTags.length > 4 && (
-                      <span style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>+{convTags.length - 4}</span>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>+{convTags.length - 4}</span>
                     )}
                     {/* Botão "+" (texto quando não há nenhuma tag ainda, senão só o ícone) */}
                     <div style={{ position: "relative" }}>
@@ -4399,22 +4386,22 @@ export default function MultiatendimentoPage() {
                           setTagSearch("");
                         }}
                         style={convTags.length === 0
-                          ? { display: "flex", alignItems: "center", gap: 3, height: 18, borderRadius: 100, background: "transparent", border: "1px solid #E0E0E0", padding: "0 8px", cursor: "pointer", color: "#888", fontSize: 11, fontWeight: 600, whiteSpace: "nowrap" }
-                          : { width: 18, height: 18, borderRadius: "50%", background: "#F0F0F0", border: "1px solid #E0E0E0", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: "#888" }}
+                          ? { display: "flex", alignItems: "center", gap: 3, height: 18, borderRadius: 100, background: "transparent", border: "1px solid var(--border-default)", padding: "0 8px", cursor: "pointer", color: "var(--text-muted)", fontSize: 12, fontWeight: 600, whiteSpace: "nowrap" }
+                          : { width: 18, height: 18, borderRadius: "50%", background: "var(--neutral-100)", border: "1px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", padding: 0, color: "var(--text-muted)" }}
                       >
                         <Plus size={10} />
                         {convTags.length === 0 && "Adicionar tag"}
                       </button>
 
                       {showTagPicker && (
-                        <div ref={tagPickerRef} style={{ position: "fixed", top: tagPickerPos.top, right: tagPickerPos.right, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 9999, overflow: "hidden" }}>
-                          <div style={{ padding: "8px 10px", borderBottom: "1px solid #F0F0F0" }}>
+                        <div ref={tagPickerRef} style={{ position: "fixed", top: tagPickerPos.top, right: tagPickerPos.right, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 9999, overflow: "hidden" }}>
+                          <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--neutral-100)" }}>
                             <input
                               value={tagSearch}
                               onChange={e => setTagSearch(e.target.value)}
                               placeholder="Pesquisar..."
                               autoFocus
-                              style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: "#111", background: "transparent" }}
+                              style={{ width: "100%", border: "none", outline: "none", fontSize: 13, color: "var(--text-heading)", background: "transparent" }}
                             />
                           </div>
                           <div style={{ maxHeight: 200, overflowY: "auto" }}>
@@ -4426,22 +4413,22 @@ export default function MultiatendimentoPage() {
                                   <button
                                     key={tag.id}
                                     onClick={() => toggleConvTag(tag.name)}
-                                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: isActive ? "#F9FAFB" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
+                                    style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", background: isActive ? "var(--neutral-50)" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
                                   >
                                     {isActive
-                                      ? <Check size={13} color="#128A68" />
+                                      ? <Check size={13} color="var(--accent-700)" />
                                       : <div style={{ width: 13 }} />}
                                     <span style={{ width: 8, height: 8, borderRadius: "50%", background: tag.color, display: "inline-block", flexShrink: 0 }} />
-                                    <span style={{ fontSize: 13, color: "#111", fontWeight: isActive ? 600 : 400 }}>{tag.name}</span>
+                                    <span style={{ fontSize: 13, color: "var(--text-heading)", fontWeight: isActive ? 600 : 400 }}>{tag.name}</span>
                                   </button>
                                 );
                               })}
                             {crmTags.filter(t => !tagSearch || t.name.toLowerCase().includes(tagSearch.toLowerCase())).length === 0 && (
-                              <div style={{ padding: "10px 12px", fontSize: 12, color: "#AAA" }}>Nenhuma tag encontrada</div>
+                              <div style={{ padding: "10px 12px", fontSize: 12, color: "var(--text-muted)" }}>Nenhuma tag encontrada</div>
                             )}
                           </div>
-                          <div style={{ padding: "8px 12px", borderTop: "1px solid #F0F0F0", textAlign: "right" }}>
-                            <button onClick={() => { navigate("/configuracoes"); setShowTagPicker(false); }} style={{ fontSize: 12, color: "#128A68", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
+                          <div style={{ padding: "8px 12px", borderTop: "1px solid var(--neutral-100)", textAlign: "right" }}>
+                            <button onClick={() => { navigate("/configuracoes"); setShowTagPicker(false); }} style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600, background: "none", border: "none", cursor: "pointer" }}>
                               Criar
                             </button>
                           </div>
@@ -4461,12 +4448,12 @@ export default function MultiatendimentoPage() {
                         <span
                           key={lst.id}
                           onClick={() => toggleConvList(lst.id)}
-                          style={{ background: "#E1F5EE", color: "#128A68", border: "1px solid #128A6820", borderRadius: 100, padding: "2px 7px", fontSize: 11, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}
+                          style={{ background: "var(--accent-50)", color: "var(--accent-800)", border: "1px solid var(--accent-700)20", borderRadius: 100, padding: "2px 7px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}
                         >
                           <List size={9} />{lst.name}
                         </span>
                       ))}
-                      {convLists.length > 3 && <span style={{ fontSize: 11, color: "#AAA", fontWeight: 600 }}>+{convLists.length - 3}</span>}
+                      {convLists.length > 3 && <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600 }}>+{convLists.length - 3}</span>}
                     </div>
                   );
                 })()}
@@ -4477,9 +4464,9 @@ export default function MultiatendimentoPage() {
                   onClick={handleOpenLeadOrDealPopup}
                   disabled={hasNegocio}
                   title={hasNegocio ? "Esta conversa já tem um negócio aberto vinculado" : undefined}
-                  style={{ flex: 1, background: "#F5F5F5", border: "none", borderRadius: 8, padding: "6px 10px", color: hasNegocio ? "#AAA" : "#128A68", fontSize: 12, fontWeight: 600, cursor: hasNegocio ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onMouseEnter={e => { if (!hasNegocio) e.currentTarget.style.background = "#E1F5EE"; }}
-                  onMouseLeave={e => { if (!hasNegocio) e.currentTarget.style.background = "#F5F5F5"; }}
+                  style={{ flex: 1, background: "var(--neutral-50)", border: "none", borderRadius: 8, padding: "6px 10px", color: hasNegocio ? "var(--text-muted)" : "var(--accent-800)", fontSize: 12, fontWeight: 600, cursor: hasNegocio ? "default" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => { if (!hasNegocio) e.currentTarget.style.background = "var(--accent-50)"; }}
+                  onMouseLeave={e => { if (!hasNegocio) e.currentTarget.style.background = "var(--neutral-50)"; }}
                 ><Plus size={12} /> {effectiveLead ? "Negócio" : "Lead"}</button>
                 {/* Verde cheio da marca com texto branco, o mesmo do "Criar
                     atividade" mais abaixo e dos botões do cabeçalho da pipeline.
@@ -4489,21 +4476,21 @@ export default function MultiatendimentoPage() {
                     dois mais altos que o "Lead/Negócio" ao lado, que nunca teve
                     borda. Sem ele os três voltam a ter a mesma altura.
 
-                    O hover é o #128A68 a 90% sobre branco, equivalente ao
+                    O hover é o var(--accent-700) a 90% sobre branco, equivalente ao
                     `bg-primary/90` do componente Button; vai em hexadecimal
                     porque esta árvore é pintada por `style` inline, onde não há
                     pseudo-classe. */}
                 <button
                   onClick={() => { if (activeId) setAutoModalConvs([activeId]); }}
-                  style={{ flex: 1, background: "#128A68", border: "none", borderRadius: 8, padding: "6px 10px", color: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#2A9677")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#128A68")}
+                  style={{ flex: 1, background: "var(--surface-accent)", border: "none", borderRadius: 8, padding: "6px 10px", color: "var(--text-on-accent)", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--accent-300)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "var(--surface-accent)")}
                 ><Zap size={12} /> Automação</button>
                 <button
                   onClick={() => setShowFollowupDialog(true)}
-                  style={{ flex: 1, background: "#128A68", border: "none", borderRadius: 8, padding: "6px 10px", color: "#FFFFFF", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#2A9677")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#128A68")}
+                  style={{ flex: 1, background: "var(--surface-accent)", border: "none", borderRadius: 8, padding: "6px 10px", color: "var(--text-on-accent)", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--accent-300)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "var(--surface-accent)")}
                 ><CalendarDays size={12} /> Follow up</button>
               </div>
 
@@ -4511,10 +4498,10 @@ export default function MultiatendimentoPage() {
                   negócio vinculado ainda, não dá pra atribuir (a conversa
                   segue funcionando normalmente nos chips mesmo assim). */}
               <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, padding: "7px 10px", borderRadius: 8 }}>
-                <UserCheck size={13} color="#128A68" />
-                <span style={{ fontSize: 10, color: "#666" }}>Responsável:</span>
+                <UserCheck size={13} color="var(--accent-700)" />
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Responsável:</span>
                 {!hasNegocio ? (
-                  <span style={{ fontSize: 11, color: "#AAA", flex: 1, fontStyle: "italic" }}>Crie um negócio pra atribuir um responsável</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", flex: 1, fontStyle: "italic" }}>Crie um negócio pra atribuir um responsável</span>
                 ) : (
                   <>
                     {(effectiveLead?.responsibles?.length ?? 0) > 0 ? (
@@ -4522,27 +4509,27 @@ export default function MultiatendimentoPage() {
                         <div style={{ display: "flex", flexShrink: 0 }}>
                           {(effectiveLead?.responsibles ?? []).slice(0, 3).map((name, i) =>
                             memberAvatars[name] ? (
-                              <img key={name} src={memberAvatars[name]} alt={name} style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", border: "2px solid #F5F5F5", marginLeft: i > 0 ? -6 : 0 }} />
+                              <img key={name} src={memberAvatars[name]} alt={name} style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--neutral-100)", marginLeft: i > 0 ? -6 : 0 }} />
                             ) : (
-                              <div key={name} style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[name] ?? corDoTexto(name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 700, border: "2px solid #F5F5F5", marginLeft: i > 0 ? -6 : 0 }}>
+                              <div key={name} style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[name] ?? corDoTexto(name), color: tintaSobre(memberColors[name] ?? corDoTexto(name)), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, border: "2px solid var(--neutral-100)", marginLeft: i > 0 ? -6 : 0 }}>
                                 {iniciais(name)}
                               </div>
                             )
                           )}
                         </div>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: "#111", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(effectiveLead?.responsibles ?? []).join(", ")}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(effectiveLead?.responsibles ?? []).join(", ")}</span>
                       </>
                     ) : (
-                      <span style={{ fontSize: 12, color: "#AAA", flex: 1 }}>Sem responsável</span>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)", flex: 1 }}>Sem responsável</span>
                     )}
                     {/* Ao lado de quem está atribuído, não mais numa linha
                         própria abaixo -- a ação de trocar fica junto de quem
                         ela troca. */}
                     <button
                       onClick={() => setShowTransferDialog(true)}
-                      style={{ flexShrink: 0, background: "#E1F5EE", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 10, fontWeight: 600, color: "#128A68", cursor: "pointer", whiteSpace: "nowrap" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#c8efe3")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "#E1F5EE")}
+                      style={{ flexShrink: 0, background: "var(--accent-50)", border: "none", borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 600, color: "var(--accent-800)", cursor: "pointer", whiteSpace: "nowrap" }}
+                      onMouseEnter={e => (e.currentTarget.style.background = "var(--accent-100)")}
+                      onMouseLeave={e => (e.currentTarget.style.background = "var(--accent-50)")}
                     >Transferir</button>
                   </>
                 )}
@@ -4551,22 +4538,22 @@ export default function MultiatendimentoPage() {
               {/* Outras conversas deste contato (ex: número antigo x novo) */}
               {active.contactId && otherContactConvs.length > 0 && (
                 <div style={{ marginTop: 10 }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", letterSpacing: 0.5, marginBottom: 6 }}>OUTRAS CONVERSAS DESTE CONTATO</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", letterSpacing: 0.5, marginBottom: 6 }}>OUTRAS CONVERSAS DESTE CONTATO</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     {otherContactConvs.map(oc => (
                       <button
                         key={oc.id}
                         onClick={() => { setActiveId(oc.id); updateCs(oc.id, { read: true }); }}
-                        style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", textAlign: "left", background: "#F9FBFA", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}
+                        style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", textAlign: "left", background: "#F9FBFA", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", width: "100%", gap: 8 }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {whatsappConnections.find(wc => wc.instanceId === oc.instanceId)?.name ?? "Número desconhecido"}
                           </span>
-                          <span style={{ fontSize: 10, color: "#AAA", flexShrink: 0 }}>{oc.time}</span>
+                          <span style={{ fontSize: 12, color: "var(--text-muted)", flexShrink: 0 }}>{oc.time}</span>
                         </div>
-                        <span style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{previewText(oc)}</span>
-                        {!isConvInstanceConnected(oc) && <span style={{ fontSize: 9, fontWeight: 600, color: "#888", marginTop: 2 }}>Desconectada</span>}
+                        <span style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: "100%" }}>{previewText(oc)}</span>
+                        {!isConvInstanceConnected(oc) && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", marginTop: 2 }}>Desconectada</span>}
                       </button>
                     ))}
                   </div>
@@ -4576,18 +4563,18 @@ export default function MultiatendimentoPage() {
             </div>
 
             {/* ETAPA NO PIPELINE */}
-            <div style={{ padding: "16px", borderBottom: "1px solid #F0F0F0" }}>
+            <div style={{ padding: "16px", borderBottom: "1px solid var(--neutral-100)" }}>
               <div style={{ marginBottom: 14 }}>
-                <span style={{ fontSize: 15, fontWeight: 400, color: "#111" }}>{linkedPipeline?.name || active.pipeline || "—"}</span>
-                <span style={{ fontSize: 15, fontWeight: 400, color: "#111" }}> - </span>
-                <span style={{ fontSize: 15, fontWeight: 400, color: "#111" }}>{activeStages[activeStageIdx] ?? "—"}</span>
+                <span style={{ fontSize: 14, fontWeight: 400, color: "var(--text-heading)" }}>{linkedPipeline?.name || active.pipeline || "—"}</span>
+                <span style={{ fontSize: 14, fontWeight: 400, color: "var(--text-heading)" }}> - </span>
+                <span style={{ fontSize: 14, fontWeight: 400, color: "var(--text-heading)" }}>{activeStages[activeStageIdx] ?? "—"}</span>
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 3, marginBottom: 16 }}>
                 {activeStages.map((_, i) => {
                   const isActive = i === activeStageIdx;
                   const isPast = i < activeStageIdx;
-                  const bg = isActive ? "#128A68" : isPast ? "#E1F5EE" : "#F5F5F5";
+                  const bg = isActive ? "var(--accent-700)" : isPast ? "var(--surface-selected)" : "var(--neutral-50)";
                   return (
                     <button
                       key={i}
@@ -4614,7 +4601,7 @@ export default function MultiatendimentoPage() {
                     }
                   }}
                   disabled={activeStageIdx === 0}
-                  style={{ flex: 1, height: 25, background: "#FFF", border: "1px solid #999", borderRadius: 8, padding: "0 8px", color: "#666", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === 0 ? "not-allowed" : "pointer", opacity: activeStageIdx === 0 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, height: 25, background: "var(--surface-card)", border: "1px solid #999", borderRadius: 8, padding: "0 8px", color: "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === 0 ? "not-allowed" : "pointer", opacity: activeStageIdx === 0 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                 ><ArrowLeft size={12} /> Voltar</button>
                 <button
                   onClick={() => {
@@ -4629,9 +4616,9 @@ export default function MultiatendimentoPage() {
                     }
                   }}
                   disabled={activeStageIdx === activeStages.length - 1}
-                  style={{ flex: 1, height: 25, background: "#FFF", border: "1px solid #128A68", borderRadius: 8, padding: "0 8px", color: "#128A68", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === activeStages.length - 1 ? "not-allowed" : "pointer", opacity: activeStageIdx === activeStages.length - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                  onMouseEnter={e => { if (activeStageIdx !== activeStages.length - 1) e.currentTarget.style.background = "#E1F5EE"; }}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#FFF")}
+                  style={{ flex: 1, height: 25, background: "var(--surface-card)", border: "1px solid var(--accent-700)", borderRadius: 8, padding: "0 8px", color: "var(--accent-700)", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === activeStages.length - 1 ? "not-allowed" : "pointer", opacity: activeStageIdx === activeStages.length - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  onMouseEnter={e => { if (activeStageIdx !== activeStages.length - 1) e.currentTarget.style.background = "var(--accent-50)"; }}
+                  onMouseLeave={e => (e.currentTarget.style.background = "var(--surface-card)")}
                 >Avançar <ArrowRight size={12} /></button>
               </div>
             </div>
@@ -4647,39 +4634,39 @@ export default function MultiatendimentoPage() {
               return (
                 <Section title="Atividades" defaultOpen>
                   {nextAct ? (
-                    <div style={{ background: "#F9FBFA", border: "1px solid #E5E5E5", borderRadius: 10, padding: 12 }}>
+                    <div style={{ background: "#F9FBFA", border: "1px solid var(--border-default)", borderRadius: 10, padding: 12 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                        <CalendarIcon size={14} color="#128A68" />
-                        <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>
+                        <CalendarIcon size={14} color="var(--accent-700)" />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>
                           {new Date(nextAct.scheduledAt!).toLocaleDateString("pt-BR")} às {new Date(nextAct.scheduledAt!).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
-                      {nextAct.userName && <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>Responsável: {nextAct.userName}</div>}
-                      <span style={{ display: "inline-block", background: "#E1F5EE", color: "#128A68", fontSize: 10, fontWeight: 600, padding: "3px 8px", borderRadius: 100, marginBottom: 6 }}>{TYPE_LABEL[nextAct.type] ?? nextAct.type}</span>
-                      {nextAct.title && <div style={{ fontSize: 12, fontWeight: 600, color: "#333", marginBottom: 4 }}>{nextAct.title}</div>}
-                      {nextAct.description && <div style={{ fontSize: 12, color: "#666" }}>{nextAct.description}</div>}
+                      {nextAct.userName && <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>Responsável: {nextAct.userName}</div>}
+                      <span style={{ display: "inline-block", background: "var(--accent-50)", color: "var(--accent-800)", fontSize: 12, fontWeight: 600, padding: "3px 8px", borderRadius: 100, marginBottom: 6 }}>{TYPE_LABEL[nextAct.type] ?? nextAct.type}</span>
+                      {nextAct.title && <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-body)", marginBottom: 4 }}>{nextAct.title}</div>}
+                      {nextAct.description && <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{nextAct.description}</div>}
                     </div>
                   ) : (
                     <>
-                      <div style={{ fontSize: 12, color: "#AAA", marginBottom: 8 }}>Sem atividades agendadas</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8 }}>Sem atividades agendadas</div>
                       {/* Verde cheio da marca, o mesmo dos botões do cabeçalho
-                          da pipeline (`--primary`, #128A68).
+                          da pipeline (`--primary`, var(--accent-700)).
 
                           O texto foi para branco junto, e não por gosto: ele era
-                          #128A68 sobre o verde claro, e mantê-lo deixaria a
+                          var(--accent-700) sobre o verde claro, e mantê-lo deixaria a
                           letra da mesma cor do fundo -- botão invisível. Branco
                           sobre este verde é a combinação padrão de todo botão
                           principal do produto.
 
-                          O hover é o #128A68 a 90% sobre branco, que é o mesmo
+                          O hover é o var(--accent-700) a 90% sobre branco, que é o mesmo
                           `bg-primary/90` que o Button aplica; aqui vai resolvido
                           em hexadecimal porque esta árvore é pintada por `style`
                           inline, onde não há pseudo-classe. */}
                       <button
                         onClick={() => setShowScheduleDialog(true)}
-                        style={{ width: "100%", background: "#128A68", border: "none", color: "#FFFFFF", borderRadius: 8, padding: "7px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "#2A9677")}
-                        onMouseLeave={e => (e.currentTarget.style.background = "#128A68")}
+                        style={{ width: "100%", background: "var(--surface-accent)", border: "none", color: "var(--text-on-accent)", borderRadius: 8, padding: "7px 10px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                        onMouseEnter={e => (e.currentTarget.style.background = "var(--accent-300)")}
+                        onMouseLeave={e => (e.currentTarget.style.background = "var(--surface-accent)")}
                       ><Plus size={12} /> Criar atividade</button>
                     </>
                   )}
@@ -4691,13 +4678,13 @@ export default function MultiatendimentoPage() {
                 (contato aberto em /pipeline/lead). key={activeId} força
                 remount ao trocar de conversa, senão um MuInlineField que
                 ficou em modo edição vaza pra conversa seguinte. */}
-            <div key={activeId} style={{ borderBottom: "1px solid #F0F0F0" }}>
+            <div key={activeId} style={{ borderBottom: "1px solid var(--neutral-100)" }}>
               <div style={{ display: "flex", justifyContent: "flex-start", gap: 4, padding: "10px 16px" }}>
                 {(["perfil", "endereco", "campos"] as const).map(k => (
                   <button
                     key={k}
                     onClick={() => setMuDetailsTab(k)}
-                    /* Aba escolhida no verde claro da marca (#E1F5EE), o mesmo
+                    /* Aba escolhida na superfície de seleção do sistema (--accent-100), a mesma
                        da pastilha de tipo de atividade e do hover dos botões
                        daqui, com o texto no verde fechado.
 
@@ -4711,7 +4698,7 @@ export default function MultiatendimentoPage() {
                        funcionaria de contraste, mas deixaria as três abas com a
                        mesma cor de letra, e aí só o retângulo diferenciaria a
                        ativa. */
-                    style={{ background: muDetailsTab === k ? "#E1F5EE" : "none", border: "none", borderRadius: 4, cursor: "pointer", padding: "6px 10px", fontSize: 12, fontWeight: 600, color: muDetailsTab === k ? "#128A68" : "#111" }}
+                    style={{ background: muDetailsTab === k ? "var(--surface-selected)" : "none", border: "none", borderRadius: 6, cursor: "pointer", padding: "6px 10px", fontSize: 12, fontWeight: 600, color: muDetailsTab === k ? "var(--accent-800)" : "var(--text-heading)" }}
                   >{{ perfil: "Perfil", endereco: "Endereço", campos: "Campos" }[k]}</button>
                 ))}
               </div>
@@ -4747,7 +4734,7 @@ export default function MultiatendimentoPage() {
 
                 {muDetailsTab === "campos" && (() => {
                   const allItems = customFieldGroups.flatMap(g => g.items);
-                  if (allItems.length === 0) return <p style={{ fontSize: 12, color: "#AAA", fontStyle: "italic" }}>Nenhum campo adicional configurado</p>;
+                  if (allItems.length === 0) return <p style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>Nenhum campo adicional configurado</p>;
                   return (
                     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                       {allItems.map(f => (
@@ -4768,7 +4755,7 @@ export default function MultiatendimentoPage() {
             </div>
 
             <Section title="Anotações" defaultOpen>
-              <div style={{ border: `1px solid ${notesActive ? "#128A68" : "#E5E5E5"}`, borderRadius: 10, background: "#FAFAFA", padding: 10, transition: "border-color 0.15s" }}>
+              <div style={{ border: `1px solid ${notesActive ? "var(--accent-700)" : "var(--border-default)"}`, borderRadius: 10, background: "var(--neutral-25)", padding: 10, transition: "border-color 0.15s" }}>
                 <div
                   ref={notesDivRef}
                   contentEditable={!!effectiveLead}
@@ -4785,7 +4772,7 @@ export default function MultiatendimentoPage() {
                      Fechado, o campo era uma tira de 34px com um texto cinza,
                      indistinguível de um rótulo -- quem não clicasse por acaso
                      não descobria que dava para escrever ali. */
-                  style={{ fontSize: 13, color: "#111", minHeight: effectiveLead ? 70 : 34, outline: "none", wordBreak: "break-word" }}
+                  style={{ fontSize: 13, color: "var(--text-heading)", minHeight: effectiveLead ? 70 : 34, outline: "none", wordBreak: "break-word" }}
                 />
                 {/*
                   A barra de formatação e os botões aparecem sempre que há
@@ -4802,7 +4789,7 @@ export default function MultiatendimentoPage() {
                   é ele que acende a borda verde em volta da caixa.
                 */}
                 {effectiveLead && (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4, paddingTop: 8, marginTop: 8, borderTop: "1px solid #E5E5E5" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 4, paddingTop: 8, marginTop: 8, borderTop: "1px solid var(--border-default)" }}>
                     <div style={{ display: "flex", gap: 2 }}>
                       {[
                         { icon: <Bold size={13} />, title: "Negrito", cmd: "bold" },
@@ -4817,7 +4804,7 @@ export default function MultiatendimentoPage() {
                             key={title}
                             title={title}
                             onMouseDown={e => { e.preventDefault(); applyNoteFormat(cmd); }}
-                            style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 5, border: "none", cursor: "pointer", background: isActive ? "#E1F5EE" : "transparent", color: isActive ? "#128A68" : "#888" }}
+                            style={{ width: 24, height: 24, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "none", cursor: "pointer", background: isActive ? "var(--accent-50)" : "transparent", color: isActive ? "var(--accent-800)" : "var(--text-muted)" }}
                           >{icon}</button>
                         );
                       })}
@@ -4825,7 +4812,7 @@ export default function MultiatendimentoPage() {
                     <div style={{ display: "flex", gap: 6 }}>
                       <button
                         onClick={() => { if (notesDivRef.current) notesDivRef.current.innerHTML = ""; setNotesActive(false); setNotesTemTexto(false); }}
-                        style={{ fontSize: 11, fontWeight: 600, color: "#666", background: "none", border: "1px solid #E5E5E5", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}
+                        style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", background: "none", border: "1px solid var(--border-default)", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}
                       >Cancelar</button>
                       {/* Desligado enquanto não há texto. Aberto por padrão, o
                           editor passa a maior parte do tempo vazio, e um
@@ -4839,14 +4826,14 @@ export default function MultiatendimentoPage() {
                       <button
                         onClick={addNote}
                         disabled={!notesTemTexto}
-                        style={{ fontSize: 11, fontWeight: 600, color: "#FFF", background: notesTemTexto ? "#128A68" : "#BDBDBD", border: "none", borderRadius: 6, padding: "4px 10px", cursor: notesTemTexto ? "pointer" : "not-allowed", transition: "background 0.15s" }}
+                        style={{ fontSize: 12, fontWeight: 600, color: "#FFF", background: notesTemTexto ? "var(--accent-700)" : "#BDBDBD", border: "none", borderRadius: 6, padding: "4px 10px", cursor: notesTemTexto ? "pointer" : "not-allowed", transition: "background 0.15s" }}
                       >Salvar</button>
                     </div>
                   </div>
                 )}
               </div>
               {!effectiveLead && (
-                <div style={{ fontSize: 11, color: "#C2410C", marginTop: 6 }}>
+                <div style={{ fontSize: 12, color: "#C2410C", marginTop: 6 }}>
                   Vincule esta conversa a um negócio para registrar anotações.
                 </div>
               )}
@@ -4854,11 +4841,11 @@ export default function MultiatendimentoPage() {
 
             <Section title="Negócio vinculado" defaultOpen>
               {!hasNegocio ? (
-                <div style={{ border: "1px dashed #E5E5E5", borderRadius: 10, padding: "16px 12px", textAlign: "center" }}>
-                  <div style={{ fontSize: 12, color: "#AAA", marginBottom: 10 }}>Este contato não possui negócio vinculado</div>
+                <div style={{ border: "1px dashed var(--border-default)", borderRadius: 10, padding: "16px 12px", textAlign: "center" }}>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10 }}>Este contato não possui negócio vinculado</div>
                   <button
                     onClick={() => setShowLinkExistingDialog(true)}
-                    style={{ background: "#E1F5EE", border: "none", color: "#128A68", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+                    style={{ background: "var(--accent-50)", border: "none", color: "var(--accent-800)", borderRadius: 8, padding: "8px 12px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
                   >Atrelar negócio existente</button>
                 </div>
               ) : (
@@ -4867,20 +4854,20 @@ export default function MultiatendimentoPage() {
                 // whatsapp_conversations no momento em que a linha foi criada,
                 // ficam desatualizados assim que o vínculo muda (ex.: depois de
                 // "Atrelar negócio existente" a um negócio já existente).
-                <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, padding: 12 }}>
+                <div style={{ border: "1px solid var(--border-default)", borderRadius: 10, padding: 12 }}>
                   <div
                     style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, cursor: "pointer" }}
                     onClick={() => effectiveLead && navigate(`/pipeline/lead/${effectiveLead.id}`)}
                   >
                     <ConvAvatar name={effectiveLead?.name ?? convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} />
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{effectiveLead?.name ?? convName(active)}</div>
-                      <div style={{ fontSize: 11, color: "#AAA" }}>{effectiveLead?.company || "Sem empresa"}</div>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>{effectiveLead?.name ?? convName(active)}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{effectiveLead?.company || "Sem empresa"}</div>
                     </div>
                   </div>
 
                   <div style={{ marginBottom: 8 }}>
-                    <label style={{ display: "block", marginBottom: 4, fontSize: 11, color: "#128A68", fontWeight: 600 }}>Produto</label>
+                    <label style={{ display: "block", marginBottom: 4, fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>Produto</label>
                     <Select
                       value={effectiveLead?.productId || "none"}
                       onValueChange={v => {
@@ -4903,7 +4890,7 @@ export default function MultiatendimentoPage() {
                   </div>
 
                   <div style={{ marginBottom: 8 }}>
-                    <label style={{ display: "block", marginBottom: 4, fontSize: 11, color: "#128A68", fontWeight: 600 }}>Valor</label>
+                    <label style={{ display: "block", marginBottom: 4, fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>Valor</label>
                     <DealValueField
                       value={effectiveLead?.value ?? 0}
                       onSave={v => effectiveLead && updateLead(effectiveLead.id, { value: v })}
@@ -4914,11 +4901,11 @@ export default function MultiatendimentoPage() {
                     style={{ cursor: "pointer" }}
                     onClick={() => effectiveLead && navigate(`/pipeline/lead/${effectiveLead.id}`)}
                   >
-                    <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>{linkedPipeline?.name || "—"}</div>
-                    <div style={{ height: 4, background: "#F0F0F0", borderRadius: 2, overflow: "hidden", marginBottom: 6 }}>
-                      <div style={{ width: `${((activeStageIdx + 1) / Math.max(activeStages.length, 1)) * 100}%`, height: "100%", background: "#128A68" }} />
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{linkedPipeline?.name || "—"}</div>
+                    <div style={{ height: 4, background: "var(--neutral-100)", borderRadius: 6, overflow: "hidden", marginBottom: 6 }}>
+                      <div style={{ width: `${((activeStageIdx + 1) / Math.max(activeStages.length, 1)) * 100}%`, height: "100%", background: "var(--accent-700)" }} />
                     </div>
-                    <div style={{ fontSize: 11, color: "#128A68", fontWeight: 600 }}>{effectiveLead?.dealNumber ? `#${effectiveLead.dealNumber}` : "—"}</div>
+                    <div style={{ fontSize: 12, color: "var(--accent-800)", fontWeight: 600 }}>{effectiveLead?.dealNumber ? `#${effectiveLead.dealNumber}` : "—"}</div>
                   </div>
                 </div>
               )}
@@ -4930,7 +4917,7 @@ export default function MultiatendimentoPage() {
                 não tem o que mostrar. */}
             <Section title="Histórico" defaultOpen>
               {!effectiveLead ? (
-                <p style={{ fontSize: 12, color: "#AAA", fontStyle: "italic" }}>Sem negócio vinculado ainda</p>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", fontStyle: "italic" }}>Sem negócio vinculado ainda</p>
               ) : (() => {
                 const sortedActs = [...effectiveLead.activities].sort(
                   (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -4938,34 +4925,34 @@ export default function MultiatendimentoPage() {
                 return (
                   <div>
                     {sortedActs.length === 0 ? (
-                      <div style={{ textAlign: "center", padding: "24px 0", color: "#AAA" }}>
+                      <div style={{ textAlign: "center", padding: "24px 0", color: "var(--text-muted)" }}>
                         <StickyNote size={26} style={{ margin: "0 auto 8px", opacity: 0.3 }} />
                         <p style={{ fontSize: 12 }}>Nenhum histórico registrado</p>
                       </div>
                     ) : (
                       <div style={{ position: "relative" }}>
-                        <div style={{ position: "absolute", left: 13, top: 14, bottom: 0, width: 2, background: "#F0F0F0" }} />
+                        <div style={{ position: "absolute", left: 13, top: 14, bottom: 0, width: 2, background: "var(--neutral-100)" }} />
                         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                           {sortedActs.map(act => {
                             const m = ACT_META[act.type] ?? ACT_META.note;
                             const Icon = m.Icon;
                             return (
                               <div key={act.id} style={{ display: "flex", gap: 10, alignItems: "flex-start", padding: "6px 0" }}>
-                                <div style={{ width: 28, height: 28, borderRadius: "50%", background: m.bg, color: m.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative", zIndex: 1, border: "2px solid #FFF", boxShadow: "0 0 0 1.5px #E8E8E8" }}>
+                                <div style={{ width: 28, height: 28, borderRadius: "50%", background: m.bg, color: m.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, position: "relative", zIndex: 1, border: "2px solid var(--surface-card)", boxShadow: "0 0 0 1.5px var(--border-default)" }}>
                                   <Icon size={12} />
                                 </div>
-                                <div style={{ flex: 1, background: "#FAFAFA", border: "1px solid #F0F0F0", borderRadius: 10, padding: "9px 12px" }}>
+                                <div style={{ flex: 1, background: "var(--neutral-25)", border: "1px solid var(--neutral-100)", borderRadius: 10, padding: "9px 12px" }}>
                                   <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
                                     {act.type === "note" ? (
-                                      <div style={{ fontSize: 12, color: "#111", lineHeight: 1.4, flex: 1 }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(act.description) }} />
+                                      <div style={{ fontSize: 12, color: "var(--text-heading)", lineHeight: 1.4, flex: 1 }} dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(act.description) }} />
                                     ) : (
-                                      <p style={{ fontSize: 12, color: "#111", lineHeight: 1.4, flex: 1 }}>{act.description}</p>
+                                      <p style={{ fontSize: 12, color: "var(--text-heading)", lineHeight: 1.4, flex: 1 }}>{act.description}</p>
                                     )}
-                                    <span style={{ fontSize: 10, color: "#AAA", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtHistDate(act.date)}</span>
+                                    <span style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap", flexShrink: 0 }}>{fmtHistDate(act.date)}</span>
                                   </div>
                                   <div style={{ marginTop: 4, display: "flex", gap: 6, alignItems: "center" }}>
-                                    <span style={{ fontSize: 10, color: "#AAA" }}>{m.label}</span>
-                                    {act.userName && <><span style={{ fontSize: 10, color: "#DDD" }}>·</span><span style={{ fontSize: 10, color: "#888" }}>{act.userName}</span></>}
+                                    <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{m.label}</span>
+                                    {act.userName && <><span style={{ fontSize: 12, color: "var(--text-subtle)" }}>·</span><span style={{ fontSize: 12, color: "var(--text-muted)" }}>{act.userName}</span></>}
                                   </div>
                                 </div>
                               </div>
@@ -4990,21 +4977,21 @@ export default function MultiatendimentoPage() {
         const stepsLeft = totalMoves - pa.currentStep;
         return (
           <div onClick={() => setPendingStageAdvance(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: 380, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: 16, width: 380, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
               <div style={{ padding: "18px 20px 12px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: "#111" }}>
-                  <CheckCircle2 size={16} color="#128A68" /> Confirmar avanço de etapa
+                <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>
+                  <CheckCircle2 size={16} color="var(--accent-700)" /> Confirmar avanço de etapa
                 </div>
-                <div style={{ fontSize: 13, color: "#666", marginTop: 8, lineHeight: 1.5 }}>
-                  Mover <strong style={{ color: "#111" }}>{effectiveLead?.name}</strong> para{" "}
-                  <strong style={{ color: "#111" }}>{nextCol?.colTitle}</strong>
-                  {stepsLeft > 1 && <span style={{ color: "#AAA" }}> ({stepsLeft} confirmações até {finalCol?.colTitle})</span>}
+                <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8, lineHeight: 1.5 }}>
+                  Mover <strong style={{ color: "var(--text-heading)" }}>{effectiveLead?.name}</strong> para{" "}
+                  <strong style={{ color: "var(--text-heading)" }}>{nextCol?.colTitle}</strong>
+                  {stepsLeft > 1 && <span style={{ color: "var(--text-muted)" }}> ({stepsLeft} confirmações até {finalCol?.colTitle})</span>}
                   .
                 </div>
               </div>
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid #F0F0F0", padding: "12px 20px", background: "#FAFAFA" }}>
-                <button onClick={() => setPendingStageAdvance(null)} style={{ background: "none", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: "#666", cursor: "pointer" }}>Cancelar</button>
-                <button onClick={handleConfirmStageAdvance} style={{ background: "#128A68", border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>Confirmar <ArrowRight size={12} /></button>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid var(--neutral-100)", padding: "12px 20px", background: "var(--neutral-25)" }}>
+                <button onClick={() => setPendingStageAdvance(null)} style={{ background: "none", border: "1px solid var(--border-default)", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", cursor: "pointer" }}>Cancelar</button>
+                <button onClick={handleConfirmStageAdvance} style={{ background: "var(--surface-accent)", border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: "var(--text-on-accent)", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>Confirmar <ArrowRight size={12} /></button>
               </div>
             </div>
           </div>
@@ -5014,19 +5001,19 @@ export default function MultiatendimentoPage() {
       {/* ── DIALOG: confirmar retrocesso de etapa ───────────────────────── */}
       {pendingStageBack && (
         <div onClick={() => setPendingStageBack(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: 380, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: 16, width: 380, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
             <div style={{ padding: "18px 20px 12px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: "#111" }}>
-                <CheckCircle2 size={16} color="#128A68" /> Confirmar retrocesso de etapa
+              <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>
+                <CheckCircle2 size={16} color="var(--accent-700)" /> Confirmar retrocesso de etapa
               </div>
-              <div style={{ fontSize: 13, color: "#666", marginTop: 8, lineHeight: 1.5 }}>
-                Mover <strong style={{ color: "#111" }}>{effectiveLead?.name}</strong> de volta para{" "}
-                <strong style={{ color: "#111" }}>{pendingStageBack.toTitle}</strong>?
+              <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 8, lineHeight: 1.5 }}>
+                Mover <strong style={{ color: "var(--text-heading)" }}>{effectiveLead?.name}</strong> de volta para{" "}
+                <strong style={{ color: "var(--text-heading)" }}>{pendingStageBack.toTitle}</strong>?
               </div>
             </div>
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid #F0F0F0", padding: "12px 20px", background: "#FAFAFA" }}>
-              <button onClick={() => setPendingStageBack(null)} style={{ background: "none", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: "#666", cursor: "pointer" }}>Cancelar</button>
-              <button onClick={handleConfirmStageBack} style={{ background: "#128A68", border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: "#FFF", cursor: "pointer" }}>Confirmar</button>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, borderTop: "1px solid var(--neutral-100)", padding: "12px 20px", background: "var(--neutral-25)" }}>
+              <button onClick={() => setPendingStageBack(null)} style={{ background: "none", border: "1px solid var(--border-default)", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: "var(--text-muted)", cursor: "pointer" }}>Cancelar</button>
+              <button onClick={handleConfirmStageBack} style={{ background: "var(--surface-accent)", border: "none", borderRadius: 8, padding: "7px 14px", fontSize: 12, fontWeight: 600, color: "var(--text-on-accent)", cursor: "pointer" }}>Confirmar</button>
             </div>
           </div>
         </div>
@@ -5062,13 +5049,13 @@ export default function MultiatendimentoPage() {
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: "#FFF", borderRadius: 16, width: 860, height: 570, display: "flex", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.22)" }}
+            style={{ background: "var(--surface-card)", borderRadius: 16, width: 860, height: 570, display: "flex", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.22)" }}
           >
             {/* sidebar */}
-            <div style={{ width: 180, background: "#F8F8F8", borderRight: "1px solid #EEEEEE", display: "flex", flexDirection: "column" }}>
-              <div style={{ padding: "20px 16px 14px", borderBottom: "1px solid #EEEEEE" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Multiatendimento</div>
-                <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Configurações</div>
+            <div style={{ width: 180, background: "var(--neutral-50)", borderRight: "1px solid var(--border-default)", display: "flex", flexDirection: "column" }}>
+              <div style={{ padding: "20px 16px 14px", borderBottom: "1px solid var(--border-default)" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Multiatendimento</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Configurações</div>
               </div>
               {([
                 { tab: "config" as const, label: "Configurações" },
@@ -5080,7 +5067,7 @@ export default function MultiatendimentoPage() {
               ]).map(({ tab, label }) => {
                 const active2 = settingsTab === tab;
                 return (
-                  <button key={tab} onClick={() => setSettingsTab(tab)} style={{ background: active2 ? "#E8F5F0" : "transparent", border: "none", cursor: "pointer", padding: "11px 16px", textAlign: "left", fontSize: 13, fontWeight: active2 ? 600 : 400, color: active2 ? "#128A68" : "#444", borderLeft: active2 ? "3px solid #128A68" : "3px solid transparent", transition: "all 0.15s" }}>
+                  <button key={tab} onClick={() => setSettingsTab(tab)} style={{ background: active2 ? "#E8F5F0" : "transparent", border: "none", cursor: "pointer", padding: "11px 16px", textAlign: "left", fontSize: 13, fontWeight: active2 ? 600 : 400, color: active2 ? "var(--accent-700)" : "#444", borderLeft: active2 ? "3px solid var(--accent-700)" : "3px solid transparent", transition: "all 0.15s" }}>
                     {label}
                   </button>
                 );
@@ -5090,19 +5077,19 @@ export default function MultiatendimentoPage() {
             {/* content */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               {/* header */}
-              <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+              <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>
                     {settingsTab === "config" ? "Configurações" : settingsTab === "dept" ? "Departamentos" : settingsTab === "agents" ? "Atendentes" : "Mensagens rápidas"}
                   </div>
-                  <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
                     {settingsTab === "config" ? "Gerencie as configurações de atendimento" : settingsTab === "dept" ? "Organize suas equipes com departamentos" : settingsTab === "agents" ? "Gerencie os atendentes e suas permissões" : "Crie e gerencie mensagens rápidas"}
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  {settingsTab === "dept" && <button onClick={() => setDeptCreateOpen(true)} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Criar</button>}
-                  {settingsTab === "quick" && <button onClick={openNewQuickMessage} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Nova mensagem</button>}
-                  <button onClick={() => setShowMultiSettings(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
+                  {settingsTab === "dept" && <button onClick={() => setDeptCreateOpen(true)} style={{ background: "var(--surface-accent)", border: "none", color: "var(--text-on-accent)", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Criar</button>}
+                  {settingsTab === "quick" && <button onClick={openNewQuickMessage} style={{ background: "var(--surface-accent)", border: "none", color: "var(--text-on-accent)", borderRadius: 8, padding: "7px 14px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Nova mensagem</button>}
+                  <button onClick={() => setShowMultiSettings(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="var(--text-subtle)" /></button>
                 </div>
               </div>
 
@@ -5125,15 +5112,15 @@ export default function MultiatendimentoPage() {
                           value: cfgTranscricao, onChange: (v: string) => { setCfgTranscricao(v); persistMuSettings({ audio_transcription: v }); },
                           options: [{ v: "desativado", l: "Desativado" }, { v: "sempre", l: "Sempre" }, { v: "atribuido", l: "Apenas quando atribuído" }] },
                       ].map((item, i) => (
-                        <div key={i} style={{ background: "#F9FAFB", borderRadius: 12, padding: 14 }}>
+                        <div key={i} style={{ background: "var(--neutral-50)", borderRadius: 12, padding: 14 }}>
                           <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 10 }}>
                             <div style={{ width: 32, height: 32, borderRadius: 8, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{item.icon}</div>
                             <div>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{item.title}</div>
-                              <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{item.desc}</div>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}>{item.title}</div>
+                              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{item.desc}</div>
                             </div>
                           </div>
-                          <select value={item.value} onChange={e => item.onChange(e.target.value)} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 10px", fontSize: 12, color: item.value ? "#111" : "#AAA", background: "#FFF", outline: "none", cursor: "pointer" }}>
+                          <select value={item.value} onChange={e => item.onChange(e.target.value)} style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "7px 10px", fontSize: 12, color: item.value ? "var(--text-heading)" : "var(--text-muted)", background: "var(--surface-card)", outline: "none", cursor: "pointer" }}>
                             {item.options.map(o => <option key={o.v} value={o.v}>{o.l}</option>)}
                           </select>
                         </div>
@@ -5143,31 +5130,31 @@ export default function MultiatendimentoPage() {
                     {/* coluna direita */}
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       {/* Assinatura */}
-                      <div style={{ background: "#F9FAFB", borderRadius: 12, padding: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+                      <div style={{ background: "var(--neutral-50)", borderRadius: 12, padding: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
                         <div style={{ width: 32, height: 32, borderRadius: 8, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Check size={15} color="#4285F4" /></div>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>Assinatura obrigatória</div>
-                          <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Todas as mensagens serão enviadas com a assinatura do atendente</div>
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}>Assinatura obrigatória</div>
+                          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Todas as mensagens serão enviadas com a assinatura do atendente</div>
                         </div>
                         <MuToggle checked={cfgAssinatura} onChange={() => { const nv = !cfgAssinatura; setCfgAssinatura(nv); persistMuSettings({ signature_required: nv }); }} />
                       </div>
 
                       {/* Informações ao finalizar */}
-                      <div style={{ background: "#F9FAFB", borderRadius: 12, padding: 14 }}>
+                      <div style={{ background: "var(--neutral-50)", borderRadius: 12, padding: 14 }}>
                         <div style={{ display: "flex", alignItems: "flex-start", gap: 10, marginBottom: 14 }}>
                           <div style={{ width: 32, height: 32, borderRadius: 8, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><CheckCircle2 size={15} color="#4285F4" /></div>
                           <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>Informações ao finalizar</div>
-                            <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>Selecione quais informações serão mantidas na conversa após ser finalizada</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}>Informações ao finalizar</div>
+                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Selecione quais informações serão mantidas na conversa após ser finalizada</div>
                           </div>
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                           {[
-                            { icon: <UserCheck size={13} color="#888" />, label: "Manter atendente na conversa", val: cfgMantAtend, set: setCfgMantAtend, col: "keep_attendant" },
-                            { icon: <Folder size={13} color="#888" />, label: "Manter departamento na conversa", val: cfgMantDept, set: setCfgMantDept, col: "keep_department" },
+                            { icon: <UserCheck size={13} color="var(--text-subtle)" />, label: "Manter atendente na conversa", val: cfgMantAtend, set: setCfgMantAtend, col: "keep_attendant" },
+                            { icon: <Folder size={13} color="var(--text-subtle)" />, label: "Manter departamento na conversa", val: cfgMantDept, set: setCfgMantDept, col: "keep_department" },
                           ].map((row, i) => (
                             <div key={i}>
-                              {i > 0 && <div style={{ height: 1, background: "#EEEEEE", margin: "8px 0" }} />}
+                              {i > 0 && <div style={{ height: 1, background: "var(--neutral-100)", margin: "8px 0" }} />}
                               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{row.icon}<span style={{ fontSize: 12, color: "#444" }}>{row.label}</span></div>
                                 <MuToggle checked={row.val} onChange={() => { const nv = !row.val; row.set(nv); persistMuSettings({ [row.col]: nv }); }} />
@@ -5182,7 +5169,7 @@ export default function MultiatendimentoPage() {
 
                 {/* ── Departamento ── */}
                 {settingsTab === "dept" && (
-                  <DepartmentsManager accent="#128A68" createOpen={deptCreateOpen} setCreateOpen={setDeptCreateOpen} />
+                  <DepartmentsManager accent="var(--accent-700)" createOpen={deptCreateOpen} setCreateOpen={setDeptCreateOpen} />
                 )}
 
                 {/* ── Atendentes ── */}
@@ -5190,51 +5177,51 @@ export default function MultiatendimentoPage() {
                   <div style={{ display: "flex", gap: 14, height: 380 }}>
                     {/* lista */}
                     <div style={{ width: 210, flexShrink: 0, display: "flex", flexDirection: "column", gap: 6, overflowY: "auto" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "7px 10px", marginBottom: 4, flexShrink: 0 }}>
-                        <Search size={13} color="#AAA" />
-                        <input placeholder="Pesquisar..." value={agentSearch} onChange={e => setAgentSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "#111", flex: 1, minWidth: 0 }} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 10, padding: "7px 10px", marginBottom: 4, flexShrink: 0 }}>
+                        <Search size={13} color="var(--text-subtle)" />
+                        <input placeholder="Pesquisar..." value={agentSearch} onChange={e => setAgentSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "var(--text-heading)", flex: 1, minWidth: 0 }} />
                       </div>
                       {teamMembers.filter(m => !agentSearch || m.toLowerCase().includes(agentSearch.toLowerCase())).map(m => (
-                        <button key={m} onClick={() => setSelectedAgent(m)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, border: "none", cursor: "pointer", textAlign: "left", background: selectedAgent === m ? "#E8F5F0" : "#F9F9F9", borderLeft: selectedAgent === m ? "3px solid #128A68" : "3px solid transparent", flexShrink: 0 }}>
-                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: corDoTexto(m), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{iniciais(m)}</div>
+                        <button key={m} onClick={() => setSelectedAgent(m)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, border: "none", cursor: "pointer", textAlign: "left", background: selectedAgent === m ? "#E8F5F0" : "#F9F9F9", borderLeft: selectedAgent === m ? "3px solid var(--accent-700)" : "3px solid transparent", flexShrink: 0 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: "50%", background: corDoTexto(m), color: tintaSobre(corDoTexto(m)), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{iniciais(m)}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m}</div>
-                            {memberEmails[m] && <div style={{ fontSize: 10, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{memberEmails[m]}</div>}
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m}</div>
+                            {memberEmails[m] && <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{memberEmails[m]}</div>}
                           </div>
                         </button>
                       ))}
-                      {teamMembers.length === 0 && <div style={{ textAlign: "center", padding: "20px 0", color: "#CCC", fontSize: 12 }}>Nenhum atendente</div>}
+                      {teamMembers.length === 0 && <div style={{ textAlign: "center", padding: "20px 0", color: "var(--text-muted)", fontSize: 12 }}>Nenhum atendente</div>}
                     </div>
 
                     {/* detalhe */}
-                    <div style={{ flex: 1, background: "#F9FAFB", borderRadius: 12, padding: 16, overflowY: "auto" }}>
+                    <div style={{ flex: 1, background: "var(--neutral-50)", borderRadius: 12, padding: 16, overflowY: "auto" }}>
                       {selectedAgent ? (
                         <>
-                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid #EEEEEE" }}>
-                            <div style={{ width: 38, height: 38, borderRadius: "50%", background: corDoTexto(selectedAgent), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>{iniciais(selectedAgent)}</div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid var(--border-default)" }}>
+                            <div style={{ width: 38, height: 38, borderRadius: "50%", background: corDoTexto(selectedAgent), color: tintaSobre(corDoTexto(selectedAgent)), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700 }}>{iniciais(selectedAgent)}</div>
                             <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>{selectedAgent}</div>
-                              <div style={{ fontSize: 11, color: "#888" }}>{memberEmails[selectedAgent] ?? ""}</div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>{selectedAgent}</div>
+                              <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{memberEmails[selectedAgent] ?? ""}</div>
                             </div>
                           </div>
-                          <div style={{ fontSize: 11, fontWeight: 600, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Visualização do atendente</div>
-                          <div style={{ background: "#D1FAE5", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#128A68", marginBottom: 14 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>Visualização do atendente</div>
+                          <div style={{ background: "var(--accent-50)", borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "var(--accent-800)", marginBottom: 14 }}>
                             O atendente sempre pode ver as conversas atribuídas a ele
                           </div>
                           {(() => {
                             const agentUserId = memberUserIds[selectedAgent];
                             if (!agentUserId) {
-                              return <div style={{ fontSize: 12, color: "#AAA" }}>Não foi possível identificar este atendente.</div>;
+                              return <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Não foi possível identificar este atendente.</div>;
                             }
                             const agentSettings = attendantSettings[agentUserId] ?? { allowSeeOthers: false, hideUnassigned: false };
                             return ([
                               { key: "allowSeeOthers" as const, label: "Permitir ver conversas de outros atendentes", desc: "Permite o atendente ver as conversas com outros atendentes atribuídos" },
                               { key: "hideUnassigned" as const, label: "Desabilitar conversas sem atendentes", desc: "Não permite ver conversas que não possuem um atendente" },
                             ]).map(item => (
-                              <div key={item.key} style={{ padding: "12px 0", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "flex-start", gap: 10 }}>
+                              <div key={item.key} style={{ padding: "12px 0", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "flex-start", gap: 10 }}>
                                 <div style={{ flex: 1 }}>
-                                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{item.label}</div>
-                                  <div style={{ fontSize: 11, color: "#888", marginTop: 2 }}>{item.desc}</div>
+                                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}>{item.label}</div>
+                                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{item.desc}</div>
                                 </div>
                                 <MuToggle checked={agentSettings[item.key]} onChange={() => saveAttendantSetting(agentUserId, { [item.key]: !agentSettings[item.key] })} />
                               </div>
@@ -5243,8 +5230,8 @@ export default function MultiatendimentoPage() {
                         </>
                       ) : (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
-                          <UserCheck size={28} color="#E5E5E5" />
-                          <p style={{ fontSize: 13, color: "#AAA", margin: 0 }}>Selecione um atendente</p>
+                          <UserCheck size={28} color="var(--neutral-300)" />
+                          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>Selecione um atendente</p>
                         </div>
                       )}
                     </div>
@@ -5262,29 +5249,29 @@ export default function MultiatendimentoPage() {
                     : qmList;
                   return (
                     <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px", marginBottom: 14 }}>
-                        <Search size={14} color="#AAA" />
-                        <input placeholder="Pesquisar..." value={qmSearch} onChange={e => setQmSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111", flex: 1 }} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 10, padding: "8px 12px", marginBottom: 14 }}>
+                        <Search size={14} color="var(--text-subtle)" />
+                        <input placeholder="Pesquisar..." value={qmSearch} onChange={e => setQmSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 13, color: "var(--text-heading)", flex: 1 }} />
                       </div>
                       {filtered.length === 0 ? (
                         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "48px 0", gap: 8 }}>
-                          <Zap size={32} color="#E5E5E5" />
-                          <p style={{ fontSize: 13, color: "#AAA", margin: 0 }}>{qmList.length === 0 ? "Nenhuma mensagem rápida criada" : "Nenhum resultado encontrado"}</p>
-                          {qmList.length === 0 && <p style={{ fontSize: 12, color: "#CCC", margin: 0 }}>Clique em "Nova mensagem" para criar uma</p>}
+                          <Zap size={32} color="var(--neutral-300)" />
+                          <p style={{ fontSize: 13, color: "var(--text-muted)", margin: 0 }}>{qmList.length === 0 ? "Nenhuma mensagem rápida criada" : "Nenhum resultado encontrado"}</p>
+                          {qmList.length === 0 && <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0 }}>Clique em "Nova mensagem" para criar uma</p>}
                         </div>
                       ) : (
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                           {filtered.map(q => (
-                            <div key={q.id} style={{ background: "#F9FAFB", borderRadius: 12, padding: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
+                            <div key={q.id} style={{ background: "var(--neutral-50)", borderRadius: 12, padding: 14, display: "flex", alignItems: "flex-start", gap: 10 }}>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{q.title}</span>
-                                  {q.shortcut && <span style={{ fontSize: 11, fontWeight: 600, color: "#128A68", background: "#E1F5EE", borderRadius: 6, padding: "1px 7px" }}>{q.shortcut}</span>}
+                                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>{q.title}</span>
+                                  {q.shortcut && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)", background: "var(--accent-50)", borderRadius: 6, padding: "1px 7px" }}>{q.shortcut}</span>}
                                 </div>
-                                <div style={{ fontSize: 12, color: "#888", whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{q.content}</div>
+                                <div style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{q.content}</div>
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
-                                <button title="Editar" onClick={() => openEditQuickMessage(q)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}><Pencil size={15} color="#888" /></button>
+                                <button title="Editar" onClick={() => openEditQuickMessage(q)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}><Pencil size={15} color="var(--text-subtle)" /></button>
                                 <button title="Excluir" onClick={() => deleteQuickMessage(q)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}><Trash2 size={15} color="#E53E3E" /></button>
                               </div>
                             </div>
@@ -5307,28 +5294,28 @@ export default function MultiatendimentoPage() {
           onClick={() => !qmSaving && setQmModalOpen(false)}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center" }}
         >
-          <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: 440, boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
-            <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{qmEditing ? "Editar mensagem rápida" : "Nova mensagem rápida"}</div>
-              <button onClick={() => !qmSaving && setQmModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
+          <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: 16, width: 440, boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+            <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{qmEditing ? "Editar mensagem rápida" : "Nova mensagem rápida"}</div>
+              <button onClick={() => !qmSaving && setQmModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="var(--text-subtle)" /></button>
             </div>
             <div style={{ padding: "18px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Título</label>
-                <input value={qmTitle} onChange={e => setQmTitle(e.target.value)} placeholder="Ex: Saudação inicial" style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box" }} />
+                <input value={qmTitle} onChange={e => setQmTitle(e.target.value)} placeholder="Ex: Saudação inicial" style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "var(--text-heading)", outline: "none", boxSizing: "border-box" }} />
               </div>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Atalho <span style={{ color: "#AAA", fontWeight: 400 }}>(opcional)</span></label>
-                <input value={qmShortcut} onChange={e => setQmShortcut(e.target.value)} placeholder="Ex: /ola" style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box" }} />
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Atalho <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(opcional)</span></label>
+                <input value={qmShortcut} onChange={e => setQmShortcut(e.target.value)} placeholder="Ex: /ola" style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "var(--text-heading)", outline: "none", boxSizing: "border-box" }} />
               </div>
               <div>
                 <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Mensagem</label>
-                <textarea value={qmContent} onChange={e => setQmContent(e.target.value)} placeholder="Digite o conteúdo da mensagem..." rows={4} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
+                <textarea value={qmContent} onChange={e => setQmContent(e.target.value)} placeholder="Digite o conteúdo da mensagem..." rows={4} style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "var(--text-heading)", outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
               </div>
             </div>
             <div style={{ padding: "14px 22px 18px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={() => setQmModalOpen(false)} disabled={qmSaving} style={{ background: "none", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#666", cursor: "pointer" }}>Cancelar</button>
-              <button onClick={saveQuickMessage} disabled={qmSaving} style={{ background: "#128A68", border: "none", color: "#FFF", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: qmSaving ? "default" : "pointer", opacity: qmSaving ? 0.6 : 1 }}>{qmSaving ? "Salvando..." : "Salvar"}</button>
+              <button onClick={() => setQmModalOpen(false)} disabled={qmSaving} style={{ background: "none", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "var(--text-muted)", cursor: "pointer" }}>Cancelar</button>
+              <button onClick={saveQuickMessage} disabled={qmSaving} style={{ background: "var(--surface-accent)", border: "none", color: "var(--text-on-accent)", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: qmSaving ? "default" : "pointer", opacity: qmSaving ? 0.6 : 1 }}>{qmSaving ? "Salvando..." : "Salvar"}</button>
             </div>
           </div>
         </div>
@@ -5338,10 +5325,10 @@ export default function MultiatendimentoPage() {
       {filterPanelOpen && (
         <>
           <div onClick={() => setFilterPanelOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.35)", zIndex: 310 }} />
-          <div style={{ position: "fixed", top: 0, right: 0, height: "100vh", width: 380, maxWidth: "90vw", background: "#FFF", boxShadow: "-8px 0 40px rgba(0,0,0,0.15)", zIndex: 311, display: "flex", flexDirection: "column" }}>
-            <div style={{ padding: "18px 22px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#111" }}>Filtros</div>
-              <button onClick={() => setFilterPanelOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
+          <div style={{ position: "fixed", top: 0, right: 0, height: "100vh", width: 380, maxWidth: "90vw", background: "var(--surface-card)", boxShadow: "-8px 0 40px rgba(0,0,0,0.15)", zIndex: 311, display: "flex", flexDirection: "column" }}>
+            <div style={{ padding: "18px 22px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text-heading)" }}>Filtros</div>
+              <button onClick={() => setFilterPanelOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="var(--text-subtle)" /></button>
             </div>
 
             <div style={{ flex: 1, overflowY: "auto", padding: "0 22px" }}>
@@ -5351,9 +5338,9 @@ export default function MultiatendimentoPage() {
               {renderFilterChecklist("tags", "Tags", "Todas", crmTags.map(t => ({ value: t.name, label: t.name, color: t.color })), fltTags, setFltTags)}
 
               {/* Negócio na etapa */}
-              <div style={{ borderBottom: "1px solid #F0F0F0", padding: "14px 0" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 8 }}>Negócio na etapa</div>
-                <select value={fltPipeline} onChange={e => { setFltPipeline(e.target.value); setFltStages([]); }} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: fltPipeline ? "#111" : "#888", background: "#FFF", cursor: "pointer", outline: "none" }}>
+              <div style={{ borderBottom: "1px solid var(--neutral-100)", padding: "14px 0" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)", marginBottom: 8 }}>Negócio na etapa</div>
+                <select value={fltPipeline} onChange={e => { setFltPipeline(e.target.value); setFltStages([]); }} style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: fltPipeline ? "var(--text-heading)" : "var(--text-muted)", background: "var(--surface-card)", cursor: "pointer", outline: "none" }}>
                   <option value="">Todos os pipelines</option>
                   {(pipelines ?? []).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
@@ -5366,8 +5353,8 @@ export default function MultiatendimentoPage() {
                         const on = fltStages.includes(col.id);
                         return (
                           <button key={col.id} onClick={() => toggleInArray(setFltStages, col.id)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: "7px 8px", borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
-                            <div style={{ width: 16, height: 16, borderRadius: 4, border: "2px solid " + (on ? "#128A68" : "#CCC"), background: on ? "#128A68" : "#FFF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
-                            <span style={{ fontSize: 13, color: "#333" }}>{col.title}</span>
+                            <div style={{ width: 16, height: 16, borderRadius: 6, border: "2px solid " + (on ? "var(--accent-700)" : "var(--border-strong)"), background: on ? "var(--accent-700)" : "var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
+                            <span style={{ fontSize: 13, color: "var(--text-body)" }}>{col.title}</span>
                           </button>
                         );
                       })}
@@ -5377,15 +5364,15 @@ export default function MultiatendimentoPage() {
               </div>
 
               {/* Janela em atendimento */}
-              <div style={{ borderBottom: "1px solid #F0F0F0", padding: "14px 0" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 8 }}>Janela em atendimento</div>
+              <div style={{ borderBottom: "1px solid var(--neutral-100)", padding: "14px 0" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)", marginBottom: 8 }}>Janela em atendimento</div>
                 <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                   {([["all", "Todos"], ["in", "Dentro de 24h"], ["out", "Fora de 24h"]] as const).map(([v, l]) => {
                     const on = fltWindow === v;
                     return (
                       <button key={v} onClick={() => setFltWindow(v)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: "7px 8px", borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
-                        <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid " + (on ? "#128A68" : "#CCC"), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#128A68" }} />}</div>
-                        <span style={{ fontSize: 13, color: "#333" }}>{l}</span>
+                        <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid " + (on ? "var(--accent-700)" : "var(--border-strong)"), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-700)" }} />}</div>
+                        <span style={{ fontSize: 13, color: "var(--text-body)" }}>{l}</span>
                       </button>
                     );
                   })}
@@ -5393,24 +5380,24 @@ export default function MultiatendimentoPage() {
               </div>
 
               {/* Data da última mensagem */}
-              <div style={{ borderBottom: "1px solid #F0F0F0", padding: "14px 0" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 8 }}>Data da última mensagem</div>
+              <div style={{ borderBottom: "1px solid var(--neutral-100)", padding: "14px 0" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)", marginBottom: 8 }}>Data da última mensagem</div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>De</label>
-                    <input type="date" value={fltDateFrom} onChange={e => setFltDateFrom(e.target.value)} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 9px", fontSize: 12, color: "#111", outline: "none", boxSizing: "border-box" }} />
+                    <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>De</label>
+                    <input type="date" value={fltDateFrom} onChange={e => setFltDateFrom(e.target.value)} style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "7px 9px", fontSize: 12, color: "var(--text-heading)", outline: "none", boxSizing: "border-box" }} />
                   </div>
                   <div style={{ flex: 1 }}>
-                    <label style={{ fontSize: 11, color: "#888", display: "block", marginBottom: 4 }}>Até</label>
-                    <input type="date" value={fltDateTo} onChange={e => setFltDateTo(e.target.value)} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 9px", fontSize: 12, color: "#111", outline: "none", boxSizing: "border-box" }} />
+                    <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Até</label>
+                    <input type="date" value={fltDateTo} onChange={e => setFltDateTo(e.target.value)} style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "7px 9px", fontSize: 12, color: "var(--text-heading)", outline: "none", boxSizing: "border-box" }} />
                   </div>
                 </div>
               </div>
 
               {/* Ordem */}
               <div style={{ padding: "14px 0" }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 8 }}>Ordem</div>
-                <select value={fltOrder} onChange={e => setFltOrder(e.target.value as "recent" | "old" | "name")} style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "#111", background: "#FFF", cursor: "pointer", outline: "none" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)", marginBottom: 8 }}>Ordem</div>
+                <select value={fltOrder} onChange={e => setFltOrder(e.target.value as "recent" | "old" | "name")} style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "var(--text-heading)", background: "var(--surface-card)", cursor: "pointer", outline: "none" }}>
                   <option value="recent">Mais recentes</option>
                   <option value="old">Mais antigas</option>
                   <option value="name">Nome (A–Z)</option>
@@ -5418,9 +5405,9 @@ export default function MultiatendimentoPage() {
               </div>
             </div>
 
-            <div style={{ padding: "14px 22px", borderTop: "1px solid #EEEEEE", display: "flex", gap: 10, flexShrink: 0 }}>
-              <button onClick={clearAdvancedFilters} style={{ flex: 1, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, color: "#666", cursor: "pointer" }}>Limpar filtros</button>
-              <button onClick={() => setFilterPanelOpen(false)} style={{ flex: 1, background: "#128A68", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, color: "#FFF", cursor: "pointer" }}>Aplicar filtros</button>
+            <div style={{ padding: "14px 22px", borderTop: "1px solid var(--border-default)", display: "flex", gap: 10, flexShrink: 0 }}>
+              <button onClick={clearAdvancedFilters} style={{ flex: 1, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, color: "var(--text-muted)", cursor: "pointer" }}>Limpar filtros</button>
+              <button onClick={() => setFilterPanelOpen(false)} style={{ flex: 1, background: "var(--surface-accent)", border: "none", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 600, color: "var(--text-on-accent)", cursor: "pointer" }}>Aplicar filtros</button>
             </div>
           </div>
         </>
@@ -5429,29 +5416,29 @@ export default function MultiatendimentoPage() {
       {/* ── MODAL: ações em massa (transferir atendente/departamento) ──── */}
       {(bulkAction === "agent" || bulkAction === "dept") && (
         <div onClick={() => setBulkAction(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "#FFF", borderRadius: 16, width: 380, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: 16, width: 380, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{bulkAction === "agent" ? "Transferir atendente" : "Transferir departamento"}</div>
-                <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>{selectedConvs.length} conversa(s) selecionada(s)</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{bulkAction === "agent" ? "Transferir atendente" : "Transferir departamento"}</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{selectedConvs.length} conversa(s) selecionada(s)</div>
               </div>
-              <button onClick={() => setBulkAction(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="#AAA" /></button>
+              <button onClick={() => setBulkAction(null)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="var(--text-subtle)" /></button>
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
               {bulkAction === "agent" && (teamMembers.length === 0
-                ? <div style={{ padding: "20px", textAlign: "center", fontSize: 13, color: "#AAA" }}>Nenhum atendente cadastrado</div>
+                ? <div style={{ padding: "20px", textAlign: "center", fontSize: 13, color: "var(--text-muted)" }}>Nenhum atendente cadastrado</div>
                 : teamMembers.map(m => (
-                  <button key={m} onClick={() => bulkAssignAgent(m)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", background: "none", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left" }} onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: corDoTexto(m), color: "#FFF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700 }}>{iniciais(m)}</div>
-                    <span style={{ fontSize: 13, color: "#111" }}>{m}</span>
+                  <button key={m} onClick={() => bulkAssignAgent(m)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", background: "none", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left" }} onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: corDoTexto(m), color: tintaSobre(corDoTexto(m)), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}>{iniciais(m)}</div>
+                    <span style={{ fontSize: 13, color: "var(--text-heading)" }}>{m}</span>
                   </button>
                 )))}
               {bulkAction === "dept" && (muDepts.length === 0
-                ? <div style={{ padding: "20px", textAlign: "center", fontSize: 13, color: "#AAA" }}>Nenhum departamento cadastrado</div>
+                ? <div style={{ padding: "20px", textAlign: "center", fontSize: 13, color: "var(--text-muted)" }}>Nenhum departamento cadastrado</div>
                 : muDepts.map(d => (
-                  <button key={d.id} onClick={() => bulkAssignDept(d.id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", background: "none", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left" }} onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
-                    <Folder size={16} color="#128A68" />
-                    <span style={{ fontSize: 13, color: "#111" }}>{d.name}</span>
+                  <button key={d.id} onClick={() => bulkAssignDept(d.id)} style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", background: "none", border: "none", borderRadius: 8, cursor: "pointer", textAlign: "left" }} onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")} onMouseLeave={e => (e.currentTarget.style.background = "none")}>
+                    <Folder size={16} color="var(--accent-700)" />
+                    <span style={{ fontSize: 13, color: "var(--text-heading)" }}>{d.name}</span>
                   </button>
                 )))}
             </div>
@@ -5523,8 +5510,8 @@ export default function MultiatendimentoPage() {
 }
 
 const inputStyle: React.CSSProperties = {
-  border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 12px",
-  fontSize: 13, color: "#111", background: "#FFF", outline: "none", width: "100%",
+  border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 12px",
+  fontSize: 13, color: "var(--text-heading)", background: "var(--surface-card)", outline: "none", width: "100%",
 };
 
 /* ── Toggle reutilizável para o modal de config ──────────────────────── */
@@ -5532,9 +5519,9 @@ function MuToggle({ checked, onChange }: { checked: boolean; onChange: () => voi
   return (
     <button
       onClick={onChange}
-      style={{ width: 42, height: 22, borderRadius: 11, background: checked ? "#128A68" : "#D1D5DB", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}
+      style={{ width: 42, height: 22, borderRadius: 10, background: checked ? "var(--accent-700)" : "var(--neutral-300)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}
     >
-      <div style={{ width: 16, height: 16, borderRadius: "50%", background: "#FFF", position: "absolute", top: 3, left: checked ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
+      <div style={{ width: 16, height: 16, borderRadius: "50%", background: "var(--surface-card)", position: "absolute", top: 3, left: checked ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
     </button>
   );
 }
@@ -5574,33 +5561,33 @@ function TransferDialog({
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{ background: "#FFF", borderRadius: 16, width: 420, maxHeight: "60vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        style={{ background: "var(--surface-card)", borderRadius: 16, width: 420, maxHeight: "60vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
       >
         {/* header */}
-        <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#111", display: "flex", alignItems: "center", gap: 7 }}>
-              <UserCheck size={16} color="#128A68" /> Responsável do negócio
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)", display: "flex", alignItems: "center", gap: 7 }}>
+              <UserCheck size={16} color="var(--accent-700)" /> Responsável do negócio
             </div>
-            <div style={{ fontSize: 12, color: "#AAA", marginTop: 2 }}>Selecione um ou mais responsáveis</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Selecione um ou mais responsáveis</div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-            <X size={18} color="#AAA" />
+            <X size={18} color="var(--text-subtle)" />
           </button>
         </div>
 
         {/* search */}
-        <div style={{ padding: "12px 20px", borderBottom: "1px solid #F0F0F0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px" }}>
-            <Search size={14} color="#AAA" />
+        <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--neutral-100)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 10, padding: "8px 12px" }}>
+            <Search size={14} color="var(--text-subtle)" />
             <input
               ref={inputRef}
               placeholder="Buscar atendente..."
               value={q}
               onChange={e => setQ(e.target.value)}
-              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111" }}
+              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "var(--text-heading)" }}
             />
-            {q && <button onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 0 }}><X size={12} color="#AAA" /></button>}
+            {q && <button onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 0 }}><X size={12} color="var(--text-subtle)" /></button>}
           </div>
         </div>
 
@@ -5608,8 +5595,8 @@ function TransferDialog({
         <div style={{ flex: 1, overflowY: "auto" }}>
           {filtered.length === 0 && (
             <div style={{ padding: "32px 20px", textAlign: "center" }}>
-              <UserCheck size={28} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
-              <p style={{ fontSize: 13, color: "#AAA" }}>Nenhum atendente encontrado</p>
+              <UserCheck size={28} color="var(--neutral-300)" style={{ margin: "0 auto 8px" }} />
+              <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Nenhum atendente encontrado</p>
             </div>
           )}
           {filtered.map(memberName => {
@@ -5622,7 +5609,7 @@ function TransferDialog({
                 key={memberName}
                 onClick={() => toggle(memberName)}
                 style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", background: isSelected ? "#F0FBF6" : "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "#F5F5F5"; }}
+                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.background = "var(--neutral-50)"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = isSelected ? "#F0FBF6" : "transparent"; }}
               >
                 {/* avatar */}
@@ -5636,11 +5623,11 @@ function TransferDialog({
 
                 {/* info */}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{memberName}</div>
-                  {email && <div style={{ fontSize: 11, color: "#AAA", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{email}</div>}
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{memberName}</div>
+                  {email && <div style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{email}</div>}
                 </div>
 
-                <div style={{ width: 18, height: 18, borderRadius: 5, border: isSelected ? "none" : "1.5px solid #CCC", background: isSelected ? "#128A68" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ width: 18, height: 18, borderRadius: 6, border: isSelected ? "none" : "1.5px solid var(--border-strong)", background: isSelected ? "var(--accent-700)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   {isSelected && <Check size={12} color="#FFF" strokeWidth={3} />}
                 </div>
               </button>
@@ -5649,11 +5636,11 @@ function TransferDialog({
         </div>
 
         {/* footer */}
-        <div style={{ padding: "12px 20px", borderTop: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <span style={{ fontSize: 11, color: "#AAA" }}>{selected.length} selecionado{selected.length !== 1 ? "s" : ""}</span>
+        <div style={{ padding: "12px 20px", borderTop: "1px solid var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{selected.length} selecionado{selected.length !== 1 ? "s" : ""}</span>
           <button
             onClick={() => onTransfer(selected)}
-            style={{ background: "#128A68", border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 12, fontWeight: 600, color: "#FFF", cursor: "pointer" }}
+            style={{ background: "var(--surface-accent)", border: "none", borderRadius: 8, padding: "7px 16px", fontSize: 12, fontWeight: 600, color: "var(--text-on-accent)", cursor: "pointer" }}
           >Salvar</button>
         </div>
       </div>
@@ -5700,31 +5687,31 @@ function NewConvDialog({
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{ background: "#FFF", borderRadius: 16, width: 480, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        style={{ background: "var(--surface-card)", borderRadius: 16, width: 480, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
       >
         {/* header */}
-        <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>{title}</div>
-            <div style={{ fontSize: 12, color: "#AAA", marginTop: 2 }}>{subtitle}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{title}</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{subtitle}</div>
           </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}>
-            <X size={18} color="#AAA" />
+            <X size={18} color="var(--text-subtle)" />
           </button>
         </div>
 
         {/* search */}
-        <div style={{ padding: "12px 20px", borderBottom: "1px solid #F0F0F0" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#F5F5F5", border: "1px solid #E5E5E5", borderRadius: 10, padding: "8px 12px" }}>
-            <Search size={14} color="#AAA" />
+        <div style={{ padding: "12px 20px", borderBottom: "1px solid var(--neutral-100)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 10, padding: "8px 12px" }}>
+            <Search size={14} color="var(--text-subtle)" />
             <input
               ref={inputRef}
               placeholder="Buscar por nome ou empresa..."
               value={q}
               onChange={e => setQ(e.target.value)}
-              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "#111" }}
+              style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 13, color: "var(--text-heading)" }}
             />
-            {q && <button onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 0 }}><X size={12} color="#AAA" /></button>}
+            {q && <button onClick={() => setQ("")} style={{ background: "none", border: "none", cursor: "pointer", lineHeight: 0 }}><X size={12} color="var(--text-subtle)" /></button>}
           </div>
         </div>
 
@@ -5732,9 +5719,9 @@ function NewConvDialog({
         <div style={{ flex: 1, overflowY: "auto" }}>
           {filteredLeads.length === 0 && (
             <div style={{ padding: "40px 20px", textAlign: "center" }}>
-              <MessageSquare size={32} color="#E5E5E5" style={{ margin: "0 auto 8px" }} />
-              <p style={{ fontSize: 13, color: "#AAA" }}>Nenhum negócio encontrado</p>
-              <p style={{ fontSize: 12, color: "#CCC", marginTop: 4 }}>{emptyHint}</p>
+              <MessageSquare size={32} color="var(--neutral-300)" style={{ margin: "0 auto 8px" }} />
+              <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Nenhum negócio encontrado</p>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>{emptyHint}</p>
             </div>
           )}
           {filteredLeads.map(lead => (
@@ -5742,7 +5729,7 @@ function NewConvDialog({
               key={lead.id}
               onClick={() => onSelect(lead.id)}
               style={{ width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#F5F5F5")}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
             >
               {/* avatar */}
@@ -5753,32 +5740,32 @@ function NewConvDialog({
               {/* info */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lead.name}</span>
-                  <span style={{ fontSize: 11, color: "#AAA", whiteSpace: "nowrap" }}>#{lead.dealNumber}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lead.name}</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap" }}>#{lead.dealNumber}</span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                  {lead.company && <span style={{ fontSize: 11, color: "#666" }}>{lead.company}</span>}
-                  {lead.company && <span style={{ fontSize: 11, color: "#DDD" }}>•</span>}
-                  <span style={{ fontSize: 11, color: "#AAA" }}>{pipelineMap[lead.pipelineId] ?? "Pipeline"}</span>
+                  {lead.company && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{lead.company}</span>}
+                  {lead.company && <span style={{ fontSize: 12, color: "var(--neutral-300)" }}>•</span>}
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{pipelineMap[lead.pipelineId] ?? "Pipeline"}</span>
                 </div>
               </div>
 
               {/* valor */}
               {lead.value > 0 && (
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#128A68", flexShrink: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-700)", flexShrink: 0 }}>
                   {new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(lead.value)}
                 </div>
               )}
 
               {/* ícone seta */}
-              <div style={{ flexShrink: 0, color: "#CCC" }}>→</div>
+              <div style={{ flexShrink: 0, color: "var(--text-muted)" }}>→</div>
             </button>
           ))}
         </div>
 
         {/* footer */}
         {filteredLeads.length > 0 && (
-          <div style={{ padding: "10px 20px", borderTop: "1px solid #F0F0F0", fontSize: 11, color: "#AAA", textAlign: "center" }}>
+          <div style={{ padding: "10px 20px", borderTop: "1px solid var(--neutral-100)", fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>
             {filteredLeads.length} negócio{filteredLeads.length !== 1 ? "s" : ""} encontrado{filteredLeads.length !== 1 ? "s" : ""}
           </div>
         )}

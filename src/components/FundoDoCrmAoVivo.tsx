@@ -1,5 +1,7 @@
 import { AppSidebar } from "@/components/AppSidebar";
+import { BarraSuperior } from "@/components/BarraSuperior";
 import InicioPage from "@/pages/InicioPage";
+import { lerBarraRecolhida, larguraDaBarra } from "@/lib/barraLateral";
 
 /**
  * O CRM de verdade, desfocado, atrás da tela de escolha de plano.
@@ -48,6 +50,7 @@ const VEU_FORCA = 0.62;
 const DESFOQUE_DO_FUNDO = 0;
 
 export function FundoDoCrmAoVivo() {
+  const barraRecolhida = lerBarraRecolhida();
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
       {/* Sangra 8px só para a DIREITA e para BAIXO, e nunca para cima ou para a
@@ -55,7 +58,7 @@ export function FundoDoCrmAoVivo() {
           desfoque desbota nas bordas, mas ela custa caro em duas das quatro.
 
           O motivo é a barra lateral. Ela é `position: fixed` em `top: 0`,
-          `left: 0`, com 52px de largura e `height: 100vh`. O `filter` daqui faz
+          `left: 0`, com a largura de `--barra-largura` e `height: 100vh`. O `filter` daqui faz
           este bloco virar o bloco de contenção dela, então a POSIÇÃO dela passa
           a contar a partir daqui -- mas as medidas em unidade de janela, como o
           `100vh`, continuam lendo a janela. Sangrar por cima ou pela esquerda
@@ -64,8 +67,8 @@ export function FundoDoCrmAoVivo() {
 
             top: -8  -> a barra nasce 8px acima, o topo dela some e sobra uma
                         faixa nua de 8px no rodapé
-            left: -8 -> a barra nasce 8px à esquerda, aparece com 44px em vez de
-                        52 e fica visivelmente mais fina que a de verdade
+            left: -8 -> a barra nasce 8px à esquerda, aparece 8px mais estreita
+                        e fica visivelmente mais fina que a de verdade
 
           Direita e baixo não têm nada ancorado, então ali a sangria é de graça.
 
@@ -79,14 +82,29 @@ export function FundoDoCrmAoVivo() {
           width: "calc(100% + 8px)",
           height: "calc(100% + 8px)",
           filter: `blur(${DESFOQUE_DO_FUNDO}px)`,
+          /* Fora do AppLayout a variável de largura não existe, e a barra
+             sairia com largura zero. A réplica usa o estado que a pessoa deixou
+             no app, para o fundo parecer o CRM dela. */
+          ["--barra-largura" as string]: larguraDaBarra(barraRecolhida),
         }}
       >
-        <AppSidebar />
+        {/* Réplica decorativa: o botão de recolher não faz nada aqui. */}
+        <AppSidebar recolhida={barraRecolhida} aoAlternar={() => {}} />
+        {/* A mesma pilha do `AppLayout`: barra superior no topo, conteúdo
+            embaixo com o canto da junta arredondado. Sem isso a réplica
+            mostraria um CRM que não existe -- a pessoa vê as duas barras em
+            todas as telas depois daqui. */}
         <main
-          className="flex-1 min-w-0 overflow-hidden"
-          style={{ marginLeft: 52, background: "hsl(var(--background))" }}
+          className="flex-1 min-w-0 overflow-hidden flex flex-col"
+          style={{ marginLeft: "var(--barra-largura)", background: "var(--surface-card)" }}
         >
-          <InicioPage />
+          <BarraSuperior />
+          <div
+            className="flex-1 min-h-0 overflow-hidden"
+            style={{ background: "hsl(var(--background))", borderTopLeftRadius: "var(--junta-barras)" }}
+          >
+            <InicioPage />
+          </div>
         </main>
       </div>
 

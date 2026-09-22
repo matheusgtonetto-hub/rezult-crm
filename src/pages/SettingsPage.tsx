@@ -44,6 +44,7 @@ import type { CustomFieldType } from "@/data/mockData";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
 import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { cn } from "@/lib/utils";
+import { PALETA_DO_APP, COR_DE_TAG_PADRAO } from "@/lib/paleta-do-app";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import IntegracoesPage from "./IntegracoesPage";
 import DepartmentsManager from "@/components/DepartmentsManager";
@@ -76,8 +77,17 @@ const SECTIONS: { id: SectionId; label: string }[] = [
   { id: "armazenamento", label: "Armazenamento" },
 ];
 
+/**
+ * O cartão de seção de toda aba desta tela.
+ *
+ * Era `rounded-[8px]` (o raio de MINIATURA) com a borda `gray-200` do Tailwind
+ * e sem sombra. A matriz manda painel em raio 16 (`rounded-2xl`, que mapeia
+ * `--radius-card`), borda `--border-default` e sombra de cartão -- e diz, na
+ * seção 3.5, que cartão tem sempre a borda E a sombra, nunca só uma das duas.
+ * Corrigido em 19/09/2026, junto com os painéis do dashboard.
+ */
 const Card = ({ children, className = "" }: { children: ReactNode; className?: string }) => (
-  <div className={`bg-card border border-gray-200 rounded-[8px] p-6 mb-5 ${className}`}>{children}</div>
+  <div className={`bg-card border border-card-border rounded-2xl shadow-elev-1 p-6 mb-5 ${className}`}>{children}</div>
 );
 
 const SectionTitle = ({ title, subtitle }: { title: string; subtitle?: string }) => (
@@ -126,7 +136,7 @@ export default function SettingsPage() {
   }, [section, navigate]);
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-[var(--altura-util)] bg-background">
       {/* Sidebar */}
       <aside className="w-[230px] bg-card border-r border-card-border flex flex-col shrink-0">
         <button
@@ -147,10 +157,10 @@ export default function SettingsPage() {
                 // seções, e a seta marca o fim da linha em vez do começo.
                 className={`flex items-center justify-between gap-[5px] px-4 py-[7px] font-normal leading-[16px] border-l-[3px] ${
                   isActive
-                    ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-[4px]"
+                    ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-sm"
                     : "w-full border-transparent"
                 }`}
-                style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, letterSpacing: 0, color: "#09090b" }}
+                style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, letterSpacing: 0, color: "var(--text-heading)" }}
               >
                 {s.label}
                 {/* Seta dupla na seção aberta, simples nas outras: o realce
@@ -264,7 +274,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
       {/* Cabeçalho do perfil */}
       <Card>
         <div className="flex items-start gap-4">
-          <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-white text-2xl font-semibold shrink-0 overflow-hidden">
+          <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-[color:var(--text-on-accent)] text-2xl font-semibold shrink-0 overflow-hidden">
             {profile?.avatar_url
               ? <img src={profile.avatar_url} alt={name} className="w-full h-full object-cover" />
               : initials(name || "?")}
@@ -374,7 +384,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
                 <SelectItem value="dark" disabled>
                   <span className="flex items-center gap-2">
                     Escuro
-                    <span className="text-[10px] font-semibold bg-muted text-muted-foreground rounded px-1.5 py-0.5 leading-none">Em breve</span>
+                    <span className="text-[12px] font-semibold bg-muted text-muted-foreground rounded px-1.5 py-0.5 leading-none">Em breve</span>
                   </span>
                 </SelectItem>
               </SelectContent>
@@ -404,7 +414,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
           </div>
 
           <div className="flex-1 min-w-[240px] flex items-center gap-3">
-            <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-white font-semibold shrink-0 overflow-hidden">
+            <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center text-[color:var(--text-on-accent)] font-semibold shrink-0 overflow-hidden">
               {profile?.avatar_url
                 ? <img src={profile.avatar_url} alt={name} className="w-full h-full object-cover" />
                 : initials(name || "?")}
@@ -438,14 +448,14 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
       {availableCompanies.length > 0 && (
         <Card>
           <SectionTitle title="Empresa" subtitle={availableCompanies.length > 1 ? "Empresas vinculadas à sua conta" : "Empresa vinculada à sua conta"} />
-          <div className="border border-card-border rounded-lg overflow-hidden">
+          <div className="border border-card-border rounded-[6px] overflow-hidden">
             {availableCompanies.map((c, i) => (
               <div
                 key={c.id}
                 className={`flex items-center justify-between px-4 py-3 hover:bg-muted/50 ${i > 0 ? "border-t border-card-border" : ""}`}
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-md bg-primary text-white flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
+                  <div className="w-8 h-8 rounded-md bg-primary text-[color:var(--text-on-accent)] flex items-center justify-center text-sm font-semibold shrink-0 overflow-hidden">
                     {c.logo_url
                       ? <img src={c.logo_url} alt={c.name} className="w-full h-full object-contain" />
                       : c.name?.[0]?.toUpperCase() ?? "E"}
@@ -458,7 +468,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
                   </div>
                 </div>
                 {c.id === company?.id && (
-                  <span className="text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0">Ativa</span>
+                  <span className="text-[12px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0">Ativa</span>
                 )}
               </div>
             ))}
@@ -466,9 +476,12 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
         </Card>
       )}
 
-      <Card className="border-[#FECACA] bg-[#FEF2F2]">
+      <Card className="border-[color:var(--danger-400)]/40 bg-[color:var(--danger-bg)]">
         <SectionTitle title="Excluir conta" subtitle="Você tem um prazo de 30 dias para poder restaurar sua conta." />
-        <Button variant="outline" className="border-[#E24B4A] text-[#E24B4A] hover:bg-[#E24B4A] hover:text-white">
+        <Button
+          variant="outline"
+          className="border-[color:var(--danger-400)] text-[color:var(--danger-fg)] hover:bg-[color:var(--danger-500)] hover:text-white"
+        >
           <Trash2 size={14} className="mr-2" /> Excluir conta
         </Button>
       </Card>
@@ -663,7 +676,7 @@ function EmpresaSection() {
       {/* Cabeçalho da empresa */}
       <Card className="!p-4">
         <div className="flex items-start gap-3">
-          <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-white text-xl font-semibold shrink-0 overflow-hidden">
+          <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-[color:var(--text-on-accent)] text-xl font-semibold shrink-0 overflow-hidden">
             {company?.logo_url
               ? <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain" />
               : logoInitial}
@@ -679,7 +692,7 @@ function EmpresaSection() {
             <div className="flex items-center justify-between gap-2 mt-2">
               <div className="flex items-center gap-2 flex-wrap">
                 {company?.niche && (
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full border border-foreground bg-card text-[11px] font-medium text-foreground">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full border border-foreground bg-card text-[12px] font-medium text-foreground">
                     {company.niche}
                   </span>
                 )}
@@ -732,7 +745,7 @@ function EmpresaSection() {
         {/* Logo */}
         <SectionTitle title="Logo da empresa" subtitle="Faça o upload do logotipo da sua empresa aqui" />
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center text-white text-2xl font-bold shrink-0 overflow-hidden border border-card-border">
+          <div className="w-16 h-16 rounded-xl bg-primary flex items-center justify-center text-[color:var(--text-on-accent)] text-2xl font-bold shrink-0 overflow-hidden border border-card-border">
             {company?.logo_url
               ? <img src={company.logo_url} alt="Logo" className="w-full h-full object-contain" />
               : logoInitial}
@@ -763,7 +776,7 @@ function EmpresaSection() {
                   onClick={() => { setDocType(t); setDocument(""); }}
                   className={`flex-1 py-2 text-sm rounded-lg border transition-colors font-medium ${
                     docType === t
-                      ? "bg-primary text-white border-primary"
+                      ? "bg-primary text-[color:var(--text-on-accent)] border-primary"
                       : "bg-white text-muted-foreground border-card-border hover:border-primary"
                   }`}
                 >
@@ -858,14 +871,15 @@ function EmpresaSection() {
                 Excluir permanentemente esta empresa e todos os seus dados. Esta ação não pode ser desfeita.
               </p>
               {isOwner && (
-                <p className="text-[14px] text-[#D97706] mt-1">
+                <p className="text-[14px] text-[color:var(--warning-fg)] mt-1">
                   Esta é sua única empresa. Após a exclusão, você precisará cadastrar uma nova.
                 </p>
               )}
             </div>
             <Button
               onClick={() => { setDeleteConfirm(""); setDeleteOpen(true); }}
-              className="bg-[#EF4444] hover:bg-[#DC2626] text-white shrink-0"
+              variant="destructive"
+              className="shrink-0"
             >
               <Trash2 size={15} className="mr-1.5" /> Excluir Empresa
             </Button>
@@ -876,7 +890,7 @@ function EmpresaSection() {
       <Dialog open={deleteOpen} onOpenChange={o => { if (!deleting) setDeleteOpen(o); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-[#DC2626]">Excluir empresa</DialogTitle>
+            <DialogTitle className="text-[color:var(--danger-fg)]">Excluir empresa</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -892,7 +906,7 @@ function EmpresaSection() {
                 value={deleteConfirm}
                 onChange={e => setDeleteConfirm(e.target.value)}
                 placeholder={company?.name ?? ""}
-                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-[#EF4444]"
+                className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-[color:var(--danger-400)]"
               />
             </div>
           </div>
@@ -903,7 +917,7 @@ function EmpresaSection() {
             <Button
               onClick={handleDeleteCompany}
               disabled={deleting || deleteConfirm.trim() !== (company?.name ?? "").trim()}
-              className="bg-[#EF4444] hover:bg-[#DC2626] text-white"
+              variant="destructive"
             >
               {deleting
                 ? <><Loader2 size={15} className="mr-1.5 animate-spin" /> Excluindo...</>
@@ -1115,7 +1129,7 @@ function PermissionsEditor({
         const isOpen = openGroups[group.id] ?? true;
         const groupSelected = group.options.some(o => permissions.includes(o.id));
         return (
-          <div key={group.id} className="border border-gray-200 rounded-[8px] overflow-hidden bg-white">
+          <div key={group.id} className="border border-card-border rounded-[8px] overflow-hidden bg-white">
             <button
               type="button"
               onClick={() => setOpenGroups(prev => ({ ...prev, [group.id]: !isOpen }))}
@@ -1377,7 +1391,7 @@ function EquipeSection() {
             <p className="text-sm text-muted-foreground">Nenhum usuário na empresa ainda.</p>
           </div>
         ) : (
-          <div className="border border-card-border rounded-lg overflow-hidden">
+          <div className="border border-card-border rounded-[6px] overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -1403,7 +1417,7 @@ function EquipeSection() {
                       <tr key={m.id} className="hover:bg-muted/30 transition-colors">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white text-xs font-semibold shrink-0 overflow-hidden">
+                            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-[color:var(--text-on-accent)] text-xs font-semibold shrink-0 overflow-hidden">
                               {m.avatar_url
                                 ? <img src={m.avatar_url} alt={m.full_name} className="w-full h-full object-cover" />
                                 : initials(m.full_name || m.email)}
@@ -1419,11 +1433,11 @@ function EquipeSection() {
                         </td>
                         <td className="px-4 py-3">
                           {ehAdmin ? (
-                            <span className="inline-flex items-center gap-1 bg-[#FFF8E7] text-[#D97706] border border-[#FDE68A] rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 bg-[#FFF8E7] text-[color:var(--warning-fg)] border border-[#FDE68A] rounded-full px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap">
                               <Crown size={10} /> Administrador
                             </span>
                           ) : (
-                            <span className="inline-flex items-center bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap">
+                            <span className="inline-flex items-center bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap">
                               Membro
                             </span>
                           )}
@@ -1493,11 +1507,11 @@ function EquipeSection() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[14px] text-muted-foreground truncate">{inv.email}</p>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[12px] text-muted-foreground">
                       Convidado em {new Date(inv.created_at).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
-                  <span className="inline-flex items-center bg-[#FFF8E7] text-[#D97706] border border-[#FDE68A] rounded-full px-2.5 py-0.5 text-[10px] font-semibold shrink-0">
+                  <span className="inline-flex items-center bg-[#FFF8E7] text-[color:var(--warning-fg)] border border-[#FDE68A] rounded-full px-2.5 py-0.5 text-[12px] font-semibold shrink-0">
                     Aguardando
                   </span>
                   <button
@@ -1564,7 +1578,7 @@ function EquipeSection() {
                   placeholder="joao@empresa.com"
                   value={inviteEmail}
                   onChange={e => setInviteEmail(e.target.value)}
-                  className="border-gray-200 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   autoFocus
                 />
               </div>
@@ -1585,11 +1599,11 @@ function EquipeSection() {
                   type="button"
                   onClick={() => setGrupoAberto("admin")}
                   className={`w-full flex items-center gap-2 px-3 py-[9px] rounded-[6px] text-left transition-colors ${
-                    grupoAberto === "admin" ? "bg-[#FFFBEB]" : "hover:bg-gray-50"
+                    grupoAberto === "admin" ? "bg-[color:var(--warning-bg)]" : "hover:bg-gray-50"
                   }`}
                 >
-                  <Crown size={14} className={`shrink-0 ${grupoAberto === "admin" || isAdminInvite ? "text-[#D97706]" : "text-muted-foreground"}`} />
-                  <span className={`flex-1 text-[13px] truncate ${grupoAberto === "admin" || isAdminInvite ? "text-[#D97706] font-semibold" : "text-foreground"}`}>
+                  <Crown size={14} className={`shrink-0 ${grupoAberto === "admin" || isAdminInvite ? "text-[color:var(--warning-fg)]" : "text-muted-foreground"}`} />
+                  <span className={`flex-1 text-[13px] truncate ${grupoAberto === "admin" || isAdminInvite ? "text-[color:var(--warning-fg)] font-semibold" : "text-foreground"}`}>
                     Administrador
                   </span>
                   {isAdminInvite && <span className="w-[6px] h-[6px] rounded-full bg-[#D97706] shrink-0" />}
@@ -1630,7 +1644,7 @@ function EquipeSection() {
               {grupoAberto === "admin" ? (
                 <>
                   <div className="flex items-center gap-2">
-                    <Crown size={16} className="text-[#D97706] shrink-0" />
+                    <Crown size={16} className="text-[color:var(--warning-fg)] shrink-0" />
                     <h3 className="text-[14px] font-semibold text-foreground">Administrador</h3>
                   </div>
                   <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
@@ -1638,7 +1652,7 @@ function EquipeSection() {
                   </p>
 
                   <label className={`flex items-start gap-3 px-4 py-3 mt-4 rounded-[8px] border cursor-pointer transition-colors ${
-                    isAdminInvite ? "border-[#D97706] bg-[#FFFBEB]" : "border-gray-200 bg-white hover:bg-gray-50"
+                    isAdminInvite ? "border-[#D97706] bg-[color:var(--warning-bg)]" : "border-card-border bg-white hover:bg-gray-50"
                   }`}>
                     <input
                       type="checkbox"
@@ -1647,7 +1661,7 @@ function EquipeSection() {
                       className="mt-0.5 accent-[#D97706] w-4 h-4 shrink-0"
                     />
                     <div className="min-w-0">
-                      <p className={`text-[12px] font-semibold ${isAdminInvite ? "text-[#D97706]" : "text-foreground"}`}>
+                      <p className={`text-[12px] font-semibold ${isAdminInvite ? "text-[color:var(--warning-fg)]" : "text-foreground"}`}>
                         Administrador (acesso total)
                       </p>
                       <p className="text-[12px] text-muted-foreground mt-[1px] leading-tight">
@@ -1689,7 +1703,7 @@ function EquipeSection() {
                           <label
                             key={opt.id}
                             className={`flex items-start gap-3 px-4 py-3 rounded-[8px] border cursor-pointer transition-colors ${
-                              marcada ? "border-primary bg-primary/10" : "border-gray-200 bg-white hover:bg-gray-50"
+                              marcada ? "border-primary bg-primary/10" : "border-card-border bg-white hover:bg-gray-50"
                             }`}
                           >
                             <input
@@ -1731,9 +1745,9 @@ function EquipeSection() {
             <p className="text-xs font-semibold text-muted-foreground">Selecione as permissões do usuário</p>
 
             {/* Toggle admin */}
-            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${editPerms.includes("admin") ? "border-[#D97706] bg-[#FFFBEB]" : "border-gray-200 bg-white hover:bg-muted/50"}`}>
+            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${editPerms.includes("admin") ? "border-[#D97706] bg-[color:var(--warning-bg)]" : "border-card-border bg-white hover:bg-muted/50"}`}>
               <div className="flex-1">
-                <p className={`text-[12px] font-semibold ${editPerms.includes("admin") ? "text-[#D97706]" : "text-foreground"}`}>
+                <p className={`text-[12px] font-semibold ${editPerms.includes("admin") ? "text-[color:var(--warning-fg)]" : "text-foreground"}`}>
                   <Crown size={12} className="inline mr-1" />
                   Administrador (acesso total)
                 </p>
@@ -1780,7 +1794,7 @@ function UsageCard({ label, current, limit, icon }: { label: string; current: nu
   const pct = limit === null ? 0 : Math.min(100, Math.round((current / limit) * 100));
   const displayLimit = limit === null ? "Ilimitado" : limit.toLocaleString("pt-BR");
   return (
-    <div className="bg-white border border-card-border rounded-xl p-4">
+    <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-4">
       <div className="flex items-center gap-2 mb-3">
         <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
           {icon}
@@ -1953,9 +1967,9 @@ function PlanosSection() {
           {/* Lado direito */}
           {company && (
             <div className="flex flex-col justify-center w-full md:w-1/2 px-5" style={{ paddingTop: 25, paddingBottom: 25 }}>
-              <p className="text-[10px] font-normal text-muted-foreground uppercase tracking-widest mb-2">Empresa</p>
+              <p className="text-[12px] font-normal text-muted-foreground uppercase tracking-widest mb-2">Empresa</p>
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white text-sm font-bold overflow-hidden shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-[color:var(--text-on-accent)] text-sm font-bold overflow-hidden shrink-0">
                   {company.logo_url
                     ? <img src={company.logo_url} alt={company.name} className="w-full h-full object-contain" />
                     : logoInitial}
@@ -2124,12 +2138,20 @@ function PlanosSection() {
 }
 
 /* ---------------- TAGS ---------------- */
-const TAG_COLORS = [
-  "#E24B4A", "#F97316", "#F59E0B", "#EAB308", "#84CC16",
-  "#22C55E", "#10B981", "#128A68", "#14B8A6", "#06B6D4",
-  "#0EA5E9", "#3B82F6", "#6366F1", "#8B5CF6", "#A855F7",
-  "#D946EF", "#EC4899", "#F43F5E", "#64748B", "#374151",
-];
+/* Paleta de cor de tag, escurecida em 17/09/2026.
+ *
+ * Estas cores são DADO: o usuário escolhe e o valor vai para o banco, então
+ * elas ficam em hex e não em token (regra "token no CSS, hex no dado").
+ *
+ * Cada tom veio do anterior baixando só a luminosidade, mantendo matiz e
+ * saturação, até o texto branco passar 4,6:1. Motivo: na paleta antiga, oito
+ * das vinte opções não alcançavam 4,5:1 com NENHUMA tinta, nem branca nem
+ * charcoal. Eram escolhas que nasciam ilegíveis.
+ *
+ * Tags já gravadas com as cores antigas continuam funcionando: o chip decide a
+ * tinta pela luminância (src/lib/contraste.ts), então ele usa a melhor das
+ * duas para a cor que estiver lá. */
+const TAG_COLORS = PALETA_DO_APP;
 
 function TagsSection() {
   const { crmTags, addTag, updateTag, deleteTag, leads } = useCRM();
@@ -2137,7 +2159,7 @@ function TagsSection() {
   const [editing, setEditing] = useState<{ id: string; name: string; description: string; color: string } | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [color, setColor] = useState(TAG_COLORS[0]);
+  const [color, setColor] = useState<string>(COR_DE_TAG_PADRAO);
   const [saving, setSaving] = useState(false);
 
   const tagLeadCounts = Object.values(leads).reduce<Record<string, number>>((acc, l) => {
@@ -2147,7 +2169,7 @@ function TagsSection() {
 
   const openNew = () => {
     setEditing(null);
-    setName(""); setDescription(""); setColor(TAG_COLORS[0]);
+    setName(""); setDescription(""); setColor(COR_DE_TAG_PADRAO);
     setModalOpen(true);
   };
 
@@ -2195,7 +2217,7 @@ function TagsSection() {
     <>
       <SectionHeader title="Tags" subtitle="Organize suas ideias com tags" onAdd="+ Nova tag" onClick={openNew} />
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 overflow-hidden mb-5">
         {crmTags.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhuma tag criada ainda.</p>
         ) : (
@@ -2379,7 +2401,7 @@ function ProdutosSection() {
     <>
       <SectionHeader title="Produtos" subtitle="Gerencie seus produtos com facilidade" onAdd="+ Novo produto" onClick={openNew} />
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 overflow-hidden mb-5">
         {products.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhum produto cadastrado ainda.</p>
         ) : (
@@ -2487,7 +2509,7 @@ function ProdutosSection() {
                 rows={3}
                 className="w-full rounded-md border border-card-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
               />
-              <p className="text-[11px] text-muted-foreground mt-1">Os agentes de IA usam para explicar o produto ao lead.</p>
+              <p className="text-[12px] text-muted-foreground mt-1">Os agentes de IA usam para explicar o produto ao lead.</p>
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Link de venda</label>
@@ -2498,7 +2520,7 @@ function ProdutosSection() {
                 inputMode="url"
                 className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
-              <p className="text-[11px] text-muted-foreground mt-1">Página de pagamento ou checkout. O agente envia exatamente este link.</p>
+              <p className="text-[12px] text-muted-foreground mt-1">Página de pagamento ou checkout. O agente envia exatamente este link.</p>
             </div>
           </div>
           <DialogFooter className="gap-2">
@@ -2551,7 +2573,7 @@ function MotivosSection() {
     <>
       <SectionHeader title="Motivos de perda" subtitle="Descubra, organize e gerencie seus motivos de perda" onAdd="+ Novo motivo" onClick={openNew} />
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 overflow-hidden mb-5">
         {lossReasons.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhum motivo cadastrado.</p>
         ) : (
@@ -2569,8 +2591,8 @@ function MotivosSection() {
                 <TableRow key={r.id} className="border-card-border hover:bg-muted/50">
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "#FEE2E2" }}>
-                        <SquareX size={14} style={{ color: "#E24B4A" }} />
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: "var(--danger-bg)" }}>
+                        <SquareX size={14} style={{ color: "var(--danger-fg)" }} />
                       </div>
                       <span className="text-[14px] font-medium text-foreground">{r.name}</span>
                     </div>
@@ -2708,7 +2730,7 @@ function ListasSection() {
     <>
       <SectionHeader title="Listas" subtitle="Descubra, organize e gerencie suas listas" onAdd="+ Nova lista" onClick={openCreate} />
 
-      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-5">
+      <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 overflow-hidden mb-5">
         {crmLists.length === 0 ? (
           <div className="py-10 text-center">
             <List size={32} className="text-muted-foreground/30 mx-auto mb-2" />
@@ -2769,7 +2791,7 @@ function ListasSection() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">Nome <span className="text-[#E24B4A]">*</span></label>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">Nome <span className="text-[color:var(--danger-fg)]">*</span></label>
               <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="Ex: Leads quentes" className="border-card-border focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" autoFocus />
             </div>
             <div>
@@ -2930,13 +2952,13 @@ function CamposSection() {
 
       <div className="space-y-3 mb-5">
         {customFieldGroups.length === 0 && (
-          <div className="bg-white border border-gray-200 rounded-xl px-4 py-10 text-center">
+          <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 px-4 py-10 text-center">
             <p className="text-sm text-muted-foreground">Nenhum campo adicional cadastrado ainda.</p>
           </div>
         )}
 
         {customFieldGroups.map(g => (
-          <div key={g.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <div key={g.id} className="bg-white border border-card-border rounded-2xl shadow-elev-1 overflow-hidden">
             {/* Header do grupo */}
             <div className="flex items-center gap-3 px-4 py-3">
               <button
@@ -2947,8 +2969,8 @@ function CamposSection() {
                   <FormInput size={13} className="text-primary" />
                 </div>
                 <span className="text-[14px] font-semibold text-foreground">{g.name}</span>
-                {g.isDefault && <Badge className="text-[10px] bg-primary/10 text-primary border-0">padrão</Badge>}
-                <Badge variant="secondary" className="text-[10px]">{g.items.length} perguntas</Badge>
+                {g.isDefault && <Badge className="text-[12px] bg-primary/10 text-primary border-0">padrão</Badge>}
+                <Badge variant="secondary" className="text-[12px]">{g.items.length} perguntas</Badge>
                 <ChevronDown
                   size={14}
                   className="text-muted-foreground ml-auto transition-transform"
@@ -2978,7 +3000,7 @@ function CamposSection() {
                     currency: <DollarSign size={12} className="text-muted-foreground" />,
                     date:     <CalendarDays size={12} className="text-muted-foreground" />,
                     options:  <List size={12} className="text-muted-foreground" />,
-                    boolean:  <span className="text-[11px] font-bold text-muted-foreground">S/N</span>,
+                    boolean:  <span className="text-[12px] font-bold text-muted-foreground">S/N</span>,
                   };
                   return (
                     <DragDropContext onDragEnd={(result: DropResult) => {
@@ -3032,7 +3054,7 @@ function CamposSection() {
                 <div className="px-4 py-2.5">
                   <button
                     onClick={() => openNewItem(g.id)}
-                    className="flex items-center gap-1.5 text-[11px] text-primary hover:text-primary/80 font-medium transition-colors"
+                    className="flex items-center gap-1.5 text-[12px] text-primary hover:text-primary/80 font-medium transition-colors"
                   >
                     <Plus size={12} /> Adicionar pergunta
                   </button>
@@ -3146,7 +3168,7 @@ function CamposSection() {
               <div className="bg-card border border-card-border rounded-md px-3 divide-y divide-card-border">
                 {itemOptions.map((opt, i) => (
                   <div key={i} className="flex items-center gap-2 py-2">
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ["#6366f1","#f59e0b","#10b981","#ef4444","#3b82f6","#ec4899","#8b5cf6","#14b8a6"][i % 8] }} />
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: ["#6366f1","var(--warning-400)","var(--accent-400)","var(--danger-400)","#3b82f6","#ec4899","#8b5cf6","#14b8a6"][i % 8] }} />
                     <input
                       value={opt}
                       onChange={e => {
@@ -4046,7 +4068,7 @@ function ConexoesSection() {
           <h1 className="text-xl font-bold text-foreground">Conexões</h1>
           <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Gerencie suas conexões de comunicação</p>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 text-white text-sm" onClick={() => openNewDialog()}>
+        <Button className="bg-primary hover:bg-primary/90 text-[color:var(--text-on-accent)] text-sm" onClick={() => openNewDialog()}>
           Criar
         </Button>
       </div>
@@ -4055,11 +4077,11 @@ function ConexoesSection() {
       {googleLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {whatsappConnections.map(conn => (
-            <div key={conn.id} className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+            <div key={conn.id} className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
-                  <span className={`w-2 h-2 rounded-full ${conn.connected ? "bg-green-500" : "bg-muted-foreground/40"}`} />
-                  <span className={`text-xs font-medium ${conn.connected ? "text-green-700" : "text-muted-foreground"}`}>
+                  <span className={`w-2 h-2 rounded-full ${conn.connected ? "bg-[color:var(--accent-400)]" : "bg-muted-foreground/40"}`} />
+                  <span className={`text-xs font-medium ${conn.connected ? "text-[color:var(--accent-800)]" : "text-muted-foreground"}`}>
                     {conn.connected ? "Conectado" : "Desconectado"}
                   </span>
                 </div>
@@ -4093,7 +4115,7 @@ function ConexoesSection() {
               {conn.name && (
                 <p className="font-bold text-foreground mb-1 truncate" style={{ fontSize: 14 }}>{conn.name}</p>
               )}
-              <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>{provMeta(conn.provider).desc}</p>
+              <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 12, lineHeight: 1.3 }}>{provMeta(conn.provider).desc}</p>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                   <Settings2 size={14} /> Gerenciar
@@ -4102,7 +4124,7 @@ function ConexoesSection() {
               </div>
             </div>
           ))}
-          <div className="bg-white border border-card-border rounded-xl p-5 flex items-center justify-center min-h-[140px]">
+          <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 flex items-center justify-center min-h-[140px]">
             <div className="w-5 h-5 rounded-full border-2 border-[#4285F4] border-t-transparent animate-spin" />
           </div>
         </div>
@@ -4113,18 +4135,18 @@ function ConexoesSection() {
           </div>
           <p className="text-sm font-semibold text-foreground mb-1">Nenhuma conexão ativa</p>
           <p className="text-xs text-muted-foreground mb-5">Conecte um serviço para começar a sincronizar dados com o CRM.</p>
-          <Button className="bg-primary hover:bg-primary/90 text-white text-sm" onClick={() => openNewDialog()}>
+          <Button className="bg-primary hover:bg-primary/90 text-[color:var(--text-on-accent)] text-sm" onClick={() => openNewDialog()}>
             Criar conexão
           </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {whatsappConnections.map(conn => (
-            <div key={conn.id} className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+            <div key={conn.id} className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
-                  <span className={`w-2 h-2 rounded-full ${conn.connected ? "bg-green-500" : "bg-muted-foreground/40"}`} />
-                  <span className={`text-xs font-medium ${conn.connected ? "text-green-700" : "text-muted-foreground"}`}>
+                  <span className={`w-2 h-2 rounded-full ${conn.connected ? "bg-[color:var(--accent-400)]" : "bg-muted-foreground/40"}`} />
+                  <span className={`text-xs font-medium ${conn.connected ? "text-[color:var(--accent-800)]" : "text-muted-foreground"}`}>
                     {conn.connected ? "Conectado" : "Desconectado"}
                   </span>
                 </div>
@@ -4158,7 +4180,7 @@ function ConexoesSection() {
               {conn.name && (
                 <p className="font-bold text-foreground mb-1 truncate" style={{ fontSize: 14 }}>{conn.name}</p>
               )}
-              <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>{provMeta(conn.provider).desc}</p>
+              <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 12, lineHeight: 1.3 }}>{provMeta(conn.provider).desc}</p>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button onClick={() => openManageDialog(conn.id)} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                   <Settings2 size={14} /> Gerenciar
@@ -4168,13 +4190,13 @@ function ConexoesSection() {
             </div>
           ))}
           {googleConn && (
-            <div className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+            <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="font-bold text-green-700" style={{ fontSize: 11.5 }}>Conectado</span>
+                  <span className="w-2 h-2 rounded-full bg-[color:var(--accent-400)]" />
+                  <span className="font-bold text-[color:var(--accent-800)]" style={{ fontSize: 12 }}>Conectado</span>
                 </div>
-                <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-muted-foreground hover:text-[#4285F4]" style={{ fontSize: 11.5 }}>
+                <a href="https://calendar.google.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-muted-foreground hover:text-[#4285F4]" style={{ fontSize: 12 }}>
                   calendar.google.com <ExternalLink size={11} />
                 </a>
               </div>
@@ -4190,7 +4212,7 @@ function ConexoesSection() {
               {(profile?.full_name) && (
                 <p className="font-bold text-foreground mb-1" style={{ fontSize: 14 }}>{profile.full_name}</p>
               )}
-              <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>O Google Agenda é um calendário digital gratuito do Google que ajuda você a gerenciar seu tempo, organizar sua rotina e agendar compromissos.</p>
+              <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 12, lineHeight: 1.3 }}>O Google Agenda é um calendário digital gratuito do Google que ajuda você a gerenciar seu tempo, organizar sua rotina e agendar compromissos.</p>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button
                   className="flex items-center text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" style={{ gap: "5.2px" }}
@@ -4206,13 +4228,13 @@ function ConexoesSection() {
             </div>
           )}
           {metaConnections.map(mc => (
-            <div key={mc.id} className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+            <div key={mc.id} className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-green-500" />
-                  <span className="font-bold text-green-700" style={{ fontSize: 11.5 }}>Conectado</span>
+                  <span className="w-2 h-2 rounded-full bg-[color:var(--accent-400)]" />
+                  <span className="font-bold text-[color:var(--accent-800)]" style={{ fontSize: 12 }}>Conectado</span>
                 </div>
-                <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-muted-foreground hover:text-pink-500" style={{ fontSize: 11.5 }}>
+                <a href="https://www.instagram.com" target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-muted-foreground hover:text-pink-500" style={{ fontSize: 12 }}>
                   instagram.com <ExternalLink size={11} />
                 </a>
               </div>
@@ -4227,7 +4249,7 @@ function ConexoesSection() {
                   </p>
                 </div>
               </div>
-              <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>Receba e responda mensagens diretas do Instagram diretamente no CRM, e crie leads automaticamente a partir de novas conversas.</p>
+              <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 12, lineHeight: 1.3 }}>Receba e responda mensagens diretas do Instagram diretamente no CRM, e crie leads automaticamente a partir de novas conversas.</p>
               <div className="flex items-center justify-between pt-3 border-t border-card-border mt-auto">
                 <button
                   onClick={() => toast.info(mc.token_expires_at ? `Token expira em ${new Date(mc.token_expires_at).toLocaleDateString("pt-BR")}` : "Token ativo")}
@@ -4251,16 +4273,16 @@ function ConexoesSection() {
           <DialogTitle className="sr-only">Gerenciar conexão</DialogTitle>
           <div style={{ display: "flex", height: 540 }}>
             {/* Left sidebar */}
-            <div style={{ width: 170, flexShrink: 0, background: "#F7F7F7", borderRight: "1px solid #EEEEEE", display: "flex", flexDirection: "column", padding: 12, gap: 2 }}>
+            <div style={{ width: 170, flexShrink: 0, background: "var(--neutral-50)", borderRight: "1px solid var(--border-default)", display: "flex", flexDirection: "column", padding: 12, gap: 2 }}>
               {[
                 { id: "whatsapp", label: "Whatsapp", active: true },
                 { id: "instagram", label: "Instagram", active: false },
                 { id: "messenger", label: "Messenger", active: false },
                 { id: "universal", label: "Universal", active: false, badge: "Beta" },
               ].map(item => (
-                <div key={item.id} style={{ padding: "8px 12px", borderRadius: 8, fontSize: 14, fontWeight: item.active ? 600 : 400, color: item.active ? "#111" : "#AAAAAA", background: item.active ? "#FFF" : "transparent", boxShadow: item.active ? "0 1px 3px rgba(0,0,0,0.08)" : "none", display: "flex", alignItems: "center", gap: 6, cursor: item.active ? "default" : "not-allowed" }}>
+                <div key={item.id} style={{ padding: "8px 12px", borderRadius: 8, fontSize: 14, fontWeight: item.active ? 600 : 400, color: item.active ? "var(--text-heading)" : "var(--text-muted)", background: item.active ? "var(--surface-card)" : "transparent", boxShadow: item.active ? "0 1px 3px rgba(0,0,0,0.08)" : "none", display: "flex", alignItems: "center", gap: 6, cursor: item.active ? "default" : "not-allowed" }}>
                   {item.label}
-                  {item.badge && <span style={{ fontSize: 10, background: "#E8E8E8", color: "#777", padding: "1px 6px", borderRadius: 999 }}>{item.badge}</span>}
+                  {item.badge && <span style={{ fontSize: 12, background: "var(--neutral-200)", color: "#777", padding: "1px 6px", borderRadius: 999 }}>{item.badge}</span>}
                 </div>
               ))}
             </div>
@@ -4268,33 +4290,33 @@ function ConexoesSection() {
             {/* Right panel */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
               {/* Header */}
-              <div style={{ padding: "20px 24px 14px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+              <div style={{ padding: "20px 24px 14px", borderBottom: "1px solid var(--neutral-100)", display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    <div style={{ width: 20, height: 20, background: manageProvider === "dapi" ? "#0EA5E9" : manageProvider === "cloud_api" ? "#25D366" : "#111", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ width: 20, height: 20, background: manageProvider === "dapi" ? "#0EA5E9" : manageProvider === "cloud_api" ? "#25D366" : "var(--text-heading)", borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       {manageProvider === "dapi" ? <Zap size={11} color="#FFF" /> : manageProvider === "cloud_api" ? <WhatsAppIcon size={11} color="#FFF" /> : <Webhook size={11} color="#FFF" />}
                     </div>
-                    <span style={{ fontSize: 12, color: "#888", fontWeight: 500 }}>{provMeta(manageProvider).label}</span>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>{provMeta(manageProvider).label}</span>
                   </div>
-                  <h2 style={{ fontSize: 17, fontWeight: 700, color: "#111", margin: 0 }}>Atualizar conexão</h2>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text-heading)", margin: 0 }}>Atualizar conexão</h2>
                 </div>
-                <button onClick={closeDialog} style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "#AAA" }}>
+                <button onClick={closeDialog} style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)" }}>
                   <X size={16} />
                 </button>
               </div>
 
               {/* Connection name */}
               <div style={{ padding: "14px 24px 0" }}>
-                <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>Nome da conexão</label>
+                <label style={{ fontSize: 13, color: "var(--text-body)", fontWeight: 500, display: "block", marginBottom: 6 }}>Nome da conexão</label>
                 <Input value={connName} onChange={e => setConnName(e.target.value)} className="border-card-border text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
               </div>
 
               {/* Tabs */}
-              <div style={{ padding: "0 24px", marginTop: 14, display: "flex", gap: 0, borderBottom: "1px solid #EEEEEE" }}>
+              <div style={{ padding: "0 24px", marginTop: 14, display: "flex", gap: 0, borderBottom: "1px solid var(--border-default)" }}>
                 {(["auth", "intervals", "config"] as const).map((tab, i) => {
                   const labels = ["Autenticação", "Intervalos", "Configurações"];
                   return (
-                    <button key={tab} onClick={() => setManageTab(tab)} style={{ fontSize: 13, fontWeight: 500, padding: "8px 16px", color: manageTab === tab ? "#128A68" : "#888", borderBottom: manageTab === tab ? "2px solid #128A68" : "2px solid transparent", background: "transparent", border: "none", borderRadius: 0, cursor: "pointer", marginBottom: -1 }}>
+                    <button key={tab} onClick={() => setManageTab(tab)} style={{ fontSize: 13, fontWeight: 500, padding: "8px 16px", color: manageTab === tab ? "var(--accent-700)" : "var(--text-muted)", borderBottom: manageTab === tab ? "2px solid var(--accent-700)" : "2px solid transparent", background: "transparent", border: "none", borderRadius: 0, cursor: "pointer", marginBottom: -1 }}>
                       {labels[i]}
                     </button>
                   );
@@ -4324,32 +4346,32 @@ function ConexoesSection() {
                 {manageTab === "auth" && manageProvider !== "dapi" && (
                   <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                     <div>
-                      <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>ID da instância</label>
+                      <label style={{ fontSize: 13, color: "var(--text-body)", fontWeight: 500, display: "block", marginBottom: 6 }}>ID da instância</label>
                       <div style={{ position: "relative" }}>
                         <Input type={showInstId ? "text" : "password"} value={editForm.instanceId} onChange={e => setEditForm(f => ({ ...f, instanceId: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
-                        <button onClick={() => setShowInstId(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
+                        <button onClick={() => setShowInstId(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)" }}>
                           {showInstId ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
                       </div>
                     </div>
                     <div>
-                      <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 6 }}>Token da instância</label>
+                      <label style={{ fontSize: 13, color: "var(--text-body)", fontWeight: 500, display: "block", marginBottom: 6 }}>Token da instância</label>
                       <div style={{ position: "relative" }}>
                         <Input type={showTok ? "text" : "password"} value={editForm.token} onChange={e => setEditForm(f => ({ ...f, token: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
-                        <button onClick={() => setShowTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
+                        <button onClick={() => setShowTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)" }}>
                           {showTok ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
                       </div>
                     </div>
                     <div>
-                      <label style={{ fontSize: 13, color: "#535353", fontWeight: 500, display: "block", marginBottom: 4 }}>Token de segurança</label>
+                      <label style={{ fontSize: 13, color: "var(--text-body)", fontWeight: 500, display: "block", marginBottom: 4 }}>Token de segurança</label>
                       <div style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 6 }}>
-                        <Lock size={12} color="#AAA" />
-                        <span style={{ fontSize: 11, color: "#AAA" }}>Acesse a página de Segurança para obter</span>
+                        <Lock size={12} color="var(--text-subtle)" />
+                        <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Acesse a página de Segurança para obter</span>
                       </div>
                       <div style={{ position: "relative" }}>
                         <Input type={showClientTok ? "text" : "password"} value={editForm.clientToken} onChange={e => setEditForm(f => ({ ...f, clientToken: e.target.value }))} className="border-card-border font-mono text-sm pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
-                        <button onClick={() => setShowClientTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "#AAA" }}>
+                        <button onClick={() => setShowClientTok(v => !v)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", cursor: "pointer", color: "var(--text-muted)" }}>
                           {showClientTok ? <EyeOff size={15} /> : <Eye size={15} />}
                         </button>
                       </div>
@@ -4364,16 +4386,16 @@ function ConexoesSection() {
                       { label: "Intervalo de envio dos atendentes", min: agentMin, max: agentMax, setMin: setAgentMin, setMax: setAgentMax, hasToggle: false },
                       { label: 'Intervalo da animação de "Digitando..."', min: typingMin, max: typingMax, setMin: setTypingMin, setMax: setTypingMax, hasToggle: true },
                     ].map((row, i) => (
-                      <div key={i} style={{ border: "1px solid #EEEEEE", borderRadius: 10, padding: "14px 16px" }}>
+                      <div key={i} style={{ border: "1px solid var(--border-default)", borderRadius: 10, padding: "14px 16px" }}>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                           <div>
-                            <p style={{ fontSize: 13, fontWeight: 500, color: "#111", margin: 0 }}>{row.label}</p>
+                            <p style={{ fontSize: 13, fontWeight: 500, color: "var(--text-heading)", margin: 0 }}>{row.label}</p>
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8 }}>
-                              <span style={{ fontSize: 13, color: "#535353" }}>Entre</span>
-                              <input type="number" value={row.min} min={0} onChange={e => row.setMin(Number(e.target.value))} style={{ width: 52, padding: "4px 8px", border: "1px solid #EEEEEE", borderRadius: 6, fontSize: 13, textAlign: "center" }} />
-                              <span style={{ fontSize: 13, color: "#535353" }}>e</span>
-                              <input type="number" value={row.max} min={0} onChange={e => row.setMax(Number(e.target.value))} style={{ width: 52, padding: "4px 8px", border: "1px solid #EEEEEE", borderRadius: 6, fontSize: 13, textAlign: "center" }} />
-                              <span style={{ fontSize: 13, color: "#535353" }}>segundos</span>
+                              <span style={{ fontSize: 13, color: "var(--text-body)" }}>Entre</span>
+                              <input type="number" value={row.min} min={0} onChange={e => row.setMin(Number(e.target.value))} style={{ width: 52, padding: "4px 8px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 13, textAlign: "center" }} />
+                              <span style={{ fontSize: 13, color: "var(--text-body)" }}>e</span>
+                              <input type="number" value={row.max} min={0} onChange={e => row.setMax(Number(e.target.value))} style={{ width: 52, padding: "4px 8px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 13, textAlign: "center" }} />
+                              <span style={{ fontSize: 13, color: "var(--text-body)" }}>segundos</span>
                             </div>
                           </div>
                           {row.hasToggle && <Switch checked={typingEnabled} onCheckedChange={setTypingEnabled} />}
@@ -4389,12 +4411,12 @@ function ConexoesSection() {
                       { label: "Ouvir grupos", desc: "Receber mensagens enviadas em grupos", checked: listenGroups, onChange: setListenGroups, info: false },
                       { label: "Restaurar mensagens", desc: "Recuperar mensagens anteriores à conexão", checked: restoreMsg, onChange: setRestoreMsg, info: true },
                     ].map((item, i) => (
-                      <div key={i} style={{ border: "1px solid #EEEEEE", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div key={i} style={{ border: "1px solid var(--border-default)", borderRadius: 10, padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                         <div>
-                          <p style={{ fontSize: 13, fontWeight: 500, color: "#111", margin: 0 }}>{item.label}</p>
+                          <p style={{ fontSize: 13, fontWeight: 500, color: "var(--text-heading)", margin: 0 }}>{item.label}</p>
                           <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 2 }}>
-                            <span style={{ fontSize: 12, color: "#888" }}>{item.desc}</span>
-                            {item.info && <span title="Pode levar alguns minutos" style={{ cursor: "help", color: "#AAA" }}>ⓘ</span>}
+                            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{item.desc}</span>
+                            {item.info && <span title="Pode levar alguns minutos" style={{ cursor: "help", color: "var(--text-muted)" }}>ⓘ</span>}
                           </div>
                         </div>
                         <Switch checked={item.checked} onCheckedChange={item.onChange} />
@@ -4405,10 +4427,10 @@ function ConexoesSection() {
               </div>
 
               {/* Footer */}
-              <div style={{ padding: "12px 24px", borderTop: "1px solid #EEEEEE", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#AAA" }}>
+              <div style={{ padding: "12px 24px", borderTop: "1px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "var(--text-muted)" }}>
                   <Lock size={12} />
-                  <span>Ao continuar, você concorda com nossos <span style={{ color: "#128A68", cursor: "pointer" }}>Termos de Uso</span></span>
+                  <span>Ao continuar, você concorda com nossos <span style={{ color: "var(--accent-700)", cursor: "pointer" }}>Termos de Uso</span></span>
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <Button variant="outline" className="border-card-border text-sm h-9" onClick={() => { handleDisconnect(); closeDialog(); }}>Remover</Button>
@@ -4430,7 +4452,7 @@ function ConexoesSection() {
             {/* Branco pelo mesmo motivo dos cartões de provedor: o #F7F7F7 daqui
                 ficava a dois tons do #F5F5F5 do DialogContent, e a coluna não se
                 distinguia do resto do diálogo. */}
-            <div style={{ width: 160, flexShrink: 0, background: "#FFFFFF", borderRight: "1px solid #EEEEEE", display: "flex", flexDirection: "column", padding: 12, gap: 4 }}>
+            <div style={{ width: 160, flexShrink: 0, background: "var(--surface-card)", borderRight: "1px solid var(--border-default)", display: "flex", flexDirection: "column", padding: 12, gap: 4 }}>
               {CONN_CATEGORIES.map(c => (
                 <button
                   key={c.id}
@@ -4438,7 +4460,7 @@ function ConexoesSection() {
                   style={{
                     textAlign: "left", padding: "8px 12px", borderRadius: 8, fontSize: 14, fontWeight: 500,
                     background: selectedCategory === c.id ? "rgba(18,138,104,0.1)" : "transparent",
-                    color: selectedCategory === c.id ? "#128A68" : "#535353",
+                    color: selectedCategory === c.id ? "var(--accent-700)" : "var(--text-body)",
                     border: "none", cursor: "pointer",
                   }}
                 >
@@ -4451,12 +4473,12 @@ function ConexoesSection() {
             <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
               {/* Cabeçalho em branco: fecha a faixa branca que vem da coluna da
                   esquerda, e o cinza fica só na área onde os cartões aparecem. */}
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 20px 12px", background: "#FFFFFF", borderBottom: "1px solid #F0F0F0" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 20px 12px", background: "var(--surface-card)", borderBottom: "1px solid var(--neutral-100)" }}>
                 <div>
-                  <p style={{ fontSize: 15, fontWeight: 600, color: "#111" }}>{selectedCat.label}</p>
-                  <p style={{ fontSize: 12, color: "#AAAAAA", marginTop: 2 }}>{selectedCat.description}</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-heading)" }}>{selectedCat.label}</p>
+                  <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{selectedCat.description}</p>
                 </div>
-                <button onClick={closeDialog} style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "#AAAAAA" }}>
+                <button onClick={closeDialog} style={{ width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)" }}>
                   <X size={16} />
                 </button>
               </div>
@@ -4481,11 +4503,11 @@ function ConexoesSection() {
                       }}
                       style={{
                         display: "flex", alignItems: "center", gap: 12, padding: 16,
-                        borderRadius: 12, border: "1.5px solid #EEEEEE",
+                        borderRadius: 12, border: "1.5px solid var(--border-default)",
                         // Branco, não transparente: o DialogContent é bg-background
                         // (#F5F5F5) e a borda é #EEEEEE, então o cartão transparente
                         // se confundia com o painel atrás dele.
-                        textAlign: "left", background: "#FFFFFF", cursor: prov.available ? "pointer" : "not-allowed",
+                        textAlign: "left", background: "var(--surface-card)", cursor: prov.available ? "pointer" : "not-allowed",
                         opacity: prov.available ? 1 : 0.5,
                       }}
                     >
@@ -4494,10 +4516,10 @@ function ConexoesSection() {
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 14, fontWeight: 600, color: "#111" }}>{prov.name}</span>
-                          {!prov.available && <span style={{ fontSize: 10, background: "#F5F5F5", color: "#AAAAAA", padding: "2px 8px", borderRadius: 999, fontWeight: 500 }}>Em breve</span>}
+                          <span style={{ fontSize: 14, fontWeight: 600, color: "var(--text-heading)" }}>{prov.name}</span>
+                          {!prov.available && <span style={{ fontSize: 12, background: "var(--neutral-50)", color: "var(--text-muted)", padding: "2px 8px", borderRadius: 999, fontWeight: 500 }}>Em breve</span>}
                         </div>
-                        <p style={{ fontSize: 12, color: "#AAAAAA", marginTop: 2 }}>{prov.desc}</p>
+                        <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{prov.desc}</p>
                       </div>
                     </button>
                   );
@@ -4523,69 +4545,69 @@ function ConexoesSection() {
             <>
               {/* Barra de progresso */}
               <div style={{ display: "flex", gap: 4, marginBottom: 16, marginTop: -4 }}>
-                <div style={{ height: 3, flex: 1, borderRadius: 99, background: "#128A68" }} />
-                <div style={{ height: 3, flex: 1, borderRadius: 99, background: tutStep >= 1 ? "#128A68" : "#EEEEEE", transition: "background 0.2s" }} />
+                <div style={{ height: 3, flex: 1, borderRadius: 99, background: "var(--accent-700)" }} />
+                <div style={{ height: 3, flex: 1, borderRadius: 99, background: tutStep >= 1 ? "var(--accent-700)" : "var(--neutral-100)", transition: "background 0.2s" }} />
               </div>
 
               {/* ── Slide 1: ID da Instância e Token ── */}
               {tutStep === 0 && (
                 <>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 2 }}>Onde fica o Instance ID e o Token?</p>
-                  <p style={{ fontSize: 12, color: "#666", marginBottom: 10, lineHeight: 1.5 }}>
-                    Acesse <a href="https://app.z-api.io" target="_blank" rel="noreferrer" style={{ color: "#128A68", fontWeight: 600, textDecoration: "none" }}>app.z-api.io</a>, faça login e clique na sua instância. As credenciais ficam logo na tela principal.
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)", marginBottom: 2 }}>Onde fica o Instance ID e o Token?</p>
+                  <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
+                    Acesse <a href="https://app.z-api.io" target="_blank" rel="noreferrer" style={{ color: "var(--accent-700)", fontWeight: 600, textDecoration: "none" }}>app.z-api.io</a>, faça login e clique na sua instância. As credenciais ficam logo na tela principal.
                   </p>
 
                   {/* Caminho de navegação */}
                   <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10, flexWrap: "wrap" }}>
                     {["app.z-api.io", "Instâncias", "Clique na instância"].map((item, i) => (
                       <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                        <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>{item}</span>
-                        {i < 2 && <span style={{ fontSize: 10, color: "#CCC", fontWeight: 700 }}>›</span>}
+                        <span style={{ fontSize: 12, background: "var(--accent-50)", color: "var(--accent-700)", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>{item}</span>
+                        {i < 2 && <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>›</span>}
                       </span>
                     ))}
                   </div>
 
                   {/* Mockup visual da tela da instância */}
-                  <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
+                  <div style={{ border: "1px solid var(--border-default)", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
                     {/* Barra do browser */}
                     <div style={{ background: "#1E1E1E", padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF5F57" }} />
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#FFBD2E" }} />
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#28C840" }} />
-                      <span style={{ fontSize: 9, color: "#666", marginLeft: 8, fontFamily: "monospace" }}>app.z-api.io/instances/sua-instancia</span>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: 8, fontFamily: "monospace" }}>app.z-api.io/instances/sua-instancia</span>
                     </div>
                     {/* Conteúdo mockup */}
-                    <div style={{ background: "#FFF", padding: "14px 16px" }}>
+                    <div style={{ background: "var(--surface-card)", padding: "14px 16px" }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: 6, background: "#E1F5EE", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <div style={{ width: 28, height: 28, borderRadius: 6, background: "var(--accent-50)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <span style={{ fontSize: 12 }}>📱</span>
                         </div>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#111" }}>Minha Instância</span>
-                        <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", padding: "1px 7px", borderRadius: 99, fontWeight: 600, marginLeft: "auto" }}>Conectada</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text-heading)" }}>Minha Instância</span>
+                        <span style={{ fontSize: 12, background: "var(--accent-50)", color: "var(--accent-700)", padding: "1px 7px", borderRadius: 99, fontWeight: 600, marginLeft: "auto" }}>Conectada</span>
                       </div>
 
                       {/* Instance ID */}
                       <div style={{ marginBottom: 10 }}>
-                        <p style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>ID da Instância</p>
+                        <p style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>ID da Instância</p>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ flex: 1, background: "#E1F5EE", border: "1.5px solid #128A68", borderRadius: 7, padding: "6px 10px", fontSize: 10, fontFamily: "monospace", color: "#128A68", fontWeight: 700 }}>
+                          <div style={{ flex: 1, background: "var(--accent-50)", border: "1.5px solid var(--accent-700)", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", color: "var(--accent-700)", fontWeight: 700 }}>
                             3C1B2A3D4E5F6G7H8I9J...
                           </div>
-                          <div style={{ background: "#128A68", borderRadius: 6, padding: "5px 10px", fontSize: 10, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
+                          <div style={{ background: "var(--accent-700)", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
                         </div>
-                        <p style={{ fontSize: 9, color: "#128A68", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor</p>
+                        <p style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor</p>
                       </div>
 
                       {/* Token */}
                       <div>
-                        <p style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Token</p>
+                        <p style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Token</p>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ flex: 1, background: "#E1F5EE", border: "1.5px solid #128A68", borderRadius: 7, padding: "6px 10px", fontSize: 10, fontFamily: "monospace", color: "#128A68", fontWeight: 700 }}>
+                          <div style={{ flex: 1, background: "var(--accent-50)", border: "1.5px solid var(--accent-700)", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", color: "var(--accent-700)", fontWeight: 700 }}>
                             F9G8H7I6J5K4L3M2N1O0...
                           </div>
-                          <div style={{ background: "#128A68", borderRadius: 6, padding: "5px 10px", fontSize: 10, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
+                          <div style={{ background: "var(--accent-700)", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
                         </div>
-                        <p style={{ fontSize: 9, color: "#128A68", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor também</p>
+                        <p style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor também</p>
                       </div>
                     </div>
                   </div>
@@ -4595,8 +4617,8 @@ function ConexoesSection() {
               {/* ── Slide 2: Client-Token ── */}
               {tutStep === 1 && (
                 <>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 2 }}>Onde fica o Client-Token?</p>
-                  <p style={{ fontSize: 12, color: "#666", marginBottom: 10, lineHeight: 1.5 }}>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)", marginBottom: 2 }}>Onde fica o Client-Token?</p>
+                  <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 10, lineHeight: 1.5 }}>
                     O Client-Token é um token de segurança da <strong>sua conta</strong> (não da instância). Fica nas configurações de segurança.
                   </p>
 
@@ -4604,43 +4626,43 @@ function ConexoesSection() {
                   <div style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 10, flexWrap: "wrap" }}>
                     {["app.z-api.io", "Seu avatar (topo)", "Segurança", "Token de Segurança da Conta"].map((item, i) => (
                       <span key={i} style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                        <span style={{ fontSize: 10, background: "#E1F5EE", color: "#128A68", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>{item}</span>
-                        {i < 3 && <span style={{ fontSize: 10, color: "#CCC", fontWeight: 700 }}>›</span>}
+                        <span style={{ fontSize: 12, background: "var(--accent-50)", color: "var(--accent-700)", fontWeight: 600, padding: "2px 8px", borderRadius: 6 }}>{item}</span>
+                        {i < 3 && <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 700 }}>›</span>}
                       </span>
                     ))}
                   </div>
 
                   {/* Mockup visual da tela de segurança */}
-                  <div style={{ border: "1px solid #E5E5E5", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
+                  <div style={{ border: "1px solid var(--border-default)", borderRadius: 10, overflow: "hidden", marginBottom: 12 }}>
                     {/* Barra do browser */}
                     <div style={{ background: "#1E1E1E", padding: "6px 12px", display: "flex", alignItems: "center", gap: 5 }}>
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#FF5F57" }} />
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#FFBD2E" }} />
                       <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#28C840" }} />
-                      <span style={{ fontSize: 9, color: "#666", marginLeft: 8, fontFamily: "monospace" }}>app.z-api.io/security</span>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)", marginLeft: 8, fontFamily: "monospace" }}>app.z-api.io/security</span>
                     </div>
                     {/* Conteúdo mockup */}
-                    <div style={{ background: "#FFF", padding: "14px 16px" }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, color: "#111", marginBottom: 4 }}>Token de Segurança da Conta</p>
-                      <p style={{ fontSize: 10, color: "#888", marginBottom: 12, lineHeight: 1.4 }}>Adiciona uma camada extra de proteção às suas instâncias.</p>
+                    <div style={{ background: "var(--surface-card)", padding: "14px 16px" }}>
+                      <p style={{ fontSize: 12, fontWeight: 700, color: "var(--text-heading)", marginBottom: 4 }}>Token de Segurança da Conta</p>
+                      <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 12, lineHeight: 1.4 }}>Adiciona uma camada extra de proteção às suas instâncias.</p>
 
                       {/* Client-Token field */}
                       <div style={{ marginBottom: 12 }}>
-                        <p style={{ fontSize: 10, color: "#888", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Client-Token</p>
+                        <p style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Client-Token</p>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ flex: 1, background: "#E1F5EE", border: "1.5px solid #128A68", borderRadius: 7, padding: "6px 10px", fontSize: 10, fontFamily: "monospace", color: "#128A68", fontWeight: 700 }}>
+                          <div style={{ flex: 1, background: "var(--accent-50)", border: "1.5px solid var(--accent-700)", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", color: "var(--accent-700)", fontWeight: 700 }}>
                             Bearer A1B2C3D4E5F6G7H8...
                           </div>
-                          <div style={{ background: "#128A68", borderRadius: 6, padding: "5px 10px", fontSize: 10, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
+                          <div style={{ background: "var(--accent-700)", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
                         </div>
-                        <p style={{ fontSize: 9, color: "#128A68", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor</p>
+                        <p style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor</p>
                       </div>
 
                       {/* Botão Configurar */}
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#128A68", borderRadius: 8, padding: "6px 14px" }}>
-                        <span style={{ fontSize: 11, color: "#FFF", fontWeight: 600 }}>⚙ Configurar Agora</span>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--accent-700)", borderRadius: 8, padding: "6px 14px" }}>
+                        <span style={{ fontSize: 12, color: "#FFF", fontWeight: 600 }}>⚙ Configurar Agora</span>
                       </div>
-                      <p style={{ fontSize: 9, color: "#E24B4A", fontWeight: 600, marginTop: 6 }}>👆 Se ainda não ativou, clique aqui primeiro</p>
+                      <p style={{ fontSize: 12, color: "var(--danger-fg)", fontWeight: 600, marginTop: 6 }}>👆 Se ainda não ativou, clique aqui primeiro</p>
                     </div>
                   </div>
                 </>
@@ -4656,9 +4678,9 @@ function ConexoesSection() {
                     if (e.target.checked) localStorage.setItem("zapi_skip_tutorial", "1");
                     else localStorage.removeItem("zapi_skip_tutorial");
                   }}
-                  style={{ accentColor: "#128A68", width: 14, height: 14, flexShrink: 0 }}
+                  style={{ accentColor: "var(--accent-700)", width: 14, height: 14, flexShrink: 0 }}
                 />
-                <span style={{ fontSize: 12, color: "#888" }}>Não mostrar novamente</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Não mostrar novamente</span>
               </label>
 
               <DialogFooter className="mt-4">
@@ -4706,8 +4728,8 @@ function ConexoesSection() {
             <>
               <div style={{ background: "hsl(var(--muted))", border: "1px solid #BAE6FD", borderRadius: 8, padding: "10px 12px", marginBottom: 14, marginTop: -4 }}>
                 <p style={{ fontSize: 12, fontWeight: 500, color: "hsl(var(--foreground))", marginBottom: 4 }}>Como conectar a D-API</p>
-                <p style={{ fontSize: 11, fontWeight: 400, color: "hsl(var(--muted-foreground))", lineHeight: 1.35 }}>
-                  Gere sua Chave API no painel da <a href="https://app.d-api.cloud" target="_blank" rel="noreferrer" style={{ color: "hsl(var(--primary))", fontWeight: 600 }}>app.d-api.cloud</a>. Vamos mostrar as sessões que já existem na sua conta pra você escolher, ou criar uma nova.
+                <p style={{ fontSize: 12, fontWeight: 400, color: "hsl(var(--muted-foreground))", lineHeight: 1.35 }}>
+                  Gere sua Chave API no painel da <a href="https://app.d-api.cloud" target="_blank" rel="noreferrer" style={{ color: "var(--text-link)", fontWeight: 600 }}>app.d-api.cloud</a>. Vamos mostrar as sessões que já existem na sua conta pra você escolher, ou criar uma nova.
                 </p>
               </div>
               <div className="space-y-3">
@@ -4721,7 +4743,7 @@ function ConexoesSection() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">Chave API <span className="text-[#E24B4A]">*</span></label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Chave API <span className="text-[color:var(--danger-fg)]">*</span></label>
                   <Input
                     placeholder="Chave API da sua conta D-API"
                     value={dapiApiKey}
@@ -4731,9 +4753,9 @@ function ConexoesSection() {
                   />
                 </div>
               </div>
-              <p style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", marginTop: 12 }}>
+              <p style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", marginTop: 12 }}>
                 Ao continuar, você concorda com nossos{" "}
-                <button onClick={() => setShowTerms(true)} style={{ color: "hsl(var(--primary))", fontWeight: 500, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11 }}>
+                <button onClick={() => setShowTerms(true)} style={{ color: "var(--text-link)", fontWeight: 500, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 12 }}>
                   Termos de Uso
                 </button>.
               </p>
@@ -4762,7 +4784,7 @@ function ConexoesSection() {
                     style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 2, textAlign: "left", padding: "10px 12px", borderRadius: 8, border: "1px solid hsl(var(--border))", background: "transparent", cursor: "pointer" }}
                   >
                     <span style={{ fontSize: 13, fontWeight: 600, color: "hsl(var(--foreground))", fontFamily: "monospace" }}>{s.id}</span>
-                    <span style={{ fontSize: 11, color: s.status === "connected" ? "#128A68" : "hsl(var(--muted-foreground))" }}>
+                    <span style={{ fontSize: 12, color: s.status === "connected" ? "var(--accent-700)" : "hsl(var(--muted-foreground))" }}>
                       {s.status === "connected" ? `Conectada${s.phone ? ` · ${s.phone}` : ""}` : `Status: ${s.status || "desconhecido"}`}
                     </span>
                   </button>
@@ -4781,9 +4803,9 @@ function ConexoesSection() {
           {step === "creds" && wizardProvider === "cloud_api" && (
             <>
               {/* Embedded Signup — opção recomendada */}
-              <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8, padding: "12px 14px", marginBottom: 14, marginTop: -4 }}>
-                <p style={{ fontSize: 12, fontWeight: 600, color: "#15803D", marginBottom: 4 }}>Conectar via Meta (recomendado)</p>
-                <p style={{ fontSize: 11, color: "#166534", lineHeight: 1.4, marginBottom: 10 }}>
+              <div style={{ background: "var(--accent-50)", border: "1px solid var(--accent-200)", borderRadius: 8, padding: "12px 14px", marginBottom: 14, marginTop: -4 }}>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-700)", marginBottom: 4 }}>Conectar via Meta (recomendado)</p>
+                <p style={{ fontSize: 12, color: "var(--accent-700)", lineHeight: 1.4, marginBottom: 10 }}>
                   Clique no botão abaixo para conectar sua conta do WhatsApp Business diretamente pela Meta. É rápido e seguro — não precisa copiar tokens.
                 </p>
                 <a
@@ -4802,12 +4824,12 @@ function ConexoesSection() {
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
                 <div style={{ flex: 1, height: 1, background: "hsl(var(--border))" }} />
-                <span style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap" }}>ou configure manualmente</span>
+                <span style={{ fontSize: 12, color: "hsl(var(--muted-foreground))", whiteSpace: "nowrap" }}>ou configure manualmente</span>
                 <div style={{ flex: 1, height: 1, background: "hsl(var(--border))" }} />
               </div>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">Nome da conexão <span className="text-[#E24B4A]">*</span></label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Nome da conexão <span className="text-[color:var(--danger-fg)]">*</span></label>
                   <Input
                     placeholder="Ex: WhatsApp Comercial"
                     value={connName}
@@ -4816,7 +4838,7 @@ function ConexoesSection() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">ID do Número de Telefone <span className="text-[#E24B4A]">*</span></label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">ID do Número de Telefone <span className="text-[color:var(--danger-fg)]">*</span></label>
                   <Input
                     placeholder="Ex: 123456789012345"
                     value={cloudPhoneId}
@@ -4825,7 +4847,7 @@ function ConexoesSection() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">Token de Acesso Permanente <span className="text-[#E24B4A]">*</span></label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Token de Acesso Permanente <span className="text-[color:var(--danger-fg)]">*</span></label>
                   <Input
                     placeholder="Token de acesso do Sistema de Usuário"
                     value={cloudToken}
@@ -4844,9 +4866,9 @@ function ConexoesSection() {
                   />
                 </div>
               </div>
-              <p style={{ fontSize: 11, color: "#888", marginTop: 12 }}>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 12 }}>
                 Ao continuar, você concorda com nossos{" "}
-                <button onClick={() => setShowTerms(true)} style={{ color: "#128A68", fontWeight: 500, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11 }}>
+                <button onClick={() => setShowTerms(true)} style={{ color: "var(--accent-700)", fontWeight: 500, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 12 }}>
                   Termos de Uso
                 </button>.
               </p>
@@ -4865,11 +4887,11 @@ function ConexoesSection() {
               {/* Banner informativo */}
               <div style={{ background: "#F0FAF6", border: "1px solid #C3E8D8", borderRadius: 8, padding: "10px 12px", marginBottom: 14, marginTop: -4 }}>
                 <p style={{ fontSize: 12, fontWeight: 500, color: "#0D5C3A", marginBottom: 4 }}>Intervalo entre as mensagens</p>
-                <p style={{ fontSize: 11, fontWeight: 400, color: "#376B55", lineHeight: 1.2 }}>Z-API permite a configuração de espera entre as mensagens enviadas. Por padrão esse intervalo é 0 (inativo). Isso pode ser alterado para evitar bloqueios devido ao envio de mensagens em um curto período de tempo.</p>
+                <p style={{ fontSize: 12, fontWeight: 400, color: "#376B55", lineHeight: 1.2 }}>Z-API permite a configuração de espera entre as mensagens enviadas. Por padrão esse intervalo é 0 (inativo). Isso pode ser alterado para evitar bloqueios devido ao envio de mensagens em um curto período de tempo.</p>
               </div>
               <div className="space-y-3">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">Nome da conexão <span className="text-[#E24B4A]">*</span></label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Nome da conexão <span className="text-[color:var(--danger-fg)]">*</span></label>
                   <Input
                     placeholder="Nome da conexão"
                     value={connName}
@@ -4878,7 +4900,7 @@ function ConexoesSection() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">ID da Instância <span className="text-[#E24B4A]">*</span></label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">ID da Instância <span className="text-[color:var(--danger-fg)]">*</span></label>
                   <Input
                     placeholder="ID da instância do Z-API"
                     value={form.instanceId}
@@ -4887,7 +4909,7 @@ function ConexoesSection() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground block mb-1">Token da instância <span className="text-[#E24B4A]">*</span></label>
+                  <label className="text-xs font-medium text-muted-foreground block mb-1">Token da instância <span className="text-[color:var(--danger-fg)]">*</span></label>
                   <Input
                     placeholder="Token da instância do Z-API"
                     value={form.token}
@@ -4898,7 +4920,7 @@ function ConexoesSection() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground block mb-1">
-                    Token de segurança <span className="text-[#E24B4A]">*</span>
+                    Token de segurança <span className="text-[color:var(--danger-fg)]">*</span>
                     <span className="flex items-center gap-1 text-muted-foreground font-normal mt-0.5">
                       <CircleAlert size={11} /> Acesse a página de Segurança para obter.
                     </span>
@@ -4912,9 +4934,9 @@ function ConexoesSection() {
                   />
                 </div>
               </div>
-              <p style={{ fontSize: 11, color: "#888", marginTop: 12 }}>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 12 }}>
                 Ao continuar, você concorda com nossos{" "}
-                <button onClick={() => setShowTerms(true)} style={{ color: "#128A68", fontWeight: 500, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 11 }}>
+                <button onClick={() => setShowTerms(true)} style={{ color: "var(--accent-700)", fontWeight: 500, background: "none", border: "none", padding: 0, cursor: "pointer", fontSize: 12 }}>
                   Termos de Uso
                 </button>.
               </p>
@@ -4941,8 +4963,8 @@ function ConexoesSection() {
                 ) : qrSrc ? (
                   <img src={qrSrc} alt="QR Code WhatsApp" className="w-52 h-52 rounded-xl border border-card-border object-contain" />
                 ) : (
-                  <div className="w-52 h-52 bg-[#FEF2F2] rounded-xl flex flex-col items-center justify-center gap-2 p-4">
-                    <p className="text-xs text-[#E24B4A] font-medium text-center">Falha ao carregar o QR Code</p>
+                  <div className="w-52 h-52 bg-[color:var(--danger-bg)] rounded-xl flex flex-col items-center justify-center gap-2 p-4">
+                    <p className="text-xs text-[color:var(--danger-fg)] font-medium text-center">Falha ao carregar o QR Code</p>
                     <Button
                       size="sm"
                       variant="outline"
@@ -4965,8 +4987,8 @@ function ConexoesSection() {
                   )}
                   {!polling && pollN >= 3 && (
                     <div className="flex flex-col items-center gap-2">
-                      <p className="text-xs text-[#E24B4A]">QR Code expirado.</p>
-                      <Button size="sm" variant="outline" className="h-7 text-xs border-primary text-primary hover:bg-primary hover:text-white" onClick={handleRegenerate}>
+                      <p className="text-xs text-[color:var(--danger-fg)]">QR Code expirado.</p>
+                      <Button size="sm" variant="outline" className="h-7 text-xs border-primary text-primary hover:bg-primary hover:text-[color:var(--text-on-accent)]" onClick={handleRegenerate}>
                         Gerar novo QR Code
                       </Button>
                     </div>
@@ -4988,7 +5010,7 @@ function ConexoesSection() {
           <DialogHeader>
             <DialogTitle>Termos de Uso</DialogTitle>
           </DialogHeader>
-          <div style={{ fontSize: 13, color: "#444", lineHeight: 1.7 }} className="space-y-3">
+          <div style={{ fontSize: 13, color: "var(--text-body)", lineHeight: 1.7 }} className="space-y-3">
             <p>Estes Termos de Uso estabelecem as condições para a utilização do serviço de CRM fornecido pelo Rezult. Ao acessar ou utilizar nossos serviços, você concorda integralmente com estes termos.</p>
             <p><strong>Definições</strong><br />Serviço: Refere-se ao sistema de CRM fornecido pelo Rezult.<br />Usuário: Qualquer indivíduo ou entidade que utilize o serviço.<br />Plataformas de Terceiros: Serviços externos integrados ao nosso sistema, como redes sociais e aplicativos de mensagens.</p>
             <p><strong>Elegibilidade</strong><br />Para utilizar nossos serviços, você deve: Ter pelo menos 18 anos ou possuir autorização legal adequada. Possuir permissão para operar contas nas plataformas de terceiros integradas ao nosso serviço.</p>
@@ -5003,7 +5025,7 @@ function ConexoesSection() {
             <p><strong>Encerramento e Suspensão</strong><br />Podemos suspender ou encerrar seu acesso ao serviço se identificarmos violações a estes termos, atividades suspeitas ou uso inadequado.</p>
             <p><strong>Disposições Gerais</strong><br />Estes termos constituem o acordo completo entre você e o Rezult em relação ao uso do serviço. Caso alguma disposição seja considerada inválida, as demais permanecerão em pleno vigor e efeito.</p>
             <p><strong>Lei Aplicável e Foro</strong><br />Estes Termos de Uso são regidos pelas leis da República Federativa do Brasil. Fica eleito o foro da comarca de Florianópolis, Estado de Santa Catarina, como competente para dirimir quaisquer questões oriundas deste instrumento, com renúncia expressa a qualquer outro, por mais privilegiado que seja.</p>
-            <p><strong>Contato</strong><br />Para dúvidas ou esclarecimentos sobre estes Termos de Uso, entre em contato conosco pelo e-mail: <a href="mailto:crm@rezultcrm.com" style={{ color: "#128A68" }}>crm@rezultcrm.com</a></p>
+            <p><strong>Contato</strong><br />Para dúvidas ou esclarecimentos sobre estes Termos de Uso, entre em contato conosco pelo e-mail: <a href="mailto:crm@rezultcrm.com" style={{ color: "var(--accent-700)" }}>crm@rezultcrm.com</a></p>
           </div>
           <DialogFooter className="mt-2">
             <Button className="bg-primary hover:bg-primary/90" onClick={() => setShowTerms(false)}>Fechar</Button>
@@ -5198,7 +5220,7 @@ function MetaAdsCard() {
             {saving ? "Salvando..." : "Adicionar"}
           </Button>
         </div>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-[12px] text-muted-foreground">
           Obtenha em <span className="font-mono">business.facebook.com → Events Manager → Configurações</span>. Gere um System User Token com permissão <span className="font-mono">ads_management</span>.
         </p>
       </div>
@@ -5336,7 +5358,7 @@ function AiProviderKeysCard() {
 
       <div className="space-y-1.5 mb-4">
         {AI_PROVIDERS.map(p => (
-          <p key={p.id} className="text-[11px] text-muted-foreground">
+          <p key={p.id} className="text-[12px] text-muted-foreground">
             <span className="font-medium text-foreground">{p.name}:</span> {p.agentUsage}
           </p>
         ))}
@@ -5363,7 +5385,7 @@ function AiProviderKeysCard() {
           {saving ? "Salvando..." : "Salvar"}
         </Button>
       </div>
-      <p className="text-[11px] text-muted-foreground mt-2 mb-4">
+      <p className="text-[12px] text-muted-foreground mt-2 mb-4">
         Obtenha sua chave em <span className="font-mono">{current?.help}</span>. Cadastrar uma chave já existente para o mesmo provedor a substitui.
       </p>
 
@@ -5450,7 +5472,7 @@ function McpSection() {
       </div>
       <Card>
         <SectionTitle title="Model Context Protocol" subtitle="Configure conexões MCP para integrar agentes externos com seu CRM" />
-        <div className="bg-muted border border-gray-200 rounded-lg p-4 font-mono text-xs text-muted-foreground">
+        <div className="bg-muted border border-card-border rounded-lg p-4 font-mono text-xs text-muted-foreground">
           mcp://rezult.app/your-workspace
         </div>
         <Button className="mt-4 bg-primary hover:bg-primary/90"><Plus size={14} className="mr-1" /> Configurar servidor</Button>
@@ -5559,10 +5581,10 @@ function ArmazenamentoSection() {
     { label: "Conversas",          color: "#06B6D4", bytes: convsBytes       },
     { label: "Arquivos de leads",  color: "#8B5CF6", bytes: filesBytes       },
     { label: "Leads e negócios",   color: "#F97316", bytes: leadsBytes       },
-    { label: "Atividades",         color: "#10B981", bytes: activitiesBytes  },
-    { label: "Automações",         color: "#EF4444", bytes: automsBytes      },
-    { label: "Tarefas",            color: "#F59E0B", bytes: tasksBytes       },
-    { label: "Outros registros",   color: "#94A3B8", bytes: othersBytes      },
+    { label: "Atividades",         color: "var(--accent-700)", bytes: activitiesBytes  },
+    { label: "Automações",         color: "var(--danger-fg)", bytes: automsBytes      },
+    { label: "Tarefas",            color: "var(--warning-fg)", bytes: tasksBytes       },
+    { label: "Outros registros",   color: "var(--text-muted)", bytes: othersBytes      },
   ];
 
   const totalBytes = categories.reduce((s, c) => s + c.bytes, 0);
@@ -5693,7 +5715,7 @@ function ChangePasswordDialog({ open, setOpen }: { open: boolean; setOpen: (v: b
 
   const strength = pw.length === 0 ? 0 : pw.length < 6 ? 1 : pw.length < 10 ? 2 : 3;
   const strengthLabel = ["", "Fraca", "Média", "Forte"][strength];
-  const strengthColor = ["", "#E24B4A", "#F59E0B", "#128A68"][strength];
+  const strengthColor = ["", "#E24B4A", "#F59E0B", "var(--accent-700)"][strength];
 
   const handleClose = () => {
     setOpen(false);

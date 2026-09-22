@@ -290,10 +290,10 @@ export function ExecutarAutomacaoWizard({
                 return (
                   <div key={p.n} className="flex items-center gap-3">
                     <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0"
                       style={{
                         background: feito ? "hsl(var(--primary))" : ativo ? "hsl(var(--primary) / 0.12)" : "transparent",
-                        color: feito ? "#fff" : ativo ? "hsl(var(--primary))" : "#94A3B8",
+                        color: feito ? "var(--text-on-accent)" : ativo ? "var(--text-link)" : "#94A3B8",
                         border: ativo ? "1.5px solid hsl(var(--primary))" : feito ? "none" : "1.5px solid #CBD5E1",
                       }}
                     >
@@ -325,7 +325,7 @@ export function ExecutarAutomacaoWizard({
                   <h3 className="text-base font-semibold">Selecione a automação</h3>
                   <p className="text-sm text-muted-foreground">Escolha a automação que será executada.</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-2 mb-3">
-                    <span className="w-3.5 h-3.5 rounded-full border border-muted-foreground/50 flex items-center justify-center text-[9px]">i</span>
+                    <span className="w-3.5 h-3.5 rounded-full border border-muted-foreground/50 flex items-center justify-center text-[12px]">i</span>
                     Somente automações ativas com gatilho de execução manual podem ser selecionadas.
                   </p>
                   <div className="relative mb-3">
@@ -343,7 +343,7 @@ export function ExecutarAutomacaoWizard({
                     {listadas.map(a => (
                       <button key={a.id} type="button" onClick={() => setAutomacaoId(a.id)}
                         className="w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-colors"
-                        style={{ borderColor: automacaoId === a.id ? "hsl(var(--primary))" : "#E5E7EB", background: automacaoId === a.id ? "hsl(var(--primary) / 0.04)" : "#fff" }}>
+                        style={{ borderColor: automacaoId === a.id ? "hsl(var(--primary))" : "var(--border-default)", background: automacaoId === a.id ? "hsl(var(--primary) / 0.04)" : "var(--surface-card)" }}>
                         <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0" style={{ borderColor: automacaoId === a.id ? "hsl(var(--primary))" : "#CBD5E1" }}>
                           {automacaoId === a.id && <div className="w-2 h-2 rounded-full bg-primary" />}
                         </div>
@@ -396,9 +396,9 @@ export function ExecutarAutomacaoWizard({
                       negócio eram descartadas em silêncio e o atendente só
                       descobria pelo aviso no fim, depois de já ter disparado. */}
                   {semNegocio.length > 0 && (
-                    <div className="flex gap-2.5 rounded-lg border p-3 mb-3" style={{ borderColor: "#FDE68A", background: "#FFFBEB" }}>
-                      <AlertTriangle size={16} className="shrink-0 mt-0.5" color="#B45309" />
-                      <div className="text-xs leading-relaxed" style={{ color: "#92400E" }}>
+                    <div className="flex gap-2.5 rounded-lg border p-3 mb-3" style={{ borderColor: "var(--warning-400)", background: "var(--warning-bg)" }}>
+                      <AlertTriangle size={16} className="shrink-0 mt-0.5" color="var(--warning-fg)" />
+                      <div className="text-xs leading-relaxed" style={{ color: "var(--warning-fg)" }}>
                         <strong>{semNegocio.length} {semNegocio.length === 1 ? termo.singular : termo.plural} {semNegocio.length === 1 ? "fica" : "ficam"} de fora</strong> por não terem negócio vinculado:
                         a automação age sobre o negócio do contato.
                         <div className="mt-1 opacity-80">{semNegocio.map(c => c.nome).join(", ")}</div>
@@ -411,9 +411,9 @@ export function ExecutarAutomacaoWizard({
                       desenhos para o mesmo tipo de recado fariam o segundo
                       parecer outra coisa. */}
                   {excedeuLimite && (
-                    <div className="flex gap-2.5 rounded-lg border p-3 mb-3" style={{ borderColor: "#FDE68A", background: "#FFFBEB" }}>
-                      <AlertTriangle size={16} className="shrink-0 mt-0.5" color="#B45309" />
-                      <div className="text-xs leading-relaxed" style={{ color: "#92400E" }}>
+                    <div className="flex gap-2.5 rounded-lg border p-3 mb-3" style={{ borderColor: "var(--warning-400)", background: "var(--warning-bg)" }}>
+                      <AlertTriangle size={16} className="shrink-0 mt-0.5" color="var(--warning-fg)" />
+                      <div className="text-xs leading-relaxed" style={{ color: "var(--warning-fg)" }}>
                         <strong>{idsFinais.length.toLocaleString("pt-BR")} {termo.plural} é mais do que a execução manual comporta</strong> (o teto é {LIMITE_EXECUCAO.toLocaleString("pt-BR")}).
                         Ela roda um a um e com esse volume ficaria minutos presa nesta janela.{" "}
                         <Link to="/disparos" className="font-semibold underline underline-offset-2">
@@ -481,7 +481,7 @@ export function ExecutarAutomacaoWizard({
                               {marcadoAqui && <Check size={11} color="#fff" />}
                             </div>
                           )}
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: "#128A68" }}>
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0" style={{ background: "var(--accent-700)" }}>
                             {c.nome.trim().charAt(0).toUpperCase() || "?"}
                           </div>
 
@@ -491,8 +491,8 @@ export function ExecutarAutomacaoWizard({
                           <div className="flex-1 min-w-0">
                             <div className="text-xs font-semibold truncate leading-none">{c.nome}</div>
                             {c.ticketMedio !== undefined && (
-                              <span style={{ fontSize: 8, fontWeight: 600 }} className="inline-flex items-center rounded-full bg-gray-100 px-1 py-0.5 text-gray-500">
-                                Ticket médio <span className="text-green-600 ml-1">{fmtBRL(c.ticketMedio)}</span>
+                              <span style={{ fontSize: 12, fontWeight: 600 }} className="inline-flex items-center rounded-full bg-gray-100 px-1 py-0.5 text-gray-500">
+                                Ticket médio <span className="text-[color:var(--accent-700)] ml-1">{fmtBRL(c.ticketMedio)}</span>
                               </span>
                             )}
                           </div>
@@ -509,7 +509,7 @@ export function ExecutarAutomacaoWizard({
                                 <Phone size={12} className="shrink-0 text-muted-foreground" />
                                 <span className="truncate">{c.telefone || "—"}</span>
                               </div>
-                              {c.email && <div className="text-[11px] text-muted-foreground truncate pl-[18px]">{c.email}</div>}
+                              {c.email && <div className="text-[12px] text-muted-foreground truncate pl-[18px]">{c.email}</div>}
                             </div>
                           )}
 
@@ -524,13 +524,13 @@ export function ExecutarAutomacaoWizard({
                                 : (
                                   <>
                                     {(c.tags ?? []).slice(0, 2).map(t => (
-                                      <span key={t.nome} className="text-[10px] px-2 rounded-full text-white font-medium truncate max-w-[150px]"
+                                      <span key={t.nome} className="text-[12px] px-2 rounded-full text-white font-medium truncate max-w-[150px]"
                                             style={{ paddingTop: 2, paddingBottom: 2, background: t.cor || "#888" }}>
                                         {t.nome}
                                       </span>
                                     ))}
                                     {(c.tags ?? []).length > 2 && (
-                                      <span className="text-[11px] text-muted-foreground">+{(c.tags ?? []).length - 2}</span>
+                                      <span className="text-[12px] text-muted-foreground">+{(c.tags ?? []).length - 2}</span>
                                     )}
                                   </>
                                 )}

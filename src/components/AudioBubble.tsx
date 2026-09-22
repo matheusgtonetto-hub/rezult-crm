@@ -17,7 +17,7 @@ function Waveform({ light, progress = 0 }: { light: boolean; progress?: number }
     <div style={{ display: "flex", alignItems: "center", gap: 2, height: 18 }}>
       {heights.map((h, i) => {
         const played = (i + 1) / heights.length <= progress;
-        return <div key={i} style={{ width: 2, height: h, background: light ? "#FFF" : "#128A68", opacity: progress > 0 ? (played ? 1 : 0.35) : (light ? 1 : 0.4), borderRadius: 1, transition: "opacity 0.1s" }} />;
+        return <div key={i} style={{ width: 2, height: h, background: light ? "var(--surface-card)" : "var(--accent-700)", opacity: progress > 0 ? (played ? 1 : 0.35) : (light ? 1 : 0.4), borderRadius: 6, transition: "opacity 0.1s" }} />;
       })}
     </div>
   );
@@ -28,7 +28,7 @@ export function AudioBubble({ duration, src, light }: { duration: string; src?: 
   const [playing, setPlaying] = useState(false);
   const [cur, setCur] = useState(0);
   const [dur, setDur] = useState(0);
-  const fg = light ? "#FFF" : "#128A68";
+  const fg = light ? "#FFF" : "var(--accent-700)";
 
   const fmt = (s: number) =>
     (isFinite(s) && s > 0)
@@ -47,7 +47,7 @@ export function AudioBubble({ duration, src, light }: { duration: string; src?: 
   const label = src ? fmt((playing || cur > 0) ? cur : dur) : (duration || "00:00");
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, background: light ? "transparent" : "#F5F5F5", padding: light ? 0 : "6px 10px", borderRadius: 10 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, background: light ? "transparent" : "var(--neutral-50)", padding: light ? 0 : "6px 10px", borderRadius: 10 }}>
       {src && (
         <audio
           ref={audioRef}
@@ -79,12 +79,12 @@ export function AudioBubble({ duration, src, light }: { duration: string; src?: 
         onClick={toggle}
         disabled={!src}
         title={src ? (playing ? "Pausar" : "Reproduzir") : "Áudio indisponível"}
-        style={{ width: 32, height: 32, borderRadius: "50%", background: light ? "rgba(255,255,255,0.3)" : "#128A68", color: "#FFF", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: src ? "pointer" : "default", flexShrink: 0, opacity: src ? 1 : 0.6 }}
+        style={{ width: 32, height: 32, borderRadius: "50%", background: light ? "rgba(255,255,255,0.3)" : "var(--accent-700)", color: "#FFF", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: src ? "pointer" : "default", flexShrink: 0, opacity: src ? 1 : 0.6 }}
       >
-        {playing ? <Pause size={14} fill="#FFF" /> : <Play size={14} fill="#FFF" />}
+        {playing ? <Pause size={14} fill="var(--surface-card)" /> : <Play size={14} fill="var(--surface-card)" />}
       </button>
       <Waveform light={light} progress={progress} />
-      <span style={{ fontSize: 11, color: fg, fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>{label}</span>
+      <span style={{ fontSize: 12, color: fg, fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>{label}</span>
     </div>
   );
 }

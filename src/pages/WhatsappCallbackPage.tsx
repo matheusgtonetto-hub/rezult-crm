@@ -85,7 +85,7 @@ export default function WhatsappCallbackPage() {
         )}
         {status === "success" && (
           <>
-            <CheckCircle className="w-12 h-12 text-green-500" />
+            <CheckCircle className="w-12 h-12 text-[color:var(--accent-700)]" />
             <p className="text-base font-semibold text-foreground">WhatsApp conectado!</p>
             <p className="text-sm text-muted-foreground">Redirecionando para as configurações...</p>
           </>

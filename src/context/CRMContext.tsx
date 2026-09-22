@@ -3,7 +3,7 @@ import {
   useCallback, useMemo, useEffect, useRef,
 } from "react";
 import {
-  Lead, Task, Tag, CrmList, Pipeline, PipelineColumn, PipelineGroup, Product, LossReason,
+  Lead, ItemDoNegocio, Task, Tag, CrmList, Pipeline, PipelineColumn, PipelineGroup, Product, LossReason,
   Activity, PipelineCategory, Priority, LeadOrigin,
   ActivityType, TaskStatus, CustomFieldGroup, CustomFieldItem, CustomFieldType,
 } from "@/data/mockData";
@@ -16,6 +16,7 @@ import { PLAN_LIMITS } from "@/data/plans";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
 import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { telefonesIguais } from "@/lib/telefone";
+import { colorFromString } from "@/lib/iniciais";
 
 interface CRMContextType {
   crmLoading: boolean;
@@ -50,6 +51,11 @@ interface CRMContextType {
   moveLead: (leadId: string, fromCol: string, toCol: string, toIndex: number) => void;
   transferLead: (leadId: string, toPipelineId: string, toColumnId: string) => Promise<void>;
   markLeadWon: (leadId: string, productName?: string, value?: number) => void;
+  /** Adiciona um produto ao negócio. O valor do negócio soma sozinho. */
+  addLeadItem: (leadId: string, productId: string) => Promise<void>;
+  removeLeadItem: (leadId: string, itemId: string) => Promise<void>;
+  /** Desfaz o ajuste manual: o valor volta a ser a soma dos itens. */
+  recalcularValorDoNegocio: (leadId: string) => Promise<void>;
   markLeadLost: (leadId: string, reason?: string) => void;
   markLeadOpen: (leadId: string) => Promise<void>;
   nextDealNumber: () => number;
@@ -151,7 +157,18 @@ function dbToColumn(row: Record<string, unknown>, leadIds: string[]): PipelineCo
  * carregamento em massa. Duas conversões diferentes para a mesma linha é como
  * o card do funil e o card da lista passam a mostrar coisas diferentes.
  */
-export function dbToLead(row: Record<string, unknown>, activities: Activity[]): Lead {
+export function dbToLead(
+  row: Record<string, unknown>,
+  activities: Activity[],
+  /**
+   * Itens do negócio, já filtrados para este lead.
+   *
+   * Entram por parâmetro, e não por uma busca aqui dentro: esta função converte
+   * UMA linha e é chamada em laço sobre milhares delas -- uma consulta por
+   * negócio seria um disparo por card na tela.
+   */
+  itens: ItemDoNegocio[] = [],
+): Lead {
   return {
     id: row.id as string,
     dealNumber: (row.deal_number as number) ?? 0,
@@ -169,6 +186,10 @@ export function dbToLead(row: Record<string, unknown>, activities: Activity[]): 
       return parsed.length > 0 ? parsed : ((row.email as string) ? [(row.email as string)] : []);
     })(),
     value: Number(row.value ?? 0),
+    // Ausente = negócio nunca ganho (ou ganho antes de a coluna existir).
+    wonValue: row.won_value == null ? undefined : Number(row.won_value),
+    valorManual: row.value_is_manual === true,
+    itens,
     responsible: (row.responsible as string) ?? "",
     responsibles: (() => {
       const raw = row.responsibles;
@@ -459,11 +480,9 @@ export function CRMProvider({ children }: { children: ReactNode }) {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState<string>("");
 
-  function colorFromString(str: string) {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    return `hsl(${Math.abs(hash) % 360} 55% 45%)`;
-  }
+  // O algoritmo vive em ProfileAvatar, que é quem desenha o avatar. Aqui só se
+  // consome: duas cópias davam cores diferentes para a mesma pessoa em telas
+  // diferentes, que é o oposto do que a cor por hash existe para fazer.
 
   const memberColors = useMemo(() => {
     const map: Record<string, string> = {};
@@ -559,7 +578,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
       // leads e contacts saem do Promise.all porque paginam: as duas já passaram
       // de 1000 linhas em produção e vinham truncadas em silêncio.
-      const [pipelineRes, columnRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, customFieldRes, myProfileRes, listRes, listLeadRes, dbLeads, dbContacts] = await Promise.all([
+      const [pipelineRes, columnRes, taskRes, tagRes, groupRes, productRes, lossReasonRes, customFieldRes, myProfileRes, listRes, listLeadRes, dbLeads, dbItens, dbContacts] = await Promise.all([
         supabase.from("pipelines").select("*").eq("company_id", companyId).order("position"),
         supabase.from("pipeline_columns").select("*").eq("company_id", companyId).order("position"),
         supabase.from("tasks").select("*").eq("company_id", companyId).order("created_at"),
@@ -572,6 +591,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         supabase.from("lists").select("*").eq("company_id", companyId).order("created_at"),
         supabase.from("list_leads").select("list_id, lead_id"),
         buscarTudo("leads", "*", [{ coluna: "position" }, { coluna: "id" }]),
+        buscarTudo("lead_products", "*", [{ coluna: "lead_id" }, { coluna: "posicao" }]),
         buscarTudo("contacts", "*", [{ coluna: "created_at" }, { coluna: "id" }]),
       ]);
 
@@ -689,11 +709,27 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         actsByLead[lid].push(dbToActivity(a));
       }
 
+      // Itens agrupados por negócio, na mesma ideia das atividades: um índice
+      // montado uma vez, em vez de um `filter` por lead dentro do laço (que em
+      // 3 mil negócios seria 3 mil varreduras da lista inteira).
+      const itensPorLead: Record<string, ItemDoNegocio[]> = {};
+      for (const i of (dbItens ?? []) as Record<string, unknown>[]) {
+        const lid = i.lead_id as string;
+        if (!itensPorLead[lid]) itensPorLead[lid] = [];
+        itensPorLead[lid].push({
+          id: i.id as string,
+          productId: i.product_id as string,
+          quantidade: Number(i.quantidade ?? 1),
+          valorUnitario: Number(i.valor_unitario ?? 0),
+          posicao: Number(i.posicao ?? 0),
+        });
+      }
+
       // Build leads map
       const leadsMap: Record<string, Lead> = {};
       for (const l of dbLeads) {
         const id = l.id as string;
-        leadsMap[id] = dbToLead(l, actsByLead[id] ?? []);
+        leadsMap[id] = dbToLead(l, actsByLead[id] ?? [], itensPorLead[id] ?? []);
       }
 
       // Build contacts map
@@ -724,7 +760,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         id: r.id as string,
         name: r.name as string,
         description: (r.description as string) ?? "",
-        color: (r.color as string) ?? "#128A68",
+        color: (r.color as string) ?? "var(--accent-700)",
         created_at: (r.created_at as string) ?? undefined,
       }));
 
@@ -814,7 +850,14 @@ export function CRMProvider({ children }: { children: ReactNode }) {
 
             setLeads(prev => {
               if (!prev[leadId]) return prev;
-              const updated = dbToLead(row, prev[leadId].activities);
+              // Os ITENS vêm do estado, não da linha: `leads` não os carrega
+              // (eles vivem em `lead_products`), e reconstruir o negócio sem
+              // eles apagava a lista de produtos da tela. Era o que acontecia
+              // ao adicionar um produto: o item entrava no banco, a tela
+              // atualizava, e o eco do realtime -- disparado pelo próprio
+              // `product_id` espelhado -- devolvia o negócio sem itens meio
+              // segundo depois.
+              const updated = dbToLead(row, prev[leadId].activities, prev[leadId].itens ?? []);
               // Preserve local notes to avoid overwriting active user edits via Realtime
               updated.notes = prev[leadId].notes;
               return { ...prev, [leadId]: updated };
@@ -1182,7 +1225,15 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       dbData.emails = JSON.stringify(data.emails ?? []);
       dbData.email = (data.emails && data.emails.length > 0 ? data.emails[0] : null);
     }
-    if ("value" in data) dbData.value = data.value;
+    if ("value" in data) {
+      dbData.value = data.value;
+      // Digitar um valor é dizer "este é o total, independente dos itens".
+      // Sem esta bandeira, o número some no próximo item adicionado, porque o
+      // gatilho do banco recalcularia por cima. Quem quiser voltar a somar usa
+      // `recalcularValorDoNegocio`.
+      if (!("valorManual" in data)) dbData.value_is_manual = true;
+    }
+    if ("valorManual" in data) dbData.value_is_manual = data.valorManual;
     if ("responsible" in data) dbData.responsible = data.responsible;
     if ("responsibles" in data) {
       dbData.responsibles = data.responsibles ?? [];
@@ -1439,10 +1490,116 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     return col?.id ?? null;
   }, [pipelines]);
 
+  /**
+   * ─── Itens do negócio ────────────────────────────────────────────────────
+   *
+   * Três funções e uma regra: quem soma o valor do negócio é o BANCO, por
+   * gatilho em `lead_products`. Aqui não se calcula total -- se calculasse, o
+   * número da tela e o do banco divergiriam no dia em que uma automação
+   * adicionasse um item sem passar por aqui.
+   *
+   * Depois de cada escrita, os itens são relidos do banco junto com o valor do
+   * negócio já recalculado. É uma ida a mais, e é ela que garante que a tela
+   * mostre o que ficou gravado.
+   */
+  const recarregarItens = useCallback(async (leadId: string) => {
+    const [{ data: itens }, { data: negocio }] = await Promise.all([
+      supabase.from("lead_products").select("*").eq("lead_id", leadId).order("posicao"),
+      supabase.from("leads").select("value, value_is_manual, product_id").eq("id", leadId).maybeSingle(),
+    ]);
+    const lista: ItemDoNegocio[] = (itens ?? []).map(i => ({
+      id: i.id as string,
+      productId: i.product_id as string,
+      quantidade: Number(i.quantidade ?? 1),
+      valorUnitario: Number(i.valor_unitario ?? 0),
+      posicao: Number(i.posicao ?? 0),
+    }));
+    setLeads(prev => prev[leadId] ? ({
+      ...prev,
+      [leadId]: {
+        ...prev[leadId],
+        itens: lista,
+        value: negocio ? Number(negocio.value ?? 0) : prev[leadId].value,
+        valorManual: negocio ? negocio.value_is_manual === true : prev[leadId].valorManual,
+        productId: (negocio?.product_id as string | null) ?? undefined,
+      },
+    }) : prev);
+  }, []);
+
+  /**
+   * `product_id` do negócio acompanha o PRIMEIRO item.
+   *
+   * O campo antigo continua sendo o que automações, agente de IA e filtro de
+   * disparos leem. Enquanto eles não migrarem, deixá-lo parado faria uma
+   * automação de "tem o produto X" deixar de disparar assim que o cliente
+   * passasse a usar dois produtos.
+   */
+  const espelharPrimeiroProduto = useCallback(async (leadId: string) => {
+    const { data } = await supabase
+      .from("lead_products").select("product_id").eq("lead_id", leadId).order("posicao").limit(1);
+    const primeiro = (data ?? [])[0]?.product_id ?? null;
+    await supabase.from("leads").update({ product_id: primeiro }).eq("id", leadId);
+  }, []);
+
+  const addLeadItem = useCallback(async (leadId: string, productId: string) => {
+    if (!company) return;
+    const produto = products.find(p => p.id === productId);
+    const jaTem = (leads[leadId]?.itens ?? []).length;
+    const { error } = await supabase.from("lead_products").insert({
+      company_id: company.id,
+      lead_id: leadId,
+      product_id: productId,
+      quantidade: 1,
+      // O preço vem do cadastro do produto, e fica GRAVADO aqui: a tabela de
+      // preços pode mudar amanhã sem reescrever o que já foi vendido.
+      valor_unitario: produto?.defaultValue ?? 0,
+      posicao: jaTem,
+    });
+    if (error) {
+      console.error("addLeadItem error:", error.message);
+      toast.error("Não foi possível adicionar o produto.");
+      return;
+    }
+    await espelharPrimeiroProduto(leadId);
+    await recarregarItens(leadId);
+  }, [company, products, leads, espelharPrimeiroProduto, recarregarItens]);
+
+  const removeLeadItem = useCallback(async (leadId: string, itemId: string) => {
+    const { error } = await supabase.from("lead_products").delete().eq("id", itemId);
+    if (error) {
+      console.error("removeLeadItem error:", error.message);
+      toast.error("Não foi possível remover o produto.");
+      return;
+    }
+    await espelharPrimeiroProduto(leadId);
+    await recarregarItens(leadId);
+  }, [espelharPrimeiroProduto, recarregarItens]);
+
+  /** Volta o valor do negócio a somar os itens (desfaz o ajuste manual). */
+  const recalcularValorDoNegocio = useCallback(async (leadId: string) => {
+    const { error } = await supabase.from("leads").update({ value_is_manual: false }).eq("id", leadId);
+    if (error) {
+      console.error("recalcularValorDoNegocio error:", error.message);
+      return;
+    }
+    await recarregarItens(leadId);
+  }, [recarregarItens]);
+
   const markLeadWon = useCallback((leadId: string, productName?: string, value?: number) => {
     if (!user || !company) return;
-    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], dealStatus: "won" } }));
-    supabase.from("leads").update({ status: "won" }).eq("id", leadId)
+    /*
+     * O valor do fechamento é CONGELADO aqui, em `won_value`.
+     *
+     * Antes ele só existia dentro do texto da atividade ("… · Valor: R$ 800"),
+     * de onde não dá para somar, e os painéis liam `value` -- o valor atual do
+     * negócio. Editar o negócio depois reescrevia a receita de meses passados.
+     *
+     * Sem `value` informado (o botão do drawer, uma automação), congela o que o
+     * negócio vale AGORA: é o melhor retrato disponível no momento do ganho.
+     */
+    const congelado = value ?? leads[leadId]?.value ?? 0;
+    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], dealStatus: "won", wonValue: congelado } }));
+    supabase.from("leads").update({ status: "won", won_value: congelado }).eq("id", leadId)
       .then(({ error }) => { if (error) console.error("markLeadWon error:", error.message); });
     const fmtBRL = (v: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
     const description = productName
@@ -1451,7 +1608,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
     const date = new Date().toISOString();
     supabase.from("activities").insert({ owner_id: company.owner_id, company_id: company.id, lead_id: leadId, type: "won", description, date, user_name: currentUserName ?? null })
       .then(({ error }) => { if (error) console.error("markLeadWon activity error:", error.message); });
-  }, [user, company, currentUserName]);
+  }, [user, company, currentUserName, leads]);
 
   const markLeadLost = useCallback((leadId: string, reason?: string) => {
     if (!user || !company) return;
@@ -1489,11 +1646,15 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       }
     }
     const anterior = leads[leadId]?.dealStatus;
-    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], dealStatus: "open" } }));
-    const { error } = await supabase.from("leads").update({ status: "open" }).eq("id", leadId);
+    const valorCongeladoAntes = leads[leadId]?.wonValue;
+    // Reabrir apaga o valor do fechamento: o negócio voltou a ser negociação.
+    // Ganho de novo, `markLeadWon` grava o valor novo -- que é o que separa
+    // "fechou por 797" de "fechou por 2.191 e depois virou 797".
+    setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], dealStatus: "open", wonValue: undefined } }));
+    const { error } = await supabase.from("leads").update({ status: "open", won_value: null }).eq("id", leadId);
     if (error) {
       console.error("markLeadOpen error:", error.message);
-      setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], dealStatus: anterior ?? "lost" } }));
+      setLeads(prev => ({ ...prev, [leadId]: { ...prev[leadId], dealStatus: anterior ?? "lost", wonValue: valorCongeladoAntes } }));
       const ehNegocioAberto = error.code === "23505" && /neg[óo]cio aberto/i.test(error.message ?? "");
       toast.error(
         ehNegocioAberto ? "Este contato já tem outro negócio aberto." : "Não foi possível reabrir o negócio.",
@@ -1991,6 +2152,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         leads, updateLead, addLead, deleteLead, deleteLeadAndContact, moveLead, transferLead,
         contacts, updateContact, deleteContact,
         markLeadWon, markLeadLost, markLeadOpen, nextDealNumber,
+        addLeadItem, removeLeadItem, recalcularValorDoNegocio,
         tasks, addTask, updateTask, deleteTask,
         addActivity, updateActivity, patchActivity, completeActivity, uncompleteActivity, markNoShow, unmarkNoShow, deleteActivity, pinActivity,
         crmTags, addTag, updateTag, deleteTag,

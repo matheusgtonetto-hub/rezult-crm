@@ -1127,11 +1127,11 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             <button
               key={l.id}
               onClick={() => openChat(l.id)}
-              className="rounded-full flex items-center justify-center text-[11px] font-semibold text-white transition-opacity hover:opacity-100"
+              className="rounded-full flex items-center justify-center text-[12px] font-semibold text-white transition-opacity hover:opacity-100"
               style={{
                 width: 32,
                 height: 32,
-                background: "#128A68",
+                background: "var(--accent-700)",
                 opacity: 0.6,
               }}
               title={l.name}
@@ -1146,7 +1146,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             style={{
               width: 32,
               height: 32,
-              border: "2px solid #128A68",
+              border: "2px solid var(--accent-700)",
             }}
             title={lead.name}
           >
@@ -1172,8 +1172,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           style={{
             height: 52,
             padding: "0 12px",
-            background: "#FFFFFF",
-            borderColor: "#E5E5E5",
+            background: "var(--surface-card)",
+            borderColor: "var(--border-default)",
           }}
         >
           {/* A foto do contato, não só as iniciais. A busca por ela já existia
@@ -1195,7 +1195,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           <div className="min-w-0 flex-1">
             <div
               className="truncate"
-              style={{ fontSize: 14, fontWeight: 600, color: "#111", lineHeight: 1.2 }}
+              style={{ fontSize: 14, fontWeight: 600, color: "var(--text-heading)", lineHeight: 1.2 }}
               title={lead.name}
             >
               {lead.name}
@@ -1206,7 +1206,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                 conexão ativa), não pelo atendente. */}
             <div
               className="flex items-center gap-2 truncate"
-              style={{ fontSize: 11, color: "#AAAAAA", lineHeight: 1.2 }}
+              style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.2 }}
             >
               {/* "via" na frente porque, sozinho, o número da linha seria lido
                   como o número do CONTATO -- que é o outro número da tela. */}
@@ -1223,7 +1223,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                   navigate("/multiatendimento", conversaParaAbrir ? { state: { openConvId: conversaParaAbrir.id } } : undefined);
                 }}
                 className="hover:underline shrink-0"
-                style={{ color: "#128A68", fontWeight: 500 }}
+                style={{ color: "var(--accent-700)", fontWeight: 500 }}
                 title={conversaParaAbrir ? "Abrir esta conversa no Multiatendimento" : "Abrir o Multiatendimento"}
               >
                 Multiatendimento →
@@ -1257,14 +1257,14 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           ref={msgsRef}
           data-lista-mensagens
           className="flex-1 overflow-y-auto"
-          style={{ background: "#FAFAFA", padding: 12 }}
+          style={{ background: "var(--neutral-25)", padding: 12 }}
         >
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-2">
-              <div style={{ fontSize: 12, color: "#AAA", textAlign: "center" }}>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>
                 Nenhuma mensagem ainda
               </div>
-              <div style={{ fontSize: 11, color: "#CCC", textAlign: "center" }}>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", textAlign: "center" }}>
                 Envie uma mensagem para iniciar a conversa
               </div>
             </div>
@@ -1272,8 +1272,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             <>
               <div className="flex justify-center mb-3">
                 <span
-                  className="text-[11px] px-3 py-1 rounded-full"
-                  style={{ background: "#E5E5E5", color: "#666" }}
+                  className="text-[12px] px-3 py-1 rounded-full"
+                  style={{ background: "var(--neutral-200)", color: "var(--text-muted)" }}
                 >
                   Hoje
                 </span>
@@ -1291,7 +1291,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                     return (
                       <div key={i} className="flex justify-center">
                         <span style={{
-                          fontSize: 11, color: "#767676", background: "#EFEFEF",
+                          fontSize: 12, color: "var(--text-muted)", background: "#EFEFEF",
                           borderRadius: 10, padding: "4px 10px", textAlign: "center",
                           maxWidth: "90%", overflowWrap: "anywhere",
                         }}>
@@ -1313,7 +1313,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                         <span
                           title="As mensagens abaixo passaram por esta linha"
                           style={{
-                            fontSize: 10, color: "#767676", background: "#EFEFEF",
+                            fontSize: 12, color: "var(--text-muted)", background: "#EFEFEF",
                             borderRadius: 10, padding: "3px 10px", maxWidth: "90%",
                             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                           }}
@@ -1333,7 +1333,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                       <div className={`flex flex-col ${isLead ? "items-start" : "items-end"}`} style={{ minWidth: 0, maxWidth: "80%" }}>
                       <div
                         className="mb-0.5"
-                        style={{ fontSize: 11 }}
+                        style={{ fontSize: 12 }}
                       >
                         {/* Nome colorido pelo mesmo hash do Multiatendimento, com
                             paletas separadas por lado: é o que deixa ver de
@@ -1341,7 +1341,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                         <span style={{ color: corDoNome(quemFalou, isLead ? "cliente" : "atendente"), fontWeight: 600 }}>
                           {quemFalou}
                         </span>
-                        <span style={{ color: "#AAAAAA" }}> · {m.time}</span>
+                        <span style={{ color: "var(--text-muted)" }}> · {m.time}</span>
                       </div>
                       <div
                         onMouseEnter={() => setMsgSobreMouse(m.id ?? null)}
@@ -1351,9 +1351,9 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                           padding: "8px 30px 8px 12px",
                           fontSize: 13,
                           lineHeight: 1.4,
-                          background: isLead ? "#FFFFFF" : "#0F6E56",
-                          color: isLead ? "#111111" : "#FFFFFF",
-                          border: isLead ? "1px solid #E5E5E5" : "none",
+                          background: isLead ? "var(--surface-card)" : "#0F6E56",
+                          color: isLead ? "var(--text-heading)" : "#FFFFFF",
+                          border: isLead ? "1px solid var(--border-default)" : "none",
                           borderRadius: isLead
                             ? "4px 16px 16px 16px"
                             : "16px 4px 16px 16px",
@@ -1380,13 +1380,13 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                               title="Opções da mensagem"
                               style={{
                                 position: "absolute", top: 2, right: 4,
-                                width: 18, height: 18, borderRadius: 4, border: "none",
+                                width: 18, height: 18, borderRadius: 6, border: "none",
                                 background: isLead ? "rgba(0,0,0,0.06)" : "rgba(0,0,0,0.18)",
                                 display: "flex", alignItems: "center", justifyContent: "center",
                                 cursor: "pointer", padding: 0, zIndex: 2,
                               }}
                             >
-                              <ChevronDown size={12} color={isLead ? "#535353" : "#FFF"} />
+                              <ChevronDown size={12} color={isLead ? "var(--text-body)" : "#FFF"} />
                             </button>
                           )}
                           <MenuDaMensagem
@@ -1394,30 +1394,30 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                             paraCima={menuParaCima}
                             onFechar={() => setMenuDaMsg(null)}
                             itens={[
-                              ...(m.messageId ? [{ rotulo: "Responder", icone: <Reply size={14} color="#535353" />, acao: () => setCitando(m) }] : []),
+                              ...(m.messageId ? [{ rotulo: "Responder", icone: <Reply size={14} color="var(--text-body)" />, acao: () => setCitando(m) }] : []),
                               ...(!m.apagadaEm ? [{
-                                rotulo: "Apagar", icone: <Trash2 size={14} color="#B91C1C" />, destrutivo: true,
+                                rotulo: "Apagar", icone: <Trash2 size={14} color="var(--danger-fg)" />, destrutivo: true,
                                 submenu: [
-                                  { rotulo: "Apagar para mim", icone: <Trash2 size={14} color="#B91C1C" />, destrutivo: true,
+                                  { rotulo: "Apagar para mim", icone: <Trash2 size={14} color="var(--danger-fg)" />, destrutivo: true,
                                     acao: () => apagarMensagem(m, false) },
                                   ...(!isLead && m.messageId ? [{
-                                    rotulo: "Apagar para todos", icone: <Trash2 size={14} color={podeApagar ? "#B91C1C" : "#CCC"} />,
+                                    rotulo: "Apagar para todos", icone: <Trash2 size={14} color={podeApagar ? "var(--danger-fg)" : "var(--neutral-400)"} />,
                                     destrutivo: true, desabilitado: !podeApagar,
                                     motivo: podeApagar ? undefined : "A API oficial do WhatsApp não permite apagar mensagens já enviadas.",
                                     acao: () => apagarMensagem(m, true),
                                   }] : []),
                                 ],
                               }] : []),
-                              { rotulo: "Copiar", icone: <Copy size={14} color="#535353" />, acao: () => copiarMensagem(m) },
+                              { rotulo: "Copiar", icone: <Copy size={14} color="var(--text-body)" />, acao: () => copiarMensagem(m) },
                             ]}
                           />
                           {/* Citação: o que esta mensagem responde. */}
                           {m.citacao && !m.apagadaEm && (
                             <div style={{
-                              borderLeft: `3px solid ${isLead ? "#128A68" : "rgba(255,255,255,0.55)"}`,
-                              background: isLead ? "#F5F5F5" : "rgba(255,255,255,0.14)",
-                              borderRadius: 6, padding: "4px 8px", marginBottom: 4, fontSize: 11,
-                              color: isLead ? "#666" : "rgba(255,255,255,0.9)",
+                              borderLeft: `3px solid ${isLead ? "var(--accent-700)" : "rgba(255,255,255,0.55)"}`,
+                              background: isLead ? "var(--neutral-50)" : "rgba(255,255,255,0.14)",
+                              borderRadius: 6, padding: "4px 8px", marginBottom: 4, fontSize: 12,
+                              color: isLead ? "var(--text-muted)" : "rgba(255,255,255,0.9)",
                               display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
                             }}>
                               {m.citacao.preview || "Mensagem"}
@@ -1438,12 +1438,12 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                                 </a>
                               ) : (
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                  <ImageIcon size={16} color={isLead ? "#128A68" : "rgba(255,255,255,0.85)"} />
+                                  <ImageIcon size={16} color={isLead ? "var(--accent-700)" : "rgba(255,255,255,0.85)"} />
                                   <span>{m.text || "Imagem"}</span>
                                 </div>
                               )}
                               {m.mediaUrl && m.text && (
-                                <div style={{ paddingTop: 4, fontSize: 12, color: isLead ? "#666" : "rgba(255,255,255,0.85)", maxWidth: 180 }}>
+                                <div style={{ paddingTop: 4, fontSize: 12, color: isLead ? "var(--text-muted)" : "rgba(255,255,255,0.85)", maxWidth: 180 }}>
                                   {m.text}
                                 </div>
                               )}
@@ -1458,8 +1458,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                                 title={`Baixar ${m.text}`}
                                 style={{ display: "flex", alignItems: "center", gap: 8, color: "inherit", textDecoration: "none" }}
                               >
-                                <div style={{ width: 30, height: 30, borderRadius: 8, background: isLead ? "#F0F0F0" : "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                  <Download size={15} color={isLead ? "#128A68" : "#FFF"} />
+                                <div style={{ width: 30, height: 30, borderRadius: 8, background: isLead ? "var(--neutral-100)" : "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <Download size={15} color={isLead ? "var(--accent-700)" : "#FFF"} />
                                 </div>
                                 <span style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "underline" }}>{m.text}</span>
                               </a>
@@ -1468,8 +1468,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                               // arquivo: mostra o nome e diz por que não baixa,
                               // em vez de oferecer um link que não leva a nada.
                               <div title="Arquivo indisponível para download" style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.7 }}>
-                                <div style={{ width: 30, height: 30, borderRadius: 8, background: isLead ? "#F0F0F0" : "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                  <FolderOpen size={15} color={isLead ? "#128A68" : "#FFF"} />
+                                <div style={{ width: 30, height: 30, borderRadius: 8, background: isLead ? "var(--neutral-100)" : "rgba(255,255,255,0.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                  <FolderOpen size={15} color={isLead ? "var(--accent-700)" : "#FFF"} />
                                 </div>
                                 <span style={{ maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.text}</span>
                               </div>
@@ -1487,7 +1487,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                           <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 3, width: "100%" }}>
                             {m.botoes.map((rotulo, bi) => (
                               <div key={bi} style={{
-                                fontSize: 11, color: "#128A68", background: "#FFF",
+                                fontSize: 12, color: "var(--accent-700)", background: "var(--surface-card)",
                                 border: "1px solid #D6E9E2", borderRadius: 8,
                                 padding: "5px 8px", textAlign: "center",
                                 display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
@@ -1528,19 +1528,19 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           <div style={{
             display: "flex", alignItems: "flex-start", gap: 6,
             margin: "0 10px 6px", padding: "6px 8px",
-            background: "#F5F5F5", borderLeft: "3px solid #128A68", borderRadius: 6,
+            background: "var(--neutral-50)", borderLeft: "3px solid var(--accent-700)", borderRadius: 6,
           }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 10, fontWeight: 600, color: "#128A68" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)" }}>
                 Respondendo {citando.from === "agent" ? citando.author : lead.name}
               </div>
-              <div style={{ fontSize: 11, color: "#666", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {textoDaMensagem(citando)}
               </div>
             </div>
             <button onClick={() => setCitando(null)} title="Cancelar resposta"
               style={{ background: "none", border: "none", cursor: "pointer", padding: 0, lineHeight: 0 }}>
-              <X size={12} color="#888" />
+              <X size={12} color="var(--text-subtle)" />
             </button>
           </div>
         )}
@@ -1557,8 +1557,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           style={{
             minHeight: 52,
             padding: "8px 12px",
-            background: "#FFFFFF",
-            borderColor: "#E5E5E5",
+            background: "var(--surface-card)",
+            borderColor: "var(--border-default)",
           }}
         >
           <input
@@ -1575,7 +1575,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary disabled:opacity-50"
             aria-label="Anexar"
           >
-            <Paperclip size={16} style={{ color: enviandoArquivo ? "#128A68" : "#AAAAAA" }} />
+            <Paperclip size={16} style={{ color: enviandoArquivo ? "var(--accent-700)" : "var(--text-muted)" }} />
           </button>
           <button
             onClick={() => setShowEmoji(v => !v)}
@@ -1583,7 +1583,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary disabled:opacity-50"
             aria-label="Emoji"
           >
-            <Smile size={16} style={{ color: showEmoji ? "#128A68" : "#AAAAAA" }} />
+            <Smile size={16} style={{ color: showEmoji ? "var(--accent-700)" : "var(--text-muted)" }} />
           </button>
           {/* Modelos aprovados da Meta. Só na conexão oficial, porque é a única
               com a regra de janela de 24h. Fica sempre disponível, e não só com
@@ -1596,22 +1596,22 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-secondary"
               aria-label="Modelos aprovados"
             >
-              <FileText size={16} style={{ color: modelosAbertos || janelaFechada ? "#128A68" : "#AAAAAA" }} />
+              <FileText size={16} style={{ color: modelosAbertos || janelaFechada ? "var(--accent-700)" : "var(--text-muted)" }} />
             </button>
           )}
           {modelosAbertos && (
             <>
               <div onClick={() => setModelosAbertos(false)} style={{ position: "fixed", inset: 0, zIndex: 99 }} />
-              <div style={{ position: "absolute", bottom: "100%", left: 8, right: 8, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 100, overflow: "hidden" }}>
+              <div style={{ position: "absolute", bottom: "100%", left: 8, right: 8, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 100, overflow: "hidden" }}>
                 <div style={{ padding: "12px 14px 10px" }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Modelos aprovados</span>
-                  <p style={{ fontSize: 11, color: "#888", marginTop: 3, lineHeight: 1.4 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Modelos aprovados</span>
+                  <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.4 }}>
                     {janelaFechada
                       ? "Passaram 24h sem mensagem deste contato. Pelo WhatsApp oficial, só um modelo aprovado pela Meta retoma a conversa."
                       : "Textos aprovados pela Meta. Vão direto ao contato, sem edição."}
                   </p>
                 </div>
-                <div style={{ height: 1, background: "#EEEEEE" }} />
+                <div style={{ height: 1, background: "var(--neutral-100)" }} />
                 <div style={{ padding: 12 }}>
                   <WhatsappTemplatePicker
                     wabaId={conexaoAtiva?.wabaId ?? null}
@@ -1624,12 +1624,12 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             </>
           )}
           {showEmoji && (
-            <div style={{ position: "absolute", bottom: "100%", left: 8, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 100, width: 280 }}>
+            <div style={{ position: "absolute", bottom: "100%", left: 8, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", padding: 10, zIndex: 100, width: 280 }}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                 {EMOJIS.map(e => (
                   <button key={e} onClick={() => { setDraft(v => v + e); setShowEmoji(false); }}
                     style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", padding: "2px 4px", borderRadius: 6, lineHeight: 1 }}
-                    onMouseEnter={ev => (ev.currentTarget.style.background = "#F5F5F5")}
+                    onMouseEnter={ev => (ev.currentTarget.style.background = "var(--neutral-50)")}
                     onMouseLeave={ev => (ev.currentTarget.style.background = "none")}
                   >{e}</button>
                 ))}
@@ -1663,7 +1663,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             disabled={naoPodeEscrever}
             className="flex-1 bg-transparent outline-none border-none min-w-0"
             style={{
-              fontSize: 13, fontFamily: "Inter, sans-serif", color: "#111",
+              fontSize: 13, fontFamily: "Inter, sans-serif", color: "var(--text-heading)",
               lineHeight: "18px", padding: 0, resize: "none", overflowY: "auto",
               // Teto menor que o do Multiatendimento (200px): a janela toda tem
               // 520px de altura, então 200 comeriam quase metade da conversa.
@@ -1679,8 +1679,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               width: 32,
               height: 32,
               borderRadius: 8,
-              background: draft.trim() && !naoPodeEscrever ? "#0F6E56" : "#E5E5E5",
-              color: draft.trim() && !naoPodeEscrever ? "#FFFFFF" : "#AAAAAA",
+              background: draft.trim() && !naoPodeEscrever ? "#0F6E56" : "var(--neutral-200)",
+              color: draft.trim() && !naoPodeEscrever ? "#FFFFFF" : "var(--text-muted)",
             }}
             aria-label="Enviar"
           >

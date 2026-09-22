@@ -1,6 +1,7 @@
 import { Fragment, useState, type ReactElement } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { tooltip, PALETA } from "./useDashboardHelpers";
+import { MOLDURA } from "./TabelaPainel";
 import { CaixaTooltip, type LinhaTooltip } from "./CaixaTooltip";
 
 /**
@@ -18,7 +19,7 @@ import { CaixaTooltip, type LinhaTooltip } from "./CaixaTooltip";
  */
 
 /** Cinza do anel sem nada para repartir. Valor 1 é falso, só fecha o círculo. */
-const ANEL_VAZIO = [{ nome: "—", valor: 1, cor: "#E5E7EB" }];
+const ANEL_VAZIO = [{ nome: "—", valor: 1, cor: "#E7E7E7" }];
 
 interface AnelProps {
   fatias: { nome: string; valor: number; cor?: string }[];
@@ -132,6 +133,54 @@ export function Anel({
   const dados = vazio ? ANEL_VAZIO : fatias;
   const clicavel = !vazio && !!onSelecionar;
 
+  // ─── As camadas do anel ────────────────────────────────────────────────
+  //
+  // Ver a nota grande acima deste componente: a maior fatia é o círculo de
+  // base e as outras assentam em cima dela, cada uma terminando numa ponta
+  // redonda que pousa na camada debaixo.
+  //
+  // O raio da ponta é 13% do raio do painel, metade exata da faixa do anel
+  // (62% a 88% do raio): a meia-lua perfeita. Fatia curta demais para
+  // comportá-lo receberia um canto deformado, então o raio cede ao arco da
+  // menor camada quando precisa.
+  const raioDoPainel = altura / 2;
+  const meiaFaixa = raioDoPainel * 0.13;
+
+  const totalDasFatias = dados.reduce((soma, f) => soma + f.valor, 0) || 1;
+  const porTamanho = [...dados].sort((a, b) => b.valor - a.valor);
+  const base = porTamanho[0];
+  const acimaDaBase = porTamanho.slice(1);
+
+  // Cada camada de cima vai das 12 horas até a soma DELA PARA TRÁS: a de s2
+  // cobre s2+s3+..., a de s3 cobre s3+..., e assim por diante. Listadas da
+  // mais longa para a mais curta, que é a ordem em que o Recharts pinta e,
+  // portanto, a ordem de empilhamento.
+  //
+  // O canto de cada uma sai do arco DELA: medido no meio da faixa (75% do
+  // raio), um canto maior que metade do arco deforma o setor. Por camada, e
+  // não global, senão uma fatia de 1% apagaria o arredondado do anel inteiro.
+  const camadas = acimaDaBase.map((f, i) => {
+    const fracao = acimaDaBase.slice(i).reduce((soma, g) => soma + g.valor, 0) / totalDasFatias;
+    const arco = fracao * 2 * Math.PI * (raioDoPainel * 0.75);
+    return {
+      /**
+       * A fatia INTEIRA, e não uma cópia com nome, cor e valor.
+       *
+       * É este objeto que o Recharts devolve no `payload` do tooltip, e os
+       * painéis leem dele campos que a cópia não carregava: o `PainelAnel` lê
+       * `linhas` para montar o popup, e ficava com `undefined`. Como o
+       * `CaixaTooltip` fazia `linhas.map(...)`, passar o mouse no anel de
+       * "Resultado por responsável" derrubava a página inteira em tela branca.
+       */
+      dados: f,
+      nome: f.nome,
+      cor: f.cor,
+      valor: f.valor,
+      fracao,
+      ponta: Math.max(0, Math.round(Math.min(meiaFaixa, arco / 2))),
+    };
+  });
+
   // Corpo do número central. Duas variáveis o encolhem:
   //
   // 1. Texto longo. Dinheiro formatado não cabe no furo no corpo cheio, e o
@@ -141,8 +190,8 @@ export function Anel({
   //    mais uma linha, e o número precisa ceder para as três caberem.
   const longo = textoCentro.length > 7;
   const corpoCentro = rodape
-    ? (longo ? "text-[13px]" : "text-[19px]")
-    : (longo ? "text-[15px]" : "text-[26px]");
+    ? (longo ? "text-[13px]" : "text-[20px]")
+    : (longo ? "text-[14px]" : "text-[24px]");
 
 
   return (
@@ -150,8 +199,12 @@ export function Anel({
       <div className="relative" style={{ height: altura, width: altura }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
+            {/* A base: círculo inteiro na cor da maior fatia. Sem canto,
+                porque um arco de 360 graus não tem ponta à vista e o canto só
+                beliscaria o encontro. */}
             <Pie
-              data={dados}
+              /* A fatia inteira: o tooltip lê campos que uma cópia perderia. */
+              data={[base]}
               dataKey="valor"
               nameKey="nome"
               cx="50%"
@@ -161,28 +214,59 @@ export function Anel({
                  renderização, não como distinção intencional. */
               innerRadius="62%"
               outerRadius="88%"
-              /* Respiro entre fatias: sem ele, duas cores próximas viram um
-                 bloco só e some a fronteira entre elas. */
-              paddingAngle={vazio ? 0 : 2}
+              cornerRadius={0}
+              fill={base.cor}
               stroke="none"
               isAnimationActive={false}
-              // Anel vazio não seleciona nada: não há fatia por trás dele.
-              onClick={clicavel ? (_, i) => onSelecionar(fatias[i].nome) : undefined}
-              // Anel vazio não avisa hover: a única fatia ali é o cinza falso.
-              onMouseEnter={!vazio && onPassarMouse ? (_, i) => onPassarMouse(fatias[i].nome) : undefined}
+              onClick={clicavel ? () => onSelecionar(base.nome) : undefined}
+              onMouseEnter={!vazio && onPassarMouse ? () => onPassarMouse(base.nome) : undefined}
               onMouseLeave={!vazio && onPassarMouse ? () => onPassarMouse(null) : undefined}
               className={clicavel ? "cursor-pointer" : undefined}
             >
-              {dados.map(f => (
-                <Cell
-                  key={f.nome}
-                  fill={f.cor}
-                  // As não escolhidas esmaecem, em vez de a escolhida crescer:
-                  // o anel mantém a espessura e a proporção segue legível.
-                  opacity={!vazio && selecionada && selecionada !== f.nome ? 0.28 : 1}
-                />
-              ))}
+              <Cell
+                fill={base.cor}
+                // As não escolhidas esmaecem, em vez de a escolhida crescer:
+                // o anel mantém a espessura e a proporção segue legível.
+                opacity={!vazio && selecionada && selecionada !== base.nome ? 0.28 : 1}
+              />
             </Pie>
+
+            {camadas.map(c => (
+              <Pie
+                key={c.nome}
+                /* Um dado só por camada: quem define o arco é o par
+                   startAngle/endAngle, não a proporção entre valores. O valor
+                   segue verdadeiro porque é dele que o tooltip lê o número. */
+                data={[c.dados]}
+                dataKey="valor"
+                nameKey="nome"
+                cx="50%"
+                cy="50%"
+                /* 90 é meio-dia no sistema do Recharts (0 fica às 3 horas e os
+                   graus crescem no anti-horário). Subtrair faz o arco andar no
+                   sentido do relógio, que é como se lê um anel. */
+                startAngle={90}
+                endAngle={90 - 360 * c.fracao}
+                innerRadius="62%"
+                outerRadius="88%"
+                cornerRadius={c.ponta}
+                fill={c.cor}
+                stroke="none"
+                isAnimationActive={false}
+                /* O acerto entre camada e fatia sai de graça: o SVG entrega o
+                   evento a quem foi pintado por último naquele ponto, e por
+                   último ali está exatamente a cor que se vê. */
+                onClick={clicavel ? () => onSelecionar(c.nome) : undefined}
+                onMouseEnter={!vazio && onPassarMouse ? () => onPassarMouse(c.nome) : undefined}
+                onMouseLeave={!vazio && onPassarMouse ? () => onPassarMouse(null) : undefined}
+                className={clicavel ? "cursor-pointer" : undefined}
+              >
+                <Cell
+                  fill={c.cor}
+                  opacity={!vazio && selecionada && selecionada !== c.nome ? 0.28 : 1}
+                />
+              </Pie>
+            ))}
             {/* Sem tooltip no anel vazio: ele mostraria "— 1", que é o valor
                 falso usado só para desenhar o círculo inteiro. */}
             {/* zIndex no wrapper porque o número do furo é desenhado DEPOIS do
@@ -200,7 +284,7 @@ export function Anel({
             pointer-events-none para não roubar o hover das fatias. */}
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none px-5">
           {rodape && (
-            <span className="text-[10px] text-muted-foreground mb-1 text-center truncate max-w-full">
+            <span className="text-[12px] text-muted-foreground mb-1 text-center truncate max-w-full">
               {rodape}
             </span>
           )}
@@ -209,7 +293,7 @@ export function Anel({
               diz de que aquele número é. Truncado porque nome de origem e de
               motivo de perda são livres e podem ser longos. */}
           <span
-            className="text-[11px] text-muted-foreground mt-1 text-center truncate max-w-full"
+            className="text-[12px] text-muted-foreground mt-1 text-center truncate max-w-full"
             title={tituloDoRotulo}
           >
             {rotuloCentro}
@@ -231,7 +315,7 @@ export function Anel({
  * e "R$ 1.610,00" quebrado em duas linhas desalinharia a tabela inteira.
  */
 const COL_VALOR = "w-[92px] text-center whitespace-nowrap";
-const COL_EXTRA = "w-[76px] text-center border-l border-card-border";
+const COL_EXTRA = "w-[76px] text-center border-l border-[color:var(--border-default)]";
 
 export interface FatiaDonut {
   nome: string;
@@ -515,14 +599,18 @@ export function DonutDistribuicao({
         {fatias.length === 0 ? (
           <p className="text-xs text-muted-foreground">Sem dados no período.</p>
         ) : (
-        <table className="w-full text-xs">
+        /* Moldura e cabeçalho das outras tabelas do dashboard (TabelaPainel).
+           Sem ordenação: a ordem aqui É a do anel ao lado, e clicar numa linha
+           já isola a fatia -- é o filtro deste painel. */
+        <div className={MOLDURA}>
+        <table className="w-full text-xs [&_th:first-child]:pl-5 [&_td:first-child]:pl-5 [&_th:last-child]:pr-5 [&_td:last-child]:pr-5">
           {colunas && (
             <thead>
-              <tr className="border-b border-card-border text-[10px] uppercase tracking-wide text-foreground">
-                <th className="font-semibold pb-1.5 text-left" />
-                <th className={`font-semibold pb-1.5 ${COL_VALOR}`}>{colunas.valor}</th>
+              <tr className="border-b border-[color:var(--border-default)] text-xs text-[color:var(--text-muted)]">
+                <th className="font-medium py-2 text-left" />
+                <th className={`font-medium py-2 ${COL_VALOR}`}>{colunas.valor}</th>
                 {colunas.extras?.map(t => (
-                  <th key={t} className={`font-semibold pb-1.5 ${COL_EXTRA}`}>{t}</th>
+                  <th key={t} className={`font-medium py-2 ${COL_EXTRA}`}>{t}</th>
                 ))}
               </tr>
             </thead>
@@ -542,11 +630,13 @@ export function DonutDistribuicao({
                   tabIndex={0}
                   aria-pressed={ativa}
                   onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); alternar(f.nome); } }}
-                  className={`cursor-pointer transition-colors ${
-                    ativa ? "bg-muted" : "hover:bg-muted/50"
+                  className={`cursor-pointer transition-colors border-t border-card-border first:border-t-0 ${
+                    ativa ? "bg-[color:var(--surface-selected)]" : "hover:bg-[color:var(--surface-hover)]"
                   } ${apagada ? "opacity-50" : ""}`}
                 >
-                  <td className="py-1.5 pr-2">
+                  {/* Nome elástico: fica com o que sobrar das colunas de número e
+                      trunca, em vez de empurrar a tabela para fora da moldura. */}
+                  <td className="py-1.5 pr-2 w-full max-w-0">
                     <span className="flex items-center gap-2 min-w-0">
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: f.cor }} />
                       <span className={`truncate text-foreground ${ativa ? "font-semibold" : ""}`}>{f.nome}</span>
@@ -557,7 +647,7 @@ export function DonutDistribuicao({
                     {/* Sem colunas nomeadas, a fatia do total acompanha o valor --
                         é o comportamento padrão de legenda de rosquinha. */}
                     {!colunas && (
-                      <span className="ml-1.5 text-[11px]">
+                      <span className="ml-1.5 text-[12px]">
                         {soma > 0 ? `${Math.round((f.valor / soma) * 100)}%` : "0%"}
                       </span>
                     )}
@@ -596,10 +686,10 @@ export function DonutDistribuicao({
                       ? e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); alternarDetalhe(d.nome); } }
                       : undefined}
                     className={!selecionavel ? "" : `cursor-pointer transition-colors ${
-                      detalheAtivo ? "bg-muted" : "hover:bg-muted/50"
+                      detalheAtivo ? "bg-[color:var(--surface-selected)]" : "hover:bg-[color:var(--surface-hover)]"
                     } ${detalheSelecionado && !detalheAtivo ? "opacity-50" : ""}`}
                   >
-                    <td className="py-1 pr-2 pl-4">
+                    <td className="py-1 pr-2 pl-4 w-full max-w-0">
                       <span className="flex items-center gap-2 min-w-0">
                         {/* Bolinha menor que a da origem, e só quando há anel:
                             é ela que diz qual fatia é qual. Sem anel, seria
@@ -608,16 +698,16 @@ export function DonutDistribuicao({
                         {selecionavel && (
                           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: d.cor }} />
                         )}
-                        <span className={`truncate text-[11px] text-muted-foreground ${detalheAtivo ? "font-semibold" : ""}`}>
+                        <span className={`truncate text-[12px] text-muted-foreground ${detalheAtivo ? "font-semibold" : ""}`}>
                           {d.nome}
                         </span>
                       </span>
                     </td>
-                    <td className={`py-1 text-[11px] text-muted-foreground tabular-nums ${COL_VALOR}`}>
+                    <td className={`py-1 text-[12px] text-muted-foreground tabular-nums ${COL_VALOR}`}>
                       {formatarValor ? formatarValor(d.valor) : d.valor}
                     </td>
                     {colunas?.extras?.map((t, i) => (
-                      <td key={t} className={`py-1 text-[11px] text-muted-foreground tabular-nums ${COL_EXTRA}`}>
+                      <td key={t} className={`py-1 text-[12px] text-muted-foreground tabular-nums ${COL_EXTRA}`}>
                         {d.extras?.[i] ?? ""}
                       </td>
                     ))}
@@ -629,6 +719,7 @@ export function DonutDistribuicao({
             })}
           </tbody>
         </table>
+        </div>
         )}
       </div>
     </div>

@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { checkGoogleConnection } from "@/lib/googleOAuth";
 import type { ActivityType } from "@/data/mockData";
+import { EmptyState } from "@/components/ui/empty-state";
 
 // ─── Tipos ───────────────────────────────────────────────────────────────────
 
@@ -42,13 +43,17 @@ const PT_MONTHS = [
 ];
 
 
-const TYPE_STYLE: Record<string, { bg: string; color: string; border: string }> = {
-  meeting:   { bg: "#DBEAFE", color: "#1D4ED8", border: "#3B82F6" },
-  call:      { bg: "#D1FAE5", color: "#065F46", border: "#10B981" },
-  follow_up: { bg: "#FEF3C7", color: "#92400E", border: "#F59E0B" },
-  task:      { bg: "#EDE9FE", color: "#5B21B6", border: "#8B5CF6" },
-};
-const DEFAULT_STYLE = { bg: "#F3F4F6", color: "#374151", border: "#9CA3AF" };
+/**
+ * A pílula do evento, por DESFECHO. Tipo de atividade não é cor: quem diz o
+ * tipo é o título do evento, como na linha do tempo do negócio quem diz é o
+ * ícone (ver `src/lib/atividades.ts`).
+ */
+const ATRASADA  = { bg: "var(--danger-bg)",  color: "var(--danger-fg)",  border: "var(--danger-400)" };
+const REALIZADA = { bg: "var(--accent-50)",  color: "var(--accent-800)", border: "var(--accent-500)" };
+/** Não compareceu: falhou, mas não é erro. É o aviso do sistema. */
+const NAO_VEIO  = { bg: "var(--warning-bg)", color: "var(--warning-fg)", border: "var(--warning-400)" };
+/** Agendada e ainda em pé: sem desfecho, então sem cor. */
+const AGENDADA  = { bg: "var(--neutral-100)", color: "var(--text-body)", border: "var(--border-strong)" };
 
 // ─── Helpers de data (sem libs externas) ─────────────────────────────────────
 
@@ -105,9 +110,9 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
   return (
     <div
       style={{
-        background: "#FFFFFF",
+        background: "var(--surface-card)",
         borderRadius: 12,
-        border: "1px solid #E5E5E5",
+        border: "1px solid var(--border-default)",
         overflow: "hidden",
         height: "100%",
         display: "flex",
@@ -119,15 +124,15 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(7, 1fr)",
-          background: "#FAFAFA",
-          borderBottom: "1px solid #E5E5E5",
+          background: "var(--neutral-25)",
+          borderBottom: "1px solid var(--border-default)",
         }}
       >
         {PT_DAYS_SHORT.map(d => (
           <div
             key={d}
-            className="text-center py-2 text-[11px] font-semibold"
-            style={{ color: "#888" }}
+            className="text-center py-2 text-[12px] font-semibold"
+            style={{ color: "var(--text-muted)" }}
           >
             {d}
           </div>
@@ -162,8 +167,8 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
                 minHeight: 0,
                 overflow: "hidden",
                 padding: "6px 8px",
-                borderRight: "1px solid #F0F0F0",
-                borderBottom: "1px solid #F0F0F0",
+                borderRight: "1px solid var(--neutral-100)",
+                borderBottom: "1px solid var(--neutral-100)",
               }}
             >
               <div className="flex justify-end mb-1">
@@ -175,10 +180,10 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
                     width: 22,
                     height: 22,
                     borderRadius: "50%",
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: isToday ? 700 : 400,
                     background: isToday ? "hsl(var(--primary))" : "transparent",
-                    color: isToday ? "#FFFFFF" : inMonth ? "#111111" : "#CCCCCC",
+                    color: isToday ? "var(--text-on-accent)" : inMonth ? "var(--text-heading)" : "var(--neutral-400)",
                   }}
                 >
                   {day.getDate()}
@@ -190,12 +195,12 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
                   const now = new Date();
                   const overdue = !evt.isCompleted && !evt.isNoShow && evt.scheduledAt < now;
                   const s = overdue
-                    ? { bg: "#FEE2E2", color: "#B91C1C" }
+                    ? ATRASADA
                     : evt.isCompleted
-                    ? { bg: "#D1FAE5", color: "#065F46" }
+                    ? REALIZADA
                     : evt.isNoShow
-                    ? { bg: "#FEE2E2", color: "#991B1B" }
-                    : (TYPE_STYLE[evt.type] ?? DEFAULT_STYLE);
+                    ? NAO_VEIO
+                    : AGENDADA;
                   return (
                     <button
                       key={evt.id}
@@ -204,7 +209,7 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
                       style={{
                         background: s.bg,
                         color: s.color,
-                        fontSize: 10,
+                        fontSize: 12,
                         fontWeight: 500,
                       }}
                     >
@@ -214,7 +219,7 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
                   );
                 })}
                 {dayEvts.length > 3 && (
-                  <span className="text-[9px] px-1" style={{ color: "#AAAAAA" }}>
+                  <span className="text-[12px] px-1" style={{ color: "var(--text-muted)" }}>
                     +{dayEvts.length - 3} mais
                   </span>
                 )}
@@ -251,9 +256,9 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
   return (
     <div
       style={{
-        background: "#FFFFFF",
+        background: "var(--surface-card)",
         borderRadius: 12,
-        border: "1px solid #E5E5E5",
+        border: "1px solid var(--border-default)",
         overflow: "hidden",
         // 100% do que o corpo oferece. Antes era `calc(100vh - 148px)`, um
         // desconto chutado que ficava errado a cada mudança no topo da página.
@@ -264,22 +269,17 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
       }}
     >
       {!hasEventsInPeriod && events.length === 0 && (
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 10,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 8,
-            pointerEvents: "none",
-          }}
-        >
-          <CalendarDays size={32} style={{ color: "#CCCCCC" }} />
-          <p style={{ fontSize: 14, color: "#AAAAAA", fontWeight: 500 }}>Nenhuma atividade agendada</p>
-          <p style={{ fontSize: 12, color: "#CCCCCC" }}>Clique em "Nova atividade" para agendar uma reunião ou tarefa</p>
+        /* Estado vazio do sistema (ui/empty-state): quadrado tingido, título de
+           até seis palavras e uma linha de orientação. `pointerEvents: none`
+           continua aqui porque a camada fica por cima da grade do calendário e
+           não pode capturar o clique que cria atividade. */
+        <div style={{ position: "absolute", inset: 0, zIndex: 10, display: "flex", pointerEvents: "none" }}>
+          <EmptyState
+            className="m-auto"
+            icone={CalendarDays}
+            titulo="Nenhuma atividade agendada"
+            descricao={'Use "Nova atividade" para agendar uma reunião ou tarefa.'}
+          />
         </div>
       )}
       {/* Cabeçalho com dias */}
@@ -287,8 +287,8 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
         style={{
           display: "grid",
           gridTemplateColumns: `52px repeat(${cols}, 1fr)`,
-          background: "#FAFAFA",
-          borderBottom: "1px solid #E5E5E5",
+          background: "var(--neutral-25)",
+          borderBottom: "1px solid var(--border-default)",
           flexShrink: 0,
         }}
       >
@@ -297,7 +297,7 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
           const isToday = sameDay(day, today);
           return (
             <div key={day.toISOString()} className="text-center py-2">
-              <div className="text-[11px] font-semibold" style={{ color: "#888" }}>
+              <div className="text-[12px] font-semibold" style={{ color: "var(--text-muted)" }}>
                 {PT_DAYS_SHORT[day.getDay()]}
               </div>
               <div
@@ -310,7 +310,7 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                   borderRadius: "50%",
                   margin: "2px auto 0",
                   background: isToday ? "hsl(var(--primary))" : "transparent",
-                  color: isToday ? "#FFFFFF" : "#111111",
+                  color: isToday ? "var(--text-on-accent)" : "var(--text-heading)",
                   fontWeight: isToday ? 700 : 500,
                   fontSize: 13,
                 }}
@@ -342,8 +342,8 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                   justifyContent: "flex-end",
                   paddingRight: 8,
                   paddingTop: 4,
-                  fontSize: 10,
-                  color: "#AAAAAA",
+                  fontSize: 12,
+                  color: "var(--text-muted)",
                 }}
               >
                 {pad2(h)}:00
@@ -361,8 +361,8 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                 key={day.toISOString()}
                 style={{
                   position: "relative",
-                  borderLeft: "1px solid #F0F0F0",
-                  background: isToday ? "#FAFFFD" : "#FFFFFF",
+                  borderLeft: "1px solid var(--neutral-100)",
+                  background: isToday ? "#FAFFFD" : "var(--surface-card)",
                   height: HOUR_H * 24,
                 }}
               >
@@ -376,7 +376,7 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                       left: 0,
                       right: 0,
                       height: 1,
-                      background: "#F0F0F0",
+                      background: "var(--neutral-100)",
                     }}
                   />
                 ))}
@@ -390,12 +390,12 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                   const now = new Date();
                   const overdue = !evt.isCompleted && !evt.isNoShow && evt.scheduledAt < now;
                   const s = overdue
-                    ? { bg: "#FEE2E2", color: "#B91C1C", border: "#F87171" }
+                    ? ATRASADA
                     : evt.isCompleted
-                    ? { bg: "#D1FAE5", color: "#065F46", border: "#34D399" }
+                    ? REALIZADA
                     : evt.isNoShow
-                    ? { bg: "#FEE2E2", color: "#991B1B", border: "#F87171" }
-                    : (TYPE_STYLE[evt.type] ?? DEFAULT_STYLE);
+                    ? NAO_VEIO
+                    : AGENDADA;
 
                   return (
                     <button
@@ -414,7 +414,7 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                         padding: "2px 6px",
                         textAlign: "left",
                         overflow: "hidden",
-                        fontSize: 11,
+                        fontSize: 12,
                         zIndex: 1,
                         cursor: "pointer",
                         transition: "opacity 0.15s",
@@ -438,7 +438,7 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                         {evt.title}
                       </div>
                       {height >= 36 && (
-                        <div style={{ fontSize: 10, opacity: 0.75, lineHeight: 1.3 }}>
+                        <div style={{ fontSize: 12, opacity: 0.75, lineHeight: 1.3 }}>
                           {pad2(h)}:{pad2(m)} · {evt.leadName}
                         </div>
                       )}
@@ -695,8 +695,8 @@ export default function CalendarPage() {
           dois passam a ser dois cartões da mesma tela. */}
       <div
         style={{
-          background: "#FFFFFF",
-          border: "1px solid #E5E5E5",
+          background: "var(--surface-card)",
+          border: "1px solid var(--border-default)",
           borderRadius: 12,
           padding: "12px 16px",
           marginBottom: 16,
@@ -705,8 +705,8 @@ export default function CalendarPage() {
       >
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
-            <CalendarDays size={18} style={{ color: "hsl(var(--primary))" }} />
-            <h1 className="text-base font-semibold" style={{ color: "#111111" }}>
+            <CalendarDays size={18} style={{ color: "var(--text-link)" }} />
+            <h1 className="text-base font-semibold" style={{ color: "var(--text-heading)" }}>
               Agenda
             </h1>
           </div>
@@ -723,7 +723,7 @@ export default function CalendarPage() {
             <button
               onClick={() => setCur(new Date())}
               className="text-xs px-2.5 py-1 rounded-md border transition-colors hover:bg-muted"
-              style={{ borderColor: "#E5E5E5", color: "#555" }}
+              style={{ borderColor: "var(--border-default)", color: "var(--text-muted)" }}
             >
               Hoje
             </button>
@@ -736,7 +736,7 @@ export default function CalendarPage() {
             </button>
           </div>
 
-          <span className="text-sm font-semibold" style={{ color: "#111111" }}>
+          <span className="text-sm font-semibold" style={{ color: "var(--text-heading)" }}>
             {periodLabel()}
           </span>
 
@@ -744,13 +744,13 @@ export default function CalendarPage() {
             {/* Seletor de usuários */}
             {teamMembers.length > 0 && (
               <div ref={userPickerRef} className="relative flex items-center gap-1.5">
-                <span className="text-[11px] text-muted-foreground">Agenda de:</span>
+                <span className="text-[12px] text-muted-foreground">Agenda de:</span>
 
                 {/* Avatares dos selecionados (máx 5) */}
                 <div className="flex items-center" style={{ gap: -4 }}>
                   {selectedUsers.slice(0, 5).map((name, idx) => {
                     const avatar = memberAvatars[name];
-                    const color = memberColors[name] ?? "#AAAAAA";
+                    const color = memberColors[name] ?? "var(--text-muted)";
                     return (
                       <div
                         key={name}
@@ -759,7 +759,7 @@ export default function CalendarPage() {
                           marginLeft: idx === 0 ? 0 : -6,
                           zIndex: 5 - idx,
                           position: "relative",
-                          outline: `2px solid #FFFFFF`,
+                          outline: `2px solid var(--surface-card)`,
                           borderRadius: "50%",
                         }}
                       >
@@ -773,7 +773,7 @@ export default function CalendarPage() {
                         ) : (
                           <div
                             className="rounded-full flex items-center justify-center text-white font-semibold"
-                            style={{ width: 26, height: 26, background: color, fontSize: 10, border: `2px solid ${color}` }}
+                            style={{ width: 26, height: 26, background: color, fontSize: 12, border: `2px solid ${color}` }}
                           >
                             {name[0].toUpperCase()}
                           </div>
@@ -786,30 +786,30 @@ export default function CalendarPage() {
                       className="rounded-full flex items-center justify-center font-semibold"
                       style={{
                         width: 26, height: 26,
-                        background: "#E5E5E5",
-                        color: "#555",
-                        fontSize: 10,
+                        background: "var(--neutral-200)",
+                        color: "var(--text-muted)",
+                        fontSize: 12,
                         marginLeft: -6,
                         zIndex: 0,
-                        border: "2px solid #FFFFFF",
+                        border: "2px solid var(--surface-card)",
                       }}
                     >
                       +{selectedUsers.length - 5}
                     </div>
                   )}
                   {selectedUsers.length === 0 && (
-                    <span className="text-[11px] text-muted-foreground italic">Nenhum</span>
+                    <span className="text-[12px] text-muted-foreground italic">Nenhum</span>
                   )}
                 </div>
 
                 {/* Botão para abrir o dropdown */}
                 <button
                   onClick={() => setUserPickerOpen(v => !v)}
-                  className="flex items-center gap-1 px-2 py-1 rounded-md border text-[11px] transition-colors hover:bg-muted"
+                  className="flex items-center gap-1 px-2 py-1 rounded-md border text-[12px] transition-colors hover:bg-muted"
                   style={{
-                    borderColor: userPickerOpen ? "hsl(var(--primary))" : "#E5E5E5",
-                    color: "#555",
-                    background: userPickerOpen ? "hsl(var(--primary) / 0.06)" : "#FFFFFF",
+                    borderColor: userPickerOpen ? "hsl(var(--primary))" : "var(--border-default)",
+                    color: "var(--text-muted)",
+                    background: userPickerOpen ? "hsl(var(--primary) / 0.06)" : "var(--surface-card)",
                   }}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -839,7 +839,7 @@ export default function CalendarPage() {
                       {selectedUsers.length > 0 && (
                         <button
                           onClick={() => setSelectedUsers([])}
-                          className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                          className="text-[12px] text-muted-foreground hover:text-destructive transition-colors"
                         >
                           Limpar
                         </button>
@@ -848,7 +848,7 @@ export default function CalendarPage() {
                     {teamMembers.map(name => {
                       const selected = selectedUsers.includes(name);
                       const avatar = memberAvatars[name];
-                      const color = memberColors[name] ?? "#AAAAAA";
+                      const color = memberColors[name] ?? "var(--text-muted)";
                       const isMe = name === myName;
                       return (
                         <button
@@ -861,7 +861,7 @@ export default function CalendarPage() {
                             className="flex items-center justify-center rounded flex-shrink-0"
                             style={{
                               width: 15, height: 15,
-                              border: selected ? `2px solid ${color}` : "1.5px solid #CCCCCC",
+                              border: selected ? `2px solid ${color}` : "1.5px solid var(--border-strong)",
                               background: selected ? color : "transparent",
                               transition: "all 0.15s",
                             }}
@@ -877,13 +877,13 @@ export default function CalendarPage() {
                           {avatar ? (
                             <img src={avatar} alt={name} className="rounded-full object-cover flex-shrink-0" style={{ width: 24, height: 24 }} />
                           ) : (
-                            <div className="rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0" style={{ width: 24, height: 24, background: color, fontSize: 10 }}>
+                            <div className="rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0" style={{ width: 24, height: 24, background: color, fontSize: 12 }}>
                               {name[0].toUpperCase()}
                             </div>
                           )}
 
                           {/* Nome */}
-                          <span className="text-xs truncate flex-1" style={{ color: "#111111", fontWeight: selected ? 600 : 400 }}>
+                          <span className="text-xs truncate flex-1" style={{ color: "var(--text-heading)", fontWeight: selected ? 600 : 400 }}>
                             {name}{isMe ? " (você)" : ""}
                           </span>
                         </button>
@@ -896,13 +896,13 @@ export default function CalendarPage() {
 
             {/* Separador */}
             {teamMembers.length > 0 && (
-              <div style={{ width: 1, height: 20, background: "#E5E5E5" }} />
+              <div style={{ width: 1, height: 20, background: "var(--neutral-200)" }} />
             )}
 
             {/* Toggle de vista */}
             <div
               className="flex rounded-lg overflow-hidden"
-              style={{ border: "1px solid #E5E5E5" }}
+              style={{ border: "1px solid var(--border-default)" }}
             >
               {(["dia", "semana", "mes"] as CalView[]).map(v => (
                 <button
@@ -910,8 +910,10 @@ export default function CalendarPage() {
                   onClick={() => setView(v)}
                   className="text-xs px-3 py-1.5 transition-colors"
                   style={{
-                    background: view === v ? "hsl(var(--primary))" : "#FFFFFF",
-                    color: view === v ? "#FFFFFF" : "#555",
+                    background: view === v ? "hsl(var(--primary))" : "var(--surface-card)",
+                    // Tinta charcoal sobre acento (regra 2 da seção 3.1 da matriz):
+                    // branco sobre o emerald daria 1,85:1.
+                    color: view === v ? "var(--text-on-accent)" : "var(--text-muted)",
                     fontWeight: view === v ? 600 : 400,
                   }}
                 >
@@ -925,7 +927,7 @@ export default function CalendarPage() {
               disabled={syncing}
               title="Sincronizar com Google Calendar"
               className="flex items-center justify-center rounded-md border transition-colors hover:bg-muted disabled:opacity-50"
-              style={{ width: 32, height: 32, borderColor: "#E5E5E5" }}
+              style={{ width: 32, height: 32, borderColor: "var(--border-default)" }}
             >
               <RefreshCw size={14} className={`text-muted-foreground ${syncing ? "animate-spin" : ""}`} />
             </button>
@@ -933,7 +935,7 @@ export default function CalendarPage() {
             <Button
               size="sm"
               className="h-8 rounded-md text-xs"
-              style={{ background: "hsl(var(--primary))", color: "#FFFFFF" }}
+              style={{ background: "hsl(var(--primary))", color: "var(--text-on-accent)" }}
               onClick={() => setShowModal(true)}
             >
               <Plus size={13} className="mr-1" /> Nova atividade

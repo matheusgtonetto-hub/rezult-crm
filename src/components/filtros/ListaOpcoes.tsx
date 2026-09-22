@@ -119,7 +119,7 @@ export function ListaOpcoes({
                 )}
                 {o.cor && marcador === "pastilha" ? (
                   <span
-                    className="text-[11px] font-medium px-2 py-0.5 rounded-full truncate max-w-full"
+                    className="text-[12px] font-medium px-2 py-0.5 rounded-full truncate max-w-full"
                     style={{ background: `${o.cor}22`, color: o.cor }}
                   >
                     {o.rotulo}

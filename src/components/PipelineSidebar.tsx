@@ -15,9 +15,9 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 const DEFAULT_COLUMNS = [
-  { id: "col-novo", title: "Novo", color: "#AAAAAA", position: 0 },
+  { id: "col-novo", title: "Novo", color: "var(--text-muted)", position: 0 },
   { id: "col-andamento", title: "Em andamento", color: "#378ADD", position: 1 },
-  { id: "col-fechado", title: "Fechado", color: "#128A68", position: 2 },
+  { id: "col-fechado", title: "Fechado", color: "var(--accent-700)", position: 2 },
 ];
 
 export function PipelineSidebar() {
@@ -120,13 +120,13 @@ export function PipelineSidebar() {
   };
 
   return (
-    <aside className="w-60 h-full shrink-0 bg-card flex flex-col shadow-rail relative z-10 border-r border-gray-200">
+    <aside className="w-60 h-full shrink-0 bg-card flex flex-col shadow-rail relative z-10 border-r border-card-border">
       <div className="px-4 pt-4 pb-3 border-b border-card-border space-y-3">
         <p className="text-base font-semibold text-foreground tracking-tight text-center">Pipelines</p>
         <Button
           onClick={() => setShowNew(true)}
           size="sm"
-          className="w-full justify-center rounded-lg bg-primary text-white hover:bg-primary/90 font-semibold"
+          className="w-full justify-center rounded-lg bg-primary text-[color:var(--text-on-accent)] hover:bg-primary/90 font-semibold"
         >
           <Plus size={14} className="mr-2" />
           Nova pipeline
@@ -144,7 +144,7 @@ export function PipelineSidebar() {
           <div key={group.groupId}>
             <button
               onClick={() => toggleGroup(group.cat)}
-              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-bold text-[#09090b] transition-colors"
+              className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-bold text-foreground transition-colors"
               style={{ fontFamily: "Inter, sans-serif" }}
             >
               {group.cat.charAt(0).toUpperCase() + group.cat.slice(1)}
@@ -166,10 +166,10 @@ export function PipelineSidebar() {
                       onClick={() => navigate(`/pipeline/${p.id}`)}
                       className={`flex items-center gap-2 px-3 h-[32px] font-normal leading-[16px] border-l-[3px] ${
                         active
-                          ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-[4px]"
+                          ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-sm"
                           : "w-full border-transparent"
                       }`}
-                      style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 500, letterSpacing: 0, color: "#09090b" }}
+                      style={{ fontSize: "13px", fontStyle: "normal", fontWeight: 500, letterSpacing: 0, color: "var(--text-heading)" }}
                     >
                       <Filter size={14} className={active ? "text-primary" : ""} />
                       <span className="truncate text-left flex-1">{p.name}</span>
@@ -183,7 +183,7 @@ export function PipelineSidebar() {
 
         {orphanPipelines.length > 0 && (
           <div>
-            <p className="px-2 py-1.5 text-[11px] uppercase tracking-wider font-semibold text-[#09090b]">
+            <p className="px-2 py-1.5 text-[11px] uppercase tracking-wider font-semibold text-foreground">
               Outros
             </p>
             <div className="space-y-0.5 mb-1">
@@ -195,10 +195,10 @@ export function PipelineSidebar() {
                     onClick={() => navigate(`/pipeline/${p.id}`)}
                     className={`flex items-center gap-2 px-3 py-[7px] font-normal leading-[16px] transition-colors ${
                       active
-                        ? "w-[95%] mx-auto bg-primary/10 border-l-[3px] border-primary pl-[13px] rounded-[4px]"
+                        ? "w-[95%] mx-auto bg-primary/10 border-l-[3px] border-primary pl-[13px] rounded-sm"
                         : "w-full"
                     }`}
-                    style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 500, letterSpacing: 0, color: "#09090b" }}
+                    style={{ fontSize: "13px", fontStyle: "normal", fontWeight: 500, letterSpacing: 0, color: "var(--text-heading)" }}
                   >
                     <Filter size={14} className={active ? "text-primary" : ""} />
                     <span className="truncate text-left flex-1">{p.name}</span>

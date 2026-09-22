@@ -165,16 +165,16 @@ export function CreateDisparoWizard({
                 return (
                   <div key={s.n} className="flex items-center gap-3">
                     <div
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0"
+                      className="w-6 h-6 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0"
                       style={{
                         background: done ? "hsl(var(--primary))" : active ? "hsl(var(--primary) / 0.12)" : "transparent",
-                        color: done ? "#fff" : active ? "hsl(var(--primary))" : "#94A3B8",
+                        color: done ? "var(--text-on-accent)" : active ? "var(--text-link)" : "#94A3B8",
                         border: active ? "1.5px solid hsl(var(--primary))" : done ? "none" : "1.5px solid #CBD5E1",
                       }}
                     >
                       {done ? <Check size={13} /> : s.n}
                     </div>
-                    <span className="text-sm" style={{ color: active ? "hsl(var(--foreground))" : "#94A3B8", fontWeight: active ? 600 : 400 }}>
+                    <span className="text-sm" style={{ color: active ? "hsl(var(--foreground))" : "var(--text-muted)", fontWeight: active ? 600 : 400 }}>
                       {s.label}
                     </span>
                   </div>
@@ -197,7 +197,7 @@ export function CreateDisparoWizard({
                     type="button"
                     onClick={() => setType("automation")}
                     className="w-full flex items-center gap-3 p-4 rounded-xl border text-left transition-colors"
-                    style={{ borderColor: type === "automation" ? "hsl(var(--primary))" : "#E5E7EB", background: type === "automation" ? "hsl(var(--primary) / 0.04)" : "#fff" }}
+                    style={{ borderColor: type === "automation" ? "hsl(var(--primary))" : "var(--border-default)", background: type === "automation" ? "hsl(var(--primary) / 0.04)" : "var(--surface-card)" }}
                   >
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                       <Workflow size={20} className="text-primary" />
@@ -218,7 +218,7 @@ export function CreateDisparoWizard({
                   <h3 className="text-base font-semibold">Selecione a automação</h3>
                   <p className="text-sm text-muted-foreground">Escolha a automação que será executada.</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-2 mb-3">
-                    <span className="w-3.5 h-3.5 rounded-full border border-muted-foreground/50 flex items-center justify-center text-[9px]">i</span>
+                    <span className="w-3.5 h-3.5 rounded-full border border-muted-foreground/50 flex items-center justify-center text-[12px]">i</span>
                     Somente automações com gatilho manual de leads podem ser selecionadas.
                   </p>
                   <div className="relative mb-3">
@@ -234,12 +234,12 @@ export function CreateDisparoWizard({
                     {filteredAutos.map(a => (
                       <button key={a.id} type="button" onClick={() => setAutomationId(a.id)}
                         className="w-full flex items-center gap-3 p-3.5 rounded-xl border text-left transition-colors"
-                        style={{ borderColor: automationId === a.id ? "hsl(var(--primary))" : "#E5E7EB", background: automationId === a.id ? "hsl(var(--primary) / 0.04)" : "#fff" }}>
+                        style={{ borderColor: automationId === a.id ? "hsl(var(--primary))" : "var(--border-default)", background: automationId === a.id ? "hsl(var(--primary) / 0.04)" : "var(--surface-card)" }}>
                         <div className="w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0" style={{ borderColor: automationId === a.id ? "hsl(var(--primary))" : "#CBD5E1" }}>
                           {automationId === a.id && <div className="w-2 h-2 rounded-full bg-primary" />}
                         </div>
                         <span className="text-sm font-medium">{a.name}</span>
-                        {!a.active && <span className="text-[10px] text-muted-foreground ml-auto">inativa</span>}
+                        {!a.active && <span className="text-[12px] text-muted-foreground ml-auto">inativa</span>}
                       </button>
                     ))}
                   </div>
@@ -329,17 +329,17 @@ export function CreateDisparoWizard({
                           className="flex items-center gap-3 px-3.5 py-2.5 w-full text-left hover:bg-secondary/40 transition-colors"
                         >
                           <div className="w-4 h-4 rounded border-2 flex items-center justify-center shrink-0"
-                               style={{ borderColor: marcadoAqui ? "hsl(var(--primary))" : "#CBD5E1", background: marcadoAqui ? "hsl(var(--primary))" : "transparent" }}>
+                               style={{ borderColor: marcadoAqui ? "hsl(var(--primary))" : "var(--border-strong)", background: marcadoAqui ? "hsl(var(--primary))" : "transparent" }}>
                             {marcadoAqui && <Check size={11} color="#fff" />}
                           </div>
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: "#128A68" }}>
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0" style={{ background: "var(--accent-700)" }}>
                             {l.name.trim().charAt(0).toUpperCase() || "?"}
                           </div>
 
                           <div className="flex-1 min-w-0">
                             <div className="text-xs font-semibold truncate leading-none">{l.name}</div>
-                            <span style={{ fontSize: 8, fontWeight: 600 }} className="inline-flex items-center rounded-full bg-gray-100 px-1 py-0.5 text-gray-500">
-                              Ticket médio <span className="text-green-600 ml-1">{fmtBRL(ticket)}</span>
+                            <span style={{ fontSize: 12, fontWeight: 600 }} className="inline-flex items-center rounded-full bg-gray-100 px-1 py-0.5 text-gray-500">
+                              Ticket médio <span className="text-[color:var(--accent-700)] ml-1">{fmtBRL(ticket)}</span>
                             </span>
                           </div>
 
@@ -348,7 +348,7 @@ export function CreateDisparoWizard({
                               <Phone size={12} className="shrink-0 text-muted-foreground" />
                               <span className="truncate">{l.whatsapp || "—"}</span>
                             </div>
-                            {l.email && <div className="text-[11px] text-muted-foreground truncate pl-[18px]">{l.email}</div>}
+                            {l.email && <div className="text-[12px] text-muted-foreground truncate pl-[18px]">{l.email}</div>}
                           </div>
 
                           {/* Duas tags e o resto vira "+N": a linha tem ~40px e
@@ -360,13 +360,13 @@ export function CreateDisparoWizard({
                               : (
                                 <>
                                   {(l.tags ?? []).slice(0, 2).map(nome => (
-                                    <span key={nome} className="text-[10px] px-2 rounded-full text-white font-medium truncate max-w-[150px]"
+                                    <span key={nome} className="text-[12px] px-2 rounded-full text-white font-medium truncate max-w-[150px]"
                                           style={{ paddingTop: 2, paddingBottom: 2, background: crmTags.find(t => t.name === nome)?.color || "#888" }}>
                                       {nome}
                                     </span>
                                   ))}
                                   {(l.tags ?? []).length > 2 && (
-                                    <span className="text-[11px] text-muted-foreground">+{(l.tags ?? []).length - 2}</span>
+                                    <span className="text-[12px] text-muted-foreground">+{(l.tags ?? []).length - 2}</span>
                                   )}
                                 </>
                               )}
@@ -398,7 +398,7 @@ export function CreateDisparoWizard({
                     <SelectContent>
                       {RHYTHMS.map(r => (
                         <SelectItem key={r.id} value={r.id}>
-                          <div className="flex flex-col"><span>{r.label}</span><span data-hint className="text-[11px] text-muted-foreground">{r.hint}</span></div>
+                          <div className="flex flex-col"><span>{r.label}</span><span data-hint className="text-[12px] text-muted-foreground">{r.hint}</span></div>
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -407,7 +407,7 @@ export function CreateDisparoWizard({
                     <span className="text-primary">ℹ</span>
                     Verifique nas configurações da conexão da automação o limite de mensagens por segundo para definir o melhor tamanho do lote.
                   </p>
-                  <p className="text-xs text-amber-600 flex items-start gap-1.5 mt-1 mb-4">⚠ Concorrência com APIs externas pode impactar a taxa de envio de mensagens/seg.</p>
+                  <p className="text-xs text-[color:var(--warning-fg)] flex items-start gap-1.5 mt-1 mb-4">⚠ Concorrência com APIs externas pode impactar a taxa de envio de mensagens/seg.</p>
 
                   <label className="flex items-start gap-2.5 mb-3 cursor-pointer">
                     <Checkbox checked={scheduleOn} onCheckedChange={v => setScheduleOn(!!v)} className="mt-0.5" />

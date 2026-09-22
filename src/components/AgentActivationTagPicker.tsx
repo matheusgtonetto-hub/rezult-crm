@@ -12,9 +12,11 @@ import { createPortal } from "react-dom";
 import { ChevronDown, Plus, Check } from "lucide-react";
 import { useCRM } from "@/context/CRMContext";
 import { toast } from "sonner";
+import { tintaDeChip } from "@/lib/contraste";
+import { COR_TAG_AGENTE } from "@/lib/paleta-do-app";
 
 // Mesma cor que o Multiatendimento usa no filtro do agente.
-const COR_PADRAO = "#6D28D9";
+const COR_PADRAO = COR_TAG_AGENTE;
 
 type Props = {
   value: string | null;
@@ -139,7 +141,7 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, agent
                 <span className="flex items-center gap-2 min-w-0">
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ background: tag.color }} />
                   <span className="truncate">{tag.name}</span>
-                  {bloqueada && <span className="text-[10px] text-muted-foreground shrink-0">em uso por {dono.name}</span>}
+                  {bloqueada && <span className="text-[12px] text-muted-foreground shrink-0">em uso por {dono.name}</span>}
                 </span>
                 {value === tag.name && <Check size={12} className="text-primary shrink-0" />}
               </button>
@@ -194,7 +196,12 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, agent
         {value ? (
           <span
             className="text-xs px-2 py-0.5 rounded-full font-medium"
-            style={{ backgroundColor: (tagAtual?.color ?? COR_PADRAO) + "22", color: tagAtual?.color ?? COR_PADRAO }}
+            style={{
+              backgroundColor: (tagAtual?.color ?? COR_PADRAO) + "22",
+              // A própria cor como tinta reprova quando a tag é clara: o ciano dava
+              // 2,14:1. `tintaDeChip` escurece só o necessário, mantendo o matiz.
+              color: tintaDeChip(tagAtual?.color ?? COR_PADRAO),
+            }}
           >
             {value}
           </span>

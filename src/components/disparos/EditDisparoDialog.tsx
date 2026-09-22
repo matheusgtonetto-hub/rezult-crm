@@ -91,7 +91,7 @@ export function EditDisparoDialog({
             <SelectContent>
               {RHYTHMS.map(r => (
                 <SelectItem key={r.id} value={r.id}>
-                  <div className="flex flex-col"><span>{r.label}</span><span data-hint className="text-[11px] text-muted-foreground">{r.hint}</span></div>
+                  <div className="flex flex-col"><span>{r.label}</span><span data-hint className="text-[12px] text-muted-foreground">{r.hint}</span></div>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -100,7 +100,7 @@ export function EditDisparoDialog({
             <span className="text-primary">ℹ</span>
             Verifique nas configurações da conexão da automação o limite de mensagens por segundo para definir o melhor tamanho do lote neste disparo.
           </p>
-          <p className="text-xs text-amber-600 flex items-start gap-1.5 mt-1">⚠ Concorrência com as APIs externas podem impactar a taxa de envio de mensagens/seg.</p>
+          <p className="text-xs text-[color:var(--warning-fg)] flex items-start gap-1.5 mt-1">⚠ Concorrência com as APIs externas podem impactar a taxa de envio de mensagens/seg.</p>
         </div>
 
         <label className="flex items-start gap-2.5 cursor-pointer">

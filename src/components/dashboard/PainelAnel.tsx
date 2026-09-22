@@ -89,7 +89,7 @@ export function PainelAnel({
   const valorCentro = emFoco ? emFoco.valor : soma;
 
   return (
-    <div className={`bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 flex flex-col ${className ?? ""}`}>
+    <div className={`bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col ${className ?? ""}`}>
       {/* Sem `flex-wrap`: o painel tem ~356px por dentro, e com quebra quem
           descia para a segunda linha eram os controles. Como o subtítulo muda
           de tamanho conforme a escolha, o cabeçalho ganhava uma altura em cada

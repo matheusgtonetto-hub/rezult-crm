@@ -83,7 +83,7 @@ export default function ResetPasswordPage() {
   };
 
   const shell = (children: React.ReactNode) => (
-    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#F0F4F8" }}>
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "var(--neutral-50)" }}>
       <div
         className="w-full max-w-[420px] bg-card rounded-2xl p-10"
         style={{ boxShadow: "0 8px 32px -8px rgba(15,23,42,0.12), 0 2px 8px -2px rgba(15,23,42,0.06)" }}

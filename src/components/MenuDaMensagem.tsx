@@ -64,7 +64,7 @@ export function MenuDaMensagem({
       style={{
         position: "absolute", right: 4, zIndex: 20,
         ...(paraCima ? { bottom: 24 } : { top: 24 }),
-        background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 8,
+        background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 8,
         boxShadow: "0 4px 16px rgba(0,0,0,0.12)", padding: 4, minWidth: 150,
       }}
     >
@@ -84,10 +84,10 @@ export function MenuDaMensagem({
             background: "none", border: "none",
             cursor: item.desabilitado ? "not-allowed" : "pointer",
             padding: "7px 10px", borderRadius: 6, fontSize: 13,
-            color: item.desabilitado ? "#AAA" : (item.destrutivo ? "#B91C1C" : "#111"),
+            color: item.desabilitado ? "var(--text-muted)" : (item.destrutivo ? "var(--danger-fg)" : "var(--text-heading)"),
             textAlign: "left", whiteSpace: "nowrap",
           }}
-          onMouseEnter={e => { if (!item.desabilitado) e.currentTarget.style.background = "#F5F5F5"; }}
+          onMouseEnter={e => { if (!item.desabilitado) e.currentTarget.style.background = "var(--neutral-50)"; }}
           onMouseLeave={e => (e.currentTarget.style.background = "none")}
         >
           {item.icone}{item.rotulo}

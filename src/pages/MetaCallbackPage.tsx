@@ -103,7 +103,7 @@ export default function MetaCallbackPage() {
           <Loader2 className="w-10 h-10 text-primary animate-spin" />
         )}
         {status === "success" && (
-          <CheckCircle className="w-10 h-10 text-green-500" />
+          <CheckCircle className="w-10 h-10 text-[color:var(--accent-700)]" />
         )}
         {status === "error" && (
           <XCircle className="w-10 h-10 text-destructive" />

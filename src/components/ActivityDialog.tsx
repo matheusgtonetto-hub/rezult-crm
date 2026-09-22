@@ -382,12 +382,12 @@ export function ActivityDialog({
     !q || m.toLowerCase().includes(q) || (memberEmails[m] ?? "").toLowerCase().includes(q)
   );
   const hasDropdownItems = showActiveLead || otherLeads.length > 0 || filteredTeam.length > 0;
-  const leadColor = activeLead ? (memberColors[activeLead.responsible] ?? "#128A68") : "#AAAAAA";
+  const leadColor = activeLead ? (memberColors[activeLead.responsible] ?? "var(--accent-700)") : "#AAAAAA";
   const canSubmit = !!title.trim() && !!date && !!time && (!!defaultLead || !!selectedLeadId);
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) handleClose(); }}>
-      <DialogContent className="bg-card border-card-border sm:max-w-lg p-5" style={{ borderRadius: 15 }}>
+      <DialogContent className="bg-card border-card-border sm:max-w-lg p-5" style={{ borderRadius: 16 }}>
         <DialogHeader className="pb-0">
           <DialogTitle className="text-sm text-foreground">
             {readOnly ? "Detalhes da atividade" : isEditing ? "Editar atividade" : "Nova atividade"}
@@ -404,7 +404,7 @@ export function ActivityDialog({
               .slice(0, 6);
             return (
               <div className="relative">
-                <label className="text-[11px] text-muted-foreground mb-1 block">Lead *</label>
+                <label className="text-[12px] text-muted-foreground mb-1 block">Lead *</label>
                 <input
                   type="text"
                   placeholder="Buscar lead pelo nome..."
@@ -418,7 +418,7 @@ export function ActivityDialog({
                   onBlur={() => setTimeout(() => setLeadDropdownOpen(false), 150)}
                   readOnly={readOnly}
                   className="w-full h-8 px-3 text-xs border border-card-border bg-background outline-none"
-                  style={{ borderRadius: 15, color: "#000000", cursor: readOnly ? "default" : undefined }}
+                  style={{ borderRadius: 16, color: "var(--text-heading)", cursor: readOnly ? "default" : undefined }}
                 />
                 {leadDropdownOpen && leadResults.length > 0 && (
                   <div className="absolute left-0 right-0 top-full mt-1 bg-card border border-card-border rounded-xl shadow-lg z-50 overflow-hidden max-h-48 overflow-y-auto">
@@ -436,11 +436,11 @@ export function ActivityDialog({
                         }}
                         className={`flex items-center gap-2 w-full px-3 py-2 hover:bg-muted transition-colors text-left ${selectedLeadId === l.id ? "bg-muted" : ""}`}
                       >
-                        <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0" style={{ background: memberColors[l.responsible] ?? "#AAAAAA" }}>
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: memberColors[l.responsible] ?? "var(--text-muted)" }}>
                           {l.name[0]}
                         </div>
-                        <span className="text-xs truncate" style={{ color: "#111111" }}>{l.name}</span>
-                        {selectedLeadId === l.id && <Check size={11} className="ml-auto text-green-600 shrink-0" />}
+                        <span className="text-xs truncate" style={{ color: "var(--text-heading)" }}>{l.name}</span>
+                        {selectedLeadId === l.id && <Check size={11} className="ml-auto text-[color:var(--accent-700)] shrink-0" />}
                       </button>
                     ))}
                   </div>
@@ -451,7 +451,7 @@ export function ActivityDialog({
 
           {/* Título */}
           <div>
-            <label className="text-[11px] text-muted-foreground mb-1 block">Título</label>
+            <label className="text-[12px] text-muted-foreground mb-1 block">Título</label>
             <Input
               autoFocus={!readOnly}
               placeholder="Ex: Reunião de apresentação"
@@ -459,23 +459,23 @@ export function ActivityDialog({
               onChange={e => setTitle(e.target.value)}
               readOnly={readOnly}
               className="bg-background border-card-border h-8 text-sm focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-              style={{ borderRadius: 15, color: title ? "#000000" : undefined, cursor: readOnly ? "default" : undefined }}
+              style={{ borderRadius: 16, color: title ? "var(--text-heading)" : undefined, cursor: readOnly ? "default" : undefined }}
             />
           </div>
 
           {/* Tarefa */}
           <div>
-            <label className="text-[11px] text-muted-foreground mb-1 block">Tarefa</label>
+            <label className="text-[12px] text-muted-foreground mb-1 block">Tarefa</label>
             <div className="flex gap-1.5">
               {SCHED_TYPES.map(({ type: t, icon: Icon, label }) => (
                 <button
                   key={t}
                   onClick={() => !readOnly && setType(t)}
                   disabled={readOnly && type !== t}
-                  className={`flex items-center justify-center gap-1 px-2 py-1 border text-[10px] transition-all whitespace-nowrap flex-1 bg-background ${
+                  className={`flex items-center justify-center gap-1 px-2 py-1 border text-[12px] transition-all whitespace-nowrap flex-1 bg-background ${
                     type === t
-                      ? "border-green-500 text-green-600"
-                      : "border-card-border text-muted-foreground hover:border-green-400 hover:text-green-500"
+                      ? "border-[color:var(--accent-500)] text-[color:var(--accent-700)]"
+                      : "border-card-border text-muted-foreground hover:border-[color:var(--accent-500)] hover:text-[color:var(--accent-700)]"
                   } ${readOnly ? "cursor-default" : ""}`}
                   style={{ borderRadius: 8 }}
                 >
@@ -507,20 +507,20 @@ export function ActivityDialog({
           {/* Data + Horário + Duração */}
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">Data</label>
+              <label className="text-[12px] text-muted-foreground mb-1 block">Data</label>
               <Popover open={datePopoverOpen} onOpenChange={v => { if (!readOnly) setDatePopoverOpen(v); }}>
                 <PopoverTrigger asChild>
                   <button
                     type="button"
                     disabled={readOnly}
                     className="flex items-center gap-1.5 h-8 px-2 border border-card-border bg-background w-full text-left hover:border-primary/50 transition-colors"
-                    style={{ borderRadius: 15 }}
+                    style={{ borderRadius: 16 }}
                   >
                     <CalendarDays size={12} className="text-muted-foreground shrink-0" />
-                    <span className="text-xs truncate" style={{ color: date ? "#000000" : undefined }}>
+                    <span className="text-xs truncate" style={{ color: date ? "var(--text-heading)" : undefined }}>
                       {date
                         ? new Date(date + "T12:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })
-                        : <span className="text-muted-foreground text-[10px]">Selecionar</span>}
+                        : <span className="text-muted-foreground text-[12px]">Selecionar</span>}
                     </span>
                   </button>
                 </PopoverTrigger>
@@ -542,9 +542,9 @@ export function ActivityDialog({
               </Popover>
             </div>
             <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">Horário</label>
+              <label className="text-[12px] text-muted-foreground mb-1 block">Horário</label>
               <Select value={time} onValueChange={v => !readOnly && setTime(v)} disabled={readOnly}>
-                <SelectTrigger className="h-8 text-xs border-card-border bg-background focus:ring-0 focus:ring-offset-0 focus:border-primary" style={{ borderRadius: 15 }}>
+                <SelectTrigger className="h-8 text-xs border-card-border bg-background focus:ring-0 focus:ring-offset-0 focus:border-primary" style={{ borderRadius: 16 }}>
                   <SelectValue placeholder="--:--" />
                 </SelectTrigger>
                 <SelectContent className="max-h-52 overflow-y-auto">
@@ -555,9 +555,9 @@ export function ActivityDialog({
               </Select>
             </div>
             <div>
-              <label className="text-[11px] text-muted-foreground mb-1 block">Duração</label>
+              <label className="text-[12px] text-muted-foreground mb-1 block">Duração</label>
               <Select value={String(duration)} onValueChange={v => !readOnly && setDuration(Number(v))} disabled={readOnly}>
-                <SelectTrigger className="h-8 text-xs border-card-border bg-background focus:ring-0 focus:ring-offset-0 focus:border-primary" style={{ borderRadius: 15 }}>
+                <SelectTrigger className="h-8 text-xs border-card-border bg-background focus:ring-0 focus:ring-offset-0 focus:border-primary" style={{ borderRadius: 16 }}>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -572,14 +572,14 @@ export function ActivityDialog({
 
           {/* E-mail / Participantes */}
           <div className="relative">
-            <label className="text-[11px] text-muted-foreground mb-1 block">E-mail do contato</label>
+            <label className="text-[12px] text-muted-foreground mb-1 block">E-mail do contato</label>
             <div
               className="min-h-[34px] flex flex-wrap gap-1 px-2 py-1.5 border border-card-border bg-background"
-              style={{ borderRadius: 15, cursor: readOnly ? "default" : "text" }}
+              style={{ borderRadius: 16, cursor: readOnly ? "default" : "text" }}
               onClick={() => !readOnly && document.getElementById("act-dlg-email-input")?.focus()}
             >
               {participants.map(email => (
-                <div key={email} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted border border-card-border shrink-0">
+                <div key={email} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] font-medium bg-muted border border-card-border shrink-0">
                   <span className="truncate max-w-[160px]">{email}</span>
                   {!readOnly && (
                     <button
@@ -614,7 +614,7 @@ export function ActivityDialog({
                     }
                   }}
                   className="flex-1 min-w-[120px] bg-transparent outline-none text-sm"
-                  style={{ color: "#000000" }}
+                  style={{ color: "var(--text-heading)" }}
                 />
               )}
             </div>
@@ -625,16 +625,16 @@ export function ActivityDialog({
                 {showActiveLead && activeLead && (
                   <>
                     <div className="px-3 pt-2 pb-1">
-                      <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Lead</p>
+                      <p className="text-[12px] text-muted-foreground font-medium uppercase tracking-wide">Lead</p>
                     </div>
                     {activeLeadEmails.length === 0 ? (
                       <div className="flex items-center gap-2 w-full px-3 py-2 opacity-50" style={{ cursor: "not-allowed" }}>
-                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: leadColor }}>
+                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: leadColor }}>
                           {activeLead.name[0]}
                         </div>
                         <div className="flex flex-col items-start min-w-0">
-                          <span className="text-xs font-medium truncate" style={{ color: "#111111" }}>{activeLead.name}</span>
-                          <span className="text-[10px]" style={{ color: "#E24B4A" }}>Sem e-mail cadastrado</span>
+                          <span className="text-xs font-medium truncate" style={{ color: "var(--text-heading)" }}>{activeLead.name}</span>
+                          <span className="text-[12px]" style={{ color: "var(--danger-fg)" }}>Sem e-mail cadastrado</span>
                         </div>
                       </div>
                     ) : activeLeadEmails.map((em, idx) => (
@@ -650,17 +650,17 @@ export function ActivityDialog({
                         className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted transition-colors disabled:opacity-40"
                       >
                         {idx === 0 ? (
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: leadColor }}>
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: leadColor }}>
                             {activeLead.name[0]}
                           </div>
                         ) : (
                           <div className="w-6 h-6 shrink-0" />
                         )}
                         <div className="flex flex-col items-start min-w-0">
-                          {idx === 0 && <span className="text-xs font-medium truncate" style={{ color: "#111111" }}>{activeLead.name}</span>}
-                          <span className="text-[10px] text-muted-foreground">{em}</span>
+                          {idx === 0 && <span className="text-xs font-medium truncate" style={{ color: "var(--text-heading)" }}>{activeLead.name}</span>}
+                          <span className="text-[12px] text-muted-foreground">{em}</span>
                         </div>
-                        {participants.includes(em) && <Check size={11} className="ml-auto text-green-600 shrink-0" />}
+                        {participants.includes(em) && <Check size={11} className="ml-auto text-[color:var(--accent-700)] shrink-0" />}
                       </button>
                     ))}
                   </>
@@ -669,7 +669,7 @@ export function ActivityDialog({
                 {otherLeads.length > 0 && (
                   <>
                     <div className={`px-3 pt-2 pb-1 ${showActiveLead ? "border-t border-card-border" : ""}`}>
-                      <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Outros leads</p>
+                      <p className="text-[12px] text-muted-foreground font-medium uppercase tracking-wide">Outros leads</p>
                     </div>
                     {otherLeads.map(l => {
                       const val = l.email ?? l.name;
@@ -686,14 +686,14 @@ export function ActivityDialog({
                           disabled={added}
                           className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted transition-colors disabled:opacity-40"
                         >
-                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: "#AAAAAA" }}>
+                          <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: "var(--text-muted)" }}>
                             {l.name[0]}
                           </div>
                           <div className="flex flex-col items-start min-w-0">
-                            <span className="text-xs font-medium truncate" style={{ color: "#111111" }}>{l.name}</span>
-                            {l.email && <span className="text-[10px] text-muted-foreground">{l.email}</span>}
+                            <span className="text-xs font-medium truncate" style={{ color: "var(--text-heading)" }}>{l.name}</span>
+                            {l.email && <span className="text-[12px] text-muted-foreground">{l.email}</span>}
                           </div>
-                          {added && <Check size={11} className="ml-auto text-green-600 shrink-0" />}
+                          {added && <Check size={11} className="ml-auto text-[color:var(--accent-700)] shrink-0" />}
                         </button>
                       );
                     })}
@@ -703,7 +703,7 @@ export function ActivityDialog({
                 {filteredTeam.length > 0 && (
                   <>
                     <div className={`px-3 pt-2 pb-1 ${showActiveLead || otherLeads.length > 0 ? "border-t border-card-border" : ""}`}>
-                      <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Time</p>
+                      <p className="text-[12px] text-muted-foreground font-medium uppercase tracking-wide">Time</p>
                     </div>
                     {filteredTeam.map(m => {
                       const email = memberEmails[m] ?? m;
@@ -723,15 +723,15 @@ export function ActivityDialog({
                           {memberAvatars[m] ? (
                             <img src={memberAvatars[m]} alt={m} className="w-6 h-6 rounded-full object-cover shrink-0" />
                           ) : (
-                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0" style={{ background: memberColors[m] ?? "#AAAAAA" }}>
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: memberColors[m] ?? "var(--text-muted)" }}>
                               {m[0]}
                             </div>
                           )}
                           <div className="flex flex-col items-start min-w-0">
-                            <span className="text-xs font-medium truncate" style={{ color: "#111111" }}>{m}</span>
-                            {memberEmails[m] && <span className="text-[10px] text-muted-foreground">{memberEmails[m]}</span>}
+                            <span className="text-xs font-medium truncate" style={{ color: "var(--text-heading)" }}>{m}</span>
+                            {memberEmails[m] && <span className="text-[12px] text-muted-foreground">{memberEmails[m]}</span>}
                           </div>
-                          {added && <Check size={11} className="ml-auto text-green-600 shrink-0" />}
+                          {added && <Check size={11} className="ml-auto text-[color:var(--accent-700)] shrink-0" />}
                         </button>
                       );
                     })}
@@ -745,13 +745,13 @@ export function ActivityDialog({
           {type === "meeting" && (
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="text-[11px] text-muted-foreground">Link da reunião</label>
+                <label className="text-[12px] text-muted-foreground">Link da reunião</label>
                 {!readOnly && googleConnected && (
                   <button
                     type="button"
                     onClick={handleGenerateMeetLink}
                     disabled={generatingMeet}
-                    className="flex items-center gap-1 text-[11px] text-blue-500 hover:text-blue-700 hover:underline transition-colors disabled:opacity-50"
+                    className="flex items-center gap-1 text-[12px] text-[color:var(--text-link)] hover:text-[color:var(--accent-800)] hover:underline transition-colors disabled:opacity-50"
                   >
                     {generatingMeet
                       ? <Loader2 size={10} className="animate-spin" />
@@ -762,9 +762,9 @@ export function ActivityDialog({
               </div>
               {readOnly ? (
                 meetLink ? (
-                  <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100" style={{ borderRadius: 15 }}>
-                    <Video size={12} className="text-blue-500 shrink-0" />
-                    <a href={meetLink} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline truncate flex-1">
+                  <div className="flex items-center gap-2 px-3 py-1.5 bg-[color:var(--accent-50)] border border-[color:var(--accent-200)]" style={{ borderRadius: 16 }}>
+                    <Video size={12} className="text-[color:var(--accent-700)] shrink-0" />
+                    <a href={meetLink} target="_blank" rel="noopener noreferrer" className="text-xs text-[color:var(--text-link)] hover:underline truncate flex-1">
                       {meetLink}
                     </a>
                   </div>
@@ -775,7 +775,7 @@ export function ActivityDialog({
                   onChange={e => setMeetLink(e.target.value)}
                   placeholder="Cole ou gere o link da reunião (Zoom, Meet, Teams...)"
                   className="h-8 text-xs border-card-border bg-background focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-                  style={{ borderRadius: 15 }}
+                  style={{ borderRadius: 16 }}
                 />
               )}
             </div>
@@ -783,14 +783,14 @@ export function ActivityDialog({
 
           {/* Descrição */}
           <div>
-            <label className="text-[11px] text-muted-foreground mb-1 block">Descrição</label>
+            <label className="text-[12px] text-muted-foreground mb-1 block">Descrição</label>
             <Textarea
               placeholder="Detalhes da atividade..."
               value={description}
               onChange={e => setDescription(e.target.value)}
               readOnly={readOnly}
               className="bg-background border-card-border resize-none text-sm min-h-[60px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-              style={{ borderRadius: 15, color: description ? "#000000" : undefined, cursor: readOnly ? "default" : undefined }}
+              style={{ borderRadius: 16, color: description ? "var(--text-heading)" : undefined, cursor: readOnly ? "default" : undefined }}
             />
           </div>
         </div>
@@ -800,7 +800,7 @@ export function ActivityDialog({
           <button
             type="button"
             onClick={onGoToLead}
-            className="flex items-center justify-center gap-1.5 w-full text-[11px] text-muted-foreground hover:text-primary transition-colors mt-2 py-1"
+            className="flex items-center justify-center gap-1.5 w-full text-[12px] text-muted-foreground hover:text-primary transition-colors mt-2 py-1"
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
@@ -821,15 +821,15 @@ export function ActivityDialog({
                       size="sm"
                       onClick={() => setConfirmDelete(false)}
                       className="border-card-border flex-1 text-xs"
-                      style={{ borderRadius: 15 }}
+                      style={{ borderRadius: 16 }}
                     >
                       Cancelar
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => { onDelete(); handleClose(); }}
-                      className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs"
-                      style={{ borderRadius: 15 }}
+                      className="flex-1 bg-[color:var(--danger-400)] hover:bg-[color:var(--danger-500)] text-white text-xs"
+                      style={{ borderRadius: 16 }}
                     >
                       Confirmar exclusão
                     </Button>
@@ -840,8 +840,8 @@ export function ActivityDialog({
                       variant="outline"
                       size="sm"
                       onClick={() => setConfirmDelete(true)}
-                      className="border-red-200 text-red-500 hover:bg-red-50"
-                      style={{ borderRadius: 15 }}
+                      className="border-[color:var(--danger-400)] text-[color:var(--danger-fg)] hover:bg-[color:var(--danger-bg)]"
+                      style={{ borderRadius: 16 }}
                     >
                       <Trash2 size={13} />
                     </Button>
@@ -850,7 +850,7 @@ export function ActivityDialog({
                       size="sm"
                       onClick={handleClose}
                       className="border-card-border flex-1"
-                      style={{ borderRadius: 15 }}
+                      style={{ borderRadius: 16 }}
                     >
                       Fechar
                     </Button>
@@ -863,7 +863,7 @@ export function ActivityDialog({
                   size="sm"
                   onClick={handleClose}
                   className="border-card-border w-full"
-                  style={{ borderRadius: 15 }}
+                  style={{ borderRadius: 16 }}
                 >
                   Fechar
                 </Button>
@@ -879,15 +879,15 @@ export function ActivityDialog({
                       size="sm"
                       onClick={() => setConfirmDelete(false)}
                       className="border-card-border flex-1 text-xs"
-                      style={{ borderRadius: 15 }}
+                      style={{ borderRadius: 16 }}
                     >
                       Cancelar
                     </Button>
                     <Button
                       size="sm"
                       onClick={() => { onDelete(); handleClose(); }}
-                      className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs"
-                      style={{ borderRadius: 15 }}
+                      className="flex-1 bg-[color:var(--danger-400)] hover:bg-[color:var(--danger-500)] text-white text-xs"
+                      style={{ borderRadius: 16 }}
                     >
                       Confirmar exclusão
                     </Button>
@@ -897,8 +897,8 @@ export function ActivityDialog({
                     variant="outline"
                     size="sm"
                     onClick={() => setConfirmDelete(true)}
-                    className="border-red-200 text-red-500 hover:bg-red-50 shrink-0"
-                    style={{ borderRadius: 15 }}
+                    className="border-[color:var(--danger-400)] text-[color:var(--danger-fg)] hover:bg-[color:var(--danger-bg)] shrink-0"
+                    style={{ borderRadius: 16 }}
                   >
                     <Trash2 size={13} />
                   </Button>
@@ -911,7 +911,7 @@ export function ActivityDialog({
                     size="sm"
                     onClick={handleClose}
                     className="border-card-border flex-1"
-                    style={{ borderRadius: 15 }}
+                    style={{ borderRadius: 16 }}
                   >
                     Cancelar
                   </Button>
@@ -920,7 +920,7 @@ export function ActivityDialog({
                     onClick={handleSubmit}
                     disabled={!canSubmit}
                     className="flex-1"
-                    style={{ borderRadius: 15 }}
+                    style={{ borderRadius: 16 }}
                   >
                     <Check size={13} className="mr-1" />
                     {isEditing ? "Salvar alterações" : "Criar atividade"}

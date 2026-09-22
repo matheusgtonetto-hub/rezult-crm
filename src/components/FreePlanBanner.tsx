@@ -37,15 +37,25 @@ export const BANNER_HEIGHT = 50;
  * componente global não deve depender de uma. Se um dia virarem três usos, aí
  * sim vale um módulo de tema só delas.
  */
+/* Tokens do sistema, e não uma paleta própria.
+ *
+ * Esta era a paleta do SITE importada para dentro do app: near-black #05080A
+ * com o verde #00E599 do arquivo da logo, mais um halo de 35%. Nada disso é do
+ * design system, que tem uma superfície inversa, um emerald e nenhum brilho.
+ *
+ * O banner continua sendo a única faixa escura do app -- ele vende, e por isso
+ * se destaca do resto --, só que agora com os valores da matriz. */
 const OFERTA = {
-  fundo:         "#05080A",
-  verde:         "#00E599",
-  verdeFechado:  "#047857",
-  sobreVerde:    "#04140D",
-  brilho:        "rgba(0, 229, 153, 0.35)",
-  borda:         "rgba(0, 229, 153, 0.45)",
-  texto:         "#F4F6F4",
-  textoSuave:    "#D1D1D1",
+  fundo:         "var(--surface-inverse)",
+  verde:         "var(--accent-400)",
+  verdeFechado:  "var(--accent-700)",
+  sobreVerde:    "var(--text-on-accent)",
+  // Sem halo: a seção 3.5 não tem sombra colorida. O destaque vem do contraste
+  // entre a faixa escura e o canvas claro.
+  brilho:        "transparent",
+  borda:         "var(--border-inverse, rgba(255,255,255,.14))",
+  texto:         "var(--neutral-0)",
+  textoSuave:    "var(--neutral-400)",
 } as const;
 
 export function FreePlanBanner() {
@@ -142,7 +152,7 @@ export function FreePlanBanner() {
 
   // Vermelho é para problema. Um teste correndo não é problema, então ele só
   // fica vermelho quando está de fato acabando.
-  const corDaTarja = (billingBlocked || !isTrialing || acabando) ? "#EF4444" : "#128A68";
+  const corDaTarja = (billingBlocked || !isTrialing || acabando) ? "#EF4444" : "var(--accent-700)";
 
   /**
    * Teste acabado: o mesmo cartão flutuante da oferta, e não a faixa vermelha do
@@ -248,7 +258,7 @@ export function FreePlanBanner() {
                */
               <div className="min-w-0">
                 <span
-                  className="inline-block rounded-[6px] px-2 py-[3px] text-[11px] font-bold tracking-wide whitespace-nowrap"
+                  className="inline-block rounded-[6px] px-2 py-[3px] text-[12px] font-bold tracking-wide whitespace-nowrap"
                   style={{ background: OFERTA.verde, color: OFERTA.sobreVerde }}
                 >
                   {testeEncerrado ? "Teste grátis finalizado" : "50% OFF - Oferta Exclusiva"}
@@ -271,7 +281,7 @@ export function FreePlanBanner() {
                       preto -- branco sobre neon rende 1,66:1 de contraste, longe
                       do mínimo de leitura. */}
                   <span
-                    className="inline-block rounded-[6px] px-2 py-[3px] text-[11px] font-bold tracking-wide whitespace-nowrap"
+                    className="inline-block rounded-[6px] px-2 py-[3px] text-[12px] font-bold tracking-wide whitespace-nowrap"
                     style={{ background: OFERTA.verde, color: OFERTA.sobreVerde }}
                   >
                     {testeEncerrado ? "Teste grátis finalizado" : "50% OFF - Oferta Exclusiva"}
@@ -307,17 +317,17 @@ export function FreePlanBanner() {
                   ].map((unidade, i) => (
                     <div key={unidade.rotulo} className="flex items-center gap-2">
                       {i > 0 && (
-                        <span className="text-[16px] font-bold leading-none" style={{ color: "rgba(255,255,255,0.3)" }}>:</span>
+                        <span className="text-[18px] font-bold leading-none" style={{ color: "rgba(255,255,255,0.3)" }}>:</span>
                       )}
                       <div className="text-center" style={{ minWidth: 30 }}>
                         <p
-                          className="text-[19px] font-bold leading-none tabular-nums"
+                          className="text-[20px] font-bold leading-none tabular-nums"
                           style={{ color: OFERTA.texto }}
                         >
                           {dd(unidade.valor)}
                         </p>
                         <p
-                          className="text-[8px] uppercase leading-none mt-[3px] tracking-[0.08em]"
+                          className="text-[12px] uppercase leading-none mt-[3px] tracking-[0.08em]"
                           style={{ color: "rgba(244,246,244,0.6)" }}
                         >
                           {unidade.rotulo}
@@ -340,7 +350,7 @@ export function FreePlanBanner() {
                     tirá-la do lugar. */}
                 <Button
                   size="sm"
-                  className="h-8 text-xs font-semibold rounded-[7px] shrink-0"
+                  className="h-8 text-xs font-semibold rounded-[8px] shrink-0"
                   style={{
                     background: OFERTA.verde,
                     color: OFERTA.sobreVerde,
@@ -359,7 +369,7 @@ export function FreePlanBanner() {
         </div>
       ) : (
         <div
-          className="fixed bottom-0 left-[67px] right-[15px] z-50 rounded-t-[7px] overflow-hidden flex items-center justify-center gap-6 px-6"
+          className="fixed bottom-0 left-[calc(var(--barra-largura)+15px)] right-[15px] z-50 transition-[left] duration-[180ms] rounded-t-[7px] overflow-hidden flex items-center justify-center gap-6 px-6"
           style={{ height: BANNER_HEIGHT, background: corDaTarja }}
         >
           <p className="text-sm font-[500] text-white flex items-center gap-2">
@@ -423,7 +433,7 @@ export function FreePlanBanner() {
                   )}
                 >
                   {plan.badge && (
-                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[11px] font-semibold px-3 py-0.5 rounded-full whitespace-nowrap">
+                    <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground text-[12px] font-semibold px-3 py-0.5 rounded-full whitespace-nowrap">
                       {plan.badge}
                     </span>
                   )}
@@ -438,8 +448,8 @@ export function FreePlanBanner() {
                   </div>
 
                   {save ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 w-fit mb-4">
-                      <Zap size={10} className="text-emerald-600" />
+                    <span className="inline-flex items-center gap-1 text-[12px] font-medium text-[color:var(--accent-800)] bg-[color:var(--accent-50)] border border-[color:var(--accent-200)] rounded-full px-2 py-0.5 w-fit mb-4">
+                      <Zap size={10} className="text-[color:var(--accent-700)]" />
                       economize {save}
                     </span>
                   ) : (
@@ -453,7 +463,7 @@ export function FreePlanBanner() {
                           size={13}
                           className={cn(
                             "mt-0.5 shrink-0",
-                            plan.badge ? "text-primary" : "text-emerald-600"
+                            plan.badge ? "text-primary" : "text-[color:var(--accent-700)]"
                           )}
                         />
                         <TextoDoRecurso recurso={recurso} />

@@ -74,6 +74,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { COR_TAG_AGENTE, COR_TAG_INTERESSE } from "@/lib/paleta-do-app";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { useAuth } from "@/context/AuthContext";
@@ -200,7 +201,7 @@ function DescricaoAgenteBadge() {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <button type="button" aria-label="Como a descrição é usada" className="flex items-center gap-1 text-[11px] text-[#128A68] cursor-help">
+        <button type="button" aria-label="Como a descrição é usada" className="flex items-center gap-1 text-[12px] text-[color:var(--text-link)] cursor-help">
           <Info size={12} /> Usada como instrução pela IA
         </button>
       </TooltipTrigger>
@@ -212,7 +213,7 @@ function DescricaoAgenteBadge() {
         <p className="mb-2">
           Escreva na segunda pessoa, falando com ele: “Você é um atendente da [empresa] e seu trabalho é…”.
         </p>
-        <p className="text-[11px] opacity-80">
+        <p className="text-[12px] opacity-80">
           Funciona junto da escolha entre falar em primeira pessoa ou como membro do time, em Comportamento. Pode
           ficar em branco agora e ser escrito depois.
         </p>
@@ -301,39 +302,39 @@ const MODELOS_DE_AGENTE: Record<"atendente" | "sdr" | "closer", {
 
 function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; temChave: boolean; onToggle: (ligar: boolean) => void }) {
   return (
-    <div className="bg-white rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow border border-[#128A68]/40">
+    <div className="bg-white rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow border border-[color:var(--accent-500)]/40">
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-[#128A68] flex items-center justify-center text-white shrink-0">
+        <div className="w-10 h-10 rounded-full bg-[color:var(--accent-700)] flex items-center justify-center text-white shrink-0">
           <Zap size={18} />
         </div>
         <div className="min-w-0 flex-1">
-          <p title={agente.name} className="text-[14px] font-bold text-[#111111] truncate">{agente.name}</p>
-          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#128A68]">
+          <p title={agente.name} className="text-[14px] font-bold text-[color:var(--text-heading)] truncate">{agente.name}</p>
+          <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-[color:var(--text-link)]">
             <Check size={11} /> Pronto para usar
           </span>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
-          <Circle size={8} fill={agente.active ? "#128A68" : "#CCCCCC"} color={agente.active ? "#128A68" : "#CCCCCC"} />
-          <span className={`text-[11px] font-semibold ${agente.active ? "text-[#128A68]" : "text-[#767676]"}`}>{agente.active ? "Ativo" : "Inativo"}</span>
+          <Circle size={8} fill={agente.active ? "var(--accent-700)" : "var(--neutral-300)"} color={agente.active ? "var(--accent-700)" : "var(--neutral-400)"} />
+          <span className={`text-[12px] font-semibold ${agente.active ? "text-[color:var(--text-link)]" : "text-[color:var(--text-muted)]"}`}>{agente.active ? "Ativo" : "Inativo"}</span>
         </div>
       </div>
 
-      <p className="text-[12px] text-[#444444] leading-relaxed mb-3">
+      <p className="text-[12px] text-[color:var(--text-body)] leading-relaxed mb-3">
         Lê todas as conversas e mantém o CRM atualizado sozinho: anota o que foi combinado, preenche campos, move a etapa
         e aplica tags. Não conversa com seus leads.
       </p>
-      <p className="text-[11px] text-[#767676] leading-relaxed mb-3">
+      <p className="text-[12px] text-[color:var(--text-muted)] leading-relaxed mb-3">
         Não precisa de configuração nem de material da empresa. Contatos com a tag “{TAG_IGNORAR_OPERACIONAL}” ficam de fora.
       </p>
 
       {!temChave && !agente.active && (
-        <p className="text-[11px] text-[#991B1B] bg-[#FEE2E2] rounded-md px-2.5 py-1.5 mb-3">
+        <p className="text-[12px] text-[color:var(--danger-fg)] bg-[color:var(--danger-bg)] rounded-md px-2.5 py-1.5 mb-3">
           Cadastre a chave da OpenAI em Configurações → Chaves de API para ligar.
         </p>
       )}
 
-      <div className="flex items-center justify-between pt-3 border-t border-[#EEEEEE] mt-auto">
-        <span className="text-[12px] text-[#767676]">{agente.active ? "Trabalhando nas conversas" : "Desligado"}</span>
+      <div className="flex items-center justify-between pt-3 border-t border-[color:var(--border-default)] mt-auto">
+        <span className="text-[12px] text-[color:var(--text-muted)]">{agente.active ? "Trabalhando nas conversas" : "Desligado"}</span>
         <Switch checked={agente.active} onCheckedChange={onToggle} />
       </div>
     </div>
@@ -657,10 +658,10 @@ const LIMITE_DESCRICAO = 1000;
 const SUPPORTED_KB_EXTENSIONS = ["pdf", "txt", "csv", "html", "htm", "json"];
 
 const STATUS_BADGE: Record<KnowledgeDoc["status"], { bg: string; fg: string; label: string }> = {
-  pending: { bg: "#F5F5F5", fg: "#666666", label: "Pendente" },
-  processing: { bg: "#FEF3C7", fg: "#92400E", label: "Processando" },
-  ready: { bg: "#E1F5EE", fg: "#128A68", label: "Pronto" },
-  error: { bg: "#FEE2E2", fg: "#991B1B", label: "Erro" },
+  pending:    { bg: "var(--neutral-100)", fg: "var(--text-muted)",   label: "Pendente" },
+  processing: { bg: "var(--warning-bg)",  fg: "var(--warning-fg)",  label: "Processando" },
+  ready:      { bg: "var(--accent-50)",   fg: "var(--accent-800)",  label: "Pronto" },
+  error:      { bg: "var(--danger-bg)",   fg: "var(--danger-fg)",   label: "Erro" },
 };
 
 export default function AgentesPage() {
@@ -1063,7 +1064,7 @@ export default function AgentesPage() {
     const { data: jaExiste } = await supabase.from("automations").select("id").eq("company_id", companyId).eq("name", NOME_AUTOMACAO_PASSAGEM).limit(1);
     if (jaExiste?.length) return;
 
-    const interesseId = await garantirTag(TAG_INTERESSE_COMERCIAL, "Marcada pelo Atendente quando o contato demonstra intenção de compra.", "#D97706");
+    const interesseId = await garantirTag(TAG_INTERESSE_COMERCIAL, "Marcada pelo Atendente quando o contato demonstra intenção de compra.", COR_TAG_INTERESSE);
     const { data: tagsDosAgentes } = await supabase.from("tags").select("id, name").eq("company_id", companyId)
       .in("name", [atendente.activation_tag as string, sdr.activation_tag as string]);
     const idDe = (nome: string) => ((tagsDosAgentes ?? []) as { id: string; name: string }[]).find((t) => t.name === nome)?.id;
@@ -1140,9 +1141,9 @@ export default function AgentesPage() {
     const m = MODELOS_DE_AGENTE[chave];
     if (!draftActivationTag) { toast.error("Escolha a tag que vai ativar este agente"); return; }
     // A tag de ativação precisa existir no banco: a automação de passagem usa o id.
-    await garantirTag(draftActivationTag, "Ativa o agente neste negócio. Remover a tag devolve a conversa para atendimento humano.", "#6D28D9");
+    await garantirTag(draftActivationTag, "Ativa o agente neste negócio. Remover a tag devolve a conversa para atendimento humano.", COR_TAG_AGENTE);
     if (chave === "atendente") {
-      await garantirTag(TAG_INTERESSE_COMERCIAL, "Marcada pelo Atendente quando o contato demonstra intenção de compra.", "#D97706");
+      await garantirTag(TAG_INTERESSE_COMERCIAL, "Marcada pelo Atendente quando o contato demonstra intenção de compra.", COR_TAG_INTERESSE);
     }
 
     const { data, error } = await supabase
@@ -2043,7 +2044,7 @@ export default function AgentesPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-32">
-        <Loader2 size={24} className="animate-spin text-[#767676]" />
+        <Loader2 size={24} className="animate-spin text-[color:var(--text-muted)]" />
       </div>
     );
   }
@@ -2064,14 +2065,14 @@ export default function AgentesPage() {
             O `shrink-0` continua: esta página é uma coluna flex de altura cheia,
             e sem ele o cabeçalho encolheria para dar espaço à grade rolável.
           */}
-          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-6 mb-6 flex items-start justify-between gap-6 flex-wrap shrink-0">
+          <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-6 mb-6 flex items-start justify-between gap-6 flex-wrap shrink-0">
             <div className="min-w-0">
-              <h1 className="text-[23px] font-semibold text-foreground">Agentes</h1>
+              <h1 className="text-[24px] font-semibold text-foreground">Agentes</h1>
               <p className="text-sm text-muted-foreground mt-0.5">
                 Agentes de IA que atuam sobre seus leads — qualificam, respondem e agendam sozinhos
               </p>
             </div>
-            <Button onClick={() => setOpenDialog(true)} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white shrink-0">
+            <Button onClick={() => setOpenDialog(true)} className="shrink-0">
               <Plus size={16} /> Novo agente
             </Button>
           </div>
@@ -2085,12 +2086,12 @@ export default function AgentesPage() {
               rascunho aparecia logo abaixo. */}
           {agents.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-32 text-center">
-              <Bot size={64} color="#E5E5E5" />
-              <h2 className="text-[20px] font-bold text-[#111111] mt-4">Nenhum agente configurado</h2>
-              <p className="text-[13px] text-[#767676] mt-2 max-w-[420px]">
+              <Bot size={64} color="var(--neutral-300)" />
+              <h2 className="text-[20px] font-bold text-[color:var(--text-heading)] mt-4">Nenhum agente configurado</h2>
+              <p className="text-[13px] text-[color:var(--text-muted)] mt-2 max-w-[420px]">
                 Crie seu primeiro agente SDS para qualificar leads e agendar reuniões automaticamente no multiatendimento
               </p>
-              <Button onClick={() => setOpenDialog(true)} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white mt-6">
+              <Button onClick={() => setOpenDialog(true)} className="mt-6">
                 <Plus size={16} /> Criar primeiro agente
               </Button>
             </div>
@@ -2105,27 +2106,27 @@ export default function AgentesPage() {
                   onToggle={(v) => void toggleActive(a, v)}
                 />
               ) : (
-                <div key={a.id} className={`bg-white rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow ${a.draft ? "border border-dashed border-[#CCCCCC]" : "border border-[#EEEEEE]"}`}>
+                <div key={a.id} className={`bg-white rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow ${a.draft ? "border border-dashed border-[color:var(--border-strong)]" : "border border-[color:var(--border-default)]"}`}>
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-[#128A68] flex items-center justify-center text-white shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-[color:var(--accent-700)] flex items-center justify-center text-white shrink-0">
                       <AgentAvatarIcon avatar={a.avatar} size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
                       {/* title: com o estado ocupando a direita da linha, nome
                           longo trunca cedo -- o hover devolve o texto inteiro. */}
-                      <p title={a.name} className="text-[14px] font-bold text-[#111111] truncate">{a.name}</p>
-                      {a.description && <p title={a.description} className="text-[11px] text-[#767676] truncate">{a.description}</p>}
+                      <p title={a.name} className="text-[14px] font-bold text-[color:var(--text-heading)] truncate">{a.name}</p>
+                      {a.description && <p title={a.description} className="text-[12px] text-[color:var(--text-muted)] truncate">{a.description}</p>}
                     </div>
                     {/* Estado na mesma linha do nome, à direita: é a
                         informação que o usuário procura primeiro ao bater o
                         olho na grade. */}
                     <div className="flex items-center gap-1.5 shrink-0">
                       {a.draft ? (
-                        <span className="text-[11px] font-semibold text-[#767676] bg-[#F5F5F5] px-2 py-0.5 rounded-full">Rascunho</span>
+                        <span className="text-[12px] font-semibold text-[color:var(--text-muted)] bg-[color:var(--neutral-50)] px-2 py-0.5 rounded-full">Rascunho</span>
                       ) : (
                         <>
-                          <Circle size={8} fill={a.active ? "#128A68" : "#CCCCCC"} color={a.active ? "#128A68" : "#CCCCCC"} />
-                          <span className={`text-[11px] font-semibold ${a.active ? "text-[#128A68]" : "text-[#767676]"}`}>{a.active ? "Ativo" : "Inativo"}</span>
+                          <Circle size={8} fill={a.active ? "var(--accent-700)" : "var(--neutral-300)"} color={a.active ? "var(--accent-700)" : "var(--neutral-400)"} />
+                          <span className={`text-[12px] font-semibold ${a.active ? "text-[color:var(--text-link)]" : "text-[color:var(--text-muted)]"}`}>{a.active ? "Ativo" : "Inativo"}</span>
 
                           {/* Duplicar e excluir num menu, e não como dois botões
                               soltos: são ações raras e uma delas é destrutiva,
@@ -2143,7 +2144,7 @@ export default function AgentesPage() {
                               <button
                                 type="button"
                                 aria-label={`Ações do agente ${a.name}`}
-                                className="p-0.5 -mr-1 rounded text-[#767676] hover:text-[#111111] hover:bg-[#F5F5F5] transition-colors outline-none"
+                                className="p-0.5 -mr-1 rounded text-[color:var(--text-muted)] hover:text-[color:var(--text-heading)] hover:bg-[color:var(--neutral-50)] transition-colors outline-none"
                               >
                                 <MoreVertical size={15} />
                               </button>
@@ -2154,7 +2155,7 @@ export default function AgentesPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={() => void excluirAgente(a)}
-                                className="text-[13px] cursor-pointer text-[#DC2626] focus:text-[#DC2626]"
+                                className="text-[13px] cursor-pointer text-[color:var(--danger-fg)] focus:text-[color:var(--danger-fg)]"
                               >
                                 <Trash2 size={14} className="mr-2" /> Excluir
                               </DropdownMenuItem>
@@ -2169,16 +2170,16 @@ export default function AgentesPage() {
                       agentes com nomes parecidos ficam indistinguíveis na
                       grade e só dá pra saber entrando na edição. */}
                   <div className="mb-3">
-                    <p className="text-[10px] uppercase tracking-wide text-[#767676] font-semibold mb-1">Objetivos</p>
+                    <p className="text-[12px] uppercase tracking-wide text-[color:var(--text-muted)] font-semibold mb-1">Objetivos</p>
                     {a.objectives.length === 0 ? (
-                      <span className="text-[12px]" style={{ color: "#E24B4A" }}>Nenhum objetivo definido</span>
+                      <span className="text-[12px]" style={{ color: "var(--danger-fg)" }}>Nenhum objetivo definido</span>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
                         {AGENT_OBJECTIVES.filter((o) => a.objectives.includes(o.id)).map((o) => (
                           <span
                             key={o.id}
                             title={o.description}
-                            className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium bg-[#128A68]/10 text-[#128A68]"
+                            className="inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium bg-[color:var(--accent-700)]/10 text-[color:var(--text-link)]"
                           >
                             {o.label}
                           </span>
@@ -2187,7 +2188,7 @@ export default function AgentesPage() {
                     )}
                   </div>
                   <div className="mb-3">
-                    <p className="text-[10px] uppercase tracking-wide text-[#767676] font-semibold mb-1">Tag de ativação</p>
+                    <p className="text-[12px] uppercase tracking-wide text-[color:var(--text-muted)] font-semibold mb-1">Tag de ativação</p>
                     <AgentActivationTagPicker
                       value={a.activation_tag}
                       onChange={(tag) => void salvarTagAtivacao(a, tag)}
@@ -2196,7 +2197,7 @@ export default function AgentesPage() {
                       placeholder="Definir tag"
                     />
                   </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-[#EEEEEE] mt-auto">
+                  <div className="flex items-center justify-between pt-3 border-t border-[color:var(--border-default)] mt-auto">
                     {a.draft ? (
                       <>
                         <button
@@ -2212,13 +2213,13 @@ export default function AgentesPage() {
                             setWizardMaxStepReached(etapa);
                             setView("detail");
                           }}
-                          className="flex items-center gap-1.5 text-[13px] font-medium text-[#128A68] hover:text-[#0F7357] transition-colors cursor-pointer"
+                          className="flex items-center gap-1.5 text-[13px] font-medium text-[color:var(--text-link)] hover:text-[#0F7357] transition-colors cursor-pointer"
                         >
                           <ArrowRight size={14} /> Continuar
                         </button>
                         <button
                           onClick={() => void descartarRascunho(a)}
-                          className="text-[13px] font-medium text-[#767676] hover:text-[#DC2626] transition-colors cursor-pointer"
+                          className="text-[13px] font-medium text-[color:var(--text-muted)] hover:text-[color:var(--danger-fg)] transition-colors cursor-pointer"
                         >
                           Descartar
                         </button>
@@ -2227,7 +2228,7 @@ export default function AgentesPage() {
                     <>
                     <button
                       onClick={() => { setSelectedId(a.id); setWizardMode(false); setFreeTab("perfil"); setView("detail"); }}
-                      className="flex items-center gap-1.5 text-[13px] font-medium text-[#767676] hover:text-[#111111] transition-colors cursor-pointer"
+                      className="flex items-center gap-1.5 text-[13px] font-medium text-[color:var(--text-muted)] hover:text-[color:var(--text-heading)] transition-colors cursor-pointer"
                     >
                       <Settings2 size={14} /> Editar
                     </button>
@@ -2242,11 +2243,11 @@ export default function AgentesPage() {
         </>
       ) : (
           /* Config panel -- tela cheia, sem a coluna de lista ao lado */
-          <div className="bg-white border border-[#EEEEEE] rounded-xl shadow-elev-1 flex-1 min-h-0 flex flex-col">
+          <div className="bg-white border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 flex-1 min-h-0 flex flex-col">
             {!selected ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
-                <Bot size={64} color="#E5E5E5" />
-                <p className="text-[#767676] text-[14px] mt-4">Selecione um agente para configurar</p>
+                <Bot size={64} color="var(--neutral-300)" />
+                <p className="text-[color:var(--text-muted)] text-[14px] mt-4">Selecione um agente para configurar</p>
               </div>
             ) : (() => {
               const effectiveWizardSteps = WIZARD_STEPS.filter((s) => s.v !== "closers" || objectivesDraft.includes("agendar"));
@@ -2303,7 +2304,7 @@ export default function AgentesPage() {
                   }}
                   title={wizardMode ? "Descartar o agente em criação" : "Fechar"}
                   aria-label={wizardMode ? "Descartar o agente em criação" : "Fechar"}
-                  className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-md bg-white text-[#767676] hover:text-[#111111] hover:bg-[#F5F5F5] transition-colors"
+                  className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-md bg-white text-[color:var(--text-muted)] hover:text-[color:var(--text-heading)] hover:bg-[color:var(--neutral-50)] transition-colors"
                 >
                   <X size={17} />
                 </button>
@@ -2312,15 +2313,15 @@ export default function AgentesPage() {
                     ele aqui, o botão do rodapé rolava junto e sumia de vista em
                     telas baixas; agora ele fica preso no pé enquanto só as etapas
                     passam. */}
-                <div className="w-[260px] shrink-0 border-r border-[#EEEEEE] flex flex-col min-h-0">
-                  <div className="px-4 py-4 border-b border-[#EEEEEE] flex items-center gap-3 shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-[#128A68] flex items-center justify-center text-white shrink-0">
+                <div className="w-[260px] shrink-0 border-r border-[color:var(--border-default)] flex flex-col min-h-0">
+                  <div className="px-4 py-4 border-b border-[color:var(--border-default)] flex items-center gap-3 shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-[color:var(--accent-700)] flex items-center justify-center text-white shrink-0">
                       <AgentAvatarIcon avatar={selected.avatar} size={20} />
                     </div>
                     <div className="min-w-0">
-                      <h2 className="text-[14px] font-bold text-[#111111] truncate">{selected.name}</h2>
+                      <h2 className="text-[14px] font-bold text-[color:var(--text-heading)] truncate">{selected.name}</h2>
                       {selected.description && (
-                        <p className="text-[11px] text-[#767676] truncate">{selected.description}</p>
+                        <p className="text-[12px] text-[color:var(--text-muted)] truncate">{selected.description}</p>
                       )}
                     </div>
                   </div>
@@ -2334,23 +2335,23 @@ export default function AgentesPage() {
                             type="button"
                             disabled={locked}
                             onClick={() => { if (!locked) { setWizardStepIndex(idx); void gravarEtapa(idx); } }}
-                            className={`flex items-center gap-2 px-2 py-2 rounded-md text-left ${locked ? "cursor-not-allowed" : "cursor-pointer hover:bg-[#F5F5F5]"}`}
+                            className={`flex items-center gap-2 px-2 py-2 rounded-md text-left ${locked ? "cursor-not-allowed" : "cursor-pointer hover:bg-[color:var(--neutral-50)]"}`}
                           >
                             <span
-                              className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-semibold shrink-0"
+                              className="w-5 h-5 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0"
                               style={
                                 idx === wizardStepIndex
-                                  ? { background: "#128A68", color: "#FFFFFF" }
+                                  ? { background: "var(--accent-700)", color: "#FFFFFF" }
                                   : locked
-                                  ? { background: "#F5F5F5", color: "#CCCCCC" }
-                                  : { background: "#E1F5EE", color: "#128A68" }
+                                  ? { background: "var(--neutral-50)", color: "var(--text-muted)" }
+                                  : { background: "var(--accent-50)", color: "var(--accent-700)" }
                               }
                             >
                               {locked ? <Lock size={10} /> : idx + 1}
                             </span>
                             <span
                               className="text-[12px]"
-                              style={{ color: idx === wizardStepIndex ? "#111111" : locked ? "#CCCCCC" : "#767676", fontWeight: idx === wizardStepIndex ? 600 : 400 }}
+                              style={{ color: idx === wizardStepIndex ? "var(--text-heading)" : locked ? "var(--neutral-400)" : "var(--text-muted)", fontWeight: idx === wizardStepIndex ? 600 : 400 }}
                             >
                               {s.l}
                             </span>
@@ -2376,17 +2377,17 @@ export default function AgentesPage() {
                         <TabsTrigger
                           key={t.v}
                           value={t.v}
-                          /* Verde cheio da barra lateral (#128A68) com texto
+                          /* Verde cheio da barra lateral (var(--accent-700)) com texto
                              branco -- a mesma combinação de todo elemento ativo
                              do produto, e a que fecha o contraste: branco sobre
                              este verde dá 4,9:1, contra os 3,4:1 do #111111 que
                              estava aqui. */
-                          className="justify-start text-[#767676] data-[state=active]:bg-[#128A68] data-[state=active]:text-white data-[state=active]:shadow-none rounded-md text-[13px] px-2 py-2 flex items-center gap-2"
+                          className="justify-start text-[color:var(--text-muted)] data-[state=active]:bg-[color:var(--accent-700)] data-[state=active]:text-white data-[state=active]:shadow-none rounded-md text-[13px] px-2 py-2 flex items-center gap-2"
                         >
-                          {/* Ícone e seta acompanham o texto. A seta era #128A68,
+                          {/* Ícone e seta acompanham o texto. A seta era var(--accent-700),
                               a MESMA cor que o fundo virou: ficaria invisível, e
                               a etapa no ar perderia a marca que a aponta. */}
-                          <t.icon size={16} className="shrink-0" color={activeTabValue === t.v ? "#FFFFFF" : "#767676"} />
+                          <t.icon size={16} className="shrink-0" color={activeTabValue === t.v ? "#FFFFFF" : "var(--text-muted)"} />
                           <span className="flex-1 text-left">{t.l}</span>
                           {activeTabValue === t.v && <ArrowRight size={14} className="shrink-0" color="#FFFFFF" />}
                         </TabsTrigger>
@@ -2406,7 +2407,7 @@ export default function AgentesPage() {
 
                       `mt-auto` para grudar embaixo mesmo quando as etapas não
                       enchem a coluna, e `border-t` para separá-lo da lista. */}
-                  <div className="mt-auto shrink-0 px-3 py-3 border-t border-[#EEEEEE]">
+                  <div className="mt-auto shrink-0 px-3 py-3 border-t border-[color:var(--border-default)]">
                     {wizardMode ? (
                       // `flex-1` nos dois para dividirem a largura em partes
                       // iguais: numa coluna de 260px, botões do tamanho do texto
@@ -2429,7 +2430,7 @@ export default function AgentesPage() {
                           <Button
                             onClick={() => advanceWizard(effectiveWizardSteps.length)}
                             disabled={!canAdvance}
-                            className="flex-1 bg-[#128A68] hover:bg-[#128A68]/90 text-white"
+                            className="flex-1"
                           >
                             Avançar
                           </Button>
@@ -2437,7 +2438,7 @@ export default function AgentesPage() {
                           <Button
                             onClick={finalizeAgent}
                             disabled={!canAdvance}
-                            className="flex-1 bg-[#128A68] hover:bg-[#128A68]/90 text-white"
+                            className="flex-1"
                           >
                             Criar
                           </Button>
@@ -2447,7 +2448,7 @@ export default function AgentesPage() {
                       <Button
                         onClick={updateAgent}
                         disabled={savingKey === "agente" || !isAgentDirty}
-                        className="w-full bg-[#128A68] hover:bg-[#128A68]/90 text-white"
+                        className="w-full"
                       >
                         {savingKey === "agente" && <Loader2 size={14} className="animate-spin" />} Atualizar agente
                       </Button>
@@ -2459,7 +2460,7 @@ export default function AgentesPage() {
                 <div className="flex-1 min-w-0 flex flex-col min-h-0">
 
                 {/* PERFIL */}
-                <TabsContent value="perfil" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
+                <TabsContent value="perfil" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[color:var(--neutral-50)]">
                   {/* Sem o aviso de chave de API que abria esta etapa.
                       Ele falava de ATIVAÇÃO no primeiro passo da CRIAÇÃO -- um
                       problema que só existe lá na frente, anunciado antes de a
@@ -2469,8 +2470,8 @@ export default function AgentesPage() {
                       `hasAnthropicKey`/`hasOpenaiKey` seguem carregados, e a aba
                       Modelo continua usando os dois. */}
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[#111111]">Objetivo do agente</h3>
-                    <p className="text-[12px] text-[#767676]">
+                    <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Objetivo do agente</h3>
+                    <p className="text-[12px] text-[color:var(--text-muted)]">
                       O que esse agente deve fazer nas conversas. Pode marcar mais de um.
                     </p>
                   </div>
@@ -2478,7 +2479,7 @@ export default function AgentesPage() {
                     {AGENT_OBJECTIVES.map((o) => {
                       const checked = objectivesDraft.includes(o.id);
                       return (
-                        <div key={o.id} className="bg-white border border-[#EEEEEE] rounded-lg">
+                        <div key={o.id} className="bg-white border border-[color:var(--border-default)] rounded-lg">
                           <label className="flex items-start gap-3 p-3 cursor-pointer">
                             <Checkbox
                               className="mt-0.5"
@@ -2486,19 +2487,19 @@ export default function AgentesPage() {
                               onCheckedChange={(c) => toggleObjective(o.id, c === true)}
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="text-[13px] font-medium text-[#111111]">{o.label}</div>
-                              <div className="text-[11px] text-[#767676]">{o.description}</div>
+                              <div className="text-[13px] font-medium text-[color:var(--text-heading)]">{o.label}</div>
+                              <div className="text-[12px] text-[color:var(--text-muted)]">{o.description}</div>
                             </div>
                           </label>
 
                           {checked && (
-                            <div className="px-3 pb-3 pt-1 space-y-3 border-t border-[#EEEEEE] mt-1">
+                            <div className="px-3 pb-3 pt-1 space-y-3 border-t border-[color:var(--border-default)] mt-1">
                               {o.id === "qualificar" && (
                                 <>
                                   <div className="flex items-start justify-between gap-2">
                                     <div>
-                                      <div className="text-[12px] font-medium text-[#111111] pt-2">Campos que o agente deve mapear</div>
-                                      <p className="text-[11px] text-[#767676]">
+                                      <div className="text-[12px] font-medium text-[color:var(--text-heading)] pt-2">Campos que o agente deve mapear</div>
+                                      <p className="text-[12px] text-[color:var(--text-muted)]">
                                         Selecione as perguntas dos campos adicionais já criados que o agente mapear. O agente irá preencher as informações mapeadas diretamente no card do lead.
                                       </p>
                                     </div>
@@ -2511,20 +2512,20 @@ export default function AgentesPage() {
                                     </Button>
                                   </div>
                                   {customFieldGroups.every((g) => g.items.length === 0) ? (
-                                    <p className="text-[11px] text-[#767676] py-1">
+                                    <p className="text-[12px] text-[color:var(--text-muted)] py-1">
                                       Nenhum campo adicional criado ainda — clique em "Editar campos" pra criar.
                                     </p>
                                   ) : (
                                     customFieldGroups.filter((g) => g.items.length > 0).map((g) => (
                                       <div key={g.id} className="space-y-1.5">
-                                        <div className="text-[10px] font-semibold uppercase tracking-wide text-[#767676]">{g.name}</div>
+                                        <div className="text-[12px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">{g.name}</div>
                                         {g.items.map((f) => (
-                                          <label key={f.id} className="flex items-center gap-2 p-2 bg-white border border-[#EEEEEE] rounded cursor-pointer">
+                                          <label key={f.id} className="flex items-center gap-2 p-2 bg-white border border-[color:var(--border-default)] rounded cursor-pointer">
                                             <Checkbox
                                               checked={behaviorDraft.campos_qualificacao.includes(f.id)}
                                               onCheckedChange={(c) => toggleQualField(f.id, c === true)}
                                             />
-                                            <span className="text-[12px] text-[#111111]">{f.label}</span>
+                                            <span className="text-[12px] text-[color:var(--text-heading)]">{f.label}</span>
                                           </label>
                                         ))}
                                       </div>
@@ -2534,11 +2535,11 @@ export default function AgentesPage() {
                               )}
 
                               {o.id === "agendar" && (
-                                <div className="pt-1 border-t border-[#EEEEEE]">
+                                <div className="pt-1 border-t border-[color:var(--border-default)]">
                                   <div className="flex items-center justify-between pt-2">
                                     <div className="pr-3">
-                                      <div className="text-[12px] font-medium text-[#111111]">Lembrete da reunião</div>
-                                      <p className="text-[11px] text-[#767676]">
+                                      <div className="text-[12px] font-medium text-[color:var(--text-heading)]">Lembrete da reunião</div>
+                                      <p className="text-[12px] text-[color:var(--text-muted)]">
                                         O agente manda uma confirmação antes do horário marcado. Reduz o não comparecimento — entre o agendamento e o dia, o lead esfria.
                                       </p>
                                     </div>
@@ -2551,8 +2552,8 @@ export default function AgentesPage() {
                                   {behaviorDraft.lembrete_reuniao_ativo && (
                                     <div className="mt-2 space-y-2">
                                       {([1, 2] as const).map((n) => (
-                                        <div key={n} className="flex items-center gap-2 p-2 bg-white border border-[#EEEEEE] rounded">
-                                          <span className="text-[11px] text-[#767676] w-[74px] shrink-0">
+                                        <div key={n} className="flex items-center gap-2 p-2 bg-white border border-[color:var(--border-default)] rounded">
+                                          <span className="text-[12px] text-[color:var(--text-muted)] w-[74px] shrink-0">
                                             {n === 1 ? "1º lembrete" : "2º lembrete"}
                                           </span>
                                           <Input
@@ -2580,17 +2581,17 @@ export default function AgentesPage() {
                                               <SelectItem value="horas">horas</SelectItem>
                                             </SelectContent>
                                           </Select>
-                                          <span className="text-[11px] text-[#767676]">antes da reunião</span>
+                                          <span className="text-[12px] text-[color:var(--text-muted)]">antes da reunião</span>
                                         </div>
                                       ))}
-                                      <p className="text-[10px] text-[#767676]">
+                                      <p className="text-[12px] text-[color:var(--text-muted)]">
                                         Deixe um dos campos vazio (ou em 0) para usar só um lembrete.
                                         Entre 22h e 7h o envio espera o amanhecer, para não acordar o cliente, exceto se a reunião for nas 2 horas seguintes.
                                       </p>
                                       {/* Sem este aviso, ligar o toggle e deixar os dois campos zerados
                                           resulta em nenhum lembrete, sem nada na tela indicando isso. */}
                                       {!(Number(behaviorDraft.lembrete_1_valor) > 0) && !(Number(behaviorDraft.lembrete_2_valor) > 0) && (
-                                        <p className="text-[11px] text-[#B91C1C] bg-[#FEE2E2] border border-[#FCA5A5] rounded px-2 py-1.5">
+                                        <p className="text-[12px] text-[color:var(--danger-fg)] bg-[color:var(--danger-bg)] border border-[#FCA5A5] rounded px-2 py-1.5">
                                           Preencha ao menos um dos lembretes, senão nenhum aviso será enviado.
                                         </p>
                                       )}
@@ -2599,9 +2600,9 @@ export default function AgentesPage() {
                                 </div>
                               )}
 
-                              <div className={o.id === "qualificar" || o.id === "agendar" ? "pt-1 border-t border-[#EEEEEE]" : ""}>
-                                <div className="text-[12px] font-medium text-[#111111] pt-2">Instruções específicas</div>
-                                <p className="text-[11px] text-[#767676] mb-1.5">
+                              <div className={o.id === "qualificar" || o.id === "agendar" ? "pt-1 border-t border-[color:var(--border-default)]" : ""}>
+                                <div className="text-[12px] font-medium text-[color:var(--text-heading)] pt-2">Instruções específicas</div>
+                                <p className="text-[12px] text-[color:var(--text-muted)] mb-1.5">
                                   Regras ou detalhes de como o agente deve executar esse objetivo — soma ao prompt padrão dele, sem se misturar com as instruções gerais do agente.
                                 </p>
                                 <Textarea
@@ -2619,25 +2620,25 @@ export default function AgentesPage() {
                     })}
                   </div>
                   {objectivesDraft.includes("qualificar") && behaviorDraft.campos_qualificacao.length === 0 && (
-                    <div className="flex items-start gap-2.5 p-4 bg-[#FEF3C7] rounded-lg">
-                      <AlertTriangle size={16} className="text-[#92400E] mt-0.5 shrink-0" />
-                      <div className="text-[13px] text-[#92400E]">
+                    <div className="flex items-start gap-2.5 p-4 bg-[color:var(--warning-bg)] rounded-lg">
+                      <AlertTriangle size={16} className="text-[color:var(--warning-fg)] mt-0.5 shrink-0" />
+                      <div className="text-[13px] text-[color:var(--warning-fg)]">
                         "Qualificar" precisa de pelo menos 1 pergunta marcada em "Campos que o agente deve mapear" — sem isso o agente não tem o que direcionar na qualificação.
                       </div>
                     </div>
                   )}
                   {objectivesDraft.includes("atendimento") && (
-                    <p className="text-[11px] text-[#767676]">
+                    <p className="text-[12px] text-[color:var(--text-muted)]">
                       "Atendimento" usa os documentos da aba Base de Conhecimento pra responder — envie materiais lá pra esse objetivo funcionar bem.
                     </p>
                   )}
                 </TabsContent>
 
                 {/* BASE DE CONHECIMENTO */}
-                <TabsContent value="kb" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
+                <TabsContent value="kb" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[color:var(--neutral-50)]">
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[#111111]">Bases de Conhecimento</h3>
-                    <p className="text-[12px] text-[#767676]">
+                    <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Bases de Conhecimento</h3>
+                    <p className="text-[12px] text-[color:var(--text-muted)]">
                       Gerencie as bases de conhecimento associadas a este agente para fornecer as informações que ele precisa para realizar suas tarefas.
                     </p>
                   </div>
@@ -2649,7 +2650,7 @@ export default function AgentesPage() {
                       placeholder="Buscar bases de conhecimento..."
                       className="flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
-                    <Button onClick={openCreateKbModal} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
+                    <Button onClick={openCreateKbModal} >
                       <Plus size={16} /> Adicionar Conhecimento
                     </Button>
                   </div>
@@ -2663,20 +2664,20 @@ export default function AgentesPage() {
                           <div
                             key={kb.id}
                             onClick={() => openEditKbModal(kb)}
-                            className="group flex items-center gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg hover:bg-[#F5F5F5] transition-colors cursor-pointer"
+                            className="group flex items-center gap-3 p-3 bg-white border border-[color:var(--border-default)] rounded-lg hover:bg-[color:var(--neutral-50)] transition-colors cursor-pointer"
                           >
-                            <div className="w-9 h-9 rounded-full bg-[#E1F5EE] flex items-center justify-center text-[#128A68] shrink-0">
+                            <div className="w-9 h-9 rounded-full bg-[color:var(--accent-100)] flex items-center justify-center text-[color:var(--text-link)] shrink-0">
                               <BookOpen size={18} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="text-[13px] font-medium text-[#111111] truncate">{kb.name}</div>
-                              <div className="text-[11px] text-[#767676] truncate">
+                              <div className="text-[13px] font-medium text-[color:var(--text-heading)] truncate">{kb.name}</div>
+                              <div className="text-[12px] text-[color:var(--text-muted)] truncate">
                                 {kb.description || "Sem descrição"} · {fileCount} arquivo{fileCount === 1 ? "" : "s"}
                               </div>
                             </div>
                             <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 shrink-0">
                               <Switch checked={kb.enabled} onCheckedChange={(v) => toggleKbEnabled(kb, v)} />
-                              <button onClick={() => deleteKb(kb)} className="opacity-0 group-hover:opacity-100 text-[#767676] hover:text-[#E24B4A] transition-opacity">
+                              <button onClick={() => deleteKb(kb)} className="opacity-0 group-hover:opacity-100 text-[color:var(--text-muted)] hover:text-[color:var(--danger-fg)] transition-opacity">
                                 <X size={16} />
                               </button>
                             </div>
@@ -2684,34 +2685,34 @@ export default function AgentesPage() {
                         );
                       })}
                     {kbs.length === 0 && (
-                      <p className="text-[12px] text-[#767676] text-center py-6">Nenhuma base de conhecimento ainda</p>
+                      <p className="text-[12px] text-[color:var(--text-muted)] text-center py-6">Nenhuma base de conhecimento ainda</p>
                     )}
                     {kbs.length > 0 && kbs.filter((k) => k.name.toLowerCase().includes(kbSearch.toLowerCase())).length === 0 && (
-                      <p className="text-[12px] text-[#767676] text-center py-6">Nenhuma base encontrada para "{kbSearch}"</p>
+                      <p className="text-[12px] text-[color:var(--text-muted)] text-center py-6">Nenhuma base encontrada para "{kbSearch}"</p>
                     )}
                   </div>
                 </TabsContent>
 
                 {/* COMPORTAMENTO */}
-                <TabsContent value="comportamento" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
-                  <div className="border-t border-[#EEEEEE] pt-6 first:border-t-0 first:pt-0">
-                    <h3 className="text-[14px] font-semibold text-[#111111] mb-3">Encerramento e transferência</h3>
+                <TabsContent value="comportamento" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[color:var(--neutral-50)]">
+                  <div className="border-t border-[color:var(--border-default)] pt-6 first:border-t-0 first:pt-0">
+                    <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)] mb-3">Encerramento e transferência</h3>
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                         <div>
-                          <div className="text-[13px] font-medium text-[#111111]">Finalizar conversa</div>
-                          <div className="text-[11px] text-[#767676]">Permite que o agente encerre a conversa automaticamente.</div>
+                          <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Finalizar conversa</div>
+                          <div className="text-[12px] text-[color:var(--text-muted)]">Permite que o agente encerre a conversa automaticamente.</div>
                         </div>
                         <Switch
                           checked={behaviorDraft.finalizar_conversa ?? false}
                           onCheckedChange={(v) => updateBehaviorConfig({ finalizar_conversa: v })}
                         />
                       </div>
-                      <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                      <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                         <div className="flex items-center justify-between">
                           <div>
-                            <div className="text-[13px] font-medium text-[#111111]">Transferir responsável</div>
-                            <div className="text-[11px] text-[#767676]">Permite que o agente transfira o responsável quando identificar que finalizou o objetivo.</div>
+                            <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Transferir responsável</div>
+                            <div className="text-[12px] text-[color:var(--text-muted)]">Permite que o agente transfira o responsável quando identificar que finalizou o objetivo.</div>
                           </div>
                           <Switch
                             checked={behaviorDraft.transferir_responsavel ?? false}
@@ -2722,8 +2723,8 @@ export default function AgentesPage() {
                             conversa a ninguém: o agente desliga e o lead fica
                             órfão, sem aparecer na caixa de nenhum atendente. */}
                         {behaviorDraft.transferir_responsavel && (
-                          <div className="mt-3 pt-3 border-t border-[#E5E5E5]">
-                            <Label className="text-[11px] text-[#767676]">Transferir para</Label>
+                          <div className="mt-3 pt-3 border-t border-[color:var(--border-default)]">
+                            <Label className="text-[12px] text-[color:var(--text-muted)]">Transferir para</Label>
                             <Select
                               value={behaviorDraft.transferir_responsavel_user_id ?? ""}
                               onValueChange={(v) => updateBehaviorConfig({ transferir_responsavel_user_id: v })}
@@ -2738,7 +2739,7 @@ export default function AgentesPage() {
                               </SelectContent>
                             </Select>
                             {!behaviorDraft.transferir_responsavel_user_id && (
-                              <p className="text-[11px] mt-1" style={{ color: "#E24B4A" }}>
+                              <p className="text-[12px] mt-1" style={{ color: "var(--danger-fg)" }}>
                                 Escolha o destinatário. Sem ele, a transferência apenas desliga o agente e o negócio fica sem responsável.
                               </p>
                             )}
@@ -2750,12 +2751,12 @@ export default function AgentesPage() {
                           (inclusive automaticamente, quando um agendamento
                           falha). O que faltava era destinatário -- sem ele a
                           escalação virava só uma nota que ninguém lê. */}
-                      <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
-                        <div className="text-[13px] font-medium text-[#111111]">Quando o agente não conseguir resolver</div>
-                        <div className="text-[11px] text-[#767676]">
+                      <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                        <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Quando o agente não conseguir resolver</div>
+                        <div className="text-[12px] text-[color:var(--text-muted)]">
                           O agente escala para uma pessoa quando trava numa dúvida que não sabe responder ou quando um agendamento falha. A conversa vai para a caixa de quem você escolher aqui.
                         </div>
-                        <Label className="text-[11px] text-[#767676] mt-3 block">Escalar para</Label>
+                        <Label className="text-[12px] text-[color:var(--text-muted)] mt-3 block">Escalar para</Label>
                         <Select
                           value={behaviorDraft.escalar_humano_user_id ?? ""}
                           onValueChange={(v) => updateBehaviorConfig({ escalar_humano_user_id: v })}
@@ -2769,19 +2770,19 @@ export default function AgentesPage() {
                             ))}
                           </SelectContent>
                         </Select>
-                        <p className="text-[11px] text-[#767676] mt-1">
+                        <p className="text-[12px] text-[color:var(--text-muted)] mt-1">
                           Sem escolha, vai para o responsável que o negócio já tiver. Se o negócio também não tiver responsável, ninguém é avisado.
                         </p>
                       </div>
                     </div>
                   </div>
 
-                  <div className="border-t border-[#EEEEEE] pt-6">
+                  <div className="border-t border-[color:var(--border-default)] pt-6">
                     <div className="flex items-center gap-1.5 mb-3">
-                      <h3 className="text-[14px] font-semibold text-[#111111]">Quem o agente é na conversa</h3>
+                      <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Quem o agente é na conversa</h3>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button type="button" aria-label="Como funciona" className="text-[#767676] hover:text-[#111111] transition-colors">
+                          <button type="button" aria-label="Como funciona" className="text-[color:var(--text-muted)] hover:text-[color:var(--text-heading)] transition-colors">
                             <HelpCircle size={14} />
                           </button>
                         </TooltipTrigger>
@@ -2796,7 +2797,7 @@ export default function AgentesPage() {
                             “ela vai te receber”, “a agenda dela” — e se apresenta como parte da equipe.
                             Indicado quando há um time atendendo.
                           </p>
-                          <p className="text-[11px] opacity-80">
+                          <p className="text-[12px] opacity-80">
                             Sem essa definição o agente alterna entre as duas na mesma conversa,
                             e o cliente não entende com quem está falando.
                           </p>
@@ -2804,7 +2805,7 @@ export default function AgentesPage() {
                       </Tooltip>
                     </div>
 
-                    <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg space-y-4">
+                    <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg space-y-4">
                       <Select
                         value={behaviorDraft.persona_voz ?? "propria"}
                         onValueChange={(v) => updateBehaviorConfig({ persona_voz: v as BehaviorConfig["persona_voz"] })}
@@ -2836,7 +2837,7 @@ export default function AgentesPage() {
                           className="mt-1 min-h-[110px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                         />
                         <div className="flex justify-end mt-1">
-                          <span className="text-[11px] text-[#767676]">
+                          <span className="text-[12px] text-[color:var(--text-muted)]">
                             {descriptionDraft.length.toLocaleString("pt-BR")} / {LIMITE_DESCRICAO.toLocaleString("pt-BR")}
                           </span>
                         </div>
@@ -2844,16 +2845,16 @@ export default function AgentesPage() {
                     </div>
                   </div>
 
-                  <div className="border-t border-[#EEEEEE] pt-6">
-                    <h3 className="text-[14px] font-semibold text-[#111111]">Estilo de Comunicação</h3>
+                  <div className="border-t border-[color:var(--border-default)] pt-6">
+                    <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Estilo de Comunicação</h3>
                     {/* O estilo também define a temperatura enviada ao modelo
                         (formal = mais previsível). É a mesma dimensão que
                         concorrentes expõem como slider de "temperatura", numa
                         unidade que o cliente não sabe operar. */}
-                    <p className="text-[12px] text-[#767676] mb-3">
+                    <p className="text-[12px] text-[color:var(--text-muted)] mb-3">
                       Define o tom das mensagens e o quanto o agente varia a forma de responder. Formal é o mais previsível e consistente entre conversas; descontraída é o mais criativo.
                     </p>
-                    <div className="mb-2 p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                    <div className="mb-2 p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                       <Select
                         value={behaviorDraft.estilo_comunicacao ?? "normal"}
                         onValueChange={(v) => updateBehaviorConfig({ estilo_comunicacao: v as BehaviorConfig["estilo_comunicacao"] })}
@@ -2867,33 +2868,33 @@ export default function AgentesPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                         <div>
-                          <div className="text-[13px] font-medium text-[#111111]">Usar Emojis</div>
-                          <div className="text-[11px] text-[#767676]">Permitir uso de emojis nas respostas.</div>
+                          <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Usar Emojis</div>
+                          <div className="text-[12px] text-[color:var(--text-muted)]">Permitir uso de emojis nas respostas.</div>
                         </div>
                         <Switch
                           checked={behaviorDraft.usar_emojis ?? false}
                           onCheckedChange={(v) => updateBehaviorConfig({ usar_emojis: v })}
                         />
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                         <div>
-                          <div className="text-[13px] font-medium text-[#111111]">Assinar nome do agente</div>
-                          <div className="text-[11px] text-[#767676]">Assinar nome do agente nas mensagens.</div>
+                          <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Assinar nome do agente</div>
+                          <div className="text-[12px] text-[color:var(--text-muted)]">Assinar nome do agente nas mensagens.</div>
                         </div>
                         <Switch
                           checked={behaviorDraft.assinar_nome ?? false}
                           onCheckedChange={(v) => updateBehaviorConfig({ assinar_nome: v })}
                         />
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                         <div className="flex-1 min-w-0">
-                          <div className="text-[13px] font-medium text-[#111111]">Dividir mensagens longas</div>
-                          <div className="text-[11px] text-[#767676]">Dividir mensagens muito longas automaticamente.</div>
+                          <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Dividir mensagens longas</div>
+                          <div className="text-[12px] text-[color:var(--text-muted)]">Dividir mensagens muito longas automaticamente.</div>
                           {behaviorDraft.dividir_mensagens && (
                             <div className="flex items-center gap-2 mt-2">
-                              <span className="text-[11px] text-[#666]">Acima de quantas palavras:</span>
+                              <span className="text-[12px] text-[color:var(--text-muted)]">Acima de quantas palavras:</span>
                               <Input
                                 type="number"
                                 min={10}
@@ -2912,11 +2913,11 @@ export default function AgentesPage() {
                     </div>
                   </div>
 
-                  <div className="border-t border-[#EEEEEE] pt-6">
-                    <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg mb-3">
+                  <div className="border-t border-[color:var(--border-default)] pt-6">
+                    <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg mb-3">
                       <div>
-                        <div className="text-[13px] font-medium text-[#111111]">Follow-up automático</div>
-                        <div className="text-[11px] text-[#767676]">Envia mensagem de acompanhamento quando o cliente não responde.</div>
+                        <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Follow-up automático</div>
+                        <div className="text-[12px] text-[color:var(--text-muted)]">Envia mensagem de acompanhamento quando o cliente não responde.</div>
                       </div>
                       <Switch
                         checked={behaviorDraft.followup_ativo ?? false}
@@ -2925,7 +2926,7 @@ export default function AgentesPage() {
                     </div>
 
                     {behaviorDraft.followup_ativo && (
-                      <div className="space-y-4 p-4 border border-[#EEEEEE] rounded-lg">
+                      <div className="space-y-4 p-4 border border-[color:var(--border-default)] rounded-lg">
                         <div>
                           <Label className="text-[12px]">Número de follow-ups</Label>
                           <Input
@@ -2956,8 +2957,8 @@ export default function AgentesPage() {
                             </Select>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
-                          <div className="text-[13px] font-medium text-[#111111]">
+                        <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                          <div className="text-[13px] font-medium text-[color:var(--text-heading)]">
                             Após as tentativas, transferir lead para uma automação
                           </div>
                           <Switch
@@ -2978,7 +2979,7 @@ export default function AgentesPage() {
                               </SelectContent>
                             </Select>
                             {manualAutomations.length === 0 && (
-                              <p className="text-[11px] text-[#767676] mt-1">
+                              <p className="text-[12px] text-[color:var(--text-muted)] mt-1">
                                 Nenhuma automação com gatilho "Manual" disponível — crie uma em Automações primeiro.
                               </p>
                             )}
@@ -2990,14 +2991,14 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* CLOSERS */}
-                <TabsContent value="closers" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
+                <TabsContent value="closers" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[color:var(--neutral-50)]">
                   <div className="space-y-4">
                     <div>
-                      <h3 className="text-[14px] font-semibold text-[#111111]">Configurações de agendamento</h3>
-                      <p className="text-[12px] text-[#767676]">Regras que valem pra qualquer reunião marcada por esse agente, independente do vendedor.</p>
+                      <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Configurações de agendamento</h3>
+                      <p className="text-[12px] text-[color:var(--text-muted)]">Regras que valem pra qualquer reunião marcada por esse agente, independente do vendedor.</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                    <div className="grid grid-cols-2 gap-4 p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                       <div>
                         <Label className="text-[12px]">Duração padrão das reuniões (min)</Label>
                         <Input
@@ -3009,10 +3010,10 @@ export default function AgentesPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                       <div>
-                        <div className="text-[13px] text-[#111111]">Intervalo entre reuniões</div>
-                        <div className="text-[11px] text-[#767676]">Garante uma folga antes e depois de cada reunião já marcada, pra não empilhar compromissos do vendedor sem respiro.</div>
+                        <div className="text-[13px] text-[color:var(--text-heading)]">Intervalo entre reuniões</div>
+                        <div className="text-[12px] text-[color:var(--text-muted)]">Garante uma folga antes e depois de cada reunião já marcada, pra não empilhar compromissos do vendedor sem respiro.</div>
                       </div>
                       <Switch
                         checked={behaviorDraft.intervalo_entre_reunioes}
@@ -3031,11 +3032,11 @@ export default function AgentesPage() {
                       </div>
                     )}
 
-                    <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg space-y-3">
+                    <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
-                          <div className="text-[13px] text-[#111111]">Google Calendar</div>
-                          <div className="text-[11px] text-[#767676]">Exige que o vendedor tenha o Google conectado e cria o evento também no Google Calendar dele. Desligado: a reunião é marcada só no calendário do Rezult, sem exigir Google e sem link de vídeo.</div>
+                          <div className="text-[13px] text-[color:var(--text-heading)]">Google Calendar</div>
+                          <div className="text-[12px] text-[color:var(--text-muted)]">Exige que o vendedor tenha o Google conectado e cria o evento também no Google Calendar dele. Desligado: a reunião é marcada só no calendário do Rezult, sem exigir Google e sem link de vídeo.</div>
                         </div>
                         <Switch
                           checked={behaviorDraft.google_calendar_ativo}
@@ -3043,10 +3044,10 @@ export default function AgentesPage() {
                         />
                       </div>
                       {behaviorDraft.google_calendar_ativo ? (
-                        <div className="flex items-center justify-between pl-3 border-l-2 border-[#EEEEEE]">
+                        <div className="flex items-center justify-between pl-3 border-l-2 border-[color:var(--border-default)]">
                           <div>
-                            <div className="text-[13px] text-[#111111]">Incluir link do Google Meet</div>
-                            <div className="text-[11px] text-[#767676]">Adiciona automaticamente um link do Google Meet aos eventos criados.</div>
+                            <div className="text-[13px] text-[color:var(--text-heading)]">Incluir link do Google Meet</div>
+                            <div className="text-[12px] text-[color:var(--text-muted)]">Adiciona automaticamente um link do Google Meet aos eventos criados.</div>
                           </div>
                           <Switch
                             checked={behaviorDraft.incluir_google_meet}
@@ -3054,16 +3055,16 @@ export default function AgentesPage() {
                           />
                         </div>
                       ) : (
-                        <p className="text-[11px] text-[#767676] pl-3 border-l-2 border-[#EEEEEE]">
+                        <p className="text-[12px] text-[color:var(--text-muted)] pl-3 border-l-2 border-[color:var(--border-default)]">
                           Vendedores sem Google conectado também ficam elegíveis pra receber reuniões — elas aparecem no /calendario do Rezult, sem link de videochamada automático.
                         </p>
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                       <div>
-                        <div className="text-[13px] text-[#111111]">Confirmar antes de criar eventos</div>
-                        <div className="text-[11px] text-[#767676]">O agente pedirá confirmação antes de criar ou modificar eventos.</div>
+                        <div className="text-[13px] text-[color:var(--text-heading)]">Confirmar antes de criar eventos</div>
+                        <div className="text-[12px] text-[color:var(--text-muted)]">O agente pedirá confirmação antes de criar ou modificar eventos.</div>
                       </div>
                       <Switch
                         checked={behaviorDraft.confirmar_antes_criar_evento}
@@ -3073,9 +3074,9 @@ export default function AgentesPage() {
 
                   </div>
 
-                  <div className="border-t border-[#EEEEEE] pt-4">
-                    <h3 className="text-[14px] font-semibold text-[#111111]">Quem recebe as reuniões agendadas</h3>
-                    <p className="text-[12px] text-[#767676]">
+                  <div className="border-t border-[color:var(--border-default)] pt-4">
+                    <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Quem recebe as reuniões agendadas</h3>
+                    <p className="text-[12px] text-[color:var(--text-muted)]">
                       O agente só agenda de fato com quem tem Google Calendar conectado e está dentro da disponibilidade declarada — distribui pelo vendedor com menos reuniões na semana entre os elegíveis.
                     </p>
                   </div>
@@ -3085,21 +3086,21 @@ export default function AgentesPage() {
                       const connected = memberCalendarConnected[m.user_id];
                       const availability = closerAvailability[m.user_id] ?? defaultCloserAvailability();
                       return (
-                        <div key={m.user_id} className="bg-white border border-[#EEEEEE] rounded-lg">
+                        <div key={m.user_id} className="bg-white border border-[color:var(--border-default)] rounded-lg">
                           <label className="flex items-center gap-3 p-3 cursor-pointer">
                             <Checkbox
                               checked={checked}
                               onCheckedChange={(c) => toggleCloser(m.user_id, c === true)}
                             />
                             <div className="flex-1 min-w-0">
-                              <div className="text-[13px] text-[#111111]">{m.full_name || m.email}</div>
-                              <div className="text-[11px] text-[#767676]">{m.email}</div>
+                              <div className="text-[13px] text-[color:var(--text-heading)]">{m.full_name || m.email}</div>
+                              <div className="text-[12px] text-[color:var(--text-muted)]">{m.email}</div>
                             </div>
                             {checked && connected && (
-                              <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-[#128A68] bg-[#E1F5EE] px-1.5 py-0.5 rounded-full shrink-0">
+                              <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--text-link)] bg-[color:var(--accent-100)] px-1.5 py-0.5 rounded-full shrink-0">
                                 <span className="relative flex h-2 w-2 shrink-0">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#128A68] opacity-75" />
-                                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#128A68]" />
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[color:var(--accent-700)] opacity-75" />
+                                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[color:var(--accent-700)]" />
                                 </span>
                                 Google Calendar conectado
                               </span>
@@ -3107,14 +3108,14 @@ export default function AgentesPage() {
                           </label>
 
                           {checked && (
-                            <div className="px-3 pb-3 pt-1 space-y-3 border-t border-[#EEEEEE] mt-1">
+                            <div className="px-3 pb-3 pt-1 space-y-3 border-t border-[color:var(--border-default)] mt-1">
                               <div className="pt-2">
                                 {connected === undefined ? (
-                                  <span className="text-[11px] text-[#767676]">Verificando conexão com Google Calendar...</span>
+                                  <span className="text-[12px] text-[color:var(--text-muted)]">Verificando conexão com Google Calendar...</span>
                                 ) : connected ? null : (
-                                  <div className="flex items-start gap-2.5 p-2.5 bg-[#FEF3C7] rounded-lg">
-                                    <AlertTriangle size={14} className="text-[#92400E] mt-0.5 shrink-0" />
-                                    <div className="text-[11px] text-[#92400E]">
+                                  <div className="flex items-start gap-2.5 p-2.5 bg-[color:var(--warning-bg)] rounded-lg">
+                                    <AlertTriangle size={14} className="text-[color:var(--warning-fg)] mt-0.5 shrink-0" />
+                                    <div className="text-[12px] text-[color:var(--warning-fg)]">
                                       {m.full_name || m.email} ainda não conectou o Google Calendar — sem isso o agente não consegue agendar reunião pra essa pessoa. Peça pra ela acessar{" "}
                                       <button onClick={() => void sairDoWizard("/configuracoes/integracoes")} className="underline font-medium">
                                         Configurações → Integrações
@@ -3126,8 +3127,8 @@ export default function AgentesPage() {
                               </div>
 
                               <div>
-                                <div className="text-[12px] font-medium text-[#111111]">Disponibilidade pra esse agente</div>
-                                <p className="text-[11px] text-[#767676] mb-1.5">
+                                <div className="text-[12px] font-medium text-[color:var(--text-heading)]">Disponibilidade pra esse agente</div>
+                                <p className="text-[12px] text-[color:var(--text-muted)] mb-1.5">
                                   {/* O texto antigo dizia que sem dia marcado o agente
                                       agendava em qualquer horário. É o oposto do que o
                                       backend faz: dia inativo descarta o vendedor naquele
@@ -3141,7 +3142,7 @@ export default function AgentesPage() {
                                         checked={d.active}
                                         onCheckedChange={(v) => saveCloserAvailability(m.user_id, updateCloserAvailabilityDay(m.user_id, idx, { active: v }))}
                                       />
-                                      <span className={`text-[12px] w-16 shrink-0 ${d.active ? "text-[#111111]" : "text-[#767676]"}`}>{d.day}</span>
+                                      <span className={`text-[12px] w-16 shrink-0 ${d.active ? "text-[color:var(--text-heading)]" : "text-[color:var(--text-muted)]"}`}>{d.day}</span>
                                       {d.active ? (
                                         <div className="flex items-center gap-1.5">
                                           <input
@@ -3149,19 +3150,19 @@ export default function AgentesPage() {
                                             value={d.intervals[0]?.start ?? "08:00"}
                                             onChange={(e) => setCloserAvailability((prev) => ({ ...prev, [m.user_id]: updateCloserAvailabilityDay(m.user_id, idx, { intervals: [{ start: e.target.value, end: d.intervals[0]?.end ?? "18:00" }] }) }))}
                                             onBlur={() => saveCloserAvailability(m.user_id, closerAvailability[m.user_id] ?? availability)}
-                                            className="text-[12px] border border-[#E5E5E5] rounded-md px-1.5 py-1 outline-none"
+                                            className="text-[12px] border border-[color:var(--border-default)] rounded-md px-1.5 py-1 outline-none"
                                           />
-                                          <span className="text-[11px] text-[#767676]">às</span>
+                                          <span className="text-[12px] text-[color:var(--text-muted)]">às</span>
                                           <input
                                             type="time"
                                             value={d.intervals[0]?.end ?? "18:00"}
                                             onChange={(e) => setCloserAvailability((prev) => ({ ...prev, [m.user_id]: updateCloserAvailabilityDay(m.user_id, idx, { intervals: [{ start: d.intervals[0]?.start ?? "08:00", end: e.target.value }] }) }))}
                                             onBlur={() => saveCloserAvailability(m.user_id, closerAvailability[m.user_id] ?? availability)}
-                                            className="text-[12px] border border-[#E5E5E5] rounded-md px-1.5 py-1 outline-none"
+                                            className="text-[12px] border border-[color:var(--border-default)] rounded-md px-1.5 py-1 outline-none"
                                           />
                                         </div>
                                       ) : (
-                                        <span className="text-[11px] text-[#CCCCCC]">Fechado</span>
+                                        <span className="text-[12px] text-[color:var(--neutral-400)]">Fechado</span>
                                       )}
                                     </div>
                                   ))}
@@ -3173,13 +3174,13 @@ export default function AgentesPage() {
                       );
                     })}
                     {members.length === 0 && (
-                      <p className="text-[12px] text-[#767676] text-center py-6">Nenhum membro na equipe ainda</p>
+                      <p className="text-[12px] text-[color:var(--text-muted)] text-center py-6">Nenhum membro na equipe ainda</p>
                     )}
                   </div>
                 </TabsContent>
 
                 {/* INTEGRAÇÕES */}
-                <TabsContent value="integracoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
+                <TabsContent value="integracoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[color:var(--neutral-50)]">
                   {(() => {
                     // Mesma linguagem visual de Configurações → Conexões: card
                     // branco com status no topo, ícone colorido e o controle no
@@ -3300,12 +3301,12 @@ export default function AgentesPage() {
                       <>
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <h3 className="text-[14px] font-semibold text-[#111111]">Integrações</h3>
-                            <p className="text-[12px] text-[#767676]">Escolha em quais conexões já existentes na empresa esse agente atua.</p>
+                            <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Integrações</h3>
+                            <p className="text-[12px] text-[color:var(--text-muted)]">Escolha em quais conexões já existentes na empresa esse agente atua.</p>
                           </div>
                           {emUso > 0 && (
-                            <span className="shrink-0 inline-flex items-center gap-1.5 text-[11px] font-medium text-[#128A68] bg-[#128A68]/10 px-2.5 py-1 rounded-full">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#128A68]" />
+                            <span className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--text-link)] bg-[color:var(--accent-700)]/10 px-2.5 py-1 rounded-full">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--accent-700)]" />
                               {emUso} em uso
                             </span>
                           )}
@@ -3321,12 +3322,12 @@ export default function AgentesPage() {
                                 onClick={() => setCatIntegracao(cat)}
                                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors cursor-pointer border ${
                                   ativo
-                                    ? "bg-[#128A68] border-[#128A68] text-white"
-                                    : "bg-white border-[#EEEEEE] text-[#111111] hover:border-[#CCCCCC]"
+                                    ? "bg-[color:var(--accent-700)] border-[color:var(--accent-500)] text-white"
+                                    : "bg-white border-[color:var(--border-default)] text-[color:var(--text-heading)] hover:border-[color:var(--border-strong)]"
                                 }`}
                               >
                                 {cat}
-                                <span className={ativo ? "text-white/70" : n === 0 ? "text-[#CCCCCC]" : "text-[#767676]"}>{n}</span>
+                                <span className={ativo ? "text-white/70" : n === 0 ? "text-[color:var(--neutral-400)]" : "text-[color:var(--text-muted)]"}>{n}</span>
                               </button>
                             );
                           })}
@@ -3336,17 +3337,17 @@ export default function AgentesPage() {
                           const v = vazios[catAtiva] ?? vazios["Todos"];
                           return (
                           <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <div className="w-12 h-12 rounded-xl bg-white border border-[#EEEEEE] flex items-center justify-center mb-4">
-                              <Link2 size={22} className="text-[#767676]" />
+                            <div className="w-12 h-12 rounded-xl bg-white border border-[color:var(--border-default)] flex items-center justify-center mb-4">
+                              <Link2 size={22} className="text-[color:var(--text-muted)]" />
                             </div>
-                            <p className="text-[13px] font-semibold text-[#111111] mb-1">{v.titulo}</p>
-                            <p className="text-[12px] text-[#767676] max-w-[380px]">{v.texto}</p>
+                            <p className="text-[13px] font-semibold text-[color:var(--text-heading)] mb-1">{v.titulo}</p>
+                            <p className="text-[12px] text-[color:var(--text-muted)] max-w-[380px]">{v.texto}</p>
                             {/* Guarda o rascunho em vez de descartar: quem clica
                                 aqui está indo resolver o que ESTA etapa pede, e
                                 volta. Ver `guardarRascunhoESair`. */}
                             <Button
                               onClick={() => void guardarRascunhoESair(v.destino)}
-                              className="mt-4 bg-[#128A68] hover:bg-[#128A68]/90 text-white"
+                              className="mt-4"
                             >
                               {v.rotulo}
                             </Button>
@@ -3355,30 +3356,30 @@ export default function AgentesPage() {
                         })() : (
                           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             {visiveis.map((c) => (
-                              <div key={c.chave} className="bg-white border border-[#EEEEEE] rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow">
+                              <div key={c.chave} className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-md transition-shadow">
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-1.5">
-                                    <span className={`w-2 h-2 rounded-full ${c.conectado ? "bg-[#128A68]" : "bg-[#767676]/40"}`} />
-                                    <span className={`text-[11px] font-medium ${c.conectado ? "text-[#128A68]" : "text-[#767676]"}`}>
+                                    <span className={`w-2 h-2 rounded-full ${c.conectado ? "bg-[color:var(--accent-700)]" : "bg-[var(--text-muted)]/40"}`} />
+                                    <span className={`text-[12px] font-medium ${c.conectado ? "text-[color:var(--text-link)]" : "text-[color:var(--text-muted)]"}`}>
                                       {c.conectado ? "Conectado" : "Desconectado"}
                                     </span>
                                   </div>
-                                  <span className="text-[10px] uppercase tracking-wide text-[#767676] font-semibold shrink-0 ml-2 truncate">{c.categoria}</span>
+                                  <span className="text-[12px] uppercase tracking-wide text-[color:var(--text-muted)] font-semibold shrink-0 ml-2 truncate">{c.categoria}</span>
                                 </div>
                                 <div className="flex items-center gap-3 mb-3">
                                   <div
-                                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-[#EEEEEE]"
+                                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-[color:var(--border-default)]"
                                     style={{ background: c.cor }}
                                   >
                                     {c.icone}
                                   </div>
                                   <div className="min-w-0">
-                                    <p className="text-[13px] font-bold text-[#111111] truncate">{c.titulo}</p>
-                                    <p className="text-[11px] text-[#767676] truncate">{c.subtitulo}</p>
+                                    <p className="text-[13px] font-bold text-[color:var(--text-heading)] truncate">{c.titulo}</p>
+                                    <p className="text-[12px] text-[color:var(--text-muted)] truncate">{c.subtitulo}</p>
                                   </div>
                                 </div>
-                                <div className="flex items-center justify-between pt-3 border-t border-[#EEEEEE] mt-auto">
-                                  <span className="text-[12px] font-medium text-[#767676]">{c.rodape}</span>
+                                <div className="flex items-center justify-between pt-3 border-t border-[color:var(--border-default)] mt-auto">
+                                  <span className="text-[12px] font-medium text-[color:var(--text-muted)]">{c.rodape}</span>
                                   <Switch checked={c.usa} onCheckedChange={c.alternar} />
                                 </div>
                               </div>
@@ -3391,7 +3392,7 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* PERFORMANCE */}
-                <TabsContent value="performance" className="p-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
+                <TabsContent value="performance" className="p-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[color:var(--neutral-50)]">
                   <PerformanceTab
                     agentId={selected.id}
                     companyId={companyId ?? ""}
@@ -3403,19 +3404,19 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* TESTAR */}
-                <TabsContent value="teste" className="p-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
+                <TabsContent value="teste" className="p-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[color:var(--neutral-50)]">
                   <AgentTestChat agentId={selected.id} />
                 </TabsContent>
 
                 {/* CONFIGURAÇÕES */}
-                <TabsContent value="configuracoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
+                <TabsContent value="configuracoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[color:var(--neutral-50)]">
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[#111111]">Horário de atendimento</h3>
-                    <p className="text-[12px] text-[#767676]">
+                    <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Horário de atendimento</h3>
+                    <p className="text-[12px] text-[color:var(--text-muted)]">
                       Fuso horário do agente e, se quiser, a janela e os dias em que ele responde mensagens no dia a dia.
                     </p>
                   </div>
-                  <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg space-y-4">
+                  <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg space-y-4">
                     <div className="max-w-[280px]">
                       <Label className="text-[12px]">Fuso horário</Label>
                       <Select
@@ -3434,8 +3435,8 @@ export default function AgentesPage() {
                     </div>
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="text-[13px] text-[#111111]">Restringir horário de atendimento</div>
-                        <div className="text-[11px] text-[#767676]">Fora da janela e dos dias abaixo, o agente não responde mensagens. Desligado = responde a qualquer hora, todo dia, como hoje.</div>
+                        <div className="text-[13px] text-[color:var(--text-heading)]">Restringir horário de atendimento</div>
+                        <div className="text-[12px] text-[color:var(--text-muted)]">Fora da janela e dos dias abaixo, o agente não responde mensagens. Desligado = responde a qualquer hora, todo dia, como hoje.</div>
                       </div>
                       <Switch
                         checked={behaviorDraft.horario_atendimento_ativo}
@@ -3480,7 +3481,7 @@ export default function AgentesPage() {
                                     updateBehaviorConfig({ horario_atendimento_dias: next });
                                   }}
                                   className={`text-[12px] px-2.5 py-1 rounded-full border transition-colors ${
-                                    active ? "bg-[#128A68] border-[#128A68] text-white" : "bg-white border-[#E5E5E5] text-[#767676] hover:bg-[#F5F5F5]"
+                                    active ? "bg-[color:var(--accent-700)] border-[color:var(--accent-500)] text-white" : "bg-white border-[color:var(--border-default)] text-[color:var(--text-muted)] hover:bg-[color:var(--neutral-50)]"
                                   }`}
                                 >
                                   {day.slice(0, 3)}
@@ -3493,7 +3494,7 @@ export default function AgentesPage() {
                     )}
                   </div>
 
-                  <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                  <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                     <Label className="text-[12px]">Delay de Resposta (segundos)</Label>
                     <Input
                       type="number" min={0}
@@ -3501,15 +3502,15 @@ export default function AgentesPage() {
                       onChange={(e) => updateBehaviorConfig({ delay_resposta_segundos: Number(e.target.value) || 0, delay_resposta_minutos: 0 })}
                       className="mt-1 w-32 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
-                    <p className="text-[11px] text-[#767676] mt-1">
+                    <p className="text-[12px] text-[color:var(--text-muted)] mt-1">
                       Espera esse tempo depois da última mensagem do lead antes de começar a responder. Se ele mandar mais mensagens durante a espera, o relógio reinicia e o agente responde uma vez só, considerando todas. 0 = responde na hora.
                     </p>
-                    <p className="text-[11px] text-[#767676] mt-1">
+                    <p className="text-[12px] text-[color:var(--text-muted)] mt-1">
                       O tempo de digitação vem depois disso: com 15 segundos aqui, o "digitando..." aparece aos 15 e a primeira mensagem chega por volta dos 20.
                     </p>
                   </div>
 
-                  <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                  <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                     <Label className="text-[12px]">Mensagens consideradas no atendimento</Label>
                     <Input
                       type="number" min={1}
@@ -3517,12 +3518,12 @@ export default function AgentesPage() {
                       onChange={(e) => updateBehaviorConfig({ mensagens_consideradas: Number(e.target.value) || 30 })}
                       className="mt-1 w-32 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
-                    <p className="text-[11px] text-[#767676] mt-1">
+                    <p className="text-[12px] text-[color:var(--text-muted)] mt-1">
                       Quantidade de mensagens recentes da conversa que o agente considera para gerar respostas.
                     </p>
                   </div>
 
-                  <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                  <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                     <Label className="text-[12px]">Limite de interações da IA por atendimento</Label>
                     <Input
                       type="number" min={0}
@@ -3530,7 +3531,7 @@ export default function AgentesPage() {
                       onChange={(e) => updateBehaviorConfig({ limite_interacoes: Number(e.target.value) || 0 })}
                       className="mt-1 w-32 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
-                    <p className="text-[11px] text-[#767676] mt-1">
+                    <p className="text-[12px] text-[color:var(--text-muted)] mt-1">
                       Número máximo de respostas que a IA pode enviar ao cliente em um mesmo atendimento (a saudação automática não conta).
                       Após enviar esse número de respostas, na próxima mensagem do cliente a IA se despede e: se "Transferir responsável" estiver ativo (aba Comportamento) → transfere para um atendente;
                       se apenas "Finalizar conversa" estiver ativo → encerra o atendimento; se ambos estiverem desativados → a IA para de responder silenciosamente.
@@ -3538,10 +3539,10 @@ export default function AgentesPage() {
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                     <div>
-                      <div className="text-[13px] font-medium text-[#111111]">Saudação automática</div>
-                      <div className="text-[11px] text-[#767676]">Na primeira mensagem da conversa, o agente se apresenta antes de entrar no objetivo. Continua sendo uma mensagem só, com o tom e as instruções que você configurou. Desligado, ele já vai direto ao ponto.</div>
+                      <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Saudação automática</div>
+                      <div className="text-[12px] text-[color:var(--text-muted)]">Na primeira mensagem da conversa, o agente se apresenta antes de entrar no objetivo. Continua sendo uma mensagem só, com o tom e as instruções que você configurou. Desligado, ele já vai direto ao ponto.</div>
                     </div>
                     <Switch
                       checked={behaviorDraft.saudacao_automatica ?? false}
@@ -3549,12 +3550,12 @@ export default function AgentesPage() {
                     />
                   </div>
 
-                  <div className="border-t border-[#EEEEEE] pt-6">
-                    <h3 className="text-[14px] font-semibold text-[#111111] mb-3">Restrições</h3>
-                    <div className="flex items-center justify-between p-3 bg-white border border-[#EEEEEE] rounded-lg mb-3">
+                  <div className="border-t border-[color:var(--border-default)] pt-6">
+                    <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)] mb-3">Restrições</h3>
+                    <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg mb-3">
                       <div>
-                        <div className="text-[13px] font-medium text-[#111111]">Restringir tópicos</div>
-                        <div className="text-[11px] text-[#767676]">Ativar controle de tópicos permitidos/restritos.</div>
+                        <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Restringir tópicos</div>
+                        <div className="text-[12px] text-[color:var(--text-muted)]">Ativar controle de tópicos permitidos/restritos.</div>
                       </div>
                       <Switch
                         checked={behaviorDraft.restringir_topicos ?? false}
@@ -3563,7 +3564,7 @@ export default function AgentesPage() {
                     </div>
                     {behaviorDraft.restringir_topicos && (
                       <div className="space-y-3">
-                        <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                        <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                           <Label className="text-[12px]">Tópicos Permitidos</Label>
                           <Textarea
                             value={behaviorDraft.topicos_permitidos}
@@ -3572,7 +3573,7 @@ export default function AgentesPage() {
                             className="mt-1 min-h-[80px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                           />
                         </div>
-                        <div className="p-3 bg-white border border-[#EEEEEE] rounded-lg">
+                        <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
                           <Label className="text-[12px]">Tópicos Restritos</Label>
                           <Textarea
                             value={behaviorDraft.topicos_restritos}
@@ -3588,10 +3589,10 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* MODELOS */}
-                <TabsContent value="modelos" className="p-6 space-y-4 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
+                <TabsContent value="modelos" className="p-6 space-y-4 mt-0 flex-1 overflow-y-auto min-h-0 bg-[color:var(--neutral-50)]">
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[#111111]">Modelo de IA</h3>
-                    <p className="text-[12px] text-[#767676]">
+                    <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Modelo de IA</h3>
+                    <p className="text-[12px] text-[color:var(--text-muted)]">
                       Escolha o modelo que o agente usa para responder e decidir suas ações. Requer a chave da API do provedor correspondente cadastrada em Configurações.
                     </p>
                   </div>
@@ -3607,8 +3608,8 @@ export default function AgentesPage() {
                     const rec = recommendModel(complexitySignals);
                     if (rec.modelId === modelDraft) return null;
                     return (
-                      <div className="flex items-start justify-between gap-3 p-3 bg-[#E1F5EE] rounded-lg">
-                        <div className="text-[12px] text-[#128A68]">
+                      <div className="flex items-start justify-between gap-3 p-3 bg-[color:var(--accent-100)] rounded-lg">
+                        <div className="text-[12px] text-[color:var(--text-link)]">
                           <span className="font-semibold">Recomendado pra esse agente: {findModelLabel(rec.modelId)}.</span> {rec.reason}
                         </div>
                         <Button
@@ -3644,7 +3645,7 @@ export default function AgentesPage() {
                                   <span className="flex items-center gap-2">
                                     <span>{m.label}</span>
                                     <span
-                                      className="text-[9px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
+                                      className="text-[12px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
                                       style={{
                                         background: IA_COST_STYLES[m.cost].bg,
                                         color: IA_COST_STYLES[m.cost].fg,
@@ -3655,8 +3656,8 @@ export default function AgentesPage() {
                                     </span>
                                     {m.id === recommendedModelId && (
                                       <span
-                                        className="flex items-center gap-0.5 text-[9px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
-                                        style={{ background: "#E1F5EE", color: "#128A68", borderColor: "#A7E8D0" }}
+                                        className="flex items-center gap-0.5 text-[12px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
+                                        style={{ background: "var(--accent-50)", color: "var(--accent-700)", borderColor: "var(--accent-200)" }}
                                       >
                                         <Check size={9} className="shrink-0" />
                                         Recomendado
@@ -3673,7 +3674,7 @@ export default function AgentesPage() {
                                   <span className="flex items-center gap-2">
                                     <span>{m.label}</span>
                                     <span
-                                      className="text-[9px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
+                                      className="text-[12px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
                                       style={{
                                         background: IA_COST_STYLES[m.cost].bg,
                                         color: IA_COST_STYLES[m.cost].fg,
@@ -3684,8 +3685,8 @@ export default function AgentesPage() {
                                     </span>
                                     {m.id === recommendedModelId && (
                                       <span
-                                        className="flex items-center gap-0.5 text-[9px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
-                                        style={{ background: "#E1F5EE", color: "#128A68", borderColor: "#A7E8D0" }}
+                                        className="flex items-center gap-0.5 text-[12px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
+                                        style={{ background: "var(--accent-50)", color: "var(--accent-700)", borderColor: "var(--accent-200)" }}
                                       >
                                         <Check size={9} className="shrink-0" />
                                         Recomendado
@@ -3705,9 +3706,9 @@ export default function AgentesPage() {
                     const hasKey = modelProvider === "openai" ? hasOpenaiKey : hasAnthropicKey;
                     if (hasKey) return null;
                     return (
-                      <div className="flex items-start gap-2.5 p-4 bg-[#FEE2E2] rounded-lg max-w-[360px]">
-                        <AlertTriangle size={16} className="text-[#991B1B] mt-0.5 shrink-0" />
-                        <div className="text-[13px] text-[#991B1B]">
+                      <div className="flex items-start gap-2.5 p-4 bg-[color:var(--danger-bg)] rounded-lg max-w-[360px]">
+                        <AlertTriangle size={16} className="text-[color:var(--danger-fg)] mt-0.5 shrink-0" />
+                        <div className="text-[13px] text-[color:var(--danger-fg)]">
                           Sem chave da {modelProvider === "openai" ? "OpenAI" : "Anthropic"} cadastrada — cadastre em Configurações para o agente conseguir usar esse modelo.
                         </div>
                       </div>
@@ -3716,7 +3717,7 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* FERRAMENTAS */}
-                <TabsContent value="ferramentas" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
+                <TabsContent value="ferramentas" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[color:var(--neutral-50)]">
                   {(() => {
                     // Só entra na lista o que existe de verdade. As caixas
                     // permanentemente cinzas (destrutivas e as ainda não
@@ -3733,7 +3734,7 @@ export default function AgentesPage() {
                       return (
                         <label
                           key={t.id}
-                          className="flex items-start gap-3 p-2.5 border border-[#EEEEEE] rounded-lg cursor-pointer bg-white"
+                          className="flex items-start gap-3 p-2.5 border border-[color:var(--border-default)] rounded-lg cursor-pointer bg-white"
                         >
                           <Checkbox
                             className="mt-0.5"
@@ -3742,15 +3743,15 @@ export default function AgentesPage() {
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-[13px] font-medium text-[#111111]">{t.label}</span>
+                              <span className="text-[13px] font-medium text-[color:var(--text-heading)]">{t.label}</span>
                               <span
-                                className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0"
+                                className="text-[12px] font-semibold px-1.5 py-0.5 rounded shrink-0"
                                 style={{ background: catStyle.bg, color: catStyle.fg }}
                               >
                                 {AGENT_TOOL_CATEGORY_LABELS[t.category]}
                               </span>
                             </div>
-                            <div className="text-[11px] text-[#767676]">{t.description}</div>
+                            <div className="text-[12px] text-[color:var(--text-muted)]">{t.description}</div>
                           </div>
                         </label>
                       );
@@ -3759,8 +3760,8 @@ export default function AgentesPage() {
                     return (
                       <>
                         <div>
-                          <h3 className="text-[14px] font-semibold text-[#111111]">Ferramentas do CRM</h3>
-                          <p className="text-[12px] text-[#767676]">
+                          <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Ferramentas do CRM</h3>
+                          <p className="text-[12px] text-[color:var(--text-muted)]">
                             Qualificar, agendar e responder o agente já faz sem marcar nada aqui. Estas são as operações
                             extras que ele pode executar no CRM enquanto conversa, como mover o card de etapa ou consultar
                             o catálogo. Cada uma marcada entra no raciocínio dele em toda mensagem, então menos costuma
@@ -3770,7 +3771,7 @@ export default function AgentesPage() {
 
                         {recomendadas.length > 0 && (
                           <div>
-                            <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">
+                            <h4 className="text-[11px] uppercase tracking-wide text-[color:var(--text-muted)] font-semibold mb-2">
                               Recomendadas para os objetivos deste agente
                             </h4>
                             <div className="space-y-1.5">{recomendadas.map(caixa)}</div>
@@ -3781,14 +3782,14 @@ export default function AgentesPage() {
                           <button
                             type="button"
                             onClick={() => setVerTodasFerramentas((v) => !v)}
-                            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-[#EEEEEE] bg-white text-[13px] font-medium text-[#111111] hover:border-[#CCCCCC] transition-colors cursor-pointer"
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-[color:var(--border-default)] bg-white text-[13px] font-medium text-[color:var(--text-heading)] hover:border-[color:var(--border-strong)] transition-colors cursor-pointer"
                           >
                             <span className="flex items-center gap-2">
                               {verTodasFerramentas ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                               Ver todas as ferramentas do CRM ({demais.length})
                             </span>
                             {marcadasNasDemais > 0 && (
-                              <span className="text-[11px] font-medium text-[#128A68] bg-[#128A68]/10 px-2 py-0.5 rounded-full">
+                              <span className="text-[12px] font-medium text-[color:var(--text-link)] bg-[color:var(--accent-700)]/10 px-2 py-0.5 rounded-full">
                                 {marcadasNasDemais} marcada{marcadasNasDemais > 1 ? "s" : ""}
                               </span>
                             )}
@@ -3801,12 +3802,12 @@ export default function AgentesPage() {
                                 if (!doGrupo.length) return null;
                                 return (
                                   <div key={entity}>
-                                    <h4 className="text-[11px] uppercase tracking-wide text-[#767676] font-semibold mb-2">{entity}</h4>
+                                    <h4 className="text-[11px] uppercase tracking-wide text-[color:var(--text-muted)] font-semibold mb-2">{entity}</h4>
                                     <div className="space-y-1.5">{doGrupo.map(caixa)}</div>
                                   </div>
                                 );
                               })}
-                              <p className="text-[11px] text-[#767676]">
+                              <p className="text-[12px] text-[color:var(--text-muted)]">
                                 Operações de exclusão e de criação de configuração (funis, campos, departamentos) ainda não
                                 estão disponíveis para agentes.
                               </p>
@@ -3819,10 +3820,10 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* INSTRUÇÕES */}
-                <TabsContent value="instrucoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[#F5F5F5]">
+                <TabsContent value="instrucoes" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[color:var(--neutral-50)]">
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[#111111]">Instruções</h3>
-                    <p className="text-[12px] text-[#767676]">
+                    <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Instruções</h3>
+                    <p className="text-[12px] text-[color:var(--text-muted)]">
                       O que o agente precisa saber sobre a empresa e sobre como responder. Tom de voz, objetivos e
                       comportamento são configurados nas outras etapas, não aqui.
                     </p>
@@ -3836,11 +3837,11 @@ export default function AgentesPage() {
                           key={titulo}
                           type="button"
                           onClick={() => inserirSecaoInstrucao(titulo)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#EEEEEE] bg-white text-[12px] font-medium text-[#111111] hover:border-[#CCCCCC] transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[color:var(--border-default)] bg-white text-[12px] font-medium text-[color:var(--text-heading)] hover:border-[color:var(--border-strong)] transition-colors cursor-pointer"
                         >
                           {jaTem
-                            ? <Check size={12} className="text-[#128A68]" />
-                            : <Plus size={12} className="text-[#767676]" />}
+                            ? <Check size={12} className="text-[color:var(--text-link)]" />
+                            : <Plus size={12} className="text-[color:var(--text-muted)]" />}
                           {titulo}
                         </button>
                       );
@@ -3864,12 +3865,12 @@ export default function AgentesPage() {
                         e isso é invisível para quem escreve. Informar, não
                         limitar: quem constrói um agente robusto decide. */}
                     <div className="flex items-center justify-between gap-3 mt-1">
-                      <span className="text-[11px] text-[#767676]">
+                      <span className="text-[12px] text-[color:var(--text-muted)]">
                         {customContext.length > 4000 && (
-                          <>Somam cerca de <span className="font-medium text-[#111111]">{Math.round(customContext.length / 4).toLocaleString("pt-BR")} tokens</span> a cada mensagem trocada com cada lead. Material de consulta (tabelas, FAQ, procedimentos) custa menos na Base de Conhecimento, que busca só o trecho relevante.</>
+                          <>Somam cerca de <span className="font-medium text-[color:var(--text-heading)]">{Math.round(customContext.length / 4).toLocaleString("pt-BR")} tokens</span> a cada mensagem trocada com cada lead. Material de consulta (tabelas, FAQ, procedimentos) custa menos na Base de Conhecimento, que busca só o trecho relevante.</>
                         )}
                       </span>
-                      <span className="text-[11px] text-[#767676] shrink-0">{customContext.length.toLocaleString("pt-BR")} / {LIMITE_INSTRUCOES.toLocaleString("pt-BR")}</span>
+                      <span className="text-[12px] text-[color:var(--text-muted)] shrink-0">{customContext.length.toLocaleString("pt-BR")} / {LIMITE_INSTRUCOES.toLocaleString("pt-BR")}</span>
                     </div>
                   </div>
                 </TabsContent>
@@ -3907,7 +3908,7 @@ export default function AgentesPage() {
             <Button
               variant="outline"
               onClick={async () => { setSairAberto(false); await abandonDraftAgent(); }}
-              className="border-[#FCA5A5] text-[#DC2626] hover:bg-[#DC2626] hover:text-white hover:border-[#DC2626]"
+              className="border-[#FCA5A5] text-[color:var(--danger-fg)] hover:bg-[#DC2626] hover:text-white hover:border-[#DC2626]"
             >
               Descartar agente
             </Button>
@@ -3920,8 +3921,7 @@ export default function AgentesPage() {
                 setSelectedId(null);
                 toast.success("Rascunho salvo. Você retoma de onde parou.");
               }}
-              className="bg-[#128A68] hover:bg-[#128A68]/90 text-white"
-            >
+              >
               Salvar rascunho
             </Button>
           </DialogFooter>
@@ -3953,11 +3953,11 @@ export default function AgentesPage() {
                   aria-checked={draftModelo === op.chave}
                   onClick={() => escolherModelo(op.chave)}
                   className={`text-left rounded-lg border p-2.5 transition-colors cursor-pointer ${
-                    draftModelo === op.chave ? "border-[#128A68] bg-[#E1F5EE]" : "border-[#EEEEEE] hover:bg-[#F5F5F5]"
+                    draftModelo === op.chave ? "border-[color:var(--accent-500)] bg-[color:var(--accent-100)]" : "border-[color:var(--border-default)] hover:bg-[color:var(--neutral-50)]"
                   }`}
                 >
-                  <span className="block text-[13px] font-semibold text-[#111111]">{op.titulo}</span>
-                  <span className="block text-[11px] text-[#767676] leading-snug mt-0.5">{op.resumo}</span>
+                  <span className="block text-[13px] font-semibold text-[color:var(--text-heading)]">{op.titulo}</span>
+                  <span className="block text-[12px] text-[color:var(--text-muted)] leading-snug mt-0.5">{op.resumo}</span>
                 </button>
               ))}
             </div>
@@ -3980,7 +3980,7 @@ export default function AgentesPage() {
                   placeholder="Escolher ou criar uma tag"
                 />
               </div>
-              <p className="text-[11px] text-[#767676] mt-1">
+              <p className="text-[12px] text-[color:var(--text-muted)] mt-1">
                 O agente atende os negócios que tiverem essa tag no card. Cada tag ativa um único agente.
               </p>
             </div>
@@ -3994,20 +3994,20 @@ export default function AgentesPage() {
                     onClick={() => setDraftAvatar(key)}
                     className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
                       draftAvatar === key
-                        ? "bg-[#128A68] text-white"
-                        : "bg-[#F5F5F5] text-[#666666] hover:bg-[#EEEEEE]"
+                        ? "bg-[color:var(--accent-700)] text-white"
+                        : "bg-[color:var(--neutral-50)] text-[color:var(--text-muted)] hover:bg-[color:var(--neutral-100)]"
                     }`}
                   >
                     <Icon size={16} />
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-[#767676] mt-1">Meramente ilustrativo.</p>
+              <p className="text-[12px] text-[color:var(--text-muted)] mt-1">Meramente ilustrativo.</p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenDialog(false)}>Cancelar</Button>
-            <Button onClick={createAgent} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
+            <Button onClick={createAgent} >
               {draftModelo === "personalizado" ? "Criar e continuar" : "Criar agente"}
             </Button>
           </DialogFooter>
@@ -4024,7 +4024,7 @@ export default function AgentesPage() {
           </DialogHeader>
 
           <Tabs value={kbModalStep} onValueChange={(v) => setKbModalStep(v as "config" | "arquivos")}>
-            <TabsList className="bg-[#F5F5F5] p-1 h-auto gap-1">
+            <TabsList className="bg-[color:var(--neutral-50)] p-1 h-auto gap-1">
               <TabsTrigger value="config" className="data-[state=active]:bg-white data-[state=active]:shadow-none rounded-md text-[13px] px-3 py-1.5">
                 Configurações
               </TabsTrigger>
@@ -4050,7 +4050,7 @@ export default function AgentesPage() {
               <div>
                 <div className="flex items-center gap-1.5">
                   <Label className="text-[12px]">Descrição</Label>
-                  <span className="flex items-center gap-1 text-[11px] text-[#128A68]">
+                  <span className="flex items-center gap-1 text-[12px] text-[color:var(--text-link)]">
                     <Info size={12} /> Usada como instrução pela IA
                   </span>
                 </div>
@@ -4060,12 +4060,12 @@ export default function AgentesPage() {
                   placeholder="Ex: Use esta KB para responder dúvidas sobre produtos, preços e políticas de devolução..."
                   className="mt-1 min-h-[140px] text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 />
-                <p className="text-[11px] text-[#767676] mt-1">
+                <p className="text-[12px] text-[color:var(--text-muted)] mt-1">
                   Esta descrição é usada como instrução para o agente entender quando e como utilizar esta base de conhecimento. Seja específico sobre o conteúdo e os casos de uso.
                 </p>
               </div>
               <DialogFooter>
-                <Button onClick={saveKbConfig} disabled={savingKey === "kb"} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
+                <Button onClick={saveKbConfig} disabled={savingKey === "kb"} >
                   {savingKey === "kb" && <Loader2 size={14} className="animate-spin" />} Salvar
                 </Button>
               </DialogFooter>
@@ -4104,10 +4104,10 @@ export default function AgentesPage() {
                 if (kbDocs.length === 0) {
                   return (
                     <div className="flex flex-col items-center justify-center py-10 text-center">
-                      <FileText size={32} color="#E5E5E5" />
-                      <p className="text-[13px] text-[#111111] font-medium mt-3">Nenhum arquivo adicionado</p>
-                      <p className="text-[11px] text-[#767676] mt-1">Clique em "Adicionar arquivo" pra fazer upload.</p>
-                      <p className="text-[11px] text-[#767676] mt-1">PDF, TXT, CSV, HTML, JSON — máx. 50MB</p>
+                      <FileText size={32} color="var(--neutral-300)" />
+                      <p className="text-[13px] text-[color:var(--text-heading)] font-medium mt-3">Nenhum arquivo adicionado</p>
+                      <p className="text-[12px] text-[color:var(--text-muted)] mt-1">Clique em "Adicionar arquivo" pra fazer upload.</p>
+                      <p className="text-[12px] text-[color:var(--text-muted)] mt-1">PDF, TXT, CSV, HTML, JSON — máx. 50MB</p>
                     </div>
                   );
                 }
@@ -4116,23 +4116,23 @@ export default function AgentesPage() {
                     {kbDocs.map((d) => {
                       const badge = STATUS_BADGE[d.status];
                       return (
-                        <div key={d.id} className="group flex items-center gap-3 p-3 bg-white border border-[#EEEEEE] rounded-lg hover:bg-[#F5F5F5] transition-colors">
+                        <div key={d.id} className="group flex items-center gap-3 p-3 bg-white border border-[color:var(--border-default)] rounded-lg hover:bg-[color:var(--neutral-50)] transition-colors">
                           <Checkbox
                             checked={d.enabled}
                             onCheckedChange={(checked) => toggleDocEnabled(d, checked === true)}
                             title="O agente pode usar este documento"
                           />
-                          <FileText size={18} color="#AAAAAA" />
+                          <FileText size={18} color="var(--text-subtle)" />
                           <div className="flex-1 min-w-0">
-                            <div className="text-[13px] text-[#111111] truncate">{d.file_name}</div>
+                            <div className="text-[13px] text-[color:var(--text-heading)] truncate">{d.file_name}</div>
                             {d.status === "error" && d.error_detail && (
-                              <div className="text-[11px] text-[#E24B4A] truncate">{d.error_detail}</div>
+                              <div className="text-[12px] text-[color:var(--danger-fg)] truncate">{d.error_detail}</div>
                             )}
                           </div>
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded shrink-0" style={{ background: badge.bg, color: badge.fg }}>
+                          <span className="text-[12px] font-semibold px-2 py-0.5 rounded shrink-0" style={{ background: badge.bg, color: badge.fg }}>
                             {badge.label}
                           </span>
-                          <button onClick={() => deleteDoc(d)} className="opacity-0 group-hover:opacity-100 text-[#767676] hover:text-[#E24B4A] transition-opacity">
+                          <button onClick={() => deleteDoc(d)} className="opacity-0 group-hover:opacity-100 text-[color:var(--text-muted)] hover:text-[color:var(--danger-fg)] transition-opacity">
                             <X size={16} />
                           </button>
                         </div>
@@ -4143,7 +4143,7 @@ export default function AgentesPage() {
               })()}
 
               <DialogFooter>
-                <Button onClick={() => setKbModalOpen(false)} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">Salvar</Button>
+                <Button onClick={() => setKbModalOpen(false)} >Salvar</Button>
               </DialogFooter>
             </TabsContent>
           </Tabs>
@@ -4209,7 +4209,9 @@ function PerformanceTab({
         // stage_entered_at é o proxy disponível pra "quando foi ganho" --
         // leads não tem updated_at, e status='won' normalmente acompanha
         // entrar numa etapa de "Ganho" no pipeline.
-        supabase.from("leads").select("value").eq("company_id", companyId).eq("status", "won").gte("stage_entered_at", sevenDaysAgo),
+        // `won_value` é o valor congelado no fechamento; `value` cobre os
+        // ganhos anteriores à coluna. Ver `receitaDoGanho`.
+        supabase.from("leads").select("value, won_value").eq("company_id", companyId).eq("status", "won").gte("stage_entered_at", sevenDaysAgo),
       ]);
       setMeetingsScheduled(scheduled ?? 0);
       setMeetingsHeld(held ?? 0);
@@ -4217,7 +4219,7 @@ function PerformanceTab({
       setQualified((leadsData ?? []).length);
       setCostUsd((usageData ?? []).reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0));
       setSalesCount((wonData ?? []).length);
-      setSalesValue((wonData ?? []).reduce((sum, r) => sum + (Number(r.value) || 0), 0));
+      setSalesValue((wonData ?? []).reduce((sum, r) => sum + (Number(r.won_value ?? r.value) || 0), 0));
       const { data: notQualifiedData } = await supabase.from("leads").select("tags").eq("company_id", companyId).contains("tags", ["SDS: Não qualificado"]);
       setNotQualified((notQualifiedData ?? []).length);
 
@@ -4240,59 +4242,59 @@ function PerformanceTab({
   const noShowRate = meetingsScheduled > 0 ? (noShowCount / meetingsScheduled) * 100 : null;
 
   if (loading) {
-    return <div className="flex justify-center py-12"><Loader2 size={20} className="animate-spin text-[#767676]" /></div>;
+    return <div className="flex justify-center py-12"><Loader2 size={20} className="animate-spin text-[color:var(--text-muted)]" /></div>;
   }
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
-          <div className="flex items-center gap-1.5 text-[11px] uppercase text-[#767676]"><CheckCircle2 size={12} /> Reuniões agendadas (7 dias)</div>
-          <div className="text-[24px] font-bold text-[#111111] mt-1">{meetingsScheduled}</div>
+        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+          <div className="flex items-center gap-1.5 text-[11px] uppercase text-[color:var(--text-muted)]"><CheckCircle2 size={12} /> Reuniões agendadas (7 dias)</div>
+          <div className="text-[24px] font-bold text-[color:var(--text-heading)] mt-1">{meetingsScheduled}</div>
         </div>
-        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
-          <div className="flex items-center gap-1.5 text-[11px] uppercase text-[#767676]"><CheckCircle2 size={12} /> Reuniões realizadas (7 dias)</div>
-          <div className="text-[24px] font-bold text-[#128A68] mt-1">{meetingsHeld}</div>
+        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+          <div className="flex items-center gap-1.5 text-[11px] uppercase text-[color:var(--text-muted)]"><CheckCircle2 size={12} /> Reuniões realizadas (7 dias)</div>
+          <div className="text-[24px] font-bold text-[color:var(--text-link)] mt-1">{meetingsHeld}</div>
         </div>
-        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
-          <div className="text-[11px] uppercase text-[#767676]">Taxa de no-show (7 dias)</div>
-          <div className="text-[24px] font-bold text-[#111111] mt-1">{noShowRate === null ? "—" : `${noShowRate.toFixed(0)}%`}</div>
-          <div className="text-[10px] text-[#CCCCCC] mt-0.5">{noShowCount} de {meetingsScheduled} agendadas</div>
+        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+          <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Taxa de no-show (7 dias)</div>
+          <div className="text-[24px] font-bold text-[color:var(--text-heading)] mt-1">{noShowRate === null ? "—" : `${noShowRate.toFixed(0)}%`}</div>
+          <div className="text-[12px] text-[color:var(--neutral-400)] mt-0.5">{noShowCount} de {meetingsScheduled} agendadas</div>
         </div>
-        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
-          <div className="text-[11px] uppercase text-[#767676]">Leads qualificados</div>
-          <div className="text-[24px] font-bold text-[#128A68] mt-1">{qualified}</div>
+        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+          <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Leads qualificados</div>
+          <div className="text-[24px] font-bold text-[color:var(--text-link)] mt-1">{qualified}</div>
         </div>
-        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
-          <div className="text-[11px] uppercase text-[#767676]">Não qualificados</div>
-          <div className="text-[24px] font-bold text-[#767676] mt-1">{notQualified}</div>
+        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+          <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Não qualificados</div>
+          <div className="text-[24px] font-bold text-[color:var(--text-muted)] mt-1">{notQualified}</div>
         </div>
-        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
-          <div className="text-[11px] uppercase text-[#767676]">Número de conversas (7 dias)</div>
-          <div className="text-[24px] font-bold text-[#111111] mt-1">{conversationsCount}</div>
+        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+          <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Número de conversas (7 dias)</div>
+          <div className="text-[24px] font-bold text-[color:var(--text-heading)] mt-1">{conversationsCount}</div>
         </div>
-        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
-          <div className="text-[11px] uppercase text-[#767676]">Taxa de sucesso (7 dias)</div>
-          <div className="text-[24px] font-bold text-[#128A68] mt-1">{successRate === null ? "—" : `${successRate.toFixed(0)}%`}</div>
-          <div className="text-[10px] text-[#CCCCCC] mt-0.5">conversas sem erro do agente</div>
+        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+          <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Taxa de sucesso (7 dias)</div>
+          <div className="text-[24px] font-bold text-[color:var(--text-link)] mt-1">{successRate === null ? "—" : `${successRate.toFixed(0)}%`}</div>
+          <div className="text-[12px] text-[color:var(--neutral-400)] mt-0.5">conversas sem erro do agente</div>
         </div>
-        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
-          <div className="text-[11px] uppercase text-[#767676]">Valor gasto (7 dias)</div>
-          <div className="text-[24px] font-bold text-[#111111] mt-1">${costUsd.toFixed(2)}</div>
-          <div className="text-[10px] text-[#CCCCCC] mt-0.5">custo de tokens de IA</div>
+        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+          <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Valor gasto (7 dias)</div>
+          <div className="text-[24px] font-bold text-[color:var(--text-heading)] mt-1">${costUsd.toFixed(2)}</div>
+          <div className="text-[12px] text-[color:var(--neutral-400)] mt-0.5">custo de tokens de IA</div>
         </div>
-        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
-          <div className="text-[11px] uppercase text-[#767676]">Horas ativas</div>
-          <div className="text-[24px] font-bold text-[#111111] mt-1">{formatActiveHours(activeSecondsTotal, active, activatedAt)}h</div>
-          <div className="text-[10px] text-[#CCCCCC] mt-0.5">desde que foi ativado a 1ª vez</div>
+        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+          <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Horas ativas</div>
+          <div className="text-[24px] font-bold text-[color:var(--text-heading)] mt-1">{formatActiveHours(activeSecondsTotal, active, activatedAt)}h</div>
+          <div className="text-[12px] text-[color:var(--neutral-400)] mt-0.5">desde que foi ativado a 1ª vez</div>
         </div>
-        <div className="bg-white border border-[#EEEEEE] rounded-lg p-4">
-          <div className="text-[11px] uppercase text-[#767676]">Vendas feitas (7 dias)</div>
-          <div className="text-[24px] font-bold text-[#128A68] mt-1">{salesCount}</div>
-          <div className="text-[10px] text-[#CCCCCC] mt-0.5">R$ {salesValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · toda a empresa</div>
+        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+          <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Vendas feitas (7 dias)</div>
+          <div className="text-[24px] font-bold text-[color:var(--text-link)] mt-1">{salesCount}</div>
+          <div className="text-[12px] text-[color:var(--neutral-400)] mt-0.5">R$ {salesValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · toda a empresa</div>
         </div>
       </div>
-      <p className="text-[11px] text-[#767676]">
+      <p className="text-[12px] text-[color:var(--text-muted)]">
         Leads qualificados e vendas feitas contam pra empresa toda no período — ainda não é possível atribuir um negócio a um agente específico.
       </p>
     </div>

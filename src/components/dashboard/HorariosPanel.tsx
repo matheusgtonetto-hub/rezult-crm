@@ -51,7 +51,7 @@ function TooltipFaixa({
   return (
     <CaixaTooltip
       titulo={d.rotulo}
-      cor="#128A68"
+      cor="#008762"
       linhas={[
         { rotulo: "Negócios", valor: String(d.negocios), destaque: true },
         { rotulo: "Ganhos", valor: String(d.ganhos) },
@@ -109,7 +109,7 @@ function ValorDaBarra({
       textAnchor="middle"
       fontSize={10}
       fontWeight={600}
-      fill={cabeDentro ? "#fff" : "hsl(var(--muted-foreground))"}
+      fill={cabeDentro ? "#2D2F33" : "hsl(var(--muted-foreground))"}
     >
       {String(value ?? "")}
     </text>
@@ -204,7 +204,7 @@ export function HorariosPanel({
      * esticar, `flex-1` não teria altura de onde crescer e o gráfico colapsaria
      * para zero.
      */
-    <div className={`bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 flex flex-col ${className ?? ""}`}>
+    <div className={`bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col ${className ?? ""}`}>
       {/* Sem `flex-wrap`, ao contrário dos painéis mais largos.
 
           Com quebra, quem descia para a segunda linha era o par de botões, e
@@ -233,7 +233,7 @@ export function HorariosPanel({
             a pergunta que o painel ao lado também faz. Com os dois controles
             iguais, um clique de cada lado mantém a linha falando do mesmo
             recorte. */}
-        <div className="inline-flex shrink-0 rounded-lg border border-card-border p-0.5 bg-muted/40">
+        <div className="inline-flex shrink-0 rounded-lg border border-card-border p-0.5 bg-[color:var(--neutral-100)]">
           {([
             { id: "dias", rotulo: "Dias" },
             { id: "horas", rotulo: "Horas" },
@@ -242,7 +242,7 @@ export function HorariosPanel({
               key={op.id}
               onClick={() => setCiclo(op.id)}
               aria-pressed={ciclo === op.id}
-              className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${
+              className={`px-2 py-1 rounded-md text-[12px] font-medium transition-colors ${
                 ciclo === op.id
                   ? "bg-card text-foreground shadow-elev-1"
                   : "text-muted-foreground hover:text-foreground"
@@ -258,7 +258,7 @@ export function HorariosPanel({
         <ResponsiveContainer width="100%" height="100%">
           {/* Barra em pé, que é o padrão do Recharts: a categoria vai para o
               eixo X, embaixo, e o número sobe pelo Y. */}
-          <BarChart data={vazio ? RANKING_VAZIO : ranking} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+          <BarChart data={vazio ? RANKING_VAZIO : ranking} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
             {/* Grade só horizontal: em barra em pé é a linha deitada que ajuda a
                 comparar alturas. A vertical correria junto com a própria barra. */}
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" vertical={false} />
@@ -274,7 +274,7 @@ export function HorariosPanel({
             <XAxis
               dataKey="rotulo"
               interval={0}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 10 }}
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
               axisLine={false}
               tickLine={false}
               dy={4}
@@ -283,7 +283,7 @@ export function HorariosPanel({
             <YAxis
               allowDecimals={false}
               width={38}
-              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+              tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
               axisLine={false}
               tickLine={false}
             />
@@ -308,7 +308,7 @@ export function HorariosPanel({
                 base, medindo faixas que não existem. */}
             <Bar
               dataKey="negocios"
-              fill="#128A68"
+              fill="#01D8A4"
               radius={[6, 6, 0, 0]}
               maxBarSize={22}
               label={vazio ? undefined : <ValorDaBarra />}

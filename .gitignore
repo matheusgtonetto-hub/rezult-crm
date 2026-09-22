@@ -40,3 +40,6 @@ teste rezult.dc
 # Gerado por rodar deno check/lint local; o deploy das functions nao usa.
 deno.lock
 Inter/
+
+# Cache do "tsc -b" (npm run typecheck). Não é artefato de produto.
+*.tsbuildinfo

@@ -70,7 +70,7 @@ export default function LoginPage() {
 
   if (screen === "forgot") {
     return (
-      <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "#F2F7F5" }}>
+      <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "var(--accent-50)" }}>
         {/* Preso ao canto da tela, fora do cartão: a escolha vale para a página
             inteira, e dentro do cartão ela viraria mais um campo do
             formulário. `absolute` sobre o `relative` do fundo. */}
@@ -95,7 +95,7 @@ export default function LoginPage() {
                 <br />{t("senha.enviadoInstrucao")}
               </p>
               <Button
-                className="w-full h-auto py-[10px] rounded-[5px] font-semibold mt-8"
+                className="w-full h-auto py-[10px] rounded-[6px] font-semibold mt-8"
                 onClick={() => setScreen("login")}
               >
                 {t("senha.voltar")}
@@ -117,19 +117,19 @@ export default function LoginPage() {
                     placeholder={t("login.emailPlaceholder")}
                     value={forgotEmail}
                     onChange={e => setForgotEmail(e.target.value)}
-                    className="h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                    className="h-auto rounded-[6px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     autoFocus
                   />
                 </div>
 
-                <Button type="submit" className="w-full h-auto py-[10px] rounded-[5px] font-semibold" disabled={forgotLoading}>
+                <Button type="submit" className="w-full h-auto py-[10px] rounded-[6px] font-semibold" disabled={forgotLoading}>
                   {forgotLoading ? t("senha.enviando") : t("senha.enviar")}
                 </Button>
 
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full h-auto py-[10px] rounded-[5px]"
+                  className="w-full h-auto py-[10px] rounded-[6px]"
                   onClick={() => setScreen("login")}
                 >
                   {t("senha.voltar")}
@@ -149,44 +149,44 @@ export default function LoginPage() {
   // para baixo -- centralizar tudo junto deixaria o rodapé grudado no cartão,
   // no meio da tela.
   return (
-    <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "#F2F7F5" }}>
+    <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "var(--accent-50)" }}>
       <div className="absolute top-5 right-5 z-10"><SeletorDeIdioma /></div>
       <div className="flex-1 flex items-center justify-center py-6">
-      <div className="relative w-full max-w-[380px] rounded-[7px] p-[1px] overflow-hidden shadow-elev-3">
+      <div className="relative w-full max-w-[380px] rounded-[8px] p-[1px] overflow-hidden shadow-elev-3">
         {/* Rotating border lights */}
         <div
           className="absolute inset-[-100%]"
           style={{
-            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, var(--accent-700) 65%, #4ade80 75%, var(--accent-700) 85%, transparent 95%)",
             animation: "spin-border 4s linear infinite",
           }}
         />
         <div
           className="absolute inset-[-100%]"
           style={{
-            background: "conic-gradient(from 180deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+            background: "conic-gradient(from 180deg, transparent 0%, transparent 55%, var(--accent-700) 65%, #4ade80 75%, var(--accent-700) 85%, transparent 95%)",
             animation: "spin-border 4s linear infinite",
           }}
         />
         <div
-        className="relative w-full bg-card rounded-[7px] p-[30px]"
+        className="relative w-full bg-card rounded-[8px] p-[30px]"
               >
         <div className="flex justify-center items-center mb-[15px]">
           <img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-10 w-auto" />
         </div>
 
         {emailConfirmed && (
-          <div className="flex items-start gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3 mb-6">
-            <CheckCircle2 size={18} className="text-green-600 mt-0.5 shrink-0" />
-            <p className="text-sm text-green-800 leading-snug">
+          <div className="flex items-start gap-3 bg-[color:var(--accent-50)] border border-[color:var(--accent-200)] rounded-xl px-4 py-3 mb-6">
+            <CheckCircle2 size={18} className="text-[color:var(--accent-700)] mt-0.5 shrink-0" />
+            <p className="text-sm text-[color:var(--accent-800)] leading-snug">
               <span className="font-semibold">{t("login.emailConfirmadoTitulo")}</span>
               <br />{t("login.emailConfirmadoTexto")}
             </p>
           </div>
         )}
 
-        <h1 className="text-[23px] text-foreground text-center" style={{ fontFamily: "'Geist Sans', sans-serif", fontWeight: 700, letterSpacing: "-0.2px" }}>{t("login.titulo")}</h1>
-        <p className="text-[15px] text-gray-500 text-center mt-[1px]" style={{ fontWeight: 400 }}>
+        <h1 className="text-[24px] text-foreground text-center" style={{ fontFamily: "'Geist Sans', sans-serif", fontWeight: 700, letterSpacing: "-0.2px" }}>{t("login.titulo")}</h1>
+        <p className="text-[14px] text-gray-500 text-center mt-[1px]" style={{ fontWeight: 400 }}>
           {t("login.subtitulo")}
         </p>
 
@@ -199,7 +199,7 @@ export default function LoginPage() {
               placeholder={t("login.emailPlaceholder")}
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+              className="h-auto rounded-[6px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               autoComplete="email"
             />
           </div>
@@ -213,7 +213,7 @@ export default function LoginPage() {
                 placeholder={t("login.senhaPlaceholder")}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="h-auto rounded-[5px] pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-auto rounded-[6px] pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoComplete="current-password"
               />
               <button
@@ -237,14 +237,14 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <Button type="submit" className="w-full h-auto py-[10px] rounded-[5px] font-semibold" disabled={loading}>
+          <Button type="submit" className="w-full h-auto py-[10px] rounded-[6px] font-semibold" disabled={loading}>
             {loading ? t("login.aguarde") : t("login.entrar")}
           </Button>
 
           <Button
             type="button"
             variant="outline"
-            className="w-full h-auto py-[10px] rounded-[5px] font-medium bg-white border border-primary text-primary hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors"
+            className="w-full h-auto py-[10px] rounded-[6px] font-medium bg-white border border-primary text-primary hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors"
             onClick={() => navigate("/register")}
           >
             {t("login.criarConta")}

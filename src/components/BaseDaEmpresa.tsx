@@ -173,27 +173,27 @@ export function BaseDaEmpresa({ companyId, userId }: { companyId?: string; userI
 
   return (
     <>
-      <div className="bg-white border border-[#EEEEEE] rounded-xl p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-4">
-        <div className="w-10 h-10 rounded-full bg-[#E1F5EE] flex items-center justify-center text-[#128A68] shrink-0">
+      <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-4">
+        <div className="w-10 h-10 rounded-full bg-[color:var(--accent-100)] flex items-center justify-center text-[color:var(--text-link)] shrink-0">
           <BookOpen size={18} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[14px] font-bold text-[#111111]">Base da empresa</p>
-          <p className="text-[12px] text-[#767676] leading-relaxed">
+          <p className="text-[14px] font-bold text-[color:var(--text-heading)]">Base da empresa</p>
+          <p className="text-[12px] text-[color:var(--text-muted)] leading-relaxed">
             O que os agentes que conversam sabem sobre o seu negócio. Preencha uma vez: todos eles usam.
           </p>
           {!carregando && (
             <div className="flex items-center gap-3 mt-2">
-              <div className="h-1.5 w-40 rounded-full bg-[#EEEEEE] overflow-hidden" aria-hidden>
-                <div className="h-full bg-[#128A68] transition-[width] duration-300" style={{ width: `${(preenchidas / total) * 100}%` }} />
+              <div className="h-1.5 w-40 rounded-full bg-[color:var(--neutral-100)] overflow-hidden" aria-hidden>
+                <div className="h-full bg-[color:var(--accent-700)] transition-[width] duration-300" style={{ width: `${(preenchidas / total) * 100}%` }} />
               </div>
-              <span className="text-[11px] font-semibold text-[#444444] tabular-nums">
+              <span className="text-[12px] font-semibold text-[color:var(--text-body)] tabular-nums">
                 {preenchidas} de {total} respostas · {documentos.length} arquivo{documentos.length === 1 ? "" : "s"}
               </span>
             </div>
           )}
         </div>
-        <Button onClick={abrir} disabled={carregando} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white shrink-0">
+        <Button onClick={abrir} disabled={carregando} className="shrink-0">
           {completa ? <><Check size={16} /> Revisar base</> : preenchidas > 0 ? "Continuar preenchendo" : "Preencher base"}
         </Button>
       </div>
@@ -210,7 +210,7 @@ export function BaseDaEmpresa({ companyId, userId }: { companyId?: string; userI
           <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-1">
             {CAMPOS_DA_BASE.map((campo) => (
               <div key={campo.chave}>
-                <Label htmlFor={`base-${campo.chave}`} className="text-[13px] font-semibold text-[#111111]">{campo.pergunta}</Label>
+                <Label htmlFor={`base-${campo.chave}`} className="text-[13px] font-semibold text-[color:var(--text-heading)]">{campo.pergunta}</Label>
                 <Textarea
                   id={`base-${campo.chave}`}
                   value={rascunho[campo.chave]}
@@ -222,15 +222,15 @@ export function BaseDaEmpresa({ companyId, userId }: { companyId?: string; userI
               </div>
             ))}
 
-            <p className="text-[12px] text-[#767676]">
+            <p className="text-[12px] text-[color:var(--text-muted)]">
               Os produtos cadastrados em Configurações → Produtos também entram, com a descrição e o preço de cada um.
             </p>
 
-            <div className="border-t border-[#EEEEEE] pt-4">
+            <div className="border-t border-[color:var(--border-default)] pt-4">
               <div className="flex items-center justify-between gap-3 mb-2">
                 <div>
-                  <p className="text-[13px] font-semibold text-[#111111]">Arquivos (opcional)</p>
-                  <p className="text-[12px] text-[#767676]">Catálogo, tabela de preços, políticas. PDF, TXT, CSV, HTML ou JSON.</p>
+                  <p className="text-[13px] font-semibold text-[color:var(--text-heading)]">Arquivos (opcional)</p>
+                  <p className="text-[12px] text-[color:var(--text-muted)]">Catálogo, tabela de preços, políticas. PDF, TXT, CSV, HTML ou JSON.</p>
                 </div>
                 <input
                   ref={entradaArquivo}
@@ -244,17 +244,17 @@ export function BaseDaEmpresa({ companyId, userId }: { companyId?: string; userI
                 </Button>
               </div>
               {documentos.length === 0 ? (
-                <p className="text-[12px] text-[#767676]">Nenhum arquivo enviado.</p>
+                <p className="text-[12px] text-[color:var(--text-muted)]">Nenhum arquivo enviado.</p>
               ) : (
                 <ul className="space-y-1.5">
                   {documentos.map((d) => (
-                    <li key={d.id} className="flex items-center gap-2 p-2 bg-[#F5F5F5] rounded-md">
-                      <FileText size={14} className="text-[#767676] shrink-0" />
-                      <span className="text-[12px] text-[#111111] truncate flex-1" title={d.error_detail ?? d.file_name}>{d.file_name}</span>
-                      <span className={`text-[11px] font-semibold ${d.status === "ready" ? "text-[#128A68]" : d.status === "error" ? "text-[#991B1B]" : "text-[#767676]"}`}>
+                    <li key={d.id} className="flex items-center gap-2 p-2 bg-[color:var(--neutral-50)] rounded-md">
+                      <FileText size={14} className="text-[color:var(--text-muted)] shrink-0" />
+                      <span className="text-[12px] text-[color:var(--text-heading)] truncate flex-1" title={d.error_detail ?? d.file_name}>{d.file_name}</span>
+                      <span className={`text-[12px] font-semibold ${d.status === "ready" ? "text-[color:var(--text-link)]" : d.status === "error" ? "text-[color:var(--danger-fg)]" : "text-[color:var(--text-muted)]"}`}>
                         {ROTULO_STATUS[d.status]}
                       </span>
-                      <button type="button" onClick={() => void excluirArquivo(d)} aria-label={`Excluir ${d.file_name}`} className="text-[#767676] hover:text-[#DC2626] p-0.5">
+                      <button type="button" onClick={() => void excluirArquivo(d)} aria-label={`Excluir ${d.file_name}`} className="text-[color:var(--text-muted)] hover:text-[color:var(--danger-fg)] p-0.5">
                         <Trash2 size={14} />
                       </button>
                     </li>
@@ -266,7 +266,7 @@ export function BaseDaEmpresa({ companyId, userId }: { companyId?: string; userI
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setAberto(false)}>Cancelar</Button>
-            <Button onClick={() => void salvar()} disabled={salvando} className="bg-[#128A68] hover:bg-[#128A68]/90 text-white">
+            <Button onClick={() => void salvar()} disabled={salvando} >
               {salvando && <Loader2 size={14} className="animate-spin" />} Salvar base
             </Button>
           </DialogFooter>

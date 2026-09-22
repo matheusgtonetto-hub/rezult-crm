@@ -1,5 +1,8 @@
 import { useMemo } from "react";
 import type { Lead, Pipeline } from "@/data/mockData";
+import {
+  MOLDURA, TABELA, LINHA_CABECALHO, CORPO, LINHA_CORPO, LINHA_PE, useTabelaPainel, type ColunaTabela,
+} from "./TabelaPainel";
 
 interface StageVelocityPanelProps {
   funnelPipeline?: Pipeline | null;
@@ -104,21 +107,37 @@ export function StageVelocityPanel({
       : null;
 
     return [
-      ...stages.map(stage => {
+      ...stages.map((stage, idx) => {
         const arr = stageDays.get(stage.id) ?? [];
         const avgDays = arr.length > 0
           ? arr.reduce((s, d) => s + d, 0) / arr.length
           : null;
-        return { stage, count: arr.length, avgDays, isWon: false };
+        return { stage, count: arr.length, avgDays, isWon: false, posicao: idx };
       }),
-      { stage: { id: "__won__", title: "Ganhos", color: "#10B981", leadIds: [], position: 999 }, count: wonDays.length, avgDays: wonAvg, isWon: true },
+      { stage: { id: "__won__", title: "Ganhos", color: "#008762", leadIds: [], position: 999 }, count: wonDays.length, avgDays: wonAvg, isWon: true, posicao: 999 },
     ];
   }, [funnelPipeline, allLeads, funnelResponsible]);
+
+  // As etapas ordenam; a linha "Ganhos" fica presa no pé, porque é o desfecho
+  // do funil e não mais uma etapa dele.
+  type Linha = (typeof rows)[number];
+  const etapas = rows.filter(r => !r.isWon);
+  const ganhos = rows.find(r => r.isWon);
+  const colunas: ColunaTabela<Linha>[] = [
+    // "Etapa" ordena pela posição no pipeline, e é por ela que a tabela abre:
+    // a ordem natural de um funil é da primeira etapa para a última.
+    { id: "etapa", rotulo: "Etapa", alinhar: "esquerda", valor: r => r.posicao, primeiroCrescente: true },
+    { id: "count", rotulo: "Negócios", valor: r => r.count },
+    // Etapa sem dado vai para o fim em qualquer sentido de leitura útil: -1
+    // no decrescente (quem olha quer a mais lenta primeiro).
+    { id: "avgDays", rotulo: "Tempo médio", valor: r => r.avgDays ?? -1 },
+  ];
+  const { visiveis, cabecalho } = useTabelaPainel(etapas, colunas, { coluna: "etapa", desc: false });
 
   if (!funnelPipeline) return null;
 
   return (
-    <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
+    <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5">
       <h3 className="text-sm font-semibold text-foreground mb-1">Tempo médio por etapa</h3>
       <p className="text-xs text-muted-foreground mb-4">
         Média de dias que os negócios ficaram em cada etapa, calculada a partir da data de criação e das transições registradas.
@@ -126,22 +145,17 @@ export function StageVelocityPanel({
       {rows.length === 0 ? (
         <p className="text-xs text-muted-foreground">Nenhuma etapa configurada neste pipeline.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
+        <div className={MOLDURA}>
+          <table className={TABELA}>
             <thead>
-              <tr className="border-b border-card-border text-xs text-muted-foreground">
-                <th className="text-left pb-2 font-medium">Etapa</th>
-                <th className="text-right pb-2 font-medium">Negócios</th>
-                <th className="text-right pb-2 font-medium">Tempo médio</th>
+              <tr className={LINHA_CABECALHO}>
+                {colunas.map(c => <th key={c.id} style={c.largura ? { width: c.largura } : undefined}>{cabecalho(c)}</th>)}
               </tr>
             </thead>
-            <tbody className="divide-y divide-card-border">
-              {rows.map(r => (
-                <tr
-                  key={r.stage.id}
-                  className={`hover:bg-muted/30 transition-colors${r.isWon ? " border-t-2 border-card-border" : ""}`}
-                >
-                  <td className="py-2.5">
+            <tbody className={CORPO}>
+              {[...visiveis, ...(ganhos ? [ganhos] : [])].map(r => (
+                <tr key={r.stage.id} className={`${LINHA_CORPO}${r.isWon ? ` ${LINHA_PE}` : ""}`}>
+                  <td className="py-2.5 pr-3">
                     <div className="flex items-center gap-2">
                       <div
                         className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -152,10 +166,10 @@ export function StageVelocityPanel({
                       </span>
                     </div>
                   </td>
-                  <td className={`text-right py-2.5 tabular-nums ${r.isWon ? "text-success font-medium" : "text-muted-foreground"}`}>
+                  <td className={`text-center py-2.5 px-3 tabular-nums ${r.isWon ? "text-success font-medium" : "text-muted-foreground"}`}>
                     {r.count}
                   </td>
-                  <td className={`text-right py-2.5 font-semibold tabular-nums ${r.isWon ? "text-success" : "text-foreground"}`}>
+                  <td className={`text-center py-2.5 px-3 font-semibold tabular-nums ${r.isWon ? "text-success" : "text-foreground"}`}>
                     {r.avgDays !== null ? `${Math.round(r.avgDays)} dia${Math.round(r.avgDays) !== 1 ? "s" : ""}` : "—"}
                   </td>
                 </tr>

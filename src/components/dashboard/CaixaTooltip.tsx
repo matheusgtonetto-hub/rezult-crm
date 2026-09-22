@@ -19,6 +19,17 @@ import { tooltip } from "./useDashboardHelpers";
  * valeria em um quarto do dashboard.
  */
 
+/**
+ * Anel claro em volta da bolinha de cor.
+ *
+ * A caixa é escura desde 20/09/2026, e a série "Negócios" é desenhada em
+ * charcoal: a bolinha dela sumia contra o fundo, e a linha ficava sem a marca
+ * que diz de qual curva ela fala. O anel devolve a borda sem mexer na cor da
+ * série -- que precisa ser a MESMA do gráfico, senão a caixa aponta para a
+ * curva errada.
+ */
+const ANEL = "0 0 0 1px rgba(255,255,255,.45)";
+
 export interface LinhaTooltip {
   rotulo: string;
   /** Já formatado: a caixa não sabe se aquilo é contagem ou dinheiro. */
@@ -37,28 +48,39 @@ export interface LinhaTooltip {
 export function CaixaTooltip({
   titulo,
   cor,
-  linhas,
+  // `= []` não é zelo à toa: um popup sem linhas é um detalhe de um canto da
+  // tela, e derrubava a PÁGINA inteira em tela branca quando o dado não vinha
+  // como esperado (foi o que aconteceu com o anel em camadas, em 20/09/2026).
+  // A caixa some sozinha; o dashboard continua de pé.
+  linhas = [],
 }: {
   titulo: string;
   /** Bolinha ao lado do título. Para quando a caixa inteira é de uma cor só. */
   cor?: string;
-  linhas: LinhaTooltip[];
+  linhas?: LinhaTooltip[];
 }) {
   return (
     <div style={{ ...tooltip, padding: "8px 10px", minWidth: 148 }}>
-      <p className="text-xs font-semibold text-foreground mb-1.5 flex items-center gap-1.5">
-        {cor && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cor }} />}
+      {/* Tintas CLARAS: a caixa é escura desde 20/09/2026 (ver `tooltip` em
+          `useDashboardHelpers`). Título em branco, rótulos em `--neutral-400`
+          -- que sobre o charcoal da caixa dá 7,4:1 -- e a linha de destaque de
+          volta ao branco, para o número que explica o desenho continuar sendo o
+          mais forte da caixa. */}
+      <p className="text-xs font-semibold text-[color:var(--text-inverse)] mb-1.5 flex items-center gap-1.5">
+        {cor && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: cor, boxShadow: ANEL }} />}
         <span className="truncate">{titulo}</span>
       </p>
       {linhas.map(l => (
         <p
           key={l.rotulo}
-          className={`flex items-center gap-4 text-[11px] leading-5 ${
-            l.destaque ? "text-foreground font-semibold" : "text-muted-foreground"
+          className={`flex items-center gap-4 text-[12px] leading-5 ${
+            l.destaque
+              ? "text-[color:var(--text-inverse)] font-semibold"
+              : "text-[color:var(--neutral-400)]"
           }`}
         >
           <span className="flex items-center gap-1.5 min-w-0">
-            {l.cor && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: l.cor }} />}
+            {l.cor && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: l.cor, boxShadow: ANEL }} />}
             <span className="truncate">{l.rotulo}</span>
           </span>
           {/* `ml-auto` empurra o valor para a direita mesmo com o rótulo curto,

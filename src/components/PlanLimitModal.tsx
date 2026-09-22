@@ -27,7 +27,7 @@ export function PlanLimitModal({ resource, onClose }: Props) {
     >
       <div
         style={{
-          background: "#fff",
+          background: "var(--surface-card)",
           borderRadius: 16,
           overflow: "hidden",
           boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
@@ -39,7 +39,7 @@ export function PlanLimitModal({ resource, onClose }: Props) {
         onMouseDown={e => e.stopPropagation()}
       >
         {/* Header vermelho */}
-        <div style={{ position: "relative", padding: "16px 20px", background: "#EF4444" }}>
+        <div style={{ position: "relative", padding: "16px 20px", background: "var(--danger-400)" }}>
           <button
             onClick={onClose}
             style={{
@@ -79,10 +79,10 @@ export function PlanLimitModal({ resource, onClose }: Props) {
 
         {/* Corpo */}
         <div style={{ padding: "24px", textAlign: "center" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#111", marginBottom: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)", marginBottom: 8 }}>
             Continue crescendo
           </div>
-          <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 }}>
             Para continuar adicionando {resource}, atualize seu plano e desbloqueie recursos avançados.
           </p>
 
@@ -96,7 +96,7 @@ export function PlanLimitModal({ resource, onClose }: Props) {
               fontSize: 13,
               fontWeight: 600,
               color: "#fff",
-              background: "#128A68",
+              background: "var(--accent-700)",
               border: "none",
               cursor: "pointer",
             }}
@@ -112,7 +112,7 @@ export function PlanLimitModal({ resource, onClose }: Props) {
               background: "none",
               border: "none",
               fontSize: 13,
-              color: "#6B7280",
+              color: "var(--text-muted)",
               cursor: "pointer",
               padding: "4px 0",
             }}

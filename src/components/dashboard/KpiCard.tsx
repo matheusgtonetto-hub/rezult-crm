@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Minus, type LucideIcon } from "lucide-react";
+import { Minus, ArrowUpRight, ArrowDownRight, type LucideIcon } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import type { Variacao } from "./useDashboardHelpers";
 
@@ -8,13 +8,14 @@ import type { Variacao } from "./useDashboardHelpers";
  * Cada KPI ganha a sua, e ela vale para o ícone e para o sparkline ao mesmo
  * tempo. São hexadecimais e não tokens do tema porque o Recharts pinta em SVG,
  * onde `hsl(var(--primary))` não resolve: o SVG não enxerga a variável CSS do
- * elemento pai. Os valores são os mesmos dos tokens.
+ * elemento pai. Os valores são os do Rezult CRM Design System: esmeralda 400,
+ * esmeralda 700, vermelho de decadência e âmbar de alerta.
  */
 const TONS = {
-  primary: "#128A68",
-  success: "#10B981",
-  danger: "#EF4444",
-  amber: "#F59E0B",
+  primary: "#01D8A4",
+  success: "#008762",
+  danger: "#FD5555",
+  amber: "#F7B32B",
 } as const;
 
 export type TomDoKpi = keyof typeof TONS;
@@ -26,6 +27,17 @@ interface KpiCardProps {
   deltaPct?: number | null;
   /** Ícone do canto superior direito, dentro do quadrado tingido. */
   icone?: LucideIcon;
+  /**
+   * Para onde o cartão leva. Quando existe, o canto superior direito ganha o
+   * botão redondo escuro com a seta diagonal -- o `IconButton variant="dark"`
+   * do `StatCard` do material -- no lugar do quadrado com o ícone da métrica.
+   *
+   * Sem isto o botão não é desenhado: uma seta de "abrir" que não abre nada
+   * promete uma tela que não existe.
+   */
+  aoAbrir?: () => void;
+  /** O que a seta abre, para o leitor de tela ("Ver os negócios ganhos"). */
+  rotuloDeAbrir?: string;
   /** Família de cor do ícone e do sparkline. Padrão: verde da marca. */
   tom?: TomDoKpi;
   /**
@@ -103,7 +115,7 @@ function Sparkline({ serie, cor, id }: { serie: number[]; cor: string; id: strin
   );
 }
 
-export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, variacao, icone: Icone, tom = "primary", serie }: KpiCardProps) {
+export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, variacao, icone: Icone, tom = "primary", serie, aoAbrir, rotuloDeAbrir }: KpiCardProps) {
   const cor = TONS[tom];
   // Id único por cartão: dois `linearGradient` com o mesmo id na página fazem o
   // segundo herdar o primeiro, e os sparklines sairiam todos da mesma cor.
@@ -137,6 +149,31 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
       <Icone size={17} style={{ color: cor }} />
     </div>
   );
+
+  /**
+   * O botão de abrir, no canto superior direito.
+   *
+   * É o `IconButton variant="dark"` do `StatCard` do material: círculo de 38px
+   * em `--surface-inverse` com a seta diagonal em branco. Ele TOMA o lugar do
+   * quadrado com o ícone da métrica -- os dois no mesmo canto seriam duas
+   * âncoras disputando o olho, e o material tem só uma.
+   */
+  const botaoDeAbrir = aoAbrir && (
+    <button
+      type="button"
+      onClick={aoAbrir}
+      aria-label={rotuloDeAbrir ?? `Ver ${label}`}
+      className="w-[30px] h-[30px] shrink-0 rounded-full inline-flex items-center justify-center transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)] bg-[color:var(--surface-inverse)] text-[color:var(--text-inverse)] hover:bg-[color:var(--neutral-800)]"
+    >
+      {/* 30px com ícone de 15: é o `size="sm"` do `IconButton` do material, que
+          é o tamanho que o `StatCard` usa. Entrou em 36 (o `md`), e ao lado de
+          um rótulo de 12px ele pesava mais que o próprio rótulo. */}
+      <ArrowUpRight size={15} strokeWidth={2} />
+    </button>
+  );
+
+  /** O canto: o botão manda quando existe. */
+  const cantoSuperior = botaoDeAbrir ?? chipDoIcone;
 
   // `variacao` manda quando vem; senão, o número solto é traduzido para os
   // mesmos estados, para os dois caminhos desenharem igual.
@@ -174,11 +211,19 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
    * separá-los deixaria isso invisível na hora de editar.
    */
   const ESCALA = {
-    rotulo: "text-[14px] text-foreground font-normal",
-    numero: "text-[22px]",
+    // Rótulo em caption cinza e número na escala "Métrica" do sistema (32/600,
+    // tracking -2%, tabular-nums). Antes: rótulo de 14px no preto do corpo e
+    // número de 22px, que é tamanho de título de painel -- o cartão inteiro
+    // pesava igual ao painel ao lado em vez de destacar o número.
+    rotulo: "text-xs text-muted-foreground font-normal",
+    // 32px é o alvo da escala "Métrica", mas valor em reais com milhar cheio
+    // ("R$ 10.475.302,00") tem 17 caracteres e encostava na borda do cartão com
+    // quatro KPIs na fileira. O clamp mantém os 32px onde cabe e encolhe até
+    // 20px em cartão estreito, sem quebrar a linha.
+    numero: "text-[clamp(20px,2.1vw,32px)] font-semibold tracking-[-0.02em] leading-[1.05] tabular-nums",
     badge: "text-[12px]",
-    apoio: "text-[14px]",
-    seta: 16,
+    apoio: "text-xs",
+    seta: 11,
   };
 
   // Sem pastilha de fundo: só o texto colorido. A cor já diz alta ou queda, e o
@@ -186,31 +231,48 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
   // que já tem seta, ícone tingido e sparkline.
   const badge = v && (
     v.tipo === "pct" ? (
-      <span title={explicacao} className={`${ESCALA.badge} font-semibold ${v.valor >= 0 ? "text-success" : "text-destructive"}`}>
+      <span
+        title={explicacao}
+        className={`${ESCALA.badge} inline-flex items-center gap-1 rounded-sm bg-muted px-1.5 py-0.5 font-medium text-foreground tabular-nums`}
+      >
         {v.valor >= 0 ? "+" : ""}{v.valor.toFixed(1)}%
+        {/* A seta mora DENTRO da pílula, à direita do número, como no
+            `DeltaChip.jsx` do material. Ela estava do lado de fora, na outra
+            ponta da linha: as duas dizem a mesma coisa, e separá-las obrigava o
+            olho a cruzar o cartão para juntar.
+
+            O número fica na tinta do texto e só a seta é colorida -- verde na
+            alta, vermelho na queda. É a mesma regra do material, e evita a
+            leitura "verde = bom" num cartão como "Total perdidos", onde subir
+            não é boa notícia. */}
+        {v.valor >= 0
+          ? <ArrowUpRight size={ESCALA.seta} strokeWidth={2.4} className="text-[color:var(--accent-700)]" />
+          : <ArrowDownRight size={ESCALA.seta} strokeWidth={2.4} className="text-destructive" />}
       </span>
     ) : v.tipo === "novo" ? (
       // Sair de zero é alta, mas não tem percentual: dividir por zero não dá
       // número. "novo" diz o que aconteceu sem inventar uma conta.
-      <span title={explicacao} className={`${ESCALA.badge} font-semibold text-success`}>novo</span>
+      <span title={explicacao} className={`${ESCALA.badge} inline-flex items-center gap-1 rounded-sm bg-muted px-1.5 py-0.5 font-medium text-foreground`}>
+        novo
+        <ArrowUpRight size={ESCALA.seta} strokeWidth={2.4} className="text-[color:var(--accent-700)]" />
+      </span>
     ) : null
   );
 
-  // Seta pequena: ela fica colada no percentual, e não sozinha no canto. No
-  // tamanho antigo (20) ela pesava mais que o próprio número que qualifica.
-  const tendencia = !v ? null : (
+  /**
+   * O caso "estável" continua com marca própria, porque não tem pílula: sem
+   * variação não há percentual para desenhar, e um traço diz "igual ao período
+   * anterior" onde a ausência de qualquer sinal diria "não medimos".
+   */
+  const tendencia = v && v.tipo === "estavel" ? (
     <span title={explicacao} className="flex items-center">
-      {v.tipo === "estavel"
-        ? <Minus size={ESCALA.seta} className="text-muted-foreground" />
-        : v.tipo === "novo" || v.valor >= 0
-          ? <TrendingUp size={ESCALA.seta} className="text-success" />
-          : <TrendingDown size={ESCALA.seta} className="text-destructive" />}
+      <Minus size={ESCALA.seta} className="text-muted-foreground" />
     </span>
-  );
+  ) : null;
 
   if (destaqueNoSub) {
     return (
-      <div className="bg-card rounded-xl p-5 border border-gray-200 shadow-elev-1 overflow-hidden">
+      <div className="bg-card rounded-2xl p-5 border border-card-border shadow-elev-1 overflow-hidden">
         {/* Rótulo e ícone dividem a primeira linha. O ícone à direita dá âncora
             visual ao cartão sem competir com o número, que continua sendo a
             informação principal.
@@ -225,7 +287,7 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
               conta do corpo (14 contra 22) e do peso (400 contra 700), sem
               precisar rebaixar a cor também. */}
           <span className={ESCALA.rotulo}>{label}</span>
-          {chipDoIcone}
+          {cantoSuperior}
         </div>
         {/* O dinheiro no lugar de destaque. `tabular-nums` porque são valores
             lidos em coluna: sem ele os dígitos dançam de largura entre um
@@ -257,13 +319,13 @@ export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, va
   }
 
   return (
-    <div className="bg-card rounded-xl p-5 border border-gray-200 shadow-elev-1 overflow-hidden">
+    <div className="bg-card rounded-2xl p-5 border border-card-border shadow-elev-1 overflow-hidden">
       {/* `items-center` como na outra variante: com o rótulo em 14px as duas
           fileiras passaram a ter a mesma altura de linha, e alinhar pelo topo
           aqui deixaria o texto acima do centro do ícone. */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <span className={ESCALA.rotulo}>{label}</span>
-        {chipDoIcone}
+        {cantoSuperior}
       </div>
       <div className="flex items-center gap-2 flex-wrap">
         <p className={`${ESCALA.numero} leading-none font-bold tabular-nums text-foreground`}>{value}</p>

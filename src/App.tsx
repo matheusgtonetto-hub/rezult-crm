@@ -22,7 +22,6 @@ import DashboardPage from "./pages/DashboardPage";
 import SettingsPage from "./pages/SettingsPage";
 import CalendarPage from "./pages/CalendarPage";
 import AgentesPage from "./pages/AgentesPage";
-import RezultPayPage from "./pages/RezultPayPage";
 import MultiatendimentoPage from "./pages/MultiatendimentoPage";
 import AutomacoesPage from "./pages/AutomacoesPage";
 import DisparosPage from "./pages/DisparosPage";
@@ -149,7 +148,6 @@ function AppRoutes() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/agentes" element={<AgentesPage />} />
             <Route path="/agentes/:id" element={<AgentesPage />} />
-            <Route path="/rezult-pay" element={<RezultPayPage />} />
             <Route path="/multiatendimento" element={<MultiatendimentoPage />} />
             <Route path="/automacoes" element={<AutomacoesPage />} />
             <Route path="/automacoes/:id" element={<AutomacoesPage />} />

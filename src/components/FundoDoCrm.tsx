@@ -54,14 +54,14 @@ interface ColunaFicticia {
   cards: CardFicticio[];
 }
 
-const VERDE = "#128A68";
+const VERDE = "var(--accent-700)";
 const AZUL = "#3B82F6";
 const PRETO = "#111111";
 const ROXO = "#6D28D9";
 
 const COLUNAS: ColunaFicticia[] = [
   {
-    titulo: "Novos Leads", cor: "#128A68",
+    titulo: "Novos Leads", cor: "var(--accent-700)",
     cards: [
       { nome: "Beatriz Almeida", numero: 1412, valor: 0,    data: "18/08/2026", tags: [{ texto: "Meta ads", cor: AZUL }] },
       { nome: "Rafael Moura",    numero: 1409, valor: 0,    data: "18/08/2026" },
@@ -182,25 +182,25 @@ function Cartao({ card, cor }: { card: CardFicticio; cor: string }) {
         <p className="text-sm font-medium text-foreground leading-tight truncate min-w-0 flex-1">
           {card.nome}
         </p>
-        <span className="text-[10px] font-mono text-muted-foreground shrink-0">#{card.numero}</span>
+        <span className="text-[12px] font-mono text-muted-foreground shrink-0">#{card.numero}</span>
       </div>
 
-      <div className="flex items-center gap-1.5 mt-2" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+      <div className="flex items-center gap-1.5 mt-2" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
         <span
           className="rounded-full flex items-center justify-center text-white shrink-0"
-          style={{ width: 16, height: 16, background: "#7C8B99", fontSize: 7, fontWeight: 700 }}
+          style={{ width: 16, height: 16, background: "#7C8B99", fontSize: 12, fontWeight: 700 }}
         >
           {iniciais(RESPONSAVEL)[0]}
         </span>
         <span className="truncate">{RESPONSAVEL}</span>
       </div>
 
-      <p className="font-semibold mt-1.5" style={{ fontSize: 15, color: VERDE }}>
+      <p className="font-semibold mt-1.5" style={{ fontSize: 14, color: VERDE }}>
         {dinheiro(card.valor)}
       </p>
 
       <div className="flex items-center justify-between mt-1">
-        <span className="flex items-center gap-1" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+        <span className="flex items-center gap-1" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
           <CalendarClock size={11} />
           {card.data}
         </span>
@@ -216,7 +216,7 @@ function Cartao({ card, cor }: { card: CardFicticio; cor: string }) {
         {(card.tags ?? []).map(t => (
           <span
             key={t.texto}
-            className="text-[10px] px-1.5 rounded-full text-white font-medium whitespace-nowrap"
+            className="text-[12px] px-1.5 rounded-full text-white font-medium whitespace-nowrap"
             style={{ background: t.cor }}
           >
             {t.texto}
@@ -269,12 +269,12 @@ function BoardDesenhado() {
           style={{ width: 52, background: "hsl(var(--primary))", paddingTop: 12, paddingBottom: 12 }}
         >
           <img
-            src="/favicon.png?v=3"
+            src="/favicon.png?v=4"
             alt=""
             style={{ width: 35, height: 35, borderRadius: 8, marginBottom: 8, objectFit: "cover" }}
           />
           <div
-            className="flex items-center justify-center text-white text-[11px] font-bold"
+            className="flex items-center justify-center text-white text-[12px] font-bold"
             style={{
               width: 32, height: 32, borderRadius: 8, marginBottom: 16,
               background: "rgba(255,255,255,0.12)", border: "1.5px solid rgba(255,255,255,0.3)",
@@ -312,10 +312,10 @@ function BoardDesenhado() {
               </span>
             ))}
             <span
-              className="flex items-center justify-center text-[10px] font-bold"
+              className="flex items-center justify-center text-[12px] font-bold"
               style={{
                 width: 28, height: 28, borderRadius: 999, marginTop: 4,
-                background: "#FFFFFF", color: "hsl(var(--primary))",
+                background: "var(--surface-card)", color: "var(--text-link)",
               }}
             >
               R
@@ -340,7 +340,7 @@ function BoardDesenhado() {
               <span className="flex items-center gap-2 rounded-md border border-primary bg-card px-3 py-1.5 text-[13px] font-medium text-primary">
                 <Workflow size={15} /> Automação
               </span>
-              <span className="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-[13px] font-medium text-white">
+              <span className="flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-[13px] font-medium text-[color:var(--text-on-accent)]">
                 <Plus size={15} /> Novo Lead
               </span>
               <span className="flex items-center justify-center rounded-md border border-card-border bg-card text-muted-foreground" style={{ width: 32, height: 32 }}>
@@ -381,7 +381,7 @@ function BoardDesenhado() {
               return (
                 <div
                   key={col.titulo}
-                  className="min-w-[280px] w-[280px] h-full flex flex-col rounded-xl border border-card-border bg-card shadow-elev-1 overflow-hidden"
+                  className="min-w-[280px] w-[280px] h-full flex flex-col rounded-2xl border border-card-border bg-card shadow-elev-1 overflow-hidden"
                 >
                   <div className="h-1 w-full shrink-0" style={{ background: col.cor }} />
 
@@ -389,7 +389,7 @@ function BoardDesenhado() {
                     <div className="flex items-start gap-2 min-w-0 flex-1">
                       <span className="mt-[3px] shrink-0 rounded-full" style={{ width: 13, height: 13, background: col.cor }} />
                       <div className="min-w-0">
-                        <h3 className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "#111111" }}>
+                        <h3 className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "var(--text-heading)" }}>
                           {col.titulo}
                         </h3>
                         <p className="mt-0.5 whitespace-nowrap" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>

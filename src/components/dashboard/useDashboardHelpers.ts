@@ -35,7 +35,48 @@ export const ORIGIN_COLORS: Record<string, string> = {
  * que aparece em duas ordens diferentes (motivos no geral e motivos de uma
  * origem) precisa fixar a cor por nome antes de entregar.
  */
-export const PALETA = ["#128A68", "#3B82F6", "#F59E0B", "#8B5CF6", "#EC4899", "#14B8A6", "#64748B", "#EF4444"];
+/**
+ * As cores das fatias e das barras, na ordem em que entram.
+ *
+ * É a rampa da MARCA, e não o arco-íris de antes (azul, âmbar, roxo, rosa,
+ * teal, vermelho), que vinha de um tema genérico e punha um roxo no meio de um
+ * dashboard verde. O material chama isso de `--chart-1..6` e usa exatamente
+ * esta ideia: dois verdes e um charcoal fazem o grosso do trabalho, os cinzas
+ * seguram a cauda, e nenhuma cor de fora da marca entra.
+ *
+ * A ordem importa: as três primeiras fatias são as maiores em quase todo
+ * painel, e é nelas que a distinção precisa ser mais forte. Emerald da marca,
+ * charcoal e emerald escuro se separam bem até para quem não distingue
+ * vermelho de verde, porque também diferem em LUMINOSIDADE.
+ *
+ * Oito entradas porque é quanto os painéis chegam a pedir (responsáveis, tags,
+ * origens); passando disso o índice dá a volta, e aí a repetição já é menos
+ * grave que inventar uma nona cor fora do sistema.
+ */
+export const PALETA = [
+  "#01D8A4", // accent-400, a cor da marca
+  "#2D2F33", // charcoal
+  "#00A879", // accent-600
+  "#B4B4B7", // neutral-400
+  "#00654A", // accent-800
+  "#5FE7BE", // accent-300
+  "#6C6C6C", // neutral-600
+  "#A5F3D9", // accent-200
+];
+
+/**
+ * A receita de um negócio GANHO.
+ *
+ * `wonValue` é o valor congelado no momento do fechamento; `value` é o valor
+ * atual do negócio, que muda quando alguém edita. Somar `value` fazia a receita
+ * de um mês fechado mudar depois -- e, num negócio reaberto e ganho de novo por
+ * outro preço, o histórico inteiro passava a mostrar o preço novo.
+ *
+ * O `??` cobre os negócios ganhos antes de a coluna existir, cujo backfill
+ * fotografou o valor vigente. Só use para GANHO: em negócio aberto ou perdido o
+ * que vale é `value`.
+ */
+export const receitaDoGanho = (l: { value: number; wonValue?: number }) => l.wonValue ?? l.value;
 
 export const pct = (n: number, d: number) =>
   d > 0 ? `${((n / d) * 100).toFixed(1)}%` : "—";
@@ -44,12 +85,24 @@ export const pct = (n: number, d: number) =>
 // entryDate vazio → retorna null (lead sem data é sempre incluído pelo chamador).
 export const parseEntryDate = (d: string) => (d ? new Date(d + "T00:00:00") : null);
 
+/**
+ * A caixa que segue o ponteiro nos gráficos: ESCURA, como no material.
+ *
+ * Era branca com borda de 1px, igual ao cartão embaixo dela -- e num painel
+ * branco, cheio de linhas claras, ela se confundia com o próprio conteúdo. No
+ * `LineChart.jsx` do DS-3 ela é `--surface-inverse` com `--text-inverse`, que é
+ * o contraste máximo contra tudo o que o dashboard desenha.
+ *
+ * Sem borda: sobre fundo claro o escuro já se separa sozinho, e a sombra de
+ * sobreposição dá a profundidade.
+ */
 export const tooltip = {
-  backgroundColor: "hsl(var(--card))",
-  border: "1px solid hsl(var(--card-border))",
+  backgroundColor: "var(--surface-inverse)",
+  border: "none",
   borderRadius: 8,
-  color: "hsl(var(--foreground))",
+  color: "var(--text-inverse)",
   fontSize: 12,
+  boxShadow: "var(--shadow-overlay)",
 };
 
 /**

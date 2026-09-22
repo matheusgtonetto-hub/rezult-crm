@@ -91,7 +91,6 @@ interface Profile {
 /leads                   → LeadsPage ✓
 /contatos                → redirect para /leads
 /agentes                 → AgentesPage ✓
-/rezult-pay              → RezultPayPage ✓
 /multiatendimento        → MultiatendimentoPage ✓
 /automacoes              → AutomacoesPage ✓
 /configuracoes           → SettingsPage ✓

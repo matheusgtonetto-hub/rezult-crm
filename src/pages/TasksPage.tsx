@@ -96,7 +96,7 @@ export default function TasksPage() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {overdue && <AlertCircle size={16} className="text-destructive" />}
-                  <div className="w-7 h-7 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center" title={task.responsible}>
+                  <div className="w-7 h-7 rounded-full bg-primary/15 text-primary text-[12px] font-bold flex items-center justify-center" title={task.responsible}>
                     {initials}
                   </div>
                 </div>

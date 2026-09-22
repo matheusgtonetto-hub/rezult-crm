@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import { useQueries, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { dbToLead } from "@/context/CRMContext";
@@ -33,7 +33,7 @@ import type { LeadFilter } from "@/data/disparos";
  * só o pedaço novo. Isso rebusca linhas já vistas, e é de propósito: o
  * `useInfiniteQuery`, que acumularia páginas, não se combina com `useQueries`
  * de forma simples. Num kanban raramente se passa da terceira página, então o
- * desperdício é rebuscar 150 linhas em vez de 50, e em troca o código não
+ * desperdício é rebuscar 60 linhas em vez de 20, e em troca o código não
  * precisa gerenciar acumulação nem invalidação de páginas soltas.
  *
  * ── Por que arrastar mexe no cache em vez de re-buscar ──
@@ -50,7 +50,14 @@ import type { LeadFilter } from "@/data/disparos";
  * evitar. O servidor volta a mandar no próximo refetch natural.
  */
 
-const POR_PAGINA = 50;
+/**
+ * Tamanho da leva.
+ *
+ * 20 desde 21/09/2026 (dono). Eram 50, e com o carregamento automático o
+ * número passou a importar mais: a leva chega enquanto a pessoa rola, e 50
+ * linhas por coluna deixam a primeira pintura mais lenta sem ninguém pedir.
+ */
+const POR_PAGINA = 20;
 
 export type OrdemDoKanban = "recent" | "oldest" | "value" | "name";
 
@@ -143,16 +150,42 @@ export function useColunasDoKanban({
     }),
   });
 
+  /**
+   * O último resultado bom de cada coluna.
+   *
+   * O `placeholderData: keepPreviousData` das consultas NÃO cobre o "carregar
+   * mais": o limite faz parte da chave, e dentro de `useQueries` as consultas
+   * são casadas por hash de chave -- a do limite novo entra como consulta
+   * inédita, sem predecessora de onde herdar dados.
+   *
+   * O efeito era visível: entre pedir a leva e recebê-la, a coluna ficava com
+   * ZERO cards por um instante. Medido em 21/09/2026: o conteúdo caía de
+   * 4364px para 513px (a altura da área), o navegador zerava o `scrollTop`
+   * porque não havia mais o que rolar, e a pessoa era jogada de volta ao topo
+   * a cada 20 cards.
+   *
+   * Guardando o último resultado, a lista nunca esvazia: ela cresce por baixo,
+   * o scroll fica onde estava e o carregamento aparece só no sentinela.
+   */
+  const ultimoBom = useRef<Record<string, DadosDaColuna>>({});
+
   const porColuna = useMemo(() => {
     const mapa: Record<string, DadosDaColuna> = {};
     colunaIds.forEach((colunaId, i) => {
       const c = consultas[i];
-      // `carregando` sai do isFetching, e não do isLoading: com dados anteriores
-      // na tela o isLoading já é falso, e o botão "carregar mais" precisa saber
-      // que ainda tem busca em voo para não ser clicado duas vezes.
-      mapa[colunaId] = c?.data
-        ? { ...c.data, carregando: c.isFetching }
-        : { ...VAZIA, carregando: c?.isLoading ?? true };
+      if (c?.data) {
+        ultimoBom.current[colunaId] = c.data;
+        // `carregando` sai do isFetching, e não do isLoading: com dados
+        // anteriores na tela o isLoading já é falso, e o sentinela precisa
+        // saber que ainda tem busca em voo para não pedir a mesma leva duas
+        // vezes.
+        mapa[colunaId] = { ...c.data, carregando: c.isFetching };
+      } else {
+        const anterior = ultimoBom.current[colunaId];
+        mapa[colunaId] = anterior
+          ? { ...anterior, carregando: true }
+          : { ...VAZIA, carregando: c?.isLoading ?? true };
+      }
     });
     return mapa;
   }, [colunaIds, consultas]);

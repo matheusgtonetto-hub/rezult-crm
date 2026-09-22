@@ -35,7 +35,7 @@ export const IA_COST_LABELS: Record<IaModelCost, string> = {
 // um tom intermediário entre bg e fg (mesma matiz, um pouco mais escuro que
 // o fundo) pra dar contorno à tag sem competir com o texto.
 export const IA_COST_STYLES: Record<IaModelCost, { bg: string; fg: string; border: string }> = {
-  baixo: { bg: "#E1F5EE", fg: "#128A68", border: "#A7E8D0" },
+  baixo: { bg: "#E1F5EE", fg: "#008762", border: "#A7E8D0" },
   medio: { bg: "#FEF3C7", fg: "#92400E", border: "#FCD34D" },
   alto:  { bg: "#FEE2E2", fg: "#991B1B", border: "#FCA5A5" },
 };

@@ -70,11 +70,11 @@ function JsonNode({
         <button
           onClick={() => onCopy(path)}
           title="Copiar caminho"
-          style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: "0 1px", color: isCopied ? "#16a34a" : "#AAA", display: "flex", alignItems: "center", lineHeight: 1 }}
+          style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: "0 1px", color: isCopied ? "var(--accent-700)" : "var(--text-muted)", display: "flex", alignItems: "center", lineHeight: 1 }}
         >
           {isCopied ? <Check size={11} /> : <Copy size={11} />}
         </button>
-        <span style={{ fontSize: 11, color: typeof data === "string" ? "#16a34a" : "#ea580c", fontFamily: "monospace", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={str}>
+        <span style={{ fontSize: 12, color: typeof data === "string" ? "var(--accent-700)" : "#ea580c", fontFamily: "monospace", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={str}>
           {typeof data === "string" ? `"${str}"` : str}
         </span>
       </span>
@@ -84,17 +84,17 @@ function JsonNode({
   if (Array.isArray(data)) {
     return (
       <div style={{ paddingLeft: indent }}>
-        <button onClick={() => setOpen(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#888", fontFamily: "monospace", padding: "1px 0", display: "flex", alignItems: "center", gap: 2 }}>
+        <button onClick={() => setOpen(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace", padding: "1px 0", display: "flex", alignItems: "center", gap: 2 }}>
           {open ? <ChevronDown size={10} /> : <ChevronRightIcon size={10} />}
           <span>[{data.length}]</span>
         </button>
         {open && data.slice(0, 5).map((item, i) => (
           <div key={i} style={{ paddingTop: 2 }}>
-            <span style={{ fontSize: 10, color: "#AAA", fontFamily: "monospace" }}>{i}: </span>
+            <span style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace" }}>{i}: </span>
             <JsonNode data={item} path={`${path}.${i}`} depth={depth + 1} onCopy={onCopy} copiedPath={copiedPath} />
           </div>
         ))}
-        {data.length > 5 && <span style={{ fontSize: 10, color: "#AAA" }}>…+{data.length - 5} itens</span>}
+        {data.length > 5 && <span style={{ fontSize: 12, color: "var(--text-muted)" }}>…+{data.length - 5} itens</span>}
       </div>
     );
   }
@@ -108,11 +108,11 @@ function JsonNode({
           <div key={key} style={{ paddingTop: 2, paddingBottom: 2 }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
               {isObj && (
-                <button onClick={() => setOpen(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", padding: "1px 0", display: "flex", alignItems: "center", color: "#888", flexShrink: 0 }}>
+                <button onClick={() => setOpen(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", padding: "1px 0", display: "flex", alignItems: "center", color: "var(--text-muted)", flexShrink: 0 }}>
                   {open ? <ChevronDown size={10} /> : <ChevronRightIcon size={10} />}
                 </button>
               )}
-              <span style={{ fontSize: 11, color: "#0891B2", fontWeight: 500, fontFamily: "monospace", flexShrink: 0 }}>{key}:</span>
+              <span style={{ fontSize: 12, color: "#0891B2", fontWeight: 500, fontFamily: "monospace", flexShrink: 0 }}>{key}:</span>
               {!isObj && (
                 <JsonNode data={val} path={full} depth={depth} onCopy={onCopy} copiedPath={copiedPath} />
               )}
@@ -193,7 +193,7 @@ function FieldInput({
       value={value ?? ""}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
-      style={{ width: "100%", border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#111", background: "#FAFAFA", outline: "none", boxSizing: "border-box" }}
+      style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "var(--text-heading)", background: "var(--neutral-25)", outline: "none", boxSizing: "border-box" }}
     />
   );
 }
@@ -427,7 +427,7 @@ export default function IntegracoesPage() {
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          style={{ background: VERDE, color: "#FFF", border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+          style={{ background: VERDE, color: "var(--text-on-accent)", border: "none", borderRadius: 8, padding: "8px 20px", fontSize: 14, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
         >
           <Plus size={15} /> Criar
         </button>
@@ -441,16 +441,16 @@ export default function IntegracoesPage() {
           acendia o botão e devolvia a mesma lista. */}
       <div>
           {loading ? (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0", gap: 8, color: "#AAA" }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0", gap: 8, color: "var(--text-muted)" }}>
               <Loader2 size={20} style={{ animation: "spin 1s linear infinite" }} />
               <span style={{ fontSize: 13 }}>Carregando…</span>
             </div>
           ) : loadError ? (
             <div style={{ textAlign: "center", padding: "60px 0" }}>
-              <AlertTriangle size={36} style={{ margin: "0 auto 12px", color: "#F59E0B", opacity: 0.6 }} />
-              <p style={{ fontSize: 14, fontWeight: 600, color: "#888" }}>Erro ao carregar integrações</p>
-              <p style={{ fontSize: 13, color: "#AAA", marginTop: 4, marginBottom: 16 }}>
-                Execute a migration SQL no Supabase para criar a tabela <code style={{ background: "#F3F4F6", padding: "1px 6px", borderRadius: 4 }}>webhook_integrations</code>
+              <AlertTriangle size={36} style={{ margin: "0 auto 12px", color: "var(--warning-fg)", opacity: 0.6 }} />
+              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)" }}>Erro ao carregar integrações</p>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 4, marginBottom: 16 }}>
+                Execute a migration SQL no Supabase para criar a tabela <code style={{ background: "var(--neutral-50)", padding: "1px 6px", borderRadius: 6 }}>webhook_integrations</code>
               </p>
               <button
                 onClick={load}
@@ -460,13 +460,13 @@ export default function IntegracoesPage() {
               </button>
             </div>
           ) : integrations.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "60px 0", color: "#AAA" }}>
+            <div style={{ textAlign: "center", padding: "60px 0", color: "var(--text-muted)" }}>
               <ShoppingBag size={36} style={{ margin: "0 auto 12px", opacity: 0.2 }} />
-              <p style={{ fontSize: 14, fontWeight: 600, color: "#888" }}>Nenhuma integração encontrada</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-muted)" }}>Nenhuma integração encontrada</p>
               <p style={{ fontSize: 13, marginTop: 4, marginBottom: 16 }}>Configure um webhook para receber leads automaticamente</p>
               <button
                 onClick={() => setShowCreate(true)}
-                style={{ fontSize: 13, fontWeight: 700, color: "#FFF", background: VERDE, border: "none", borderRadius: 8, padding: "10px 24px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
+                style={{ fontSize: 13, fontWeight: 700, color: "var(--text-on-accent)", background: VERDE, border: "none", borderRadius: 8, padding: "10px 24px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}
               >
                 <Plus size={15} /> Criar primeiro webhook
               </button>
@@ -491,8 +491,8 @@ export default function IntegracoesPage() {
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-1.5">
-                      <span className={`w-2 h-2 rounded-full ${itg.active ? "bg-green-500" : "bg-muted-foreground/40"}`} />
-                      <span className={`text-xs font-medium ${itg.active ? "text-green-700" : "text-muted-foreground"}`}>
+                      <span className={`w-2 h-2 rounded-full ${itg.active ? "bg-[color:var(--accent-400)]" : "bg-muted-foreground/40"}`} />
+                      <span className={`text-xs font-medium ${itg.active ? "text-[color:var(--accent-800)]" : "text-muted-foreground"}`}>
                         {itg.active ? "Ativa" : "Pausada"}
                       </span>
                     </div>
@@ -513,7 +513,7 @@ export default function IntegracoesPage() {
                       mostra a conta. É o que distingue uma integração da outra
                       numa lista em que o serviço é sempre o mesmo. */}
                   <p className="font-bold text-foreground mb-1 truncate" style={{ fontSize: 14 }}>{itg.name}</p>
-                  <p className="text-muted-foreground/80 mb-3" style={{ fontSize: 11, lineHeight: 1.3 }}>
+                  <p className="text-muted-foreground mb-3" style={{ fontSize: 12, lineHeight: 1.3 }}>
                     Recebe dados de sistemas externos por webhook e cria registros automaticamente no CRM.
                   </p>
 
@@ -535,16 +535,16 @@ export default function IntegracoesPage() {
       {/* ═══════════ CREATE MODAL ═══════════ */}
       {showCreate && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: "#FFF", borderRadius: 16, width: "min(90vw,640px)", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+          <div style={{ background: "var(--surface-card)", borderRadius: 16, width: "min(90vw,640px)", maxHeight: "80vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
             {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px 16px", borderBottom: "1px solid #F0F0F0" }}>
-              <h2 style={{ fontWeight: 700, fontSize: 18, color: "#111" }}>Integrações</h2>
-              <button onClick={() => setShowCreate(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#888" }}><X size={20} /></button>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 24px 16px", borderBottom: "1px solid var(--neutral-100)" }}>
+              <h2 style={{ fontWeight: 700, fontSize: 18, color: "var(--text-heading)" }}>Integrações</h2>
+              <button onClick={() => setShowCreate(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-subtle)" }}><X size={20} /></button>
             </div>
 
             <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
               {/* Category sidebar */}
-              <div style={{ width: 160, borderRight: "1px solid #F0F0F0", padding: "12px 8px", flexShrink: 0 }}>
+              <div style={{ width: 160, borderRight: "1px solid var(--neutral-100)", padding: "12px 8px", flexShrink: 0 }}>
                 {INTEGRATION_TYPES.map(cat => (
                   <button
                     key={cat.category}
@@ -562,16 +562,16 @@ export default function IntegracoesPage() {
                   <div
                     key={t.id}
                     onClick={() => !creating && createIntegration(t.id)}
-                    style={{ display: "flex", gap: 14, padding: "14px", border: "1px solid #E5E5E5", borderRadius: 12, cursor: creating ? "default" : "pointer", marginBottom: 10, background: "#FAFAFA", opacity: creating ? 0.6 : 1 }}
+                    style={{ display: "flex", gap: 14, padding: "14px", border: "1px solid var(--border-default)", borderRadius: 12, cursor: creating ? "default" : "pointer", marginBottom: 10, background: "var(--neutral-25)", opacity: creating ? 0.6 : 1 }}
                     onMouseEnter={e => { if (!creating) { e.currentTarget.style.background = VERDE_CLARO; e.currentTarget.style.borderColor = VERDE_BORDA; } }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "#FAFAFA"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "var(--neutral-25)"; e.currentTarget.style.borderColor = "var(--border-default)"; }}
                   >
                     <div style={{ width: 40, height: 40, borderRadius: 10, background: VERDE_CLARO, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                       {creating ? <Loader2 size={20} color={VERDE} style={{ animation: "spin 1s linear infinite" }} /> : <t.icon size={20} color={VERDE} />}
                     </div>
                     <div>
-                      <p style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{t.name}</p>
-                      <p style={{ fontSize: 12, color: "#888", marginTop: 3, lineHeight: 1.4 }}>{t.description}</p>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{t.name}</p>
+                      <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.4 }}>{t.description}</p>
                     </div>
                   </div>
                 ))}
@@ -584,30 +584,30 @@ export default function IntegracoesPage() {
       {/* ═══════════ EDIT MODAL ═══════════ */}
       {editing && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ background: "#FFF", borderRadius: 16, width: "min(95vw,980px)", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
+          <div style={{ background: "var(--surface-card)", borderRadius: 16, width: "min(95vw,980px)", maxHeight: "90vh", overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }}>
 
             {/* Modal Header */}
-            <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+            <div style={{ padding: "18px 24px 14px", borderBottom: "1px solid var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <div>
-                <p style={{ fontSize: 11, color: "#888", display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 5, marginBottom: 2 }}>
                   <ShoppingBag size={12} /> {catLabel(editing.type)}
                 </p>
-                <h2 style={{ fontSize: 20, fontWeight: 700, color: "#111" }}>Atualizar integração</h2>
+                <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-heading)" }}>Atualizar integração</h2>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: 0.5 }}>Integração ativa</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Integração ativa</span>
                   <button
                     onClick={() => setEditActive(v => !v)}
                     style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center" }}
                   >
                     {editActive
-                      ? <div style={{ width: 44, height: 24, borderRadius: 12, background: VERDE, position: "relative" }}><div style={{ position: "absolute", right: 2, top: 2, width: 20, height: 20, borderRadius: "50%", background: "#FFF" }} /></div>
-                      : <div style={{ width: 44, height: 24, borderRadius: 12, background: "#E0E0E0", position: "relative" }}><div style={{ position: "absolute", left: 2, top: 2, width: 20, height: 20, borderRadius: "50%", background: "#FFF" }} /></div>
+                      ? <div style={{ width: 44, height: 24, borderRadius: 12, background: VERDE, position: "relative" }}><div style={{ position: "absolute", right: 2, top: 2, width: 20, height: 20, borderRadius: "50%", background: "var(--surface-card)" }} /></div>
+                      : <div style={{ width: 44, height: 24, borderRadius: 12, background: "var(--neutral-200)", position: "relative" }}><div style={{ position: "absolute", left: 2, top: 2, width: 20, height: 20, borderRadius: "50%", background: "var(--surface-card)" }} /></div>
                     }
                   </button>
                 </div>
-                <button onClick={() => setEditing(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#888" }}><X size={20} /></button>
+                <button onClick={() => setEditing(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-subtle)" }}><X size={20} /></button>
               </div>
             </div>
 
@@ -615,44 +615,44 @@ export default function IntegracoesPage() {
             <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
               {/* Left: config */}
-              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: "1px solid #F0F0F0" }}>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", borderRight: "1px solid var(--neutral-100)" }}>
                 <div style={{ padding: "16px 20px", overflowY: "auto", flex: 1 }}>
 
                   {/* Name */}
                   <div style={{ marginBottom: 14 }}>
-                    <label style={{ fontSize: 12, color: "#555", fontWeight: 600, display: "block", marginBottom: 6 }}>Nome</label>
+                    <label style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: 6 }}>Nome</label>
                     <input
                       value={editName}
                       onChange={e => setEditName(e.target.value)}
-                      style={{ width: "100%", border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 12px", fontSize: 14, outline: "none", background: "#FAFAFA", color: "#111", boxSizing: "border-box" }}
+                      style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 12px", fontSize: 14, outline: "none", background: "var(--neutral-25)", color: "var(--text-heading)", boxSizing: "border-box" }}
                     />
                   </div>
 
                   {/* Webhook URL */}
                   <div style={{ marginBottom: 14 }}>
-                    <label style={{ fontSize: 12, color: "#555", fontWeight: 600, display: "block", marginBottom: 6 }}>Webhook</label>
+                    <label style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600, display: "block", marginBottom: 6 }}>Webhook</label>
                     <div style={{ display: "flex", gap: 6 }}>
                       <input
                         readOnly
                         value={webhookUrl(editing.webhookToken)}
-                        style={{ flex: 1, border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 12px", fontSize: 12, background: "#F5F5F5", color: "#555", outline: "none", overflow: "hidden", textOverflow: "ellipsis", boxSizing: "border-box" }}
+                        style={{ flex: 1, border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 12px", fontSize: 12, background: "var(--neutral-50)", color: "var(--text-muted)", outline: "none", overflow: "hidden", textOverflow: "ellipsis", boxSizing: "border-box" }}
                       />
                       <button
                         onClick={() => copyUrl(editing.webhookToken)}
-                        style={{ padding: "8px 12px", border: "1px solid #E0E0E0", borderRadius: 8, background: "#FFF", cursor: "pointer", color: copied ? "#22C55E" : "#555", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, flexShrink: 0 }}
+                        style={{ padding: "8px 12px", border: "1px solid var(--border-default)", borderRadius: 8, background: "var(--surface-card)", cursor: "pointer", color: copied ? "var(--accent-700)" : "var(--text-muted)", display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, flexShrink: 0 }}
                       >
                         {copied ? <Check size={14} /> : <Copy size={14} />}
                         {copied ? "Copiado" : "Copiar"}
                       </button>
                     </div>
-                    <div style={{ marginTop: 8, background: "#FFF9E6", border: "1px solid #F59E0B30", borderRadius: 8, padding: "8px 12px", display: "flex", gap: 8, alignItems: "flex-start" }}>
-                      <AlertTriangle size={13} color="#F59E0B" style={{ marginTop: 1, flexShrink: 0 }} />
-                      <p style={{ fontSize: 11, color: "#92400E", lineHeight: 1.5 }}>O webhook possui um limite de 120 requisições por minuto. Caso precise aumentar o limite entre em contato com o suporte.</p>
+                    <div style={{ marginTop: 8, background: "var(--warning-bg)", border: "1px solid var(--warning-400)", borderRadius: 8, padding: "8px 12px", display: "flex", gap: 8, alignItems: "flex-start" }}>
+                      <AlertTriangle size={13} color="var(--warning-fg)" style={{ marginTop: 1, flexShrink: 0 }} />
+                      <p style={{ fontSize: 12, color: "var(--warning-fg)", lineHeight: 1.5 }}>O webhook possui um limite de 120 requisições por minuto. Caso precise aumentar o limite entre em contato com o suporte.</p>
                     </div>
                   </div>
 
                   {/* Config Tabs */}
-                  <div style={{ borderBottom: "1px solid #F0F0F0", display: "flex", gap: 0, marginBottom: 16 }}>
+                  <div style={{ borderBottom: "1px solid var(--neutral-100)", display: "flex", gap: 0, marginBottom: 16 }}>
                     {(["perfil","negocios","automacao","campos"] as ConfigTab[]).map(t => (
                       <button key={t} onClick={() => setConfigTab(t)} style={{ fontSize: 13, fontWeight: 600, padding: "8px 14px", background: "none", border: "none", cursor: "pointer", color: configTab === t ? VERDE : "#888", borderBottom: configTab === t ? `2px solid ${VERDE}` : "2px solid transparent" }}>
                         {{ perfil: "Perfil", negocios: "Negócios", automacao: "Automação", campos: "Campos adicionais" }[t]}
@@ -667,7 +667,7 @@ export default function IntegracoesPage() {
                         <div style={{ width: 28, height: 28, borderRadius: 8, background: VERDE_CLARO, display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <ShoppingBag size={14} color={VERDE} />
                         </div>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Identificação</p>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>Identificação</p>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         {([
@@ -676,17 +676,17 @@ export default function IntegracoesPage() {
                           { key: "email" as const, label: "Email" },
                         ]).map(f => (
                           <div key={f.key}>
-                            <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 4 }}>{f.label}</label>
+                            <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>{f.label}</label>
                             <FieldInput placeholder={`Cole o caminho do campo "${f.label}"`} value={editMappings[f.key]} onChange={v => setMap(f.key, v)} />
                           </div>
                         ))}
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 8 }}>
                           <div>
-                            <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 4 }}>DDI</label>
+                            <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>DDI</label>
                             <FieldInput placeholder="Cole o caminho do campo DDI" value={editMappings.phoneDdi} onChange={v => setMap("phoneDdi", v)} />
                           </div>
                           <div>
-                            <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 4 }}>Telefone</label>
+                            <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>Telefone</label>
                             <FieldInput placeholder='Cole o caminho do campo "Telefone"' value={editMappings.phone} onChange={v => setMap("phone", v)} />
                           </div>
                         </div>
@@ -698,15 +698,15 @@ export default function IntegracoesPage() {
                   {configTab === "negocios" && (
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                       <div>
-                        <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 4 }}>ID externo do negócio</label>
+                        <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>ID externo do negócio</label>
                         <FieldInput placeholder="Cole o caminho do campo ID externo" value={editMappings.externalId} onChange={v => setMap("externalId", v)} />
                       </div>
                       <div style={{ marginTop: 8 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            <ShoppingBag size={14} color="#555" />
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <ShoppingBag size={14} color="var(--text-muted)" />
                           </div>
-                          <p style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Produto</p>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>Produto</p>
                         </div>
                         {([
                           { key: "productSku" as const, label: "SKU" },
@@ -714,7 +714,7 @@ export default function IntegracoesPage() {
                           { key: "productPrice" as const, label: "Preço" },
                         ]).map(f => (
                           <div key={f.key} style={{ marginBottom: 10 }}>
-                            <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 4 }}>{f.label}</label>
+                            <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>{f.label}</label>
                             <FieldInput placeholder={`Cole o caminho do campo "${f.label}"`} value={editMappings[f.key]} onChange={v => setMap(f.key, v)} />
                           </div>
                         ))}
@@ -729,43 +729,43 @@ export default function IntegracoesPage() {
                         <div style={{ width: 28, height: 28, borderRadius: 8, background: "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <RefreshCw size={14} color="#8B5CF6" />
                         </div>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Automação</p>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>Automação</p>
                       </div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                         <div>
-                          <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 6 }}>Pipeline</label>
+                          <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>Pipeline</label>
                           <select
                             value={editAutomation.pipelineId ?? ""}
                             onChange={e => { setAuto("pipelineId", e.target.value || undefined); setAuto("stageId", undefined); }}
-                            style={{ width: "100%", border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "#FAFAFA", color: editAutomation.pipelineId ? "#111" : "#AAA", outline: "none" }}
+                            style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "var(--neutral-25)", color: editAutomation.pipelineId ? "var(--text-heading)" : "var(--text-muted)", outline: "none" }}
                           >
                             <option value="">Selecionar pipeline</option>
                             {pipelines.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                           </select>
                         </div>
                         <div>
-                          <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 6 }}>Etapa</label>
+                          <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>Etapa</label>
                           <select
                             value={editAutomation.stageId ?? ""}
                             onChange={e => setAuto("stageId", e.target.value || undefined)}
                             disabled={!editAutomation.pipelineId}
-                            style={{ width: "100%", border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "#FAFAFA", color: editAutomation.stageId ? "#111" : "#AAA", outline: "none", opacity: editAutomation.pipelineId ? 1 : 0.5 }}
+                            style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "var(--neutral-25)", color: editAutomation.stageId ? "var(--text-heading)" : "var(--text-muted)", outline: "none", opacity: editAutomation.pipelineId ? 1 : 0.5 }}
                           >
                             <option value="">Selecionar</option>
                             {(editPipeline?.columns ?? []).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                           </select>
                         </div>
                         <div>
-                          <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 6 }}>Tags (aplicar automaticamente)</label>
+                          <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>Tags (aplicar automaticamente)</label>
                           <select
                             multiple
                             value={editAutomation.tags ?? []}
                             onChange={e => setAuto("tags", Array.from(e.target.selectedOptions, o => o.value))}
-                            style={{ width: "100%", border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "#FAFAFA", outline: "none", minHeight: 80 }}
+                            style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 12px", fontSize: 13, background: "var(--neutral-25)", outline: "none", minHeight: 80 }}
                           >
                             {crmTags.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
                           </select>
-                          <p style={{ fontSize: 11, color: "#AAA", marginTop: 4 }}>Segure Ctrl para selecionar múltiplas tags</p>
+                          <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>Segure Ctrl para selecionar múltiplas tags</p>
                         </div>
                       </div>
                     </div>
@@ -775,18 +775,18 @@ export default function IntegracoesPage() {
                   {configTab === "campos" && (
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-                        <div style={{ width: 28, height: 28, borderRadius: 8, background: "#F0F0F0", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <Plus size={14} color="#555" />
+                        <div style={{ width: 28, height: 28, borderRadius: 8, background: "var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          <Plus size={14} color="var(--text-muted)" />
                         </div>
-                        <p style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Campos adicionais</p>
+                        <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>Campos adicionais</p>
                       </div>
                       {customFieldGroups.flatMap(g => g.items).length === 0 ? (
-                        <p style={{ fontSize: 13, color: "#AAA", fontStyle: "italic" }}>Nenhum campo adicional configurado. Acesse Configurações → Campos adicionais.</p>
+                        <p style={{ fontSize: 13, color: "var(--text-muted)", fontStyle: "italic" }}>Nenhum campo adicional configurado. Acesse Configurações → Campos adicionais.</p>
                       ) : (
                         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                           {customFieldGroups.flatMap(g => g.items).map(f => (
                             <div key={f.id}>
-                              <label style={{ fontSize: 12, color: "#555", display: "block", marginBottom: 4 }}>{f.label}</label>
+                              <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 4 }}>{f.label}</label>
                               <FieldInput
                                 placeholder="Cole o caminho do campo"
                                 value={editCustom[f.id]}
@@ -805,11 +805,11 @@ export default function IntegracoesPage() {
               <div style={{ width: 539, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
                 <div style={{ padding: "16px 20px", flex: 1, display: "flex", flexDirection: "column", gap: 10, minHeight: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Dados recebidos</p>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>Dados recebidos</p>
                     {parsedData && (
                       <button
                         onClick={() => { setParsedData(null); setReceivedData(""); setParsedKeys([]); }}
-                        style={{ fontSize: 11, color: "#888", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}
+                        style={{ fontSize: 12, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 3 }}
                       >
                         <X size={12} /> Limpar
                       </button>
@@ -822,12 +822,12 @@ export default function IntegracoesPage() {
                         value={receivedData}
                         onChange={e => handleReceivedData(e.target.value)}
                         placeholder={'Cole aqui um exemplo de JSON para mapear os campos:\n\n{\n  "nome": "João Silva",\n  "telefone": "11999999999",\n  "email": "joao@email.com"\n}'}
-                        style={{ flex: 1, border: `1px solid ${dataError ? "#EF4444" : "#E0E0E0"}`, borderRadius: 10, padding: "12px", fontSize: 12, color: "#333", resize: "none", outline: "none", fontFamily: "monospace", lineHeight: 1.5, background: "#FAFAFA" }}
+                        style={{ flex: 1, border: `1px solid ${dataError ? "var(--danger-400)" : "var(--border-default)"}`, borderRadius: 10, padding: "12px", fontSize: 12, color: "var(--text-body)", resize: "none", outline: "none", fontFamily: "monospace", lineHeight: 1.5, background: "var(--neutral-25)" }}
                       />
-                      {dataError && <p style={{ fontSize: 11, color: "#EF4444" }}>JSON inválido — verifique o formato</p>}
+                      {dataError && <p style={{ fontSize: 12, color: "var(--danger-fg)" }}>JSON inválido — verifique o formato</p>}
                     </>
                   ) : (
-                    <div style={{ flex: 1, overflowY: "auto", border: "1px solid #E0E0E0", borderRadius: 10, padding: "10px 14px", background: "#FAFAFA", minHeight: 0 }}>
+                    <div style={{ flex: 1, overflowY: "auto", border: "1px solid var(--border-default)", borderRadius: 10, padding: "10px 14px", background: "var(--neutral-25)", minHeight: 0 }}>
                       <JsonNode data={parsedData} path="" onCopy={copyPath} copiedPath={copiedPath} />
                     </div>
                   )}
@@ -836,17 +836,17 @@ export default function IntegracoesPage() {
             </div>
 
             {/* Modal Footer */}
-            <div style={{ padding: "14px 24px", borderTop: "1px solid #F0F0F0", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+            <div style={{ padding: "14px 24px", borderTop: "1px solid var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
               <button
                 onClick={remove}
-                style={{ fontSize: 13, fontWeight: 600, color: "#EF4444", background: "#FFF", border: "1px solid #E0E0E0", borderRadius: 8, padding: "8px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
+                style={{ fontSize: 13, fontWeight: 600, color: "var(--danger-fg)", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: 5 }}
               >
                 <Trash2 size={14} /> Remover
               </button>
               <button
                 onClick={save}
                 disabled={saving}
-                style={{ fontSize: 13, fontWeight: 700, color: "#FFF", background: saving ? "#AAA" : VERDE, border: "none", borderRadius: 8, padding: "8px 24px", cursor: saving ? "default" : "pointer" }}
+                style={{ fontSize: 13, fontWeight: 700, color: "var(--text-on-accent)", background: saving ? "var(--text-muted)" : VERDE, border: "none", borderRadius: 8, padding: "8px 24px", cursor: saving ? "default" : "pointer" }}
               >
                 {saving ? "Salvando…" : "Confirmar"}
               </button>

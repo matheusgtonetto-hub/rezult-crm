@@ -35,136 +35,313 @@
 @tailwind utilities;
 
 @layer base {
+  /* ═══════════════════════════════════════════════════════════════════════
+     REZULT DESIGN SYSTEM · fonte única de tokens
+     Matriz: docs/design-system/rezult-design-system.md (v1.0, 17/09/2026)
+
+     Duas camadas, e a ordem importa:
+       1. A RAMPA e os NEUTROS, em hex. É o vocabulário da marca.
+       2. Os PAPÉIS semânticos, que apontam para a rampa. É o que o código usa.
+     Trocar a marca amanhã é mexer na camada 1. Nenhum componente muda.
+
+     Os aliases em HSL no fim existem porque Tailwind e shadcn consomem
+     `hsl(var(--token))`. Eles repetem os mesmos valores, nunca outros.
+     ═══════════════════════════════════════════════════════════════════════ */
   :root {
-    /* ── Rezult CRM — Nova identidade visual ── */
+    /* ── 1. Rampa da marca ──
+       #01D8A4 é o acento da logo (a barra diagonal) e é SUPERFÍCIE, não tinta:
+       sobre branco ele dá 1,85:1. Texto verde usa 700 no cartão e 800 no canvas. */
+    --accent-50:  #ECFDF7;
+    --accent-100: #CFFAEB;
+    --accent-200: #A5F3D9;
+    --accent-300: #5FE7BE;   /* hover de superfície emerald */
+    --accent-400: #01D8A4;   /* A COR DA MARCA */
+    --accent-500: #00BA88;   /* press */
+    --accent-600: #00A879;   /* série 3 de gráfico, ícone sobre claro */
+    --accent-700: #008762;   /* texto verde sobre cartão branco, 4,52:1 */
+    --accent-800: #00654A;   /* texto verde sobre canvas, 6,62:1 */
 
-    /* PRIMARY */
-    --primary: 163 77% 31%;           /* #128A68 */
-    --primary-foreground: 0 0% 100%;  /* #FFFFFF */
-    --primary-hover: 168 90% 20%;     /* #059669 */
-    --ring: 163 77% 31%;              /* #128A68 */
+    /* ── Neutros. Charcoal faz o trabalho do preto; #000 não aparece ── */
+    --neutral-0:   #FFFFFF;
+    --neutral-25:  #FAFAFA;
+    --neutral-50:  #F7F7F7;
+    --neutral-100: #F2F2F2;
+    --neutral-150: #EBEBEB;   /* press de superfície neutra */
+    --neutral-200: #E7E7E7;
+    --neutral-300: #D5D5D5;
+    --neutral-400: #B4B4B7;
+    --neutral-500: #8A8A8E;  /* só a partir de 16px: 3,44:1 */
+    --neutral-600: #6C6C6C;
+    --neutral-700: #525154;   /* ícone/tinta forte, fundo de avatar sem cor */
+    --neutral-800: #3A3A3E;
+    --neutral-900: #2D2F33;
+    --neutral-950: #1B1B1B;
 
-    /* ACCENT */
-    --accent: 151 100% 80%;           /* #6EE7B7 */
-    --accent-foreground: 0 0% 6.7%;   /* #111111 */
+    /* ── Semânticos ── */
+    --danger-400: #FD5555;   /* preenchimento, ponto, linha de queda */
+    --danger-500: #DC2626;   /* botão destrutivo: 4,83:1 com branco */
+    --danger-fg:  #B02424;   /* texto de erro: 6,72:1 sobre branco */
+    --danger-bg:  #FFECEC;
+    --warning-400: #F7B32B;
+    --warning-fg:  #8A5B00;
+    --warning-bg:  #FFF4DA;
+    --muted-dead:  #A8BDB4;  /* cancelado, expirado: "morto", não "errado" */
 
-    /* BACKGROUNDS / SURFACES */
-    --background: 180 25% 98.4%;      /* #FAFCFC */
-    --foreground: 0 0% 6.7%;          /* #111111 */
+    /* ── 2. Papéis semânticos. É ISTO que o código deve pedir ── */
+    --bg-app:           var(--neutral-50);
+    --surface-card:     var(--neutral-0);
+    --surface-hover:    var(--neutral-50);
+    --surface-selected: var(--accent-100);
+    --surface-accent:   var(--accent-400);
+    --surface-inverse:  var(--neutral-950);
 
-    --card: 0 0% 100%;                /* #FFFFFF */
-    --card-foreground: 0 0% 6.7%;     /* #111111 */
-    --card-border: 40 10% 91%;        /* #E8E7E0 */
+    --text-heading:   var(--neutral-900);
+    --text-body:      var(--neutral-800);
+    --text-muted:     var(--neutral-600);
+    --text-subtle:    var(--neutral-500);
+    --text-on-accent: var(--neutral-900);   /* charcoal sobre emerald: 7,25:1 */
+    /* Tinta sobre --surface-inverse (tooltip, botão escuro do KPI). Existia no
+       material e não aqui: quem escrevia `var(--text-inverse)` ficava sem cor
+       nenhuma e herdava a do pai -- foi assim que a seta do cartão de KPI saiu
+       escura sobre fundo escuro, a 1,28:1. Branco sobre o neutral-950: 18,1:1. */
+    --text-inverse:   #FFFFFF;
+    --text-link:      var(--accent-700);
 
-    --secondary: 45 11% 94%;            /* #F2F1EC */
-    --secondary-foreground: 0 0% 6.7%;
+    --border-default: var(--neutral-200);
+    --border-strong:  var(--neutral-300);
+    --border-focus:   var(--accent-400);
+    /* Anel de foco do sistema: 3px em emerald a 45%. Usado pelas utilitárias
+       `ring-[3px] ring-[color:var(--ring-focus-color)]` nos componentes. */
+    --ring-focus-color: rgba(1, 216, 164, .45);
+    --icon-default:   var(--neutral-600);
+    --icon-strong:    var(--neutral-900);
 
-    --muted: 40 10% 91%;               /* #E8E7E0 */
-    --muted-foreground: 0 0% 30%;     /* #4D4D4D */
+    /* ── Séries de gráfico, em ordem fixa. Vermelho nunca é categoria ── */
+    --chart-1: var(--accent-400);
+    --chart-2: var(--neutral-900);
+    --chart-3: var(--accent-600);
+    --chart-4: var(--neutral-400);
+    --chart-down: var(--danger-400);
+    --chart-grid: var(--neutral-200);
+    --chart-axis: var(--neutral-600);
 
-    --popover: 0 0% 100%;             /* #FFFFFF */
-    --popover-foreground: 0 0% 6.7%;  /* #111111 */
+    /* ── Raio, por papel ── */
+    --radius: 10px;          /* botão, input, select (shadcn deriva md e sm daqui) */
+    --radius-menu: 12px;     /* menu, dropdown, card de negócio */
+    --radius-card: 16px;     /* painel */
+    --radius-modal: 20px;    /* modal, drawer */
 
-    /* SEMANTIC */
-    --success: 163 77% 31%;           /* #128A68 */
-    --success-foreground: 0 0% 100%;  /* #FFFFFF */
-    --warning: 38 93% 51%;            /* #F59E0B */
-    --warning-foreground: 0 0% 100%;  /* #FFFFFF */
-    --destructive: 0 81% 60%;         /* #EF4444 */
+    /* ── Elevação. Cartão tem borda E sombra, nunca só um ── */
+    --shadow-elevated-1: 0 1px 2px rgba(27,27,27,.04), 0 4px 16px rgba(27,27,27,.05);
+    --shadow-elevated-2: 0 2px 4px rgba(27,27,27,.05), 0 10px 28px rgba(27,27,27,.08);
+    --shadow-elevated-3: 0 12px 40px rgba(27,27,27,.14), 0 2px 8px rgba(27,27,27,.08);
+    --shadow-xs:         0 1px 2px rgba(27,27,27,.05);
+    /* A barra lateral é branca e se separa por uma régua de 1px, não por sombra */
+    --shadow-rail: 1px 0 0 var(--border-default);
+
+    /* ── Movimento ── */
+    --dur-instant: 80ms;
+    --dur-fast: 120ms;
+    --dur-normal: 180ms;
+    --dur-slow: 260ms;
+    --ease-out: cubic-bezier(.16, 1, .3, 1);
+    --ease-standard: cubic-bezier(.2, 0, 0, 1);
+    --press-scale: .97;
+
+    /* ── Densidade confortável (padrão). Compacto é opt-in da tela ── */
+    --row-h: 48px;
+    --row-h-compact: 40px;
+    --control-h-sm: 36px;
+    --control-h-md: 40px;
+    --control-h-lg: 44px;
+    --pad-card: 20px;
+    --gap-grid: 16px;
+    --pad-page: 24px;
+    /* Faixa de navegação. O material propõe 248px com rótulos, colapsável para
+       72px só com ícones (tokens/layout.css do design system). A nossa barra é
+       só de ícones, então ela usa os 72px do estado colapsado. Os 248px ficam
+       declarados para o dia em que a navegação ganhar rótulo. */
+    --rail-w: 72px;
+    --sidebar-w-expanded: 248px;
+    /* O respiro em volta da régua que separa a marca do menu, na barra
+       lateral: acima dela e abaixo dela, igual nos dois estados da barra.
+       Era o que sobrava de um cabeçalho de altura fixa -- 7px recolhida e 21px
+       expandida --, e o dono igualou em 21 em 21/09/2026. */
+    --respiro-marca: 21px;
+    /* A barra superior é fina: 48px, dois terços da lateral (o dono pediu
+       metade em 21/09/2026, viu em 36px e pediu um pouco mais). Ela não carrega
+       texto, só os botões de ferramenta e o menu da pessoa -- não precisa da
+       altura de um cabeçalho, e assim não compete com a lateral. */
+    --topbar-h: 48px;
+    /* O raio que arredonda o canto onde as duas barras se encontram. É o mesmo
+       raio de painel: o conteúdo é o maior cartão da tela. */
+    --junta-barras: var(--radius-card);
+    /* A altura que sobra da janela para a tela, descontada a barra superior.
+       As telas de altura cheia medem por ela, e nunca por 100vh: com 100vh
+       passariam da janela pela altura da barra, e a última linha sairia por
+       baixo. É o ponto ÚNICO de ajuste -- quando a barra superior saiu, em
+       20/09, bastou trocar esta linha. */
+    --altura-util: calc(100vh - var(--topbar-h));
+
+    /* ═══ Aliases HSL para Tailwind e shadcn. Mesmos valores da rampa ═══ */
+    --primary: 165.49 99.08% 42.55%;        /* --accent-400 #01D8A4 */
+    --primary-foreground: 220 6.25% 18.82%; /* charcoal, NUNCA branco */
+    --primary-hover: 163.56 100% 26.47%;    /* --accent-700 */
+    --ring: 165.49 99.08% 42.55%;
+
+    /* `accent` no shadcn é superfície de hover de item, e no sistema ela é
+       neutra. O verde de hover vive em --accent-300, não aqui. */
+    --accent: 0 0% 94.90%;                  /* --neutral-100 */
+    --accent-foreground: 220 6.25% 18.82%;
+
+    --background: 0 0% 96.86%;              /* --neutral-50, o canvas */
+    --foreground: 220 6.25% 18.82%;         /* charcoal */
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 6.25% 18.82%;
+    --card-border: 0 0% 90.59%;             /* --neutral-200 */
+
+    --secondary: 0 0% 96.86%;
+    --secondary-foreground: 220 6.25% 18.82%;
+
+    --muted: 0 0% 94.90%;
+    --muted-foreground: 0 0% 42.35%;        /* --neutral-600, 5,25:1 */
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 6.25% 18.82%;
+
+    --success: 163.56 100% 26.47%;          /* sucesso É o verde da marca */
+    --success-foreground: 0 0% 100%;
+    --warning: 40 92.73% 56.86%;            /* --warning-400 */
+    --warning-foreground: 220 6.25% 18.82%; /* charcoal sobre âmbar */
+    --destructive: 0 73.46% 50.20%;         /* --danger-500 #DC2626 */
     --destructive-foreground: 0 0% 100%;
-    --info: 217 91% 60%;              /* #3B82F6 */
-    --info-foreground: 0 0% 100%;     /* #FFFFFF */
+    /* Azul de informação: único matiz fora do sistema, mantido porque 117
+       pontos do app o usam. Decidir na onda 2 se vira neutro ou fica. */
+    --info: 217 91% 60%;
+    --info-foreground: 0 0% 100%;
 
-    /* Soft tints */
-    --success-soft: 151 100% 93%;     /* #D1FAE5 */
-    --destructive-soft: 0 86% 97%;    /* #FEF2F2 */
-    --warning-soft: 48 100% 94%;      /* #FEF3C7 */
+    --success-soft: 159.07 81.13% 89.61%;   /* --accent-100 */
+    --destructive-soft: 0 100% 96.27%;      /* --danger-bg */
+    --warning-soft: 42.16 100% 92.75%;      /* --warning-bg */
 
-    /* BORDERS / INPUTS */
-    --border: 40 10% 91%;             /* #E8E7E0 */
-    --input: 40 10% 91%;              /* #E8E7E0 */
+    --border: 0 0% 90.59%;
+    --input: 0 0% 83.53%;                   /* --neutral-300 em repouso */
 
-    --radius: 0.5rem;
-
-    /* Shadows */
-    --shadow-elevated-1: 0 1px 4px rgba(0,0,0,0.06);
-    --shadow-elevated-2: 0 2px 8px rgba(0,0,0,0.10);
-    --shadow-elevated-3: 0 8px 32px rgba(0,0,0,0.12);
-    --shadow-rail: 1px 0 4px rgba(0,0,0,0.04);
-
-    /* SIDEBAR */
-    --sidebar-background: 0 0% 100%;          /* #FFFFFF */
-    --sidebar-foreground: 0 0% 30%;            /* #4D4D4D */
-    --sidebar-primary: 163 77% 31%;           /* #128A68 */
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 150 24% 95%;             /* #EFF5F2 */
-    --sidebar-accent-foreground: 0 0% 6.7%;   /* #111111 */
-    --sidebar-border: 40 10% 91%;             /* #E8E7E0 */
-    --sidebar-ring: 163 77% 31%;              /* #128A68 */
+    /* ── Barra lateral: branca, régua de 1px, ativo em pílula emerald ── */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 42.35%;
+    --sidebar-primary: 165.49 99.08% 42.55%;
+    --sidebar-primary-foreground: 220 6.25% 18.82%;
+    --sidebar-accent: 0 0% 94.90%;
+    --sidebar-accent-foreground: 220 6.25% 18.82%;
+    --sidebar-border: 0 0% 90.59%;
+    --sidebar-ring: 165.49 99.08% 42.55%;
   }
 
-  /* ── Tema ESCURO ── */
+  /* ── Tema ESCURO ──
+     Pronto, e fechado: o seletor em Configurações segue "Em breve" até a
+     auditoria das 27 páginas (decisão D5 da matriz).
+     Regra do sistema: a rampa da marca NÃO inverte. O emerald é o mesmo nos
+     dois temas, e a tinta sobre ele continua charcoal. */
   .dark {
-    /* PRIMARY (verde da marca levemente mais claro p/ contraste no escuro) */
-    --primary: 163 62% 45%;           /* ~#2CB88F */
-    --primary-foreground: 0 0% 100%;
-    --primary-hover: 163 60% 52%;
-    --ring: 163 62% 45%;
+    --neutral-0:   #1A1D21;   /* superfície de cartão no escuro */
+    --neutral-25:  #1F2328;
+    --neutral-50:  #22262B;
+    --neutral-100: #252B30;
+    --neutral-200: #2E3338;   /* hairline */
+    --neutral-300: #3A4046;
+    --neutral-400: #6B747B;
+    --neutral-500: #8C959C;
+    --neutral-600: #A2ABB1;   /* texto secundário no escuro */
+    --neutral-700: #C3C9CE;
+    --neutral-800: #D9DEE1;
+    --neutral-900: #F4F6F7;   /* título no escuro */
+    --neutral-950: #0F1113;   /* canvas no escuro */
 
-    /* ACCENT */
-    --accent: 151 30% 22%;
-    --accent-foreground: 0 0% 96%;
+    --bg-app: var(--neutral-950);
+    --text-on-accent: #0C231D;
+    /* No escuro o verde de texto sobe para o tom 300: o 700 daria 3,8:1 ali. */
+    --text-link: var(--accent-300);
+    --danger-bg: #2A1618;
+    --warning-bg: #2A2116;
 
-    /* BACKGROUNDS / SURFACES */
-    --background: 0 0% 7%;            /* #121212 */
-    --foreground: 0 0% 95%;          /* #F2F2F2 */
+    --shadow-elevated-1: 0 1px 2px rgba(0,0,0,.5), 0 4px 16px rgba(0,0,0,.42);
+    --shadow-elevated-2: 0 2px 4px rgba(0,0,0,.5), 0 10px 28px rgba(0,0,0,.5);
+    --shadow-elevated-3: 0 12px 40px rgba(0,0,0,.6), 0 2px 8px rgba(0,0,0,.5);
+    --shadow-xs: 0 1px 2px rgba(0,0,0,.4);
 
-    --card: 0 0% 11%;                /* #1C1C1C */
-    --card-foreground: 0 0% 95%;
-    --card-border: 0 0% 18%;         /* #2E2E2E */
+    --primary: 165.49 99.08% 42.55%;        /* o emerald não muda */
+    --primary-foreground: 161 48% 9%;       /* #0C231D */
+    --primary-hover: 163 78% 64%;           /* --accent-300 */
+    --ring: 165.49 99.08% 42.55%;
 
-    --secondary: 0 0% 15%;           /* #262626 */
-    --secondary-foreground: 0 0% 95%;
+    --accent: 210 9.8% 17%;
+    --accent-foreground: 210 18.2% 95.7%;
 
-    --muted: 0 0% 16%;               /* #292929 */
-    --muted-foreground: 0 0% 64%;    /* #A3A3A3 */
+    --background: 210 11.8% 6.7%;
+    --foreground: 210 18.2% 95.7%;
 
-    --popover: 0 0% 12%;             /* #1F1F1F */
-    --popover-foreground: 0 0% 95%;
+    --card: 214.3 11.9% 11.6%;
+    --card-foreground: 210 18.2% 95.7%;
+    --card-border: 210 9.8% 20%;
 
-    /* SEMANTIC (mesmos matizes, luminosidade ajustada p/ fundo escuro) */
-    --success: 163 60% 46%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 92% 56%;
-    --warning-foreground: 0 0% 10%;
-    --destructive: 0 74% 60%;
-    --destructive-foreground: 0 0% 100%;
+    --secondary: 210 9.8% 15%;
+    --secondary-foreground: 210 18.2% 95.7%;
+
+    --muted: 210 9.8% 17%;
+    --muted-foreground: 214.3 8.5% 67.8%;
+
+    --popover: 214.3 11.9% 11.6%;
+    --popover-foreground: 210 18.2% 95.7%;
+
+    --success: 163 78% 64%;
+    --success-foreground: 161 48% 9%;
+    --warning: 40 92.73% 56.86%;
+    --warning-foreground: 220 6.25% 18.82%;
+    --destructive: 0 97.67% 66.27%;         /* --danger-400, mais claro no escuro */
+    --destructive-foreground: 220 6.25% 18.82%;
     --info: 217 85% 63%;
     --info-foreground: 0 0% 100%;
 
-    /* Soft tints — versões escuras (fundo tingido escuro) */
-    --success-soft: 163 45% 15%;
-    --destructive-soft: 0 45% 17%;
-    --warning-soft: 38 55% 15%;
+    --success-soft: 164 40% 14%;
+    --destructive-soft: 0 30% 13%;
+    --warning-soft: 40 35% 13%;
 
-    /* BORDERS / INPUTS */
-    --border: 0 0% 18%;              /* #2E2E2E */
-    --input: 0 0% 20%;              /* #333333 */
+    --border: 210 9.8% 20%;
+    --input: 210 9.8% 24%;
 
-    /* SIDEBAR */
-    --sidebar-background: 0 0% 9%;             /* #171717 */
-    --sidebar-foreground: 0 0% 68%;            /* #ADADAD */
-    --sidebar-primary: 163 62% 45%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 163 25% 15%;
-    --sidebar-accent-foreground: 0 0% 96%;
-    --sidebar-border: 0 0% 16%;
-    --sidebar-ring: 163 62% 45%;
+    --sidebar-background: 214.3 11.9% 11.6%;
+    --sidebar-foreground: 214.3 8.5% 67.8%;
+    --sidebar-primary: 165.49 99.08% 42.55%;
+    --sidebar-primary-foreground: 161 48% 9%;
+    --sidebar-accent: 210 9.8% 17%;
+    --sidebar-accent-foreground: 210 18.2% 95.7%;
+    --sidebar-border: 210 9.8% 20%;
+    --sidebar-ring: 165.49 99.08% 42.55%;
   }
 
 }
 
 @layer utilities {
+  /* ═══ Andaime da Onda 0 (temporário) ═══════════════════════════════════
+     Com o emerald novo, dois padrões legados ficariam ilegíveis enquanto as
+     ondas 1 a 7 não passarem por cada tela:
+
+       1. `text-white` dentro de superfície emerald: 1,85:1
+       2. `text-primary` como texto sobre claro: 1,85:1
+
+     Estas duas regras seguram o contraste em toda parte, de uma vez. Elas
+     MORREM quando a última onda de migração terminar, e não devem ser usadas
+     como desculpa para escrever `text-white` sobre verde em código novo.
+     Ver seção 6 da matriz. */
+  .bg-primary[class*="text-white"],
+  .bg-primary [class*="text-white"] { color: var(--text-on-accent); }
+  /* O tom 800 e não o 700 aqui: a classe legada cai tanto sobre cartão branco
+     quanto sobre fundo emerald claro, e o 800 passa nos dois (7,09 e 6,26). */
+  .text-primary { color: var(--accent-800); }
+  .dark .text-primary { color: var(--accent-300); }
+
   .shadow-elev-1 { box-shadow: var(--shadow-elevated-1); }
   .shadow-elev-2 { box-shadow: var(--shadow-elevated-2); }
   .shadow-elev-3 { box-shadow: var(--shadow-elevated-3); }
@@ -178,11 +355,13 @@
     animation: pilotGlow 3s ease-in-out infinite;
     animation-delay: 1.5s;
   }
+  /* O halo verde no hover saiu: o sistema não usa brilho, e o hover de
+     superfície emerald é clarear para --accent-300 (ver 3.7 da matriz). A
+     classe fica porque o botão do shadcn a aplica; agora ela só transiciona. */
   .glow-primary-hover {
-    transition: all 0.3s ease;
-  }
-  .glow-primary-hover:hover {
-    box-shadow: 0 0 16px rgba(16, 185, 129, 0.4);
+    transition: background-color var(--dur-fast) var(--ease-out),
+                color var(--dur-fast) var(--ease-out),
+                box-shadow var(--dur-fast) var(--ease-out);
   }
   .glow-closed {
     animation: closedGlow 1.5s ease-out 1;
@@ -307,8 +486,11 @@
 
   body {
     @apply bg-background text-foreground font-sans;
-    font-family: 'Geist Sans', sans-serif;
+    /* Inter é a família única do sistema (decisão D3). Já vendorizada no
+       @font-face do topo deste arquivo. */
+    font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 

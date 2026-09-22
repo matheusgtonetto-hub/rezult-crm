@@ -16,11 +16,11 @@ import {
 import { toast } from "sonner";
 
 const CARD_DEFS: { key: DisparoItemStatus; title: string; sub: string; icon: typeof Circle; color: string }[] = [
-  { key: "nao_iniciado", title: "Não iniciados", sub: "Itens que ainda não iniciaram o fluxo", icon: Circle, color: "#F59E0B" },
-  { key: "pendente",     title: "Pendentes",     sub: "Itens adicionados no fluxo",           icon: Loader, color: "#F97316" },
-  { key: "em_execucao",  title: "Em execução",   sub: "Itens que iniciaram o fluxo",          icon: Play, color: "#0EA5E9" },
-  { key: "concluido",    title: "Concluídos",    sub: "Itens que concluíram o fluxo",         icon: CheckCircle2, color: "#16A34A" },
-  { key: "erro",         title: "Com erro",      sub: "Itens que ocorreram erro",             icon: XCircle, color: "#DC2626" },
+  { key: "nao_iniciado", title: "Não iniciados", sub: "Itens que ainda não iniciaram o fluxo", icon: Circle, color: "var(--text-heading)" },
+  { key: "pendente",     title: "Pendentes",     sub: "Itens adicionados no fluxo",           icon: Loader, color: "var(--text-heading)" },
+  { key: "em_execucao",  title: "Em execução",   sub: "Itens que iniciaram o fluxo",          icon: Play, color: "var(--text-heading)" },
+  { key: "concluido",    title: "Concluídos",    sub: "Itens que concluíram o fluxo",         icon: CheckCircle2, color: "var(--accent-700)" },
+  { key: "erro",         title: "Com erro",      sub: "Itens que ocorreram erro",             icon: XCircle, color: "var(--danger-fg)" },
 ];
 
 function summarizeFilter(f: LeadFilter): string[] {
@@ -157,7 +157,7 @@ export default function DisparoDetailPage() {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="text-sm font-semibold">{cd.title}</p>
-                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{cd.sub}</p>
+                  <p className="text-[12px] text-muted-foreground leading-tight mt-0.5">{cd.sub}</p>
                 </div>
                 <Icon size={18} style={{ color: cd.color }} />
               </div>
@@ -211,7 +211,7 @@ export default function DisparoDetailPage() {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Ritmo de execução</p>
             <div className="border border-border rounded-lg px-3 py-2">
               <p className="text-sm font-medium">{RHYTHM_LABEL[disparo.rhythm].label}</p>
-              <p className="text-[11px] text-muted-foreground">{RHYTHM_LABEL[disparo.rhythm].hint}</p>
+              <p className="text-[12px] text-muted-foreground">{RHYTHM_LABEL[disparo.rhythm].hint}</p>
             </div>
           </div>
 
@@ -220,7 +220,7 @@ export default function DisparoDetailPage() {
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Filtros utilizados</p>
               <div className="flex flex-wrap gap-1.5">
                 {filterParts.map((p, i) => (
-                  <span key={i} className="text-[11px] bg-secondary rounded px-2 py-1 text-muted-foreground">{p}</span>
+                  <span key={i} className="text-[12px] bg-secondary rounded px-2 py-1 text-muted-foreground">{p}</span>
                 ))}
               </div>
             </div>
@@ -247,7 +247,7 @@ export default function DisparoDetailPage() {
                   </div>
                   <span className="text-sm font-medium flex-1 truncate">{it.lead_name ?? "—"}</span>
                   <span className="text-xs text-muted-foreground hidden sm:inline">{it.lead_phone}</span>
-                  <span className="text-[11px] font-medium rounded-full px-2 py-0.5" style={{ background: m.bg, color: m.fg }} title={it.error_message ?? ""}>{m.label}</span>
+                  <span className="text-[12px] font-medium rounded-full px-2 py-0.5" style={{ background: m.bg, color: m.fg }} title={it.error_message ?? ""}>{m.label}</span>
                   {(disparo.status === "criado" || disparo.status === "agendado") && (
                     <button onClick={() => removeItem(it.id)} className="text-muted-foreground hover:text-destructive" aria-label="Remover"><Trash2 size={15} /></button>
                   )}
@@ -296,7 +296,7 @@ export default function DisparoDetailPage() {
                   };
                   return (
                     <p key={s} className="flex items-baseline gap-2">
-                      <span className="text-[11px] font-medium rounded-full px-2 py-0.5 shrink-0" style={{ background: m.bg, color: m.fg }}>{m.label}</span>
+                      <span className="text-[12px] font-medium rounded-full px-2 py-0.5 shrink-0" style={{ background: m.bg, color: m.fg }}>{m.label}</span>
                       <span>{desc[s]}</span>
                     </p>
                   );

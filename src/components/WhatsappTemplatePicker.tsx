@@ -103,25 +103,25 @@ export function WhatsappTemplatePicker({
 
   if (carregando) {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 2px", fontSize: 13, color: "#888" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 2px", fontSize: 13, color: "var(--text-muted)" }}>
         <Loader2 size={14} className="animate-spin" /> Carregando modelos aprovados…
       </div>
     );
   }
 
   if (erro) {
-    return <div style={{ padding: "10px 2px", fontSize: 12, color: "#DC2626" }}>{erro}</div>;
+    return <div style={{ padding: "10px 2px", fontSize: 12, color: "var(--danger-fg)" }}>{erro}</div>;
   }
 
   if (!modelos.length) {
     return (
-      <div style={{ padding: "10px 2px", fontSize: 12, color: "#666", lineHeight: 1.5 }}>
+      <div style={{ padding: "10px 2px", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
         Nenhum modelo aprovado nesta conta ainda. Crie um no{" "}
         <a
           href="https://business.facebook.com/wa/manage/message-templates"
           target="_blank"
           rel="noreferrer"
-          style={{ color: "#128A68", fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 3 }}
+          style={{ color: "var(--accent-700)", fontWeight: 600, textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 3 }}
         >
           WhatsApp Manager <ExternalLink size={11} />
         </a>{" "}
@@ -147,7 +147,7 @@ export function WhatsappTemplatePicker({
       <div style={{ maxHeight: 240, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10 }}>
         {Object.entries(porCategoria).map(([categoria, lista]) => (
           <div key={categoria}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: "#AAA", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>
               {categoria}
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -155,15 +155,15 @@ export function WhatsappTemplatePicker({
                 <button
                   key={m.id}
                   onClick={() => { setEscolhido(m); setValores({}); }}
-                  style={{ width: "100%", textAlign: "left", background: "#FFF", border: "1px solid #EEEEEE", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#CCCCCC")}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#EEEEEE")}
+                  style={{ width: "100%", textAlign: "left", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border-default)")}
                 >
                   <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#111" }}>{m.name}</span>
-                    <span style={{ fontSize: 10, color: "#767676", background: "#F5F5F5", borderRadius: 4, padding: "1px 5px" }}>{m.language}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}>{m.name}</span>
+                    <span style={{ fontSize: 12, color: "var(--text-muted)", background: "var(--neutral-50)", borderRadius: 6, padding: "1px 5px" }}>{m.language}</span>
                   </div>
-                  <div style={{ fontSize: 11, color: "#888", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {corpoDoModelo(m)}
                   </div>
                 </button>
@@ -179,26 +179,26 @@ export function WhatsappTemplatePicker({
     <div>
       <button
         onClick={() => setEscolhido(null)}
-        style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "none", border: "none", padding: 0, marginBottom: 8, fontSize: 12, color: "#767676", cursor: "pointer" }}
+        style={{ display: "inline-flex", alignItems: "center", gap: 3, background: "none", border: "none", padding: 0, marginBottom: 8, fontSize: 12, color: "var(--text-muted)", cursor: "pointer" }}
       >
         <ChevronLeft size={13} /> outros modelos
       </button>
 
       {variaveis.map((v) => (
         <div key={v} style={{ marginBottom: 8 }}>
-          <label style={{ display: "block", fontSize: 11, color: "#767676", marginBottom: 3 }}>Variável {"{{"}{v}{"}}"}</label>
+          <label style={{ display: "block", fontSize: 12, color: "var(--text-muted)", marginBottom: 3 }}>Variável {"{{"}{v}{"}}"}</label>
           <input
             value={valores[v] ?? ""}
             onChange={(e) => setValores((s) => ({ ...s, [v]: e.target.value }))}
             placeholder={`Valor para {{${v}}}`}
-            style={{ width: "100%", border: "1px solid #EEEEEE", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", boxSizing: "border-box" }}
+            style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "7px 10px", fontSize: 13, outline: "none", boxSizing: "border-box" }}
           />
         </div>
       ))}
 
       {/* Prévia com os valores já aplicados: é o que o cliente vai ler, e é a
           última chance de perceber um "Olá {{1}}" sem nome. */}
-      <div style={{ background: "#F5F5F5", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "#111", whiteSpace: "pre-wrap", marginBottom: 8, lineHeight: 1.45 }}>
+      <div style={{ background: "var(--neutral-50)", borderRadius: 8, padding: "8px 10px", fontSize: 13, color: "var(--text-heading)", whiteSpace: "pre-wrap", marginBottom: 8, lineHeight: 1.45 }}>
         {resolverTexto(escolhido, valores)}
       </div>
 
@@ -207,8 +207,8 @@ export function WhatsappTemplatePicker({
         disabled={faltaPreencher || enviando}
         style={{
           display: "inline-flex", alignItems: "center", gap: 6,
-          background: faltaPreencher || enviando ? "#E5E5E5" : "#128A68",
-          color: faltaPreencher || enviando ? "#AAA" : "#FFF",
+          background: faltaPreencher || enviando ? "var(--neutral-200)" : "var(--accent-700)",
+          color: faltaPreencher || enviando ? "var(--text-muted)" : "#FFF",
           border: "none", borderRadius: 8, padding: "7px 14px",
           fontSize: 13, fontWeight: 600, cursor: faltaPreencher || enviando ? "default" : "pointer",
         }}

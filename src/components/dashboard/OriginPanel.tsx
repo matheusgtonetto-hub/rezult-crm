@@ -21,7 +21,7 @@ interface OriginPanelProps {
 }
 
 /** Card dos dois painéis. Igual ao dos demais painéis do dashboard. */
-const CARD = "bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5";
+const CARD = "bg-card border border-card-border rounded-2xl shadow-elev-1 p-5";
 
 /**
  * Origem dos negócios e Receita por origem, dois cards irmãos.

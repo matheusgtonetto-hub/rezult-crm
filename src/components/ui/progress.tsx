@@ -9,7 +9,9 @@ const Progress = React.forwardRef<
 >(({ className, value, ...props }, ref) => (
   <ProgressPrimitive.Root
     ref={ref}
-    className={cn("relative h-4 w-full overflow-hidden rounded-full bg-secondary", className)}
+    /* 6px: barra de progresso é indicador, não superfície. Os 16px anteriores
+       liam como um campo vazio. */
+    className={cn("relative h-1.5 w-full overflow-hidden rounded-full bg-[color:var(--neutral-200)]", className)}
     {...props}
   >
     <ProgressPrimitive.Indicator

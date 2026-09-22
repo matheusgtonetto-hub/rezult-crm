@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PainelAnel, type FatiaAnel } from "./PainelAnel";
-import { fmt } from "./useDashboardHelpers";
+import { fmt, PALETA } from "./useDashboardHelpers";
 
 /**
  * Resultado do período repartido por responsável.
@@ -13,7 +13,16 @@ import { fmt } from "./useDashboardHelpers";
 
 export interface ResultadoDeResponsavel {
   nome: string;
-  cor: string;
+  /**
+   * Cor da fatia. Opcional: sem ela, entra a rampa da marca por posição no anel
+   * (`PALETA`).
+   *
+   * Era obrigatória e vinha da cor do AVATAR da pessoa (`colorFromString`, um
+   * hash do nome), o que enchia um dashboard verde de roxo e magenta. No anel a
+   * cor não identifica ninguém -- o nome está na legenda ao lado --, ela só
+   * separa uma fatia da vizinha, e para isso a rampa da marca serve melhor.
+   */
+  cor?: string;
   /** Negócios atrelados a ele que entraram no período. */
   negocios: number;
   ganhos: number;
@@ -63,7 +72,13 @@ export function ResultadoResponsavelPanel({
         { rotulo: "Receita", valor: fmt(d.receita), destaque: metrica === "receita" },
       ],
     }))
-    .sort((a, b) => b.valor - a.valor);
+    .sort((a, b) => b.valor - a.valor)
+    // A cor entra DEPOIS da ordenação, e não no `map` acima: `dados` chega
+    // ordenado por receita, e o anel pode estar repartindo quantidade. Pintando
+    // antes, a maior fatia levava a segunda cor da rampa sempre que as duas
+    // ordens divergiam -- no botão "Quantidade", o charcoal virava a fatia
+    // grande e o emerald da marca sobrava para a fatia fina.
+    .map((f, i) => ({ ...f, cor: f.cor ?? PALETA[i % PALETA.length] }));
 
   /**
    * O pódio, abaixo do anel.
@@ -94,7 +109,7 @@ export function ResultadoResponsavelPanel({
               <div key={f.nome} className="flex items-center gap-2 text-xs">
                 {/* A posição em corpo menor e cor secundária: ela ordena a
                     lista, mas quem interessa é o nome e o número. */}
-                <span className="text-[10px] text-muted-foreground tabular-nums w-3 shrink-0">{i + 1}</span>
+                <span className="text-[12px] text-muted-foreground tabular-nums w-3 shrink-0">{i + 1}</span>
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: f.cor }} />
                 <span className="truncate text-foreground">{f.nome}</span>
                 <span className="ml-auto tabular-nums font-semibold text-foreground shrink-0">
@@ -110,7 +125,7 @@ export function ResultadoResponsavelPanel({
            metade do respiro lateral, como no painel de horários. É o que faz os
            dois caberem ao lado do título nos ~356px deste painel. O de origem
            segue em 12px porque ocupa a linha inteira e tem largura de sobra. */
-        <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-muted/40">
+        <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-[color:var(--neutral-100)]">
           {([
             { id: "quantidade", rotulo: "Quantidade" },
             { id: "receita", rotulo: "Receita" },
@@ -119,7 +134,7 @@ export function ResultadoResponsavelPanel({
               key={op.id}
               onClick={() => setMetrica(op.id)}
               aria-pressed={metrica === op.id}
-              className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${
+              className={`px-2 py-1 rounded-md text-[12px] font-medium transition-colors ${
                 metrica === op.id
                   ? "bg-card text-foreground shadow-elev-1"
                   : "text-muted-foreground hover:text-foreground"

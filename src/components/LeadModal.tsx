@@ -369,7 +369,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
               value={form.name}
               onChange={e => set("name", e.target.value)}
               placeholder="Nome completo"
-              className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+              className="h-9 bg-card"
               autoFocus
             />
           </div>
@@ -379,7 +379,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
             <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Tags</label>
             <Popover open={showTagPicker} onOpenChange={v => { setShowTagPicker(v); if (v) { setShowResponsiblePicker(false); setShowPipelinePicker(false); } }}>
               <PopoverTrigger asChild>
-                <button type="button" className="flex h-7 w-full items-center justify-between rounded-md border border-gray-400 bg-card px-3 py-1 text-sm focus:outline-none">
+                <button type="button" className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]">
                   {form.tags.length === 0 ? (
                     <span className="text-muted-foreground">Selecionar tags</span>
                   ) : (
@@ -404,8 +404,8 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                   const active = form.tags.includes(t.name);
                   return (
                     <button key={t.id} type="button" onClick={() => toggleTag(t.name)} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors">
-                      <div className={`w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 transition-colors ${active ? "bg-primary border-primary" : "border-gray-400"}`}>
-                        {active && <Check className="h-3 w-3 text-white" />}
+                      <div className={`w-[18px] h-[18px] rounded-sm border-[1.5px] flex items-center justify-center shrink-0 transition-colors ${active ? "bg-primary border-[color:var(--accent-500)]" : "border-input bg-card"}`}>
+                        {active && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
                       </div>
                       <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: t.color }} />
                       <span>{t.name}</span>
@@ -426,7 +426,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Pipeline</label>
               <Popover open={showPipelinePicker} onOpenChange={v => { setShowPipelinePicker(v); if (v) { setShowTagPicker(false); setShowResponsiblePicker(false); } }}>
                 <PopoverTrigger asChild>
-                  <button type="button" className="flex h-7 w-full items-center justify-between rounded-md border border-gray-400 bg-card px-3 py-1 text-sm focus:outline-none">
+                  <button type="button" className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]">
                     <span className={selectedPipelineId === "none" ? "text-muted-foreground" : "text-foreground"}>
                       {selectedPipelineId === "none" ? "Nenhum" : (pipelines.find(p => p.id === selectedPipelineId)?.name ?? "Nenhum")}
                     </span>
@@ -438,8 +438,8 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                     const selected = selectedPipelineId === p.id;
                     return (
                       <button key={p.id} type="button" onClick={() => { setSelectedPipelineId(p.id); setShowPipelinePicker(false); }} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors">
-                        <div className={`w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-primary border-primary" : "border-gray-400"}`}>
-                          {selected && <Check className="h-3 w-3 text-white" />}
+                        <div className={`w-[18px] h-[18px] rounded-sm border-[1.5px] flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-primary border-[color:var(--accent-500)]" : "border-input bg-card"}`}>
+                          {selected && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
                         </div>
                         <span>{p.name}</span>
                       </button>
@@ -454,7 +454,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
               <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Responsável</label>
               <Popover open={showResponsiblePicker} onOpenChange={v => { setShowResponsiblePicker(v); if (v) { setShowTagPicker(false); setShowPipelinePicker(false); } }}>
                 <PopoverTrigger asChild>
-                  <button type="button" className="flex h-7 w-full items-center justify-between rounded-md border border-gray-400 bg-card px-3 py-1 text-sm focus:outline-none">
+                  <button type="button" className="flex h-9 w-full items-center justify-between rounded-lg border border-input bg-card px-3 text-sm focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]">
                     <span className={`truncate ${form.responsibles.length === 0 ? "text-muted-foreground" : "text-foreground"}`}>
                       {form.responsibles.length === 0 ? "Selecionar" : form.responsibles.join(", ")}
                     </span>
@@ -468,8 +468,8 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                     const selected = form.responsibles.includes(memberName);
                     return (
                       <button key={memberName} type="button" onClick={() => { const next = selected ? form.responsibles.filter(r => r !== memberName) : [...form.responsibles, memberName]; set("responsibles", next); }} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors">
-                        <div className={`w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-primary border-primary" : "border-gray-400"}`}>
-                          {selected && <Check className="h-3 w-3 text-white" />}
+                        <div className={`w-[18px] h-[18px] rounded-sm border-[1.5px] flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-primary border-[color:var(--accent-500)]" : "border-input bg-card"}`}>
+                          {selected && <Check className="h-3 w-3 text-primary-foreground" strokeWidth={3} />}
                         </div>
                         <span>{memberName}</span>
                       </button>
@@ -484,11 +484,11 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
 
         {/* ── Sub-abas ── */}
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="grid grid-cols-4 mx-6 mt-4 h-9 bg-green-100 rounded-lg p-1 shrink-0">
-            <TabsTrigger value="contato"  className="text-xs rounded-md data-[state=active]:bg-[#128A68] data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-black">Contato</TabsTrigger>
-            <TabsTrigger value="pessoal"  className="text-xs rounded-md data-[state=active]:bg-[#128A68] data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-black">Dados Pessoais</TabsTrigger>
-            <TabsTrigger value="endereco" className="text-xs rounded-md data-[state=active]:bg-[#128A68] data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-black">Endereço</TabsTrigger>
-            <TabsTrigger value="anotacoes"className="text-xs rounded-md data-[state=active]:bg-[#128A68] data-[state=active]:text-white data-[state=inactive]:bg-transparent data-[state=inactive]:text-black">Anotações</TabsTrigger>
+          <TabsList className="grid grid-cols-4 mx-6 mt-4 shrink-0">
+            <TabsTrigger value="contato"  className="text-xs">Contato</TabsTrigger>
+            <TabsTrigger value="pessoal"  className="text-xs">Dados Pessoais</TabsTrigger>
+            <TabsTrigger value="endereco" className="text-xs">Endereço</TabsTrigger>
+            <TabsTrigger value="anotacoes"className="text-xs">Anotações</TabsTrigger>
           </TabsList>
 
           {/* Contato */}
@@ -522,7 +522,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                 {form.emails.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {form.emails.map(e => (
-                      <div key={e} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium bg-muted border border-gray-400">
+                      <div key={e} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] font-medium bg-muted border border-gray-400">
                         <span className="truncate max-w-[200px]">{e}</span>
                         <button
                           type="button"
@@ -564,7 +564,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                 value={form.site}
                 onChange={e => set("site", e.target.value)}
                 placeholder="https://exemplo.com"
-                className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-9 bg-card"
               />
             </Field>
           </TabsContent>
@@ -576,7 +576,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                 value={form.document}
                 onChange={e => set("document", e.target.value)}
                 placeholder="000.000.000-00"
-                className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-9 bg-card"
               />
             </Field>
 
@@ -585,7 +585,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                 value={form.company}
                 onChange={e => set("company", e.target.value)}
                 placeholder="Nome da empresa"
-                className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-9 bg-card"
               />
             </Field>
 
@@ -603,7 +603,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                 type="date"
                 value={form.birthDate}
                 onChange={e => set("birthDate", e.target.value)}
-                className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-9 bg-card"
               />
             </Field>
           </TabsContent>
@@ -615,7 +615,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                 value={form.country}
                 onChange={e => set("country", e.target.value)}
                 placeholder="Brasil"
-                className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-9 bg-card"
               />
             </Field>
 
@@ -637,26 +637,26 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <Field label="Endereço">
-                  <Input value={form.address} onChange={e => set("address", e.target.value)} placeholder="Rua, Av..." className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+                  <Input value={form.address} onChange={e => set("address", e.target.value)} placeholder="Rua, Av..." className="h-9 bg-card" />
                 </Field>
               </div>
               <Field label="Número">
-                <Input value={form.addrNumber} onChange={e => set("addrNumber", e.target.value)} placeholder="123" className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+                <Input value={form.addrNumber} onChange={e => set("addrNumber", e.target.value)} placeholder="123" className="h-9 bg-card" />
               </Field>
             </div>
 
             <Field label="Complemento">
-              <Input value={form.complement} onChange={e => set("complement", e.target.value)} placeholder="Apto, sala..." className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+              <Input value={form.complement} onChange={e => set("complement", e.target.value)} placeholder="Apto, sala..." className="h-9 bg-card" />
             </Field>
 
             <Field label="Bairro">
-              <Input value={form.neighborhood} onChange={e => set("neighborhood", e.target.value)} placeholder="Bairro" className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+              <Input value={form.neighborhood} onChange={e => set("neighborhood", e.target.value)} placeholder="Bairro" className="h-9 bg-card" />
             </Field>
 
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-2">
                 <Field label="Cidade">
-                  <Input value={form.city} onChange={e => set("city", e.target.value)} placeholder="Cidade" className="h-7 bg-card border-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary" />
+                  <Input value={form.city} onChange={e => set("city", e.target.value)} placeholder="Cidade" className="h-9 bg-card" />
                 </Field>
               </div>
               <Field label="UF">

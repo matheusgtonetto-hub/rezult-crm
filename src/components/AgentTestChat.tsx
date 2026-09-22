@@ -131,8 +131,8 @@ export function AgentTestChat({ agentId }: { agentId: string }) {
     <div className="flex flex-col h-full min-h-0">
       <div className="flex items-start justify-between gap-4 mb-3">
         <div>
-          <h3 className="text-[14px] font-semibold text-[#111111]">Testar agente</h3>
-          <p className="text-[12px] text-[#767676]">
+          <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Testar agente</h3>
+          <p className="text-[12px] text-[color:var(--text-muted)]">
             Converse como se fosse o lead. É o mesmo agente e o mesmo prompt da conversa real, mas nada é enviado
             no WhatsApp e nada é gravado no negócio.
           </p>
@@ -145,18 +145,18 @@ export function AgentTestChat({ agentId }: { agentId: string }) {
               setErro(null);
               try { localStorage.removeItem(chaveConversa(agentId)); } catch { /* ignora */ }
             }}
-            className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-medium text-[#767676] hover:text-[#111111] transition-colors cursor-pointer"
+            className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--text-muted)] hover:text-[color:var(--text-heading)] transition-colors cursor-pointer"
           >
             <RotateCcw size={13} /> Recomeçar
           </button>
         )}
       </div>
 
-      <div className="flex-1 min-h-[280px] overflow-y-auto rounded-xl border border-[#EEEEEE] bg-white p-4 space-y-3">
+      <div className="flex-1 min-h-[280px] overflow-y-auto rounded-xl border border-[color:var(--border-default)] bg-white p-4 space-y-3">
         {mensagens.length === 0 && !enviando && (
           <div className="h-full flex flex-col items-center justify-center text-center py-10">
-            <p className="text-[13px] font-medium text-[#111111] mb-1">Comece como um lead começaria</p>
-            <p className="text-[12px] text-[#767676] max-w-[360px]">
+            <p className="text-[13px] font-medium text-[color:var(--text-heading)] mb-1">Comece como um lead começaria</p>
+            <p className="text-[12px] text-[color:var(--text-muted)] max-w-[360px]">
               Escreva algo que um cliente escreveria de verdade, tipo "oi, vi o anúncio de vocês" ou "quanto custa?".
             </p>
           </div>
@@ -168,18 +168,18 @@ export function AgentTestChat({ agentId }: { agentId: string }) {
               <div
                 className={`px-3 py-2 rounded-2xl text-[13px] whitespace-pre-wrap break-words ${
                   m.de === "lead"
-                    ? "bg-[#128A68] text-white rounded-br-sm"
-                    : "bg-[#F5F5F5] text-[#111111] rounded-bl-sm"
+                    ? "bg-[color:var(--accent-700)] text-white rounded-br-sm"
+                    : "bg-[color:var(--neutral-50)] text-[color:var(--text-heading)] rounded-bl-sm"
                 }`}
               >
                 {m.texto}
               </div>
               {m.acoes && (
-                <div className="mt-1.5 rounded-lg border border-dashed border-[#CCCCCC] bg-[#FAFAFA] px-2.5 py-2 space-y-1">
-                  <p className="text-[10px] uppercase tracking-wide text-[#767676] font-semibold">No CRM, o agente</p>
+                <div className="mt-1.5 rounded-lg border border-dashed border-[color:var(--border-strong)] bg-[color:var(--neutral-25)] px-2.5 py-2 space-y-1">
+                  <p className="text-[12px] uppercase tracking-wide text-[color:var(--text-muted)] font-semibold">No CRM, o agente</p>
                   {m.acoes.map((a, j) => (
-                    <p key={j} className="flex items-start gap-1.5 text-[11px] text-[#111111]">
-                      <Settings2 size={11} className="mt-0.5 shrink-0 text-[#767676]" /> {a}
+                    <p key={j} className="flex items-start gap-1.5 text-[12px] text-[color:var(--text-heading)]">
+                      <Settings2 size={11} className="mt-0.5 shrink-0 text-[color:var(--text-muted)]" /> {a}
                     </p>
                   ))}
                 </div>
@@ -190,7 +190,7 @@ export function AgentTestChat({ agentId }: { agentId: string }) {
 
         {enviando && (
           <div className="flex justify-start">
-            <div className="px-3 py-2 rounded-2xl rounded-bl-sm bg-[#F5F5F5] text-[#767676] text-[13px] flex items-center gap-2">
+            <div className="px-3 py-2 rounded-2xl rounded-bl-sm bg-[color:var(--neutral-50)] text-[color:var(--text-muted)] text-[13px] flex items-center gap-2">
               <Loader2 size={13} className="animate-spin" /> escrevendo...
             </div>
           </div>
@@ -198,7 +198,7 @@ export function AgentTestChat({ agentId }: { agentId: string }) {
         <div ref={fimRef} />
       </div>
 
-      {erro && <p className="text-[12px] text-[#DC2626] mt-2 break-words">{erro}</p>}
+      {erro && <p className="text-[12px] text-[color:var(--danger-fg)] mt-2 break-words">{erro}</p>}
 
       <div className="flex items-center gap-2 mt-3">
         <input
@@ -207,7 +207,7 @@ export function AgentTestChat({ agentId }: { agentId: string }) {
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void enviar(); } }}
           placeholder="Escreva como se fosse o lead..."
           disabled={enviando}
-          className="flex-1 px-3 py-2 rounded-lg border border-[#EEEEEE] bg-white text-[13px] focus:outline-none focus:border-primary disabled:opacity-60"
+          className="flex-1 px-3 py-2 rounded-lg border border-[color:var(--border-default)] bg-white text-[13px] focus:outline-none focus:border-primary disabled:opacity-60"
         />
         <Button onClick={() => void enviar()} disabled={enviando || !entrada.trim()} className="shrink-0">
           <Send size={14} className="mr-1.5" /> Enviar

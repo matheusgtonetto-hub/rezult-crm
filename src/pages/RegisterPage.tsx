@@ -83,29 +83,29 @@ export default function RegisterPage() {
   // container ainda rola, porque o formulário é alto -- e nesse caso o rodapé
   // aparece ao terminar de rolar, que é onde se espera encontrá-lo.
   return (
-    <div className="relative h-screen overflow-y-auto flex flex-col px-4" style={{ background: "#F2F7F5" }}>
+    <div className="relative h-screen overflow-y-auto flex flex-col px-4" style={{ background: "var(--accent-50)" }}>
       {/* Mesmo canto do login: quem escolheu o idioma lá chega aqui pelo botão
           "Criar uma conta", e o seletor precisa continuar onde a pessoa
           acabou de vê-lo. */}
       <div className="absolute top-5 right-5 z-10"><SeletorDeIdioma /></div>
       <div className="flex-1 flex items-center justify-center py-6">
-      <div className="relative w-full max-w-[380px] rounded-[7px] p-[1px] overflow-hidden shadow-elev-3">
+      <div className="relative w-full max-w-[380px] rounded-[8px] p-[1px] overflow-hidden shadow-elev-3">
         {/* Rotating border lights */}
         <div
           className="absolute inset-[-100%]"
           style={{
-            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, var(--accent-700) 65%, #4ade80 75%, var(--accent-700) 85%, transparent 95%)",
             animation: "spin-border 4s linear infinite",
           }}
         />
         <div
           className="absolute inset-[-100%]"
           style={{
-            background: "conic-gradient(from 180deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+            background: "conic-gradient(from 180deg, transparent 0%, transparent 55%, var(--accent-700) 65%, #4ade80 75%, var(--accent-700) 85%, transparent 95%)",
             animation: "spin-border 4s linear infinite",
           }}
         />
-        <div className="relative w-full bg-card rounded-[7px] px-[30px] pt-[30px] pb-[20px]">
+        <div className="relative w-full bg-card rounded-[8px] px-[30px] pt-[30px] pb-[20px]">
           {/* Seta no canto, e não um botão no fim do formulário: voltar é saída,
               não conclusão, e no rodapé ela dividia atenção com o botão de
               criar a conta. `absolute` para não empurrar a logo do centro.
@@ -127,8 +127,8 @@ export default function RegisterPage() {
             <img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-10 w-auto" />
           </div>
 
-          <h1 className="text-[23px] text-foreground text-center" style={{ fontFamily: "'Geist Sans', sans-serif", fontWeight: 700, letterSpacing: "-0.2px" }}>{t("cadastro.titulo")}</h1>
-          <p className="text-[15px] text-gray-500 text-center mt-[1px]" style={{ fontWeight: 400 }}>
+          <h1 className="text-[24px] text-foreground text-center" style={{ fontFamily: "'Geist Sans', sans-serif", fontWeight: 700, letterSpacing: "-0.2px" }}>{t("cadastro.titulo")}</h1>
+          <p className="text-[14px] text-gray-500 text-center mt-[1px]" style={{ fontWeight: 400 }}>
             {t("cadastro.subtitulo")}
           </p>
 
@@ -141,7 +141,7 @@ export default function RegisterPage() {
                 placeholder={t("cadastro.nomePlaceholder")}
                 value={fullName}
                 onChange={e => setFullName(e.target.value)}
-                className="h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-auto rounded-[6px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoComplete="name"
                 autoFocus
               />
@@ -155,7 +155,7 @@ export default function RegisterPage() {
                 placeholder={t("login.emailPlaceholder")}
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="h-auto rounded-[6px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 autoComplete="email"
               />
             </div>
@@ -169,7 +169,7 @@ export default function RegisterPage() {
                   placeholder={t("login.senhaPlaceholder")}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
-                  className="h-auto rounded-[5px] pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  className="h-auto rounded-[6px] pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   autoComplete="new-password"
                 />
                 <button
@@ -192,7 +192,7 @@ export default function RegisterPage() {
                   placeholder={t("cadastro.confirmarPlaceholder")}
                   value={confirmPwd}
                   onChange={e => setConfirmPwd(e.target.value)}
-                  className="h-auto rounded-[5px] pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  className="h-auto rounded-[6px] pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   autoComplete="new-password"
                 />
                 <button
@@ -225,7 +225,7 @@ export default function RegisterPage() {
 
             <Button
               type="submit"
-              className="w-full h-auto py-[10px] rounded-[5px] font-semibold"
+              className="w-full h-auto py-[10px] rounded-[6px] font-semibold"
               disabled={loading || !fullName.trim() || !email.trim() || !password || !confirmPwd}
             >
               {loading ? t("cadastro.criando") : t("cadastro.botao")}

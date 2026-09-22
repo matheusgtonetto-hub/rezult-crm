@@ -48,7 +48,7 @@ export function BillingBlockedModal({ onClose, motivo = "cobranca" }: Props) {
     >
       <div
         style={{
-          background: "#fff",
+          background: "var(--surface-card)",
           borderRadius: 16,
           overflow: "hidden",
           boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
@@ -59,7 +59,7 @@ export function BillingBlockedModal({ onClose, motivo = "cobranca" }: Props) {
         onClick={e => e.stopPropagation()}
         onMouseDown={e => e.stopPropagation()}
       >
-        <div style={{ position: "relative", padding: "16px 20px", background: "#EF4444" }}>
+        <div style={{ position: "relative", padding: "16px 20px", background: "var(--danger-400)" }}>
           <button
             onClick={onClose}
             style={{
@@ -98,10 +98,10 @@ export function BillingBlockedModal({ onClose, motivo = "cobranca" }: Props) {
         </div>
 
         <div style={{ padding: "24px", textAlign: "center" }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: "#111", marginBottom: 8 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)", marginBottom: 8 }}>
             {chamada}
           </div>
-          <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.55 }}>
+          <p style={{ fontSize: 13, color: "var(--text-muted)", lineHeight: 1.55 }}>
             {corpo}
           </p>
 
@@ -115,7 +115,7 @@ export function BillingBlockedModal({ onClose, motivo = "cobranca" }: Props) {
               fontSize: 13,
               fontWeight: 600,
               color: "#fff",
-              background: "#128A68",
+              background: "var(--accent-700)",
               border: "none",
               cursor: "pointer",
             }}
@@ -131,7 +131,7 @@ export function BillingBlockedModal({ onClose, motivo = "cobranca" }: Props) {
               background: "none",
               border: "none",
               fontSize: 13,
-              color: "#6B7280",
+              color: "var(--text-muted)",
               cursor: "pointer",
               padding: "4px 0",
             }}

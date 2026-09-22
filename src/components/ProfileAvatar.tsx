@@ -1,18 +1,25 @@
 import { useState, useEffect } from "react";
+import { tintaSobre } from "@/lib/contraste";
+import { colorFromString } from "@/lib/iniciais";
+
+export { colorFromString };
 
 // Mesmo algoritmo de cor/iniciais usado em ConvAvatar (MultiatendimentoPage)
 // -- extraído aqui pra ser reaproveitado em LeadDetailPage e PipelinePage.
-export function colorFromString(str: string) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  return `hsl(${Math.abs(hash) % 360} 55% 50%)`;
-}
-
 export function initialsOf(name: string) {
   return name.split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
 }
 
-export function ProfileAvatar({ name, avatarUrl, size, onError, style }: { name: string; avatarUrl?: string; size: number; onError?: () => void; style?: React.CSSProperties }) {
+/**
+ * `bg` existe porque o fundo do avatar às vezes é dado, e não hash: no kanban
+ * ele leva a cor da etapa, escolhida pelo usuário. Antes isso chegava por
+ * `style={{ backgroundColor }}`, e o componente calculava a tinta para a cor do
+ * hash enquanto pintava outra cor por cima -- a inicial branca acabava sobre
+ * âmbar e laranja, em 2,1:1.
+ *
+ * Com `bg`, o fundo e a tinta saem da mesma fonte.
+ */
+export function ProfileAvatar({ name, avatarUrl, size, onError, style, bg }: { name: string; avatarUrl?: string; size: number; onError?: () => void; style?: React.CSSProperties; bg?: string }) {
   const [err, setErr] = useState(false);
   useEffect(() => { setErr(false); }, [avatarUrl]);
   if (avatarUrl && !err) {
@@ -27,8 +34,9 @@ export function ProfileAvatar({ name, avatarUrl, size, onError, style }: { name:
       />
     );
   }
+  const fundo = bg || colorFromString(name);
   return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: colorFromString(name), color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.38, fontWeight: 700, flexShrink: 0, ...style }}>
+    <div style={{ width: size, height: size, borderRadius: "50%", background: fundo, color: tintaSobre(fundo), display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.38, fontWeight: 700, flexShrink: 0, ...style }}>
       {initialsOf(name)}
     </div>
   );

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowDown, ArrowUp, ChevronDown, X } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown, X } from "lucide-react";
 import type { Lead } from "@/data/mockData";
 import { fmt } from "./useDashboardHelpers";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -8,6 +8,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { MEDALHAS, VERDE_DEMAIS, tintaDaMedalha } from "./medalhas";
+import { SANGRIA_LATERAL } from "./TabelaPainel";
 
 function TruncatedCell({ text }: { text: string }) {
   const ref = useRef<HTMLSpanElement>(null);
@@ -50,40 +52,6 @@ const UTM_FIELDS = [
 
 const TOP_N = 10;
 
-/**
- * Medalhas do pódio para as três primeiras posições da tabela, que é ordenada
- * por receita.
- *
- * São degradês, e não cores chapadas, por necessidade e não por enfeite: ouro e
- * prata clássicos (#D4AF37, #C0C0C0) dão 2.1:1 e 1.8:1 contra texto branco, ou
- * seja, ilegíveis. O degradê diagonal desce até um tom escuro do mesmo metal, e
- * é essa metade que sustenta o número. A sombra fina no texto fecha a conta na
- * parte clara.
- *
- * Da quarta posição em diante entra o verde da marca, mais claro que o primário
- * para não competir com o pódio.
- */
-const MEDALHAS = [
-  "linear-gradient(135deg, #F2CE63 0%, #B8860B 100%)",  // ouro
-  "linear-gradient(135deg, #CBD0D7 0%, #78828F 100%)",  // prata
-  "linear-gradient(135deg, #D48F55 0%, #8C4A21 100%)",  // bronze
-] as const;
-
-/**
- * Fundo das posições fora do pódio: o verde da marca chapado, o mesmo das
- * faixas de cabeçalho e total.
- *
- * Era rgba a 55%, escolhido para o verde ficar claro a ponto de não competir com
- * as três medalhas. Saiu por dois motivos. O primeiro é coerência: com as duas
- * faixas da tabela nesse verde, uma pastilha num verde só parecido lê como
- * desalinho, não como hierarquia. O segundo é legibilidade, e é o que decide: a
- * 55% o número branco ficava em 2.1:1, sustentado só pela sombra do texto.
- * Chapado, sobe para 4.3:1.
- *
- * A distinção com o pódio não se perde: ouro, prata e bronze são degradês
- * metálicos, e nenhum verde é confundível com eles.
- */
-const VERDE_DEMAIS = "#128A68";
 
 /**
  * Colunas numéricas, na ordem em que aparecem. `chave` indexa a linha.
@@ -289,7 +257,7 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
   const totalWon     = filtradas.reduce((s, r) => s + r.won, 0);
   const totalRevenue = filtradas.reduce((s, r) => s + r.revenue, 0);
 
-  const coverageColor = coverage >= 70 ? "bg-emerald-500" : coverage >= 40 ? "bg-amber-400" : "bg-red-400";
+  const coverageColor = coverage >= 70 ? "bg-[color:var(--accent-400)]" : coverage >= 40 ? "bg-[color:var(--warning-400)]" : "bg-[color:var(--danger-400)]";
 
   // Piso de largura da tabela: colunas fixadas somadas ao mínimo das que ainda
   // são automáticas. É o que decide quando o contêiner passa a rolar.
@@ -299,7 +267,7 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
     + activeFields.reduce((s, f) => s + (larguras[f.key] ?? PX_MIN_COLUNA), 0);
 
   return (
-    <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
+    <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5">
       {/* Header
           A cobertura ganhou peso. Ela é o dado que qualifica todo o resto do
           painel: com 20% de cobertura, a campanha "vencedora" da tabela pode ser
@@ -346,11 +314,14 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
           </div>
         )}
 
-        {/* Moldura da tabela. O `overflow-x-auto` que já existia para o scroll
-            horizontal é o que recorta os cantos: com overflow diferente de
-            visible, o conteúdo respeita o raio da borda, e sem ele o cabeçalho
-            e o rodapé pintados passariam reto por cima dos cantos arredondados. */}
-        <div className="overflow-x-auto rounded-[5px] border border-card-border">
+        {/* A tabela ocupa a largura do cartão: o `-mx-5` cancela o `p-5` do
+            painel, e o recuo volta nas células das pontas. Era uma moldura com
+            borda e raio dentro do painel -- cartão dentro de cartão.
+
+            Aqui é `SANGRIA_LATERAL`, e não `MOLDURA`: este painel tem a nota
+            dos leads sem UTM DEPOIS da tabela, e puxar o rodapé comeria o
+            respiro dela. */}
+        <div className={SANGRIA_LATERAL}>
           {/* Respiro nas colunas das pontas, por seletor e não célula a célula:
               são doze células nas duas extremidades entre thead, tbody e tfoot,
               e a primeira que alguém esquecesse deixaria uma linha encostada na
@@ -384,24 +355,24 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
                   próprios números já carregam e deixando a faixa do topo
                   arlequinada. Os títulos dizem o que é a coluna; a cor fica para
                   o dado. */}
-              {/* Faixa verde da sidebar: --primary chapado, texto branco.
-                  Sobre ela nenhum texto pode continuar com a cor de antes. O
-                  verde que marcava a coluna filtrada sumiria dentro do fundo, e
-                  os cinzas cairiam para contraste ilegível. A distinção passa a
-                  ser feita por opacidade e peso do branco, que funcionam sem
-                  depender de matiz.
+              {/* Cabeçalho sem fundo tingido (matriz, seção 4).
 
-                  Sem `border-b`: a troca de cor entre a faixa e o corpo branco
-                  já é a divisa, e um traço cinza por cima dela sujaria a banda.
+                  Era uma faixa emerald chapada com texto branco a 1,85:1, e a
+                  justificativa escrita aqui dizia que a distinção entre coluna
+                  filtrada e não filtrada passava a ser "opacidade e peso do
+                  branco, que funcionam sem depender de matiz". O problema é que
+                  a base não se lia: 1,85:1 não é uma escolha de desenho, é
+                  texto que some.
 
-                  As réguas verticais existem só aqui. No corpo elas cortariam
-                  cada linha em pedaços e brigariam com as divisórias horizontais
-                  que já separam as linhas; no topo, delimitam o alvo de arraste
-                  de cada coluna, que é onde a divisa precisa ser vista.
+                  Sem a faixa, a cor volta a poder significar: coluna com filtro
+                  ativo fica em --accent-800 (o verde que o app usa para
+                  "escolhido" em toda parte), e as demais em --text-muted.
 
-                  `[&>th]:pt-2` porque as células só tinham padding embaixo: sem
-                  o de cima, a faixa colada no texto pareceria corte, não banda. */}
-              <tr className="text-xs bg-primary [&>th]:pt-2 [&>th]:border-r [&>th]:border-white/20 [&>th:first-child]:border-r-0 [&>th:last-child]:border-r-0">
+                  As réguas verticais continuam, porque delimitam o alvo de
+                  arraste de cada coluna, mas agora em --border-default.
+
+                  `[&>th]:pt-2` porque as células só tinham padding embaixo. */}
+              <tr className="text-xs border-b border-[color:var(--border-default)] [&>th]:pt-2">
                 <th className="pb-2 pr-3 w-6" />
                 {/* O cabeçalho É o filtro. Com filtro ativo, o título dá lugar
                     ao valor escolhido, em branco cheio e negrito: assim a coluna
@@ -424,13 +395,13 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
                     <th key={f.key} className={`relative text-left pb-2 pr-4 ${iCol > 0 ? PL_APOS_REGUA : ""}`}>
                       <DropdownMenu>
                         <DropdownMenuTrigger className="group flex items-center gap-1 max-w-full text-left outline-none">
-                          <span className={`truncate ${escolhido ? "text-white font-semibold" : "text-white font-medium"}`}>
+                          <span className={`truncate ${escolhido ? "text-[color:var(--accent-800)] font-semibold" : "text-[color:var(--text-muted)] font-medium"}`}>
                             {escolhido ?? f.label}
                           </span>
                           <ChevronDown
                             size={12}
                             className={`shrink-0 transition-colors ${
-                              escolhido ? "text-white" : "text-white/60 group-hover:text-white"
+                              escolhido ? "text-[color:var(--accent-800)]" : "text-[color:var(--text-muted)] group-hover:text-[color:var(--text-heading)]"
                             }`}
                           />
                         </DropdownMenuTrigger>
@@ -453,7 +424,7 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
                       {/* `font-mono` no nome do parâmetro: ele é um token de
                           URL (`utm_campaign`), e a monoespaçada o separa do
                           título acima, que é texto comum. */}
-                      <span className="block font-normal text-white/60 text-[10px] leading-tight font-mono truncate">
+                      <span className="block font-normal text-[color:var(--text-muted)] text-[12px] leading-tight font-mono truncate">
                         {f.param}
                       </span>
 
@@ -498,12 +469,21 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
                     >
                       <button
                         onClick={() => alternarOrdem(c.chave)}
-                        className={`w-full flex items-center justify-center gap-1 text-white transition-opacity hover:opacity-75 ${
+                        className={`w-full flex items-center justify-center gap-1 text-[color:var(--text-muted)] transition-opacity hover:opacity-75 ${
                           ativa ? "font-semibold" : ""
                         }`}
                       >
                         {c.label}
-                        {ativa && (ordem.desc ? <ArrowDown size={12} /> : <ArrowUp size={12} />)}
+                        {/* Mesma seta do `TabelaPainel`: dupla em repouso, única
+                            no sentido em vigor quando a coluna ordena. Este
+                            cabeçalho é escrito à mão (as colunas do UTM são
+                            dinâmicas), então a regra precisa ser repetida aqui
+                            -- se ela mudar lá, muda aqui junto. */}
+                        {ativa
+                          ? (ordem.desc
+                              ? <ChevronDown size={13} className="shrink-0 text-[color:var(--icon-strong)]" />
+                              : <ChevronUp size={13} className="shrink-0 text-[color:var(--icon-strong)]" />)
+                          : <ChevronsUpDown size={13} className="shrink-0 text-[color:var(--icon-default)]" />}
                       </button>
                     </th>
                   );
@@ -521,12 +501,13 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
                       repetiria o que a posição já diz. */}
                   <td className="py-2.5 pr-3 select-none">
                     <span
-                      className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold tabular-nums text-white"
+                      className="inline-flex items-center justify-center w-6 h-6 rounded-full text-[12px] font-bold tabular-nums"
                       style={{
                         background: MEDALHAS[r.rankReceita] ?? VERDE_DEMAIS,
-                        // Sombra fina no número: é o que mantém o branco legível
-                        // sobre a ponta clara do ouro e da prata.
-                        textShadow: "0 1px 2px rgba(0,0,0,0.45)",
+                        // A tinta acompanha o metal: charcoal no ouro, na prata
+                        // e no bronze, branco no verde. A sombra que segurava o
+                        // branco sobre a ponta clara saiu junto com o degradê.
+                        color: tintaDaMedalha(MEDALHAS[r.rankReceita] ?? VERDE_DEMAIS),
                       }}
                       title={`${r.rankReceita + 1}ª maior receita`}
                     >
@@ -587,25 +568,28 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
               )}
             </tbody>
             <tfoot>
-              {/* Rodapé na mesma faixa verde do cabeçalho, fechando a tabela
-                  entre duas bandas.
+              {/* Linha de total, sem fundo, como o cabeçalho.
 
-                  Todos os números em branco. Perdidos em vermelho e Vendas em
-                  verde não sobrevivem aqui: o verde de "Vendas" é o próprio
-                  --primary do fundo e sumiria por completo. Não é perda de
-                  informação, é rodapé de soma, não de estado; a leitura de bom
-                  ou ruim continua nas linhas de cima, onde ela decide algo. */}
-              <tr className="bg-primary text-xs font-semibold text-white">
+                  Era uma faixa emerald, escrita para "fechar a tabela entre
+                  duas bandas" -- só que a banda do cabeçalho saiu, e ela ficou
+                  sendo uma barra verde no pé de uma tabela sem topo verde.
+
+                  A faixa também cobrava caro: o comentário aqui admitia que
+                  "perdidos em vermelho e vendas em verde não sobrevivem" sobre
+                  ela. Sem fundo, as cores de estado voltam para a linha que
+                  soma tudo, que é onde o resultado do período se lê. O que
+                  separa o total do corpo é uma régua mais forte. */}
+              <tr className="text-xs font-semibold border-t border-[color:var(--border-strong)]">
                 <td className="py-2.5 pr-3" />
                 {activeFields.map((f, iCol) => (
-                  <td key={f.key} className={`py-2.5 pr-4 text-white/85 text-xs ${iCol > 0 ? PL_APOS_REGUA : ""}`}>
+                  <td key={f.key} className={`py-2.5 pr-4 text-[color:var(--text-heading)] text-xs ${iCol > 0 ? PL_APOS_REGUA : ""}`}>
                     {f.key === activeFields[0].key ? "Total" : ""}
                   </td>
                 ))}
-                <td className="text-center py-2.5 tabular-nums">{totalLeads}</td>
-                <td className="text-center py-2.5 pl-3 tabular-nums">{totalLost}</td>
-                <td className="text-center py-2.5 pl-3 tabular-nums">{totalWon}</td>
-                <td className="text-center py-2.5 pl-3 whitespace-nowrap tabular-nums">{fmt(totalRevenue)}</td>
+                <td className="text-center py-2.5 tabular-nums text-[color:var(--text-heading)]">{totalLeads}</td>
+                <td className="text-center py-2.5 pl-3 tabular-nums text-[color:var(--danger-fg)]">{totalLost}</td>
+                <td className="text-center py-2.5 pl-3 tabular-nums text-[color:var(--accent-700)]">{totalWon}</td>
+                <td className="text-center py-2.5 pl-3 whitespace-nowrap tabular-nums text-[color:var(--accent-700)]">{fmt(totalRevenue)}</td>
               </tr>
             </tfoot>
           </table>
@@ -618,7 +602,7 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
         {noUtmCount > 0 && (
           <button
             onClick={() => setNoUtmOpen(true)}
-            className="text-xs text-muted-foreground/50 mt-3 w-full text-left hover:text-muted-foreground transition-colors cursor-pointer"
+            className="text-xs text-muted-foreground mt-3 w-full text-left hover:text-foreground transition-colors cursor-pointer"
           >
             {noUtmCount} lead{noUtmCount > 1 ? "s" : ""} sem UTM {noUtmCount > 1 ? "não são exibidos" : "não é exibido"} — <span className="underline underline-offset-2">ver todos</span>
           </button>

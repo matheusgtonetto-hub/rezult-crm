@@ -33,6 +33,7 @@ import {
   ChevronDown,
   CircleCheck,
 } from "lucide-react";
+import { VENDA } from "@/lib/superficie-de-venda";
 
 type Step = 1;
 type BillingTab = "mensal" | "semestral" | "anual";
@@ -44,57 +45,6 @@ const BILLING_TAB_TO_PERIOD: Record<BillingTab, "monthly" | "semiannual" | "annu
   semestral: "semiannual",
   anual:     "annual",
 };
-
-/**
- * Paleta do site (rezult-site/styles.css), portada para os cartões de plano.
- *
- * Os valores estão em constantes e não em classes do Tailwind porque não são
- * do tema do app: o CRM é claro, e este bloco é uma ilha escura dentro dele.
- * Usar `bg-card` ou `text-foreground` aqui traria as cores do app de volta e
- * quebraria a semelhança com o site, que é o ponto.
- *
- * Verde diferente do `--primary` do CRM de propósito: no fundo escuro do site
- * o #00E599 é o que dá o contraste, e o #128A68 do app sumiria.
- */
-const SITE = {
-  // O preto do site é mais escuro que a superfície dos cartões, e é essa
-  // diferença que faz os três se destacarem do fundo em vez de sumirem nele.
-  fundo:       "#05080A",
-  superficie:  "#0C1115",
-  superficie2: "#131A1E",
-  verde:       "#00E599",
-  sobreVerde:  "#04140D",
-  texto:       "#F4F6F4",
-  textoSuave:  "#D1D1D1",
-  textoFraco:  "rgba(244, 246, 244, 0.38)",
-  borda:       "rgba(255, 255, 255, 0.15)",
-  bordaSuave:  "rgba(0, 229, 153, 0.20)",
-  bordaAtiva:  "rgba(0, 229, 153, 0.45)",
-  // 0.18 é o `--glow-soft` do site, usado no brilho das sombras, nas pílulas e
-  // também no topo do degradê do cartão em destaque. O site usa 0.06 lá, um véu
-  // quase imperceptível; aqui o verde é mais presente de propósito, porque os
-  // cartões são menores e o degradê fraco praticamente desaparecia.
-  brilhoSuave: "rgba(0, 229, 153, 0.18)",
-  // O brilho da moldura do card, nos dois sentidos. O site usa 0.45 no `--glow`
-  // dos elementos primários; aqui é 0.35, porque a moldura acende para dentro
-  // também e o valor cheio esverdeava demais o preto por baixo dos cartões.
-  // Não confundir com o `brilhoSuave` (0.18), que é véu.
-  brilhoVerde: "rgba(0, 229, 153, 0.35)",
-  // O `--red: #EF4444` do site, nos preços antigos riscados. Vermelho marca o
-  // que a pessoa NÃO vai pagar.
-  vermelho:    "#EF4444",
-  // Verde fechado do selo da oferta. Escolhido por duas razões, não por gosto:
-  //
-  // 1. Precisa ser claramente mais escuro que o #00E599 do botão "7 Dias
-  //    grátis" logo ao lado, senão os dois blocos verdes competem e nenhum
-  //    ganha. Este é dois degraus abaixo, e a diferença lê de longe.
-  //
-  // 2. O texto do selo é branco, e branco sobre o #00E599 do botão dá 1.66:1,
-  //    ilegível. Sobre este verde dá 5.48:1, acima do 4.5:1 que a WCAG pede
-  //    para texto normal. O botão passa porque o texto dele é escuro; o selo
-  //    não teria essa saída sem um verde fechado.
-  verdeFechado: "#047857",
-} as const;
 
 /**
  * Escala do seletor de período, sendo 1 o tamanho exato do site.
@@ -372,8 +322,8 @@ function SeloDaOferta({
     // moldura e 3 ou 10 de dentro. Mantém o selo do mesmo tamanho, para ele não
     // encolher junto com a linha que saiu.
     <div
-      className="shrink-0 rounded-[7px]"
-      style={{ background: SITE.verdeFechado, padding: "8px 15px" }}
+      className="shrink-0 rounded-[8px]"
+      style={{ background: VENDA.verdeFechado, padding: "8px 15px" }}
     >
       <Marcacao
         className="font-bold whitespace-nowrap"
@@ -708,7 +658,7 @@ export default function SetupPage() {
             box-shadow do card interno era removida inteira antes de aparecer.
             Na caixa de fora nada a recorta.
 
-            Mesma cor da linha da borda, o #00E599 do botão, na opacidade que o
+            Mesma cor da linha da borda, o emerald do botão, na opacidade que o
             site usa nos elementos primários. */}
           {/* Caixa que reserva o espaço do cartão JÁ reduzido.
 
@@ -731,17 +681,17 @@ export default function SetupPage() {
             <div
               className="absolute inset-[-100%]"
               style={{
-                background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+                background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, var(--accent-700) 65%, #4ade80 75%, var(--accent-700) 85%, transparent 95%)",
                 animation: "spin-border 4s linear infinite",
               }}
             />
 
             <div
-              className="relative w-full rounded-[15px] overflow-hidden flex"
+              className="relative w-full rounded-[16px] overflow-hidden flex"
               style={{
                 height: 650,
-                background: SITE.fundo,
-                // Linha no mesmo #00E599 do botão "7 Dias grátis". O brilho
+                background: VENDA.fundo,
+                // Linha no mesmo emerald do botão "7 Dias grátis". O brilho
                 // dela sai para os dois lados: para FORA fica no invólucro (aqui
                 // ele seria recortado pelo `overflow-hidden` de lá), e para
                 // DENTRO fica neste `inset`, que a moldura projeta sobre o preto.
@@ -754,8 +704,8 @@ export default function SetupPage() {
                 // O invólucro tem 15+1 de raio para acompanhar este: raios iguais
                 // nos dois deixariam o gradiente aparecendo em excesso nos
                 // cantos, onde a curva de fora é mais fechada que a de dentro.
-                border: `1px solid ${SITE.verde}`,
-                boxShadow: `inset 0 0 50px ${SITE.brilhoVerde}`,
+                border: `1px solid ${VENDA.verde}`,
+                boxShadow: `inset 0 0 50px ${VENDA.brilhoVerde}`,
               }}
             >
               {/* Véu do passo a passo: escurece o card e deixa só o elemento
@@ -870,7 +820,7 @@ export default function SetupPage() {
                   {ofertaAtiva && (
                     <p
                       className={cn("text-[12px] min-w-0 truncate", REVELACAO)}
-                      style={{ color: SITE.texto, filter: desfoqueDoTour(false) }}
+                      style={{ color: VENDA.texto, filter: desfoqueDoTour(false) }}
                     >
                       Oferta válida por somente 7 dias.
                     </p>
@@ -887,7 +837,7 @@ export default function SetupPage() {
                     <button
                       type="button"
                       onClick={() => navigate("/inicio")}
-                      // `rounded-[7px]`: o mesmo raio do selo da oferta do outro lado da
+                      // `rounded-[8px]`: o mesmo raio do selo da oferta do outro lado da
                       // linha. Os dois são os blocos verdes do topo, e cantos
                       // diferentes faziam parecer que vieram de telas diferentes.
                       // Pulsa só no passo DELE. A regra da tela inteira é que o
@@ -900,10 +850,10 @@ export default function SetupPage() {
                       // disputam o mesmo `transform`: com as duas, uma anula a
                       // outra e o botão fica travado no meio do caminho.
                       className={cn(
-                        "brilho-botao-verde h-auto py-[10px] px-4 rounded-[7px] text-[13px] font-semibold transition-all",
+                        "brilho-botao-verde h-auto py-[10px] px-4 rounded-[8px] text-[13px] font-semibold transition-all",
                         passoAtual?.ancora === "teste" ? "pulso-botao" : "hover:-translate-y-[2px]"
                       )}
-                      style={{ background: SITE.verde, color: SITE.sobreVerde }}
+                      style={{ background: VENDA.verde, color: VENDA.sobreVerde }}
                     >
                       {planConfirmed
                         ? "Acessar"
@@ -965,8 +915,8 @@ export default function SetupPage() {
                         gap: esc(3),
                         padding: esc(4),
                         borderRadius: 100,
-                        background: SITE.superficie2,
-                        border: `1px solid ${SITE.bordaSuave}`,
+                        background: VENDA.superficie2,
+                        border: `1px solid ${VENDA.bordaSuave}`,
                       }}
                     >
                       {(["mensal", "semestral", "anual"] as BillingTab[]).map((tab) => {
@@ -983,8 +933,8 @@ export default function SetupPage() {
                               padding: `${PADDING_VERTICAL_DO_BOTAO}px ${esc(9)}px`,
                               gap: esc(4),
                               borderRadius: 100,
-                              background: ativa ? SITE.verde : undefined,
-                              color: ativa ? SITE.sobreVerde : SITE.textoSuave,
+                              background: ativa ? VENDA.verde : undefined,
+                              color: ativa ? VENDA.sobreVerde : VENDA.textoSuave,
                             }}
                           >
                             {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -1016,32 +966,32 @@ export default function SetupPage() {
                             className="relative flex flex-col rounded-[16px] p-5 transition-all duration-200"
                             style={{
                               background: destaque
-                                ? `linear-gradient(180deg, ${SITE.brilhoSuave}, ${SITE.superficie} 40%)`
-                                : SITE.superficie,
-                              border: `1px solid ${destaque || planoSobMouse === plan.key ? SITE.bordaAtiva : SITE.borda}`,
+                                ? `linear-gradient(180deg, ${VENDA.brilhoSuave}, ${VENDA.superficie} 40%)`
+                                : VENDA.superficie,
+                              border: `1px solid ${destaque || planoSobMouse === plan.key ? VENDA.bordaAtiva : VENDA.borda}`,
                               boxShadow: destaque
-                                ? `0 30px 70px rgba(0,0,0,0.4), 0 0 60px ${SITE.brilhoSuave}`
+                                ? `0 30px 70px rgba(0,0,0,0.4), 0 0 60px ${VENDA.brilhoSuave}`
                                 : undefined,
                               transform: planoSobMouse === plan.key ? "translateY(-4px)" : undefined,
                             }}
                           >
                             {destaque && (
                               <span
-                                className="absolute -top-[11px] left-1/2 -translate-x-1/2 text-[11px] font-semibold px-3 py-[4px] rounded-full whitespace-nowrap"
-                                style={{ background: SITE.verde, color: SITE.sobreVerde, letterSpacing: "0.04em" }}
+                                className="absolute -top-[11px] left-1/2 -translate-x-1/2 text-[12px] font-semibold px-3 py-[4px] rounded-full whitespace-nowrap"
+                                style={{ background: VENDA.verde, color: VENDA.sobreVerde, letterSpacing: "0.04em" }}
                               >
                                 {plan.badge}
                               </span>
                             )}
 
                             <div className="flex items-center gap-1.5 min-w-0">
-                              <h3 className="text-[20px] font-semibold shrink-0" style={{ color: SITE.texto, letterSpacing: "-0.02em" }}>
+                              <h3 className="text-[20px] font-semibold shrink-0" style={{ color: VENDA.texto, letterSpacing: "-0.02em" }}>
                                 {plan.name}
                               </h3>
                               {save && (
                                 <span
-                                  className="inline-flex items-center text-[10px] font-medium rounded-full px-2 py-0.5 truncate"
-                                  style={{ background: SITE.brilhoSuave, color: SITE.verde }}
+                                  className="inline-flex items-center text-[12px] font-medium rounded-full px-2 py-0.5 truncate"
+                                  style={{ background: VENDA.brilhoSuave, color: VENDA.verde }}
                                 >
                                   <span className="truncate">Economize {save}</span>
                                 </span>
@@ -1065,7 +1015,7 @@ export default function SetupPage() {
                                   nela que a margem negativa come, sem encostar uma
                                   linha na outra. */}
                               {ofertaAtiva && DESCONTO > 0 && (
-                                <p className="text-[16px] font-medium -mb-[3px]" style={{ color: SITE.vermelho }}>
+                                <p className="text-[14px] font-medium -mb-[3px]" style={{ color: VENDA.vermelho }}>
                                   de {getPlanPrice(plan)}
                                 </p>
                               )}
@@ -1074,12 +1024,12 @@ export default function SetupPage() {
                                     formam uma frase só, quebrada em duas linhas
                                     para o valor novo poder ser grande. */}
                                 {ofertaAtiva && DESCONTO > 0 && (
-                                  <span className="text-[13px]" style={{ color: SITE.textoFraco }}>por</span>
+                                  <span className="text-[13px]" style={{ color: VENDA.textoFraco }}>por</span>
                                 )}
-                                <span className="text-[26px] font-semibold" style={{ color: SITE.texto, letterSpacing: "-0.04em" }}>
+                                <span className="text-[24px] font-semibold" style={{ color: VENDA.texto, letterSpacing: "-0.04em" }}>
                                   {precoDaOferta(getPlanPrice(plan))}
                                 </span>
-                                <span className="text-[13px]" style={{ color: SITE.textoFraco }}>/mês</span>
+                                <span className="text-[13px]" style={{ color: VENDA.textoFraco }}>/mês</span>
                                 {/* 9px e preenchimento estreito para caber na mesma
                                     linha do preço em qualquer período: "Semestral"
                                     ao lado de "R$ 317,50" é a combinação mais
@@ -1087,8 +1037,8 @@ export default function SetupPage() {
                                     como rede de segurança -- se em algum zoom não
                                     couber, ela desce em vez de ser cortada. */}
                                 <span
-                                  className="text-[9px] font-semibold px-1.5 py-[3px] rounded-full ml-auto capitalize shrink-0"
-                                  style={{ background: SITE.brilhoSuave, color: SITE.verde, letterSpacing: "0.02em" }}
+                                  className="text-[12px] font-semibold px-1.5 py-[3px] rounded-full ml-auto capitalize shrink-0"
+                                  style={{ background: VENDA.brilhoSuave, color: VENDA.verde, letterSpacing: "0.02em" }}
                                 >
                                   {billingTab.charAt(0).toUpperCase() + billingTab.slice(1)}
                                 </span>
@@ -1109,7 +1059,7 @@ export default function SetupPage() {
                                   : null;
                                 return (
                                   <div className="flex items-center gap-2 mt-1 min-w-0">
-                                    <p className="text-[11px] min-w-0 truncate" style={{ color: SITE.textoFraco }}>
+                                    <p className="text-[12px] min-w-0 truncate" style={{ color: VENDA.textoFraco }}>
                                       {total
                                         ? (ofertaAtiva
                                             ? <>de <s>{total}</s> por {comDesconto(total)}</>
@@ -1159,8 +1109,8 @@ export default function SetupPage() {
                               !passoAtual && "pulso-botao"
                             )}
                               style={destaque
-                                ? { background: SITE.verde, color: SITE.sobreVerde, boxShadow: `0 8px 30px ${SITE.brilhoSuave}` }
-                                : { background: SITE.superficie2, color: SITE.texto, border: `1px solid ${SITE.borda}` }}
+                                ? { background: VENDA.verde, color: VENDA.sobreVerde, boxShadow: `0 8px 30px ${VENDA.brilhoSuave}` }
+                                : { background: VENDA.superficie2, color: VENDA.texto, border: `1px solid ${VENDA.borda}` }}
                             >
                               Escolher plano {billingTab.charAt(0).toUpperCase() + billingTab.slice(1)}
                             </button>
@@ -1177,16 +1127,16 @@ export default function SetupPage() {
                                     key={chaveDoRecurso(recurso)}
                                     className={cn(
                                       "flex items-start gap-2 leading-[1.45]",
-                                      destaque ? "text-[15px]" : "text-[12px]"
+                                      destaque ? "text-[14px]" : "text-[12px]"
                                     )}
-                                    style={{ color: SITE.textoSuave }}
+                                    style={{ color: VENDA.textoSuave }}
                                   >
-                                    <Check size={14} strokeWidth={2.5} className="mt-[1px] shrink-0" style={{ color: SITE.verde }} />
+                                    <Check size={14} strokeWidth={2.5} className="mt-[1px] shrink-0" style={{ color: VENDA.verde }} />
                                     <span>
                                       {recurso.forte && (
                                         <b
                                           className={destaque ? "texto-brilho" : undefined}
-                                          style={{ fontWeight: 600, color: destaque ? undefined : SITE.texto }}
+                                          style={{ fontWeight: 600, color: destaque ? undefined : VENDA.texto }}
                                         >
                                           {recurso.forte}
                                         </b>
@@ -1218,7 +1168,7 @@ export default function SetupPage() {
           Duas janelas separadas fariam uma fechar e outra abrir no meio de uma
           decisão de compra, e cada troca dessas é uma chance de desistir. */}
       <Dialog open={!!confirmPlan} onOpenChange={v => { if (!v) fecharConfirmacao(); }}>
-        <DialogContent className="max-w-[400px] rounded-[7px] bg-white">
+        <DialogContent className="max-w-[400px] rounded-[8px] bg-white">
           {confirmPlan && (() => {
             const plan = PLANS.find(p => p.key === confirmPlan)!;
             // Com desconto, como no cartão: se o diálogo mostrasse o preço
@@ -1236,7 +1186,7 @@ export default function SetupPage() {
               return (
                 <>
                   <DialogHeader>
-                    <DialogTitle className="text-[16px]">Como você prefere pagar?</DialogTitle>
+                    <DialogTitle className="text-[14px]">Como você prefere pagar?</DialogTitle>
                   </DialogHeader>
                   <p className="text-[13px] text-muted-foreground">
                     {plan.name} — {periodo}, total de{" "}
@@ -1250,7 +1200,7 @@ export default function SetupPage() {
                     <button
                       type="button"
                       onClick={() => setFormaDePagamento("avista")}
-                      className="text-left rounded-[5px] border border-gray-200 px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5"
+                      className="text-left rounded-[6px] border border-card-border px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5"
                     >
                       <p className="text-[13px] font-semibold text-foreground">À vista</p>
                       <p className="text-[12px] text-muted-foreground mt-0.5">
@@ -1261,7 +1211,7 @@ export default function SetupPage() {
                     <button
                       type="button"
                       onClick={() => setFormaDePagamento("parcelado")}
-                      className="text-left rounded-[5px] border border-gray-200 px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5"
+                      className="text-left rounded-[6px] border border-card-border px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5"
                     >
                       <p className="text-[13px] font-semibold text-foreground">Parcelado</p>
                       {/* O juro é dito aqui, e não no checkout. Parcelado sai
@@ -1279,7 +1229,7 @@ export default function SetupPage() {
                     </button>
                   </div>
                   <div className="pt-2">
-                    <Button variant="outline" onClick={fecharConfirmacao} className="w-full rounded-[5px]">
+                    <Button variant="outline" onClick={fecharConfirmacao} className="w-full rounded-[6px]">
                       Cancelar
                     </Button>
                   </div>
@@ -1291,7 +1241,7 @@ export default function SetupPage() {
             return (
               <>
                 <DialogHeader>
-                  <DialogTitle className="text-[16px]">Confirmar seleção de plano</DialogTitle>
+                  <DialogTitle className="text-[14px]">Confirmar seleção de plano</DialogTitle>
                 </DialogHeader>
                 <div className="py-2 space-y-3">
                   <div className="flex items-center justify-between py-3 border-y border-gray-100">
@@ -1324,11 +1274,11 @@ export default function SetupPage() {
                   <Button
                     variant="outline"
                     onClick={() => (billingTab === "mensal" ? fecharConfirmacao() : setFormaDePagamento(null))}
-                    className="flex-1 rounded-[5px]"
+                    className="flex-1 rounded-[6px]"
                   >
                     {billingTab === "mensal" ? "Cancelar" : "Voltar"}
                   </Button>
-                  <Button onClick={handleConfirmPlan} disabled={confirming} className="flex-1 rounded-[5px]">
+                  <Button onClick={handleConfirmPlan} disabled={confirming} className="flex-1 rounded-[6px]">
                     {confirming ? "Aguarde..." : "Confirmar"}
                   </Button>
                 </div>
@@ -1340,14 +1290,14 @@ export default function SetupPage() {
 
       {/* ── Success dialog ── */}
       <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
-        <DialogContent className="max-w-[400px] rounded-[7px] bg-white text-center">
+        <DialogContent className="max-w-[400px] rounded-[8px] bg-white text-center">
           <div className="flex flex-col items-center py-4 gap-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-[color:var(--accent-50)] flex items-center justify-center">
               <CircleCheck size={36} className="fill-primary stroke-white" />
             </div>
             <div>
               <h2 className="text-[18px] font-bold text-foreground">Parabéns!</h2>
-              <p className="text-[15px] text-foreground mt-1 leading-snug" style={{ fontWeight: 500 }}>
+              <p className="text-[14px] text-foreground mt-1 leading-snug" style={{ fontWeight: 500 }}>
                 Seu plano foi selecionado com sucesso.
               </p>
               <p className="text-[13px] text-muted-foreground mt-2 leading-snug">

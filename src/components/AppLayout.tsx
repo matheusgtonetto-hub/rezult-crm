@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { AppSidebar } from "@/components/AppSidebar";
+import { BarraSuperior } from "@/components/BarraSuperior";
+import { lerBarraRecolhida, gravarBarraRecolhida, larguraDaBarra } from "@/lib/barraLateral";
 import { useCRM } from "@/context/CRMContext";
 import { useCompany } from "@/context/CompanyContext";
 import { FreePlanBanner, BANNER_HEIGHT } from "@/components/FreePlanBanner";
@@ -12,6 +14,7 @@ import { OfertaDeContratacao } from "@/components/OfertaDeContratacao";
 // Routes where the user is actively completing onboarding — no redirect needed
 const ONBOARDING_PATHS = ["/company-register", "/setup"];
 
+
 export default function AppLayout() {
   const { crmLoading }                                                    = useCRM();
   const { company, companyLoading, isFreePlan, billingBlocked, motivoDoBloqueio, isTrialing } = useCompany();
@@ -21,6 +24,12 @@ export default function AppLayout() {
   const [billingBlockedOpen, setBillingBlockedOpen] = useState(false);
   /** Cartão de planos aberto a pedido da tarja, sem ação barrada por trás. */
   const [ofertaAberta, setOfertaAberta] = useState(false);
+  const [barraRecolhida, setBarraRecolhida] = useState(lerBarraRecolhida);
+  const alternarBarra = () =>
+    setBarraRecolhida(v => {
+      gravarBarraRecolhida(!v);
+      return !v;
+    });
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -120,21 +129,73 @@ export default function AppLayout() {
   const showBanner = isFreePlan || billingBlocked || isTrialing;
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100vw", overflow: "hidden" }}>
-      <AppSidebar />
+    <div
+      style={{
+        display: "flex",
+        height: "100vh",
+        width: "100vw",
+        overflow: "hidden",
+        /* A largura ATUAL da barra, para todos que precisam dela: a própria
+           barra, a margem do conteúdo e a tarja de plano fixa no rodapé. Uma
+           variável só, para as três andarem juntas na animação. */
+        ["--barra-largura" as string]: larguraDaBarra(barraRecolhida),
+      }}
+    >
+      <AppSidebar recolhida={barraRecolhida} aoAlternar={alternarBarra} />
+      {/*
+        As duas barras como UMA peça em L.
+
+        O `<main>` é BRANCO, igual às barras, e quem desenha o cinza é o bloco
+        de dentro -- que ainda arredonda o próprio canto superior esquerdo. O
+        branco que aparece nessa curva é o do `<main>`, e é ele que emenda a
+        barra superior na lateral: o olho lê um L contínuo, e não duas faixas
+        que se encontram num canto reto.
+
+        Por isso nenhuma das duas tem mais régua no encontro. Quem separa as
+        barras do conteúdo é a diferença de cor (branco contra canvas), que não
+        precisa de linha para ser vista.
+      */}
       <main
         style={{
-          marginLeft: 52,
-          width: "calc(100vw - 52px)",
+          marginLeft: "var(--barra-largura)",
+          width: "calc(100vw - var(--barra-largura))",
+          transition: "margin-left var(--dur-normal) var(--ease-out), width var(--dur-normal) var(--ease-out)",
           height: "100vh",
-          overflowY: "auto",
-          overflowX: "hidden",
-          background: "hsl(var(--background))",
-          paddingBottom: reservaRodape ? BANNER_HEIGHT : 0,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+          background: "var(--surface-card)",
         }}
       >
-        <div style={{ width: "100%", height: "100%", boxSizing: "border-box" }}>
-          <Outlet />
+        <BarraSuperior />
+        {/* A rolagem mora AQUI, e não no <main>: no <main> a barra superior
+            rolaria junto com a tela, e o lugar dela é fixo. */}
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
+            background: "hsl(var(--background))",
+            borderTopLeftRadius: "var(--junta-barras)",
+            /*
+             * A régua das duas barras, numa linha só.
+             *
+             * Ela é a BORDA deste bloco, e não uma borda em cada barra: como o
+             * canto aqui é arredondado, a linha sobe pela esquerda (encostada
+             * na lateral), faz a curva e segue para a direita (sob a barra
+             * superior). Uma linha contínua em L, que é o que o dono pediu --
+             * duas bordas separadas se encontrariam num canto reto, cada uma
+             * parando onde a outra começa.
+             */
+            borderTop: "1px solid var(--border-default)",
+            borderLeft: "1px solid var(--border-default)",
+            paddingBottom: reservaRodape ? BANNER_HEIGHT : 0,
+          }}
+        >
+          <div style={{ width: "100%", height: "100%", boxSizing: "border-box" }}>
+            <Outlet />
+          </div>
         </div>
       </main>
 

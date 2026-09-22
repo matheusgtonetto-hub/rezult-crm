@@ -338,7 +338,7 @@ function CardTutorial({ t }: { t: Tutorial }) {
         )}
 
         {t.duracao && !tocando && (
-          <span className="absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[11px] font-medium text-white tabular-nums">
+          <span className="absolute bottom-2 right-2 rounded bg-black/75 px-1.5 py-0.5 text-[12px] font-medium text-white tabular-nums">
             {t.duracao}
           </span>
         )}
@@ -611,7 +611,7 @@ export default function InicioPage() {
           vertical sobe para 40. Vem depois na classe porque o Tailwind resolve
           empate de especificidade pela ordem em que as regras entram no CSS, e
           `py` é mais específico que `p` nesta folha. */}
-      <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-6 py-[40px] grid grid-cols-1 md:grid-cols-2 items-center gap-6">
+      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-6 py-[40px] grid grid-cols-1 md:grid-cols-2 items-center gap-6">
         {/*
           Título e texto mudam com o estado da conta, porque a pergunta que a
           pessoa traz muda.
@@ -628,18 +628,18 @@ export default function InicioPage() {
           {/* O nome vem primeiro e a hora depois: quem lê reconhece a própria
               linha pelo nome, e a saudação passa a ser o complemento. Sem nome
               cadastrado, sobra "Olá! Boa noite", que ainda fecha como frase --
-              por isso a exclamação acompanha o nome em vez de ficar solta. */}
-          {/* O ícone entra no lugar da mão, que era a mesma em qualquer hora. Um
-              por faixa faz a linha dizer algo que o texto já diz, mas de relance
-              -- e é o que muda a tela entre a manhã e a noite. */}
-          <p className="text-[16px] text-muted-foreground">
+              por isso a exclamação acompanha o nome em vez de ficar solta.
+
+              Saiu por algumas horas em 19/09, quando uma barra superior
+              cumprimentava em toda tela. A barra foi revertida, e o
+              cumprimento voltou para cá, que é onde ele sempre morou. */}
+          <p className="text-[14px] text-muted-foreground">
             Olá{primeiroNome ? `, ${primeiroNome}` : ""}! {cumprimento.texto} {cumprimento.icone}
           </p>
-          {/* 8px acima e 2px abaixo, o inverso do que era. Agora o título se
-              descola do cumprimento e cola na descrição: as duas frases que
-              falam do produto leem como um bloco, e a linha que cumprimenta a
-              pessoa fica por fora dele. */}
-          <h1 className="text-[28px] font-semibold text-foreground mt-2 leading-tight">
+          {/* 8px acima e 2px abaixo: o título se descola do cumprimento e cola
+              na descrição. As duas frases que falam do produto leem como um
+              bloco, e a linha que cumprimenta a pessoa fica por fora dele. */}
+          <h1 className="text-[24px] font-semibold text-foreground mt-2 leading-tight">
             {trilhaCompleta ? "Seu CRM está pronto" : "O Rezult está quase pronto..."}
           </h1>
           {/*
@@ -661,7 +661,7 @@ export default function InicioPage() {
               Escrito como valor arbitrário pelo mesmo motivo, e o comentário
               guarda a conta: mexer no `leading` de qualquer um dos dois a
               refaz. */}
-          <p className="text-[15px] text-muted-foreground mt-[8.5px] leading-[1.4]">
+          <p className="text-[14px] text-muted-foreground mt-[8.5px] leading-[1.4]">
             {trilhaCompleta
               ? "Configuração concluída. Aqui ficam os tutoriais e o suporte, sempre que precisar."
               : 'Siga a trilha "Primeiros passos" abaixo para finalizar a configuração da sua conta e extrair o melhor da ferramenta.'}
@@ -717,7 +717,7 @@ export default function InicioPage() {
       </div>
 
       {/* ── Trilha ───────────────────────────────────────────────────── */}
-      <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-6">
+      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-6">
         {/* Grade de três colunas com as laterais em `1fr`: é isso que deixa as
             abas no centro do PAINEL, e não no meio do espaço que sobra entre o
             título e a pontuação, que têm larguras diferentes. A coluna da
@@ -729,7 +729,7 @@ export default function InicioPage() {
               opções, e um dropdown esconderia metade da escolha atrás de um
               clique. O contador de cada aba vai no rótulo, então dá para ver o
               tamanho do outro lado sem trocar de aba. */}
-          <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-muted/40">
+          <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-[color:var(--neutral-100)]">
             {([
               { id: "passos", rotulo: `Primeiros passos (${feitas.length}/${missoes.length})` },
               { id: "tutoriais", rotulo: `Tutoriais (${TUTORIAIS.length})` },
@@ -775,7 +775,7 @@ export default function InicioPage() {
             className="flex items-center justify-between gap-3 rounded-lg bg-primary/10 px-4 py-3 mb-5 hover:bg-primary/15 transition-colors"
           >
             <span className="min-w-0">
-              <span className="block text-[11px] uppercase tracking-wide text-primary/80">Próximo passo</span>
+              <span className="block text-[11px] uppercase tracking-wide text-[color:var(--accent-800)]">Próximo passo</span>
               <span className="block text-sm font-semibold text-foreground truncate">{proxima.titulo}</span>
             </span>
             <ArrowRight size={16} className="text-primary shrink-0" />
@@ -792,7 +792,7 @@ export default function InicioPage() {
           {missoes.map(m => (
             <div
               key={m.id}
-              className={`flex items-center gap-3 rounded-lg border p-4 transition-colors ${
+              className={`flex items-center gap-3 rounded-xl border p-4 transition-colors ${
                 m.feita
                   ? "border-primary/30 bg-primary/[0.04]"
                   : "border-card-border hover:border-primary/40"
@@ -816,7 +816,7 @@ export default function InicioPage() {
                   bloco de texto, e não colada na primeira linha. */}
               <span
                 aria-hidden
-                className={`w-5 h-5 rounded-[5px] border-2 flex items-center justify-center shrink-0 transition-colors ${
+                className={`w-5 h-5 rounded-[6px] border-2 flex items-center justify-center shrink-0 transition-colors ${
                   m.feita ? "bg-primary border-primary" : "border-card-border"
                 }`}
               >
@@ -890,7 +890,7 @@ export default function InicioPage() {
       </div>
 
       {/* ── Ajuda ────────────────────────────────────────────────────── */}
-      <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-6">
+      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-6">
         <h2 className="text-lg font-semibold text-foreground mb-4">Precisa de ajuda?</h2>
 
         {/* Meio a meio: os dois caminhos valem o mesmo, e dar destaque a um
@@ -930,7 +930,7 @@ export default function InicioPage() {
                 // escurecida escrita à mão. Com `filter`, o estado de hover sai
                 // da mesma cor, sem um segundo hex para manter em dia.
                 className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 transition-[filter] hover:brightness-90"
-                style={{ background: VERDE_WHATSAPP, borderRadius: 5 }}
+                style={{ background: VERDE_WHATSAPP, borderRadius: 6 }}
               >
                 {/* Mesmo ícone do Multiatendimento na barra lateral, à
                     esquerda do texto: ali ele já significa "conversa de
@@ -964,7 +964,7 @@ export default function InicioPage() {
                 // Mesmo tratamento do botão de suporte: cor no estilo e hover
                 // por `brightness`, sem um segundo hex escurecido para manter.
                 className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 transition-[filter] hover:brightness-90"
-                style={{ background: AZUL_CENTRAL, borderRadius: 5 }}
+                style={{ background: AZUL_CENTRAL, borderRadius: 6 }}
               >
                 <BookOpen size={14} /> Abrir central
               </a>

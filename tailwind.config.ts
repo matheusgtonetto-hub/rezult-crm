@@ -14,10 +14,16 @@ export default {
       },
     },
     extend: {
+      // Inter é a família única do design system (decisão D3 da matriz em
+      // docs/design-system/rezult-design-system.md). `heading` continua
+      // existindo como papel, apontando para a mesma família: os pontos de uso
+      // não precisam mudar, e um dia que houver segunda família é aqui que ela
+      // entra. A mono segue na Geist Mono, que já está vendorizada; a matriz
+      // pede JetBrains Mono, e a troca fica para quando ela for vendorizada.
       fontFamily: {
-        sans: ["Geist Sans", "sans-serif"],
-        heading: ["Geist Sans", "sans-serif"],
-        mono: ["Geist Mono", "monospace"],
+        sans: ["Inter", "Helvetica Neue", "Helvetica", "Arial", "sans-serif"],
+        heading: ["Inter", "Helvetica Neue", "Helvetica", "Arial", "sans-serif"],
+        mono: ["Geist Mono", "ui-monospace", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -69,10 +75,32 @@ export default {
           ring: "hsl(var(--sidebar-ring))",
         },
       },
+      // Raio por papel, como na seção 3.4 da matriz. Com --radius em 10px, os
+      // três degraus do shadcn caem exatamente nos papéis do sistema:
+      //   sm = 6px  badge, chip, checkbox
+      //   md = 8px  miniatura
+      //   lg = 10px botão, input, select
+      // Os três de cima existem porque o app precisa deles e o shadcn não os traz:
+      //   xl = 12px menu, dropdown, card de negócio
+      //   2xl = 16px cartão e painel
+      //   3xl = 20px modal e drawer
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        xl: "var(--radius-menu)",
+        "2xl": "var(--radius-card)",
+        "3xl": "var(--radius-modal)",
+      },
+      boxShadow: {
+        xs: "var(--shadow-xs)",
+        card: "var(--shadow-elevated-1)",
+        raised: "var(--shadow-elevated-2)",
+        overlay: "var(--shadow-elevated-3)",
+      },
+      transitionTimingFunction: {
+        "ds-out": "var(--ease-out)",
+        "ds-standard": "var(--ease-standard)",
       },
       keyframes: {
         "accordion-down": {

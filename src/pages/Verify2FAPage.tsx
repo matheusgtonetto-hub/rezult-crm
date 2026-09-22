@@ -98,29 +98,29 @@ export default function Verify2FAPage() {
   const isComplete = digits.every(d => d !== "");
 
   return (
-    <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "#F2F7F5" }}>
-      <div className="relative w-full max-w-[380px] rounded-[7px] p-[1px] overflow-hidden">
+    <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: "var(--accent-50)" }}>
+      <div className="relative w-full max-w-[380px] rounded-[8px] p-[1px] overflow-hidden">
         {/* Rotating border lights */}
         <div
           className="absolute inset-[-100%]"
           style={{
-            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, var(--accent-700) 65%, #4ade80 75%, var(--accent-700) 85%, transparent 95%)",
             animation: "spin-border 4s linear infinite",
           }}
         />
         <div
           className="absolute inset-[-100%]"
           style={{
-            background: "conic-gradient(from 180deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+            background: "conic-gradient(from 180deg, transparent 0%, transparent 55%, var(--accent-700) 65%, #4ade80 75%, var(--accent-700) 85%, transparent 95%)",
             animation: "spin-border 4s linear infinite",
           }}
         />
-        <div className="relative w-full bg-card rounded-[7px] px-[30px] pt-[30px] pb-[24px] text-center">
+        <div className="relative w-full bg-card rounded-[8px] px-[30px] pt-[30px] pb-[24px] text-center">
           <div className="flex justify-center items-center mb-[15px]">
             <img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-10 w-auto" />
           </div>
 
-          <h1 className="text-[22px] font-semibold text-foreground">Verifique seu e-mail</h1>
+          <h1 className="text-[20px] font-semibold text-foreground">Verifique seu e-mail</h1>
           <p className="text-[14px] text-gray-500 mt-[1px] leading-snug font-normal">
             Enviamos um código de 6 dígitos para
           </p>
@@ -140,13 +140,13 @@ export default function Verify2FAPage() {
                 value={digit}
                 onChange={e => handleChange(i, e.target.value)}
                 onKeyDown={e => handleKeyDown(i, e)}
-                className="w-8 h-9 text-center text-[16px] font-semibold border border-gray-300 rounded-[5px] bg-white focus:outline-none focus:border-primary transition-colors"
+                className="w-8 h-9 text-center text-[18px] font-semibold border border-gray-300 rounded-[6px] bg-white focus:outline-none focus:border-primary transition-colors"
               />
             ))}
           </div>
 
           <Button
-            className="w-full h-auto py-[10px] rounded-[5px] font-semibold mt-5"
+            className="w-full h-auto py-[10px] rounded-[6px] font-semibold mt-5"
             onClick={handleVerify}
             disabled={loading || !isComplete}
           >

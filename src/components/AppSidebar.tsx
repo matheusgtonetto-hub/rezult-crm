@@ -1,39 +1,19 @@
-import { useEffect, useState, useCallback, type ComponentType } from "react";
-import { NavLink as RouterNavLink, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "@/context/AuthContext";
-import { useProfile } from "@/context/ProfileContext";
-import { useCompany } from "@/context/CompanyContext";
+import { Fragment, type ComponentType, type ReactNode } from "react";
+import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
 import {
   ContactRound,
   ChartPie,
   House,
-  Cog,
-  LogOut,
   Workflow,
   Zap,
   Filter,
-  Bell,
-  Plus,
-  UserCircle,
   BotMessageSquare,
-  CalendarDays,
-  ChevronRight,
-  GraduationCap,
-  ExternalLink,
+  ChevronsLeft,
+  ChevronsRight,
 } from "lucide-react";
 import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
-import { supabase } from "@/lib/supabase";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 type NavItem = {
   to: string;
@@ -45,91 +25,84 @@ type NavItem = {
   badge?: "IA" | "Em breve";
 };
 
-function colorFromString(str: string) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-  const hue = Math.abs(hash) % 360;
-  return `hsl(${hue} 55% 45%)`;
-}
+/*
+ * A barra lateral, no desenho do `Sidebar.jsx` do design system.
+ *
+ * Aqui mora TUDO que não é conteúdo de tela: a navegação (grupo Menu), as
+ * ferramentas do dia (Agenda, Tutoriais, Notificações, Configurações) e o menu
+ * da pessoa, no pé.
+ *
+ * ─── A barra superior existiu por algumas horas em 19/09/2026 ────────────────
+ *
+ * As ferramentas e a pessoa chegaram a sair daqui para uma barra superior de
+ * 72px, do `Topbar.jsx` do material. O dono reverteu no mesmo dia: uma barra só,
+ * e a lateral é ela. As ferramentas passaram por um formato de botão redondo na
+ * volta, e ele pediu o formato dos vizinhos de novo -- então elas são a MESMA
+ * linha da navegação, e o que separa os dois grupos é o rótulo, não o desenho.
+ *
+ * O que sobra daquela ida e volta, e vale manter: os painéis de Tutoriais e
+ * Notificações e o menu da pessoa abrem ancorados na BORDA da barra (ver o
+ * `PopoverAnchor` lá embaixo), e não no gatilho, senão cobririam a própria
+ * barra.
+ *
+ * ─── Retrátil ────────────────────────────────────────────────────────────────
+ *
+ * Aberta tem 248px, com o nome de cada tela ao lado do ícone; recolhida tem
+ * 72px, só com os ícones. Quem guarda o estado é o `AppLayout`, porque a
+ * largura mexe em várias coisas ao mesmo tempo -- esta barra, a margem do
+ * conteúdo e a tarja de plano fixa no rodapé -- e todas leem a mesma variável
+ * CSS, `--barra-largura`, que ele define.
+ *
+ * Os botões de recolher e expandir ficam no topo, nos dois estados. A dica com
+ * o nome da tela só aparece recolhida; aberta, o nome já está escrito ao lado.
+ *
+ * ─── Cores ───────────────────────────────────────────────────────────────────
+ *
+ * Decisão D6 da matriz: a barra é BRANCA e se separa do conteúdo por uma régua
+ * de 1px. Item ativo em emerald com tinta charcoal (7,25:1); em repouso, tinta
+ * `--text-muted`; hover em `--surface-hover` com tinta de título. Os estados
+ * são classes, e não manipuladores de mouse escrevendo `style.background`: foi
+ * esse padrão que deixou botões presos no verde escuro no Multiatendimento.
+ *
+ * ─── O pé não pode cortar ────────────────────────────────────────────────────
+ *
+ * A pilha é: cabeçalho (`shrink-0`), navegação (`flex-1 min-h-0`, a única que
+ * rola) e, presos embaixo, ferramentas e pessoa (`shrink-0`). Com a altura vindo
+ * de `top: 0` + `bottom: 0`, e não de `100vh`, o avatar do pé fica visível
+ * mesmo em janela baixa -- era assim que ele aparecia cortado antes.
+ */
 
-function initials(name: string) {
-  return name
-    .split(" ")
-    .map(w => w[0])
-    .filter(Boolean)
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
+const ITEM_BASE =
+  "relative flex items-center h-10 w-full rounded-lg shrink-0 transition-colors duration-150 outline-none " +
+  "focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]";
+const ITEM_REPOUSO =
+  "text-[color:var(--text-muted)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--text-heading)]";
+const ITEM_ATIVO = "bg-primary text-[color:var(--text-on-accent)] font-medium";
 
-const PLAN_LABELS: Record<string, string> = {
-  free:     "Free",
-  silver:   "Plano Silver",
-  platinum: "Plano Platinum",
-  emerald:  "Plano Emerald",
-  enterprise: "Plano Enterprise",
-};
+/**
+ * Linha com o painel ABERTO (Tutoriais, Notificações). Não é o emerald do item
+ * ativo: o ativo diz "a tela é esta", e um painel aberto diz só "este menu está
+ * na tela agora". Fica no cinza do hover, que é o mesmo peso do que ele é.
+ */
+const ITEM_ABERTO = "bg-[color:var(--surface-hover)] text-[color:var(--text-heading)]";
 
-const SIDEBAR_BG = "hsl(var(--primary))";
-const ICON_INACTIVE = "rgba(255,255,255,0.5)";
-const ICON_ACTIVE = "#FFFFFF";
-const HOVER_BG = "rgba(255,255,255,0.1)";
-const ACTIVE_BG = "rgba(255,255,255,0.15)";
+/**
+ * A régua que separa a marca do menu.
+ *
+ * Elemento, e não `border` dos blocos vizinhos: como borda ela ia de ponta a
+ * ponta da barra, e o dono pediu recuo nas laterais. O recuo é `mx-3`, o mesmo
+ * da navegação, então a linha começa e termina onde começam e terminam as
+ * linhas de menu.
+ */
+const REGUA = "shrink-0 h-px mx-3 bg-[color:var(--border-default)]";
 
-type SidebarNotif = { id: string; title: string; desc: string; to: string };
-type DbNotif = { id: string; message: string; lead_id: string | null; read: boolean; created_at: string };
+/** Rótulo de grupo: caixa alta, 11px, peso 500 (o papel overline do material). */
+const OVERLINE =
+  "block px-3 pt-1 pb-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-[color:var(--text-muted)] whitespace-nowrap";
 
-export function AppSidebar() {
+export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAlternar: () => void }) {
   const { pathname } = useLocation();
-  const navigate = useNavigate();
-  const { signOut, user } = useAuth();
-  const { profile } = useProfile();
-  const { company, availableCompanies, setSelectedCompany } = useCompany();
   const { canAny } = usePermissions();
-  const userEmail = profile?.email ?? user?.email ?? "";
-  const userName = profile?.full_name || userEmail.split("@")[0];
-
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
-  const [googleConnected, setGoogleConnected] = useState<boolean | null>(null);
-  const [dbNotifs, setDbNotifs] = useState<DbNotif[]>([]);
-
-  useEffect(() => {
-    if (!company) return;
-    import("@/lib/googleOAuth")
-      .then(({ checkGoogleConnection }) => checkGoogleConnection(company.id))
-      .then(conn => setGoogleConnected(!!conn))
-      .catch(() => setGoogleConnected(true));
-  }, [company?.id]);
-
-  const fetchDbNotifs = useCallback(async () => {
-    const { data } = await supabase
-      .from("notifications")
-      .select("id, message, lead_id, read, created_at")
-      .eq("read", false)
-      .order("created_at", { ascending: false })
-      .limit(20);
-    if (data) setDbNotifs(data as DbNotif[]);
-  }, []);
-
-  useEffect(() => { fetchDbNotifs(); }, [fetchDbNotifs]);
-
-  const markDbNotifRead = useCallback(async (id: string) => {
-    await supabase.from("notifications").update({ read: true }).eq("id", id);
-    setDbNotifs(prev => prev.filter(n => n.id !== id));
-  }, []);
-
-  const notifications: SidebarNotif[] = [];
-  if (googleConnected === false) {
-    notifications.push({
-      id: "google-cal",
-      title: "Vincule seu Google Calendar",
-      desc: "Conecte sua agenda para sincronizar eventos e atividades com o CRM.",
-      to: "/configuracoes/conexoes",
-    });
-  }
-  const notifCount = notifications.length + dbNotifs.length;
-
   // A ordem daqui é a ordem na tela. Cada entrada carrega a própria permissão,
   // então mover uma linha muda só a posição do ícone: quem não tem acesso
   // continua sem ver, e os itens ausentes fecham o vão sozinhos.
@@ -153,456 +126,235 @@ export function AppSidebar() {
       ? [{ to: "/disparos", label: "Disparos", icon: Zap }] : []),
     ...(canAny("automacoes:admin", "automacoes:member")
       ? [{ to: "/automacoes", label: "Automações", icon: Workflow }] : []),
-    // Passa a respeitar a permissão, como os itens vizinhos. Antes aparecia
-    // para todo mundo, e a permissão criada no convite não teria efeito nenhum.
-    //
-    // Dono e admin continuam vendo: o `can` devolve verdadeiro para os dois
-    // antes de olhar a lista, então ninguém perde acesso ao que já tinha.
+    // Passa a respeitar a permissão, como os itens vizinhos. Dono e admin
+    // continuam vendo: o `can` devolve verdadeiro para os dois antes de olhar a
+    // lista, então ninguém perde acesso ao que já tinha.
     ...(canAny("agentes:admin", "agentes:member")
       ? [{ to: "/agentes", label: "Agentes", icon: BotMessageSquare }] : []),
   ];
 
-  /**
-   * Calendário: mora no rodapé, logo acima das notificações.
-   *
-   * Fora do `navItems` porque a barra separa dois grupos com um traço: em cima,
-   * as telas onde se trabalha o funil; embaixo, o que acompanha o dia. Agenda e
-   * notificações respondem à mesma pergunta ("o que me espera agora"), e é ali
-   * que o olho vai procurar as duas.
-   *
-   * Continua passando pelo `renderNav`, e não escrito à mão: assim herda o
-   * realce de rota ativa, o tooltip e os estados de hover sem uma segunda cópia
-   * das mesmas regras para divergir depois.
-   */
-  const itemCalendario: NavItem = { to: "/calendario", label: "Agenda", icon: CalendarDays };
+  /** A dica com o nome de uma tela, só com a barra recolhida. */
+  const comDicaSeRecolhida = (rotulo: string, filho: ReactNode) =>
+    recolhida ? dica(rotulo, filho) : filho;
 
-  const itemBase =
-    "flex items-center justify-center rounded-[15px] transition-colors duration-200 relative shrink-0";
-  const itemSize = { width: 36, height: 36 };
+  /** A dica de um botão só de ícone, que existe nos dois estados. */
+  const dica = (rotulo: string, filho: ReactNode) => (
+    <Tooltip>
+      <TooltipTrigger asChild>{filho}</TooltipTrigger>
+      <TooltipContent side="right" className="bg-[color:var(--surface-inverse)] text-[color:var(--surface-card)] border-0">
+        {rotulo}
+      </TooltipContent>
+    </Tooltip>
+  );
+
+  /** Layout da linha nos dois estados: aberta alinha à esquerda, recolhida centra. */
+  const disposicao = recolhida ? "justify-center" : "gap-3 px-3 justify-start";
 
   const renderNav = (item: NavItem) => {
     const active = pathname.startsWith(item.to);
     const Icon = item.icon;
 
     if (item.locked) {
-      return (
-        <Tooltip key={item.to}>
-          <TooltipTrigger asChild>
-            <div
-              className={`${itemBase} cursor-not-allowed`}
-              style={{ ...itemSize, color: ICON_INACTIVE, opacity: 0.3 }}
-            >
-              <Icon size={18} strokeWidth={1.75} />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="bg-[#111111] text-white border-0">
-            {item.label} · Em breve
-          </TooltipContent>
-        </Tooltip>
+      return comDicaSeRecolhida(
+        `${item.label} · Em breve`,
+        <div className={`${ITEM_BASE} ${disposicao} cursor-not-allowed text-[color:var(--text-muted)] opacity-40`}>
+          <Icon size={18} strokeWidth={1.75} className="shrink-0" />
+          {!recolhida && <span className="flex-1 min-w-0 truncate text-sm text-left">{item.label}</span>}
+          {!recolhida && <span className="text-[11px] font-medium uppercase tracking-[0.08em]">Em breve</span>}
+        </div>,
       );
     }
 
-    return (
-      <Tooltip key={item.to}>
-        <TooltipTrigger asChild>
-          <RouterNavLink
-            to={item.to}
-            className={itemBase}
-            style={{
-              ...itemSize,
-              background: active ? ACTIVE_BG : "transparent",
-              color: active ? ICON_ACTIVE : ICON_INACTIVE,
-            }}
-            onClick={(e) => {
-              const navEvent = new CustomEvent("app-navigate", { cancelable: true, detail: { to: item.to } });
-              window.dispatchEvent(navEvent);
-              if (navEvent.defaultPrevented) e.preventDefault();
-            }}
-            onMouseEnter={(e) => {
-              if (!active) {
-                e.currentTarget.style.background = HOVER_BG;
-                e.currentTarget.style.color = "rgba(255,255,255,0.9)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!active) {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.color = ICON_INACTIVE;
-              }
-            }}
+    return comDicaSeRecolhida(
+      item.label,
+      <RouterNavLink
+        to={item.to}
+        className={`${ITEM_BASE} ${disposicao} ${active ? ITEM_ATIVO : ITEM_REPOUSO}`}
+        onClick={(e) => {
+          const navEvent = new CustomEvent("app-navigate", { cancelable: true, detail: { to: item.to } });
+          window.dispatchEvent(navEvent);
+          if (navEvent.defaultPrevented) e.preventDefault();
+        }}
+      >
+        <Icon size={18} strokeWidth={active ? 2 : 1.75} className="shrink-0" />
+        {!recolhida && <span className="flex-1 min-w-0 truncate text-sm text-left">{item.label}</span>}
+        {/* Pastilha "IA": aberta vira etiqueta no fim da linha; recolhida, a
+            bolinha no canto do ícone. Badge suave do sistema, e sobre o item
+            ativo o cinza translúcido do material, para não somar dois verdes. */}
+        {item.badge === "IA" && !recolhida && (
+          <span
+            className="rounded-full px-[7px] py-[2px] text-[11px] font-medium leading-none"
+            style={active
+              ? { background: "rgba(45,47,51,.14)", color: "var(--text-on-accent)" }
+              : { background: "var(--accent-100)", color: "var(--accent-800)" }}
           >
-            <Icon size={18} strokeWidth={1.75} className={item.to === "/agentes" ? "glow-agentes" : ""} />
-            {item.badge === "IA" && (
-              <span
-                className="absolute -top-0.5 -right-0.5 rounded-full flex items-center justify-center font-bold leading-none"
-                style={{
-                  width: 14,
-                  height: 14,
-                  fontSize: 7,
-                  background: "#FFFFFF",
-                  color: "hsl(var(--primary))",
-                }}
-              >
-                IA
-              </span>
-            )}
-          </RouterNavLink>
-        </TooltipTrigger>
-        <TooltipContent side="right" className="bg-[#111111] text-white border-0">
-          {item.label}
-        </TooltipContent>
-      </Tooltip>
+            IA
+          </span>
+        )}
+        {item.badge === "IA" && recolhida && (
+          <span
+            className="absolute top-0.5 right-2 rounded-full flex items-center justify-center font-bold leading-none"
+            style={{ width: 15, height: 15, fontSize: 11, background: "var(--accent-100)", color: "var(--accent-800)" }}
+          >
+            IA
+          </span>
+        )}
+      </RouterNavLink>,
     );
   };
 
-  const settingsActive = pathname.startsWith("/configuracoes");
+  /**
+   * Ferramenta que é só um link (Agenda, Configurações).
+   *
+   * MESMA linha dos itens de navegação -- altura 40, ícone 18, nome ao lado,
+   * emerald quando é a tela atual. Elas chegaram a ser botões redondos por
+   * algumas horas em 19/09; o dono pediu de volta o formato dos vizinhos.
+   */
+  const ferramenta = (
+    para: string,
+    rotulo: string,
+    Icone: ComponentType<{ size?: string | number; strokeWidth?: string | number; className?: string }>,
+  ) => {
+    const ativo = pathname.startsWith(para);
+    return comDicaSeRecolhida(
+      rotulo,
+      <RouterNavLink
+        to={para}
+        aria-label={rotulo}
+        className={`${ITEM_BASE} ${disposicao} ${ativo ? ITEM_ATIVO : ITEM_REPOUSO}`}
+      >
+        <Icone size={18} strokeWidth={ativo ? 2 : 1.75} className="shrink-0" />
+        {!recolhida && <span className="flex-1 min-w-0 truncate text-sm text-left">{rotulo}</span>}
+      </RouterNavLink>,
+    );
+  };
 
   return (
     <TooltipProvider delayDuration={300}>
       <aside
-        className="flex flex-col items-center"
+        className="flex flex-col"
+        aria-label="Navegação principal"
         style={{
-          width: 52,
-          minWidth: 52,
-          maxWidth: 52,
-          height: "100vh",
+          width: "var(--barra-largura)",
+          /* top/bottom 0, e não `height: 100vh`: o 100vh pode passar da área
+             visível quando a barra do navegador ou o zoom entram na conta, e é
+             o pé -- o avatar da pessoa -- que sai da tela quando isso acontece. */
           position: "fixed",
           top: 0,
           left: 0,
           bottom: 0,
-          /**
-           * 30, e não 100.
-           *
-           * A barra nunca precisou cobrir a página: o <main> já começa depois
-           * dos 52px dela (`marginLeft: 52`), então não há sobreposição. O 100
-           * só tinha efeito contra a única coisa que passa por cima dela, a
-           * cortina dos diálogos, que é z-50 -- e o resultado era a barra ficar
-           * acesa enquanto o resto da tela escurecia.
-           *
-           * Abaixo de 50 ela volta a escurecer junto. Os menus dela (empresa,
-           * notificações, ajuda, usuário) são portais do Radix, então continuam
-           * por cima mesmo com a barra mais baixa.
-           */
+          /* 30: acima do conteúdo, abaixo da cortina dos diálogos (z-50). */
           zIndex: 30,
           overflow: "hidden",
-          background: SIDEBAR_BG,
-          paddingTop: 12,
-          paddingBottom: 12,
+          background: "var(--surface-card)",
+          /* Sem a régua da D6 desde 21/09/2026: com a barra superior de volta,
+             ela e esta lateral são lidas como uma peça em L, e uma linha
+             vertical subindo até o topo cortaria o L ao meio. Quem separa as
+             barras do conteúdo é a diferença de cor, com o canto arredondado da
+             junta (ver `AppLayout`). */
+          transition: "width var(--dur-normal) var(--ease-out)",
         }}
       >
-        {/* Marca do Rezult.
-            Usa o MESMO arquivo do favicon (/favicon.png), servido de public/,
-            em vez de uma cópia importada: são a mesma marca, e duas cópias
-            significam trocar a arte em dois lugares e esquecer um.
-            A borda saiu porque a imagem já traz a própria moldura arredondada;
-            o glow fica, que é o que dava presença ao ícone no fundo escuro. */}
-        <img
-          src="/favicon.png?v=3"
-          alt="Rezult"
-          className="glow-rz"
-          style={{
-            width: 35,
-            height: 35,
-            borderRadius: 8,
-            marginBottom: 8,
-            objectFit: "cover",
-            display: "block",
-          }}
-        />
+        {/* ── Marca, e o botão de recolher/expandir ───────────────────────────
+            A seta fica À DIREITA da marca nos DOIS estados (pedido do dono em
+            21/09/2026). Recolhida, ela já esteve empilhada acima da marca,
+            porque com o recuo de 12px de cada lado os dois não caberiam nos
+            72px da barra: 30 da marca + 4 de vão + 16 da seta = 50, contra 48
+            úteis.
 
-        {/* Company icon */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="flex items-center justify-center text-white text-[11px] font-bold tracking-tight hover:opacity-90 transition-opacity overflow-hidden"
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 8,
-                background: company?.logo_url ? "transparent" : colorFromString(company?.name ?? "R"),
-                border: "1.5px solid rgba(255,255,255,0.3)",
-                marginBottom: 16,
-              }}
-              aria-label="Empresa"
-            >
-              {company?.logo_url
-                ? <img src={company.logo_url} alt={company.name} className="w-full h-full object-cover" />
-                : initials(company?.name ?? "R")}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="start" className="w-56">
-            <DropdownMenuLabel className="flex items-center gap-2">
-              <div
-                className="w-7 h-7 rounded-md flex items-center justify-center text-white text-[10px] font-bold overflow-hidden"
-                style={{ background: company?.logo_url ? "transparent" : colorFromString(company?.name ?? "R") }}
-              >
-                {company?.logo_url
-                  ? <img src={company.logo_url} alt={company.name} className="w-full h-full object-cover" />
-                  : initials(company?.name ?? "R")}
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-semibold">{company?.name ?? "—"}</span>
-                <span className="text-xs text-muted-foreground font-normal">
-                  {PLAN_LABELS[company?.plan ?? ""] ?? company?.plan ?? "—"}
-                </span>
-              </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {availableCompanies.length > 1 && (
-              <>
-                {availableCompanies
-                  .filter(c => c.id !== company?.id)
-                  .map(c => (
-                    <DropdownMenuItem key={c.id} onClick={() => setSelectedCompany(c)}>
-                      <div
-                        className="w-4 h-4 rounded flex items-center justify-center text-white text-[8px] font-bold overflow-hidden shrink-0 mr-2"
-                        style={{ background: c.logo_url ? "transparent" : colorFromString(c.name) }}
-                      >
-                        {c.logo_url
-                          ? <img src={c.logo_url} alt={c.name} className="w-full h-full object-cover" />
-                          : initials(c.name)}
-                      </div>
-                      <span className="truncate">{c.name}</span>
-                    </DropdownMenuItem>
-                  ))}
-                <DropdownMenuSeparator />
-              </>
-            )}
-            <DropdownMenuItem asChild>
-              <a href="/company-register">
-                <Plus size={14} className="mr-2" /> Adicionar empresa
-              </a>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            Recolhida, os dois não cabem lado a lado num fluxo normal: 30 da
+            marca + 16 da seta + vão passam dos 72px da barra. Então a MARCA
+            fica centrada na barra (é ela que o olho usa como referência) e a
+            seta sai do fluxo, ancorada na borda direita. Apertar o recuo para
+            os dois caberem em linha foi tentado e descartado: empurrava a marca
+            para a esquerda, e o dono quer a marca centrada.
 
+            A régua que separa a marca do menu vem logo abaixo, com o botão de
+            recolher centrado sobre ela. */}
         <div
-          style={{
-            width: 28,
-            height: 1,
-            background: "rgba(255,255,255,0.15)",
-            marginBottom: 8,
-          }}
-        />
-
-        {/* Main navigation */}
-        <nav
-          className="flex flex-col items-center"
-          style={{ gap: 4, flex: 1, minHeight: 0, overflowY: "hidden", overflowX: "hidden", width: "100%", alignItems: "center" }}
+          className={`flex shrink-0 items-center ${recolhida ? "justify-center" : "px-4"}`}
+          /*
+           * `paddingTop` explícito no lugar de uma altura fixa.
+           *
+           * Antes o cabeçalho tinha 72px de altura mínima, e o espaço até a
+           * régua era o que SOBRAVA depois de centrar a marca: 7px recolhida,
+           * 21px expandida. O dono pediu 21px nos dois, e sobra não se
+           * controla -- então o respiro passou a ser declarado, e a altura do
+           * cabeçalho é a soma do que há dentro dele.
+           */
+          style={{ paddingTop: "var(--respiro-marca)" }}
         >
-          {navItems.map(renderNav)}
-        </nav>
-
-        {/* Footer */}
-        <div
-          style={{
-            width: 32,
-            height: 1,
-            background: "rgba(255,255,255,0.15)",
-            margin: "8px 0",
-          }}
-        />
-        <div className="flex flex-col items-center" style={{ gap: 4 }}>
-          {renderNav(itemCalendario)}
-          <Popover open={helpOpen} onOpenChange={setHelpOpen}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <button
-                    className={itemBase}
-                    style={{ ...itemSize, color: helpOpen ? "rgba(255,255,255,0.9)" : ICON_INACTIVE, background: helpOpen ? HOVER_BG : "transparent" }}
-                    onMouseEnter={(e) => { if (!helpOpen) { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; } }}
-                    onMouseLeave={(e) => { if (!helpOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; } }}
-                    aria-label="Tutoriais"
-                  >
-                    <GraduationCap size={18} strokeWidth={1.75} />
-                  </button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="bg-[#111111] text-white border-0">
-                Tutoriais
-              </TooltipContent>
-            </Tooltip>
-            <PopoverContent
-              side="right"
-              align="end"
-              sideOffset={8}
-              className="p-0 w-72 shadow-xl rounded-xl border border-card-border overflow-hidden"
-            >
-              <div className="px-4 py-3 border-b border-card-border">
-                <p className="text-sm font-semibold text-foreground">Tutoriais</p>
-              </div>
-              <a
-                href="https://help.rezultcrm.com"
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setHelpOpen(false)}
-                className="flex items-start gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors"
-              >
-                <div className="mt-0.5 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <GraduationCap size={16} className="text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground leading-snug flex items-center gap-1">
-                    Tutoriais <ExternalLink size={11} className="text-muted-foreground" />
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                    Acesse tutoriais e aprenda a usar a plataforma
-                  </p>
-                </div>
-              </a>
-            </PopoverContent>
-          </Popover>
-
-          <Popover open={notifOpen} onOpenChange={setNotifOpen}>
-            {/* Tooltip por fora do PopoverTrigger, os dois com `asChild`: cada um
-                mescla os próprios handlers no mesmo <button>, então o ícone
-                continua abrindo o painel e passa a anunciar o nome como os
-                itens de navegação. Numa barra só de ícones, o nome é a única
-                coisa que diz o que aquele desenho faz. */}
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <button
-                    className={`${itemBase} relative`}
-                    style={{ ...itemSize, color: notifOpen ? "rgba(255,255,255,0.9)" : ICON_INACTIVE, background: notifOpen ? HOVER_BG : "transparent" }}
-                    onMouseEnter={(e) => { if (!notifOpen) { e.currentTarget.style.background = HOVER_BG; e.currentTarget.style.color = "rgba(255,255,255,0.9)"; } }}
-                    onMouseLeave={(e) => { if (!notifOpen) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = ICON_INACTIVE; } }}
-                    aria-label="Notificações"
-                  >
-                    <Bell size={18} strokeWidth={1.75} />
-                    {notifCount > 0 && (
-                      <span
-                        className="absolute -top-0.5 -right-0.5 flex items-center justify-center rounded-full font-bold leading-none"
-                        style={{ width: 14, height: 14, fontSize: 8, background: "#EF4444", color: "#fff" }}
-                      >
-                        {notifCount}
-                      </span>
-                    )}
-                  </button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="bg-[#111111] text-white border-0">
-                Notificações
-              </TooltipContent>
-            </Tooltip>
-            <PopoverContent
-              side="right"
-              align="end"
-              sideOffset={8}
-              className="p-0 w-72 shadow-xl rounded-xl border border-card-border overflow-hidden"
-            >
-              <div className="px-4 py-3 border-b border-card-border">
-                <p className="text-sm font-semibold text-foreground">Notificações</p>
-                {notifCount === 0 && (
-                  <p className="text-xs text-muted-foreground mt-0.5">Nenhuma notificação no momento.</p>
-                )}
-              </div>
-              {notifications.map(n => (
-                <button
-                  key={n.id}
-                  onClick={() => { setNotifOpen(false); navigate(n.to); }}
-                  className="w-full flex items-start gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors text-left"
-                >
-                  <div className="mt-0.5 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                    <CalendarDays size={14} className="text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground leading-snug">{n.title}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{n.desc}</p>
-                  </div>
-                  <ChevronRight size={14} className="text-muted-foreground mt-1 shrink-0" />
-                </button>
-              ))}
-              {dbNotifs.map(n => (
-                <div
-                  key={n.id}
-                  className="flex items-start gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors"
-                >
-                  <div className="mt-0.5 w-7 h-7 rounded-full bg-orange-100 flex items-center justify-center shrink-0">
-                    <Bell size={14} className="text-orange-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground leading-snug">Automação</p>
-                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{n.message}</p>
-                  </div>
-                  <button
-                    onClick={() => markDbNotifRead(n.id)}
-                    className="text-xs text-muted-foreground hover:text-foreground mt-0.5 shrink-0"
-                    title="Marcar como lida"
-                  >
-                    ✕
-                  </button>
-                </div>
-              ))}
-            </PopoverContent>
-          </Popover>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <RouterNavLink
-                to="/configuracoes"
-                className={itemBase}
-                style={{
-                  ...itemSize,
-                  background: settingsActive ? ACTIVE_BG : "transparent",
-                  color: settingsActive ? ICON_ACTIVE : ICON_INACTIVE,
-                }}
-                onMouseEnter={(e) => {
-                  if (!settingsActive) {
-                    e.currentTarget.style.background = HOVER_BG;
-                    e.currentTarget.style.color = "rgba(255,255,255,0.9)";
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!settingsActive) {
-                    e.currentTarget.style.background = "transparent";
-                    e.currentTarget.style.color = ICON_INACTIVE;
-                  }
-                }}
-              >
-                <Cog size={18} strokeWidth={1.75} />
-              </RouterNavLink>
-            </TooltipTrigger>
-            <TooltipContent side="right" className="bg-[#111111] text-white border-0">Configurações</TooltipContent>
-          </Tooltip>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="flex items-center justify-center text-[10px] font-bold hover:opacity-90 transition-opacity overflow-hidden shrink-0"
-                style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: "50%",
-                  background: profile?.avatar_url ? "transparent" : "#FFFFFF",
-                  color: "hsl(var(--primary))",
-                  marginTop: 4,
-                }}
-                aria-label="Usuário"
-              >
-                {profile?.avatar_url
-                  ? <img src={profile.avatar_url} alt={userName} className="w-full h-full object-cover rounded-full" />
-                  : initials(userName || userEmail)
-                }
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent side="right" align="end" className="w-56">
-              <DropdownMenuLabel className="flex flex-col">
-                <span className="text-sm font-semibold">{userName}</span>
-                <span className="text-xs text-muted-foreground font-normal">{userEmail}</span>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => navigate("/configuracoes/perfil")}>
-                <UserCircle size={14} className="mr-2" /> Meu perfil
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
-                <LogOut size={14} className="mr-2" /> Sair
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <span className="flex items-center gap-2.5 min-w-0">
+            {/* O MESMO arquivo do favicon, servido de public/: são a mesma
+                marca, e duas cópias significam trocar a arte em dois lugares. */}
+            <img
+              src="/favicon.png?v=4"
+              alt="Rezult"
+              className="shrink-0 block object-cover"
+              style={{ width: 33, height: 33, borderRadius: 8 }}
+            />
+            {!recolhida && (
+              <span className="text-sm font-semibold text-[color:var(--text-heading)] truncate whitespace-nowrap">
+                Rezult CRM
+              </span>
+            )}
+          </span>
         </div>
-      </aside>
+
+        {/* A régua entre a marca e o menu. Voltou a pedido do dono em
+            21/09/2026: sem ela, a marca e o primeiro item do menu leem como um
+            bloco só, e o ícone de Início parecia fazer parte da assinatura.
+            Recuo de 12px nas laterais, como a lista de itens. */}
+        {/*
+          A régua que separa a marca do menu, com a seta de recolher SOBRE ela,
+          centrada na barra.
+
+          A seta já esteve ao lado da marca, e ali disputava os 72px da barra
+          recolhida -- empurrava a marca para fora do centro. Sobre a linha o
+          lugar é o mesmo nos dois estados, porque o centro dela não se mexe ao
+          abrir ou fechar.
+
+          O botão tem fundo de cartão e borda: assim ele INTERROMPE a linha, em
+          vez de pousar em cima dela.
+        */}
+        <div
+          className="relative shrink-0 flex items-center justify-center"
+          style={{ height: 20, marginTop: "var(--respiro-marca)", marginBottom: "var(--respiro-marca)" }}
+        >
+          {/* `pointer-events-none`: a linha é decorativa e, sendo absoluta,
+              é pintada DEPOIS do botão -- ela interceptava o clique e a barra
+              não abria nem fechava. Pego ao testar o clique, não ao olhar. */}
+          <div className={`${REGUA} absolute inset-x-0 top-1/2 pointer-events-none`} />
+          {dica(
+            recolhida ? "Expandir menu" : "Recolher menu",
+            <button
+              type="button"
+              onClick={aoAlternar}
+              aria-label={recolhida ? "Expandir menu" : "Recolher menu"}
+              aria-expanded={!recolhida}
+              className="relative flex items-center justify-center rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-card)] text-[color:var(--icon-default)] transition-colors hover:border-[color:var(--border-strong)] hover:text-[color:var(--text-heading)] outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]"
+              style={{ width: 20, height: 20 }}
+            >
+              {recolhida ? <ChevronsRight size={12} /> : <ChevronsLeft size={12} />}
+            </button>,
+          )}
+        </div>
+
+        {/* ── Menu: as telas de trabalho. A única parte que rola. ──────────────
+            Os itens ficam no TOPO, logo abaixo da marca. Centrá-los na altura
+            da barra foi testado em 21/09/2026 e o dono voltou atrás: a
+            navegação é o primeiro lugar onde o olho procura, e no meio da barra
+            ela pendia para longe da marca. */}
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pb-3">
+          {/* Tinta --text-muted, e não o --text-subtle do material, pela regra 4
+              da seção 3.1 (3,44:1 abaixo de 16px). */}
+          {!recolhida && <span className={OVERLINE}>Menu</span>}
+          <nav className="flex flex-col gap-0.5">
+            {navItems.map(item => <Fragment key={item.to}>{renderNav(item)}</Fragment>)}
+          </nav>
+        </div>
+
+            </aside>
     </TooltipProvider>
   );
 }

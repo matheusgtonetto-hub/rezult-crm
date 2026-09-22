@@ -56,9 +56,9 @@ export default function DisparosPage() {
         casos teria mais parâmetros do que as quatro cópias têm linhas. Se o
         cabeçalho ganhar comportamento -- e não só aparência --, aí vale extrair.
       */}
-      <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-6 flex items-start justify-between gap-6 flex-wrap">
+      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-6 flex items-start justify-between gap-6 flex-wrap">
         <div className="min-w-0">
-          <h1 className="text-[23px] font-semibold text-foreground">Disparos</h1>
+          <h1 className="text-[24px] font-semibold text-foreground">Disparos</h1>
           <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">
             Gerencie seus disparos de automação, acompanhe o progresso dos leads em tempo real e controle execuções.{" "}
             <a href="https://help.rezultcrm.com" target="_blank" rel="noopener noreferrer" className="text-primary font-medium hover:underline">
@@ -111,7 +111,7 @@ export default function DisparosPage() {
               >
                 <p className="text-sm font-semibold text-foreground truncate">{d.title}</p>
                 <p className="text-xs text-muted-foreground truncate mt-0.5">{d.description || "—"}</p>
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-primary/10 text-primary rounded px-2 py-0.5 mt-2">
+                <span className="inline-flex items-center gap-1 text-[12px] font-medium bg-primary/10 text-primary rounded px-2 py-0.5 mt-2">
                   <Workflow size={11} /> Automação
                 </span>
                 <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">

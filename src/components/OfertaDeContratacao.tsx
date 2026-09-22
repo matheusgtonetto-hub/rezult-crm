@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { pixelTrack } from "@/lib/metaPixel";
 import { linkDoParcelado, PARCELAS_POR_PERIODO } from "@/data/tictoOfertas";
 import { Check, CircleCheck, X } from "lucide-react";
+import { VENDA } from "@/lib/superficie-de-venda";
 
 /**
  * O cartão de planos como DIÁLOGO, para quem já tem conta.
@@ -97,57 +98,6 @@ const TOTAIS_DO_CICLO: Record<string, { semestral: string; anual: string }> = {
   platinum: { semestral: "R$ 2.035,00",  anual: "R$ 3.352,00"  },
   emerald:  { semestral: "R$ 3.810,00",  anual: "R$ 6.272,00"  },
 };
-
-/**
- * Paleta do site (rezult-site/styles.css), portada para os cartões de plano.
- *
- * Os valores estão em constantes e não em classes do Tailwind porque não são
- * do tema do app: o CRM é claro, e este bloco é uma ilha escura dentro dele.
- * Usar `bg-card` ou `text-foreground` aqui traria as cores do app de volta e
- * quebraria a semelhança com o site, que é o ponto.
- *
- * Verde diferente do `--primary` do CRM de propósito: no fundo escuro do site
- * o #00E599 é o que dá o contraste, e o #128A68 do app sumiria.
- */
-const SITE = {
-  // O preto do site é mais escuro que a superfície dos cartões, e é essa
-  // diferença que faz os três se destacarem do fundo em vez de sumirem nele.
-  fundo:       "#05080A",
-  superficie:  "#0C1115",
-  superficie2: "#131A1E",
-  verde:       "#00E599",
-  sobreVerde:  "#04140D",
-  texto:       "#F4F6F4",
-  textoSuave:  "#D1D1D1",
-  textoFraco:  "rgba(244, 246, 244, 0.38)",
-  borda:       "rgba(255, 255, 255, 0.15)",
-  bordaSuave:  "rgba(0, 229, 153, 0.20)",
-  bordaAtiva:  "rgba(0, 229, 153, 0.45)",
-  // 0.18 é o `--glow-soft` do site, usado no brilho das sombras, nas pílulas e
-  // também no topo do degradê do cartão em destaque. O site usa 0.06 lá, um véu
-  // quase imperceptível; aqui o verde é mais presente de propósito, porque os
-  // cartões são menores e o degradê fraco praticamente desaparecia.
-  brilhoSuave: "rgba(0, 229, 153, 0.18)",
-  // O brilho da moldura do card, nos dois sentidos. O site usa 0.45 no `--glow`
-  // dos elementos primários; aqui é 0.35, porque a moldura acende para dentro
-  // também e o valor cheio esverdeava demais o preto por baixo dos cartões.
-  // Não confundir com o `brilhoSuave` (0.18), que é véu.
-  brilhoVerde: "rgba(0, 229, 153, 0.35)",
-  // O `--red: #EF4444` do site, nos preços antigos riscados. Vermelho marca o
-  // que a pessoa NÃO vai pagar.
-  vermelho:    "#EF4444",
-  // Verde fechado do selo da oferta. Escolhido por duas razões, não por gosto:
-  //
-  // 1. Precisa ser claramente mais escuro que o #00E599 do botão "7 Dias
-  //    grátis" logo ao lado, senão os dois blocos verdes competem e nenhum
-  //    ganha. Este é dois degraus abaixo, e a diferença lê de longe.
-  //
-  // 2. O texto do selo é branco, e branco sobre o #00E599 do botão dá 1.66:1,
-  //    ilegível. Sobre este verde dá 5.48:1, acima do 4.5:1 que a WCAG pede
-  //    para texto normal. O botão passa porque o texto dele é escuro; o selo
-  //    não teria essa saída sem um verde fechado.
-  verdeFechado: "#047857",
-} as const;
 
 /** Medidas do cartão preto. O desenho inteiro foi calibrado nelas. */
 const LARGURA_DO_CARD = 980;
@@ -462,18 +412,18 @@ export function OfertaDeContratacao({
                 <div
                   className="absolute inset-[-100%]"
                   style={{
-                    background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+                    background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, var(--accent-700) 65%, #4ade80 75%, var(--accent-700) 85%, transparent 95%)",
                     animation: "spin-border 4s linear infinite",
                   }}
                 />
 
                 <div
-                  className="relative w-full rounded-[15px] overflow-hidden flex"
+                  className="relative w-full rounded-[16px] overflow-hidden flex"
                   style={{
                     height: 650,
-                    background: SITE.fundo,
-                    border: `1px solid ${SITE.verde}`,
-                    boxShadow: `inset 0 0 50px ${SITE.brilhoVerde}`,
+                    background: VENDA.fundo,
+                    border: `1px solid ${VENDA.verde}`,
+                    boxShadow: `inset 0 0 50px ${VENDA.brilhoVerde}`,
                   }}
                 >
                   <div className="flex-1 flex flex-col px-10 pt-8 pb-6 min-w-0">
@@ -497,8 +447,8 @@ export function OfertaDeContratacao({
                             ele, quem desliga animações veria texto transparente,
                             porque o efeito pinta a letra com o fundo recortado. */}
                         <h2
-                          className="text-[25px] font-semibold leading-tight"
-                          style={{ color: SITE.texto, letterSpacing: "-0.02em" }}
+                          className="text-[24px] font-semibold leading-tight"
+                          style={{ color: VENDA.texto, letterSpacing: "-0.02em" }}
                         >
                           <span className="texto-brilho">Rezult</span> Planos
                         </h2>
@@ -509,8 +459,8 @@ export function OfertaDeContratacao({
                         type="button"
                         onClick={aoFechar}
                         aria-label="Fechar"
-                        className="shrink-0 rounded-[7px] p-2 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2"
-                        style={{ color: SITE.textoSuave }}
+                        className="shrink-0 rounded-[8px] p-2 transition-colors hover:bg-white/10 focus:outline-none focus-visible:ring-2"
+                        style={{ color: VENDA.textoSuave }}
                       >
                         <X size={18} />
                       </button>
@@ -533,7 +483,7 @@ export function OfertaDeContratacao({
                             frase também vira depois de "se adequa". Como aqui
                             sobra largura, sem o `<br>` ela sairia numa linha só
                             e ficaria mais comprida que o próprio seletor. */}
-                        <p className="text-[13px] leading-[1.4]" style={{ color: SITE.textoSuave }}>
+                        <p className="text-[13px] leading-[1.4]" style={{ color: VENDA.textoSuave }}>
                           Selecione o plano que melhor se adequa<br />ao momento do seu negócio.
                         </p>
 
@@ -545,8 +495,8 @@ export function OfertaDeContratacao({
                             gap: esc(3),
                             padding: esc(4),
                             borderRadius: 100,
-                            background: SITE.superficie2,
-                            border: `1px solid ${SITE.bordaSuave}`,
+                            background: VENDA.superficie2,
+                            border: `1px solid ${VENDA.bordaSuave}`,
                           }}
                         >
                         {(["mensal", "semestral", "anual"] as BillingTab[]).map((tab) => {
@@ -563,8 +513,8 @@ export function OfertaDeContratacao({
                                 padding: `${PADDING_VERTICAL_DO_BOTAO}px ${esc(9)}px`,
                                 gap: esc(4),
                                 borderRadius: 100,
-                                background: ativa ? SITE.verde : undefined,
-                                color: ativa ? SITE.sobreVerde : SITE.textoSuave,
+                                background: ativa ? VENDA.verde : undefined,
+                                color: ativa ? VENDA.sobreVerde : VENDA.textoSuave,
                               }}
                             >
                               {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -573,10 +523,10 @@ export function OfertaDeContratacao({
                                   verde vira fundo e o texto escurece junto. */}
                               {DESCONTO_DO_PERIODO[tab] && (
                                 <span
-                                  className="text-[9px] font-semibold rounded-full px-1 py-[1px] shrink-0"
+                                  className="text-[12px] font-semibold rounded-full px-1 py-[1px] shrink-0"
                                   style={{
-                                    background: ativa ? "rgba(4,20,13,0.18)" : SITE.brilhoSuave,
-                                    color: ativa ? SITE.sobreVerde : SITE.verde,
+                                    background: ativa ? "rgba(4,20,13,0.18)" : VENDA.brilhoSuave,
+                                    color: ativa ? VENDA.sobreVerde : VENDA.verde,
                                   }}
                                 >
                                   {DESCONTO_DO_PERIODO[tab]}
@@ -609,25 +559,25 @@ export function OfertaDeContratacao({
                               className="relative flex flex-col rounded-[16px] p-5 transition-all duration-200"
                               style={{
                                 background: destaque
-                                  ? `linear-gradient(180deg, ${SITE.brilhoSuave}, ${SITE.superficie} 40%)`
-                                  : SITE.superficie,
-                                border: `1px solid ${destaque || planoSobMouse === plan.key ? SITE.bordaAtiva : SITE.borda}`,
+                                  ? `linear-gradient(180deg, ${VENDA.brilhoSuave}, ${VENDA.superficie} 40%)`
+                                  : VENDA.superficie,
+                                border: `1px solid ${destaque || planoSobMouse === plan.key ? VENDA.bordaAtiva : VENDA.borda}`,
                                 boxShadow: destaque
-                                  ? `0 30px 70px rgba(0,0,0,0.4), 0 0 60px ${SITE.brilhoSuave}`
+                                  ? `0 30px 70px rgba(0,0,0,0.4), 0 0 60px ${VENDA.brilhoSuave}`
                                   : undefined,
                                 transform: planoSobMouse === plan.key ? "translateY(-4px)" : undefined,
                               }}
                             >
                               {destaque && (
                                 <span
-                                  className="absolute -top-[11px] left-1/2 -translate-x-1/2 text-[11px] font-semibold px-3 py-[4px] rounded-full whitespace-nowrap"
-                                  style={{ background: SITE.verde, color: SITE.sobreVerde, letterSpacing: "0.04em" }}
+                                  className="absolute -top-[11px] left-1/2 -translate-x-1/2 text-[12px] font-semibold px-3 py-[4px] rounded-full whitespace-nowrap"
+                                  style={{ background: VENDA.verde, color: VENDA.sobreVerde, letterSpacing: "0.04em" }}
                                 >
                                   {plan.badge}
                                 </span>
                               )}
 
-                              <h3 className="text-[20px] font-semibold" style={{ color: SITE.texto, letterSpacing: "-0.02em" }}>
+                              <h3 className="text-[20px] font-semibold" style={{ color: VENDA.texto, letterSpacing: "-0.02em" }}>
                                 {plan.name}
                               </h3>
 
@@ -649,25 +599,25 @@ export function OfertaDeContratacao({
                                     sem encostar uma linha na outra. */}
                                 {precos.economia && (
                                   <div className="flex items-center gap-2 -mb-[3px] min-w-0">
-                                    <s className="text-[16px] font-medium shrink-0" style={{ color: SITE.vermelho }}>
+                                    <s className="text-[14px] font-medium shrink-0" style={{ color: VENDA.vermelho }}>
                                       {precos.referenciaMensal}
                                     </s>
                                     <span
-                                      className="inline-flex items-center text-[10px] font-medium rounded-full px-2 py-0.5 min-w-0"
-                                      style={{ background: SITE.brilhoSuave, color: SITE.verde }}
+                                      className="inline-flex items-center text-[12px] font-medium rounded-full px-2 py-0.5 min-w-0"
+                                      style={{ background: VENDA.brilhoSuave, color: VENDA.verde }}
                                     >
                                       <span className="truncate">Economize {precos.economia}</span>
                                     </span>
                                   </div>
                                 )}
                                 <div className="flex items-baseline gap-1 flex-wrap">
-                                  <span className="text-[26px] font-semibold" style={{ color: SITE.texto, letterSpacing: "-0.04em" }}>
+                                  <span className="text-[24px] font-semibold" style={{ color: VENDA.texto, letterSpacing: "-0.04em" }}>
                                     {precos.porMes}
                                   </span>
-                                  <span className="text-[13px]" style={{ color: SITE.textoFraco }}>/mês</span>
+                                  <span className="text-[13px]" style={{ color: VENDA.textoFraco }}>/mês</span>
                                   <span
-                                    className="text-[9px] font-semibold px-1.5 py-[3px] rounded-full ml-auto capitalize shrink-0"
-                                    style={{ background: SITE.brilhoSuave, color: SITE.verde, letterSpacing: "0.02em" }}
+                                    className="text-[12px] font-semibold px-1.5 py-[3px] rounded-full ml-auto capitalize shrink-0"
+                                    style={{ background: VENDA.brilhoSuave, color: VENDA.verde, letterSpacing: "0.02em" }}
                                   >
                                     {billingTab.charAt(0).toUpperCase() + billingTab.slice(1)}
                                   </span>
@@ -678,7 +628,7 @@ export function OfertaDeContratacao({
                                     no checkout esperando ser cobrado de 166 em
                                     166. */}
                                 <div className="flex items-center gap-2 mt-1 min-w-0">
-                                  <p className="text-[11px] min-w-0 truncate" style={{ color: SITE.textoFraco }}>
+                                  <p className="text-[12px] min-w-0 truncate" style={{ color: VENDA.textoFraco }}>
                                     {precos.linhaDeCobranca}
                                   </p>
                                 </div>
@@ -698,8 +648,8 @@ export function OfertaDeContratacao({
                                 onClick={() => handleSelectPlan(plan.key as PlanKey)}
                                 className="w-full rounded-[12px] py-[9px] text-[13px] font-semibold transition-transform hover:-translate-y-[1px]"
                                 style={destaque
-                                  ? { background: SITE.verde, color: SITE.sobreVerde, boxShadow: `0 8px 30px ${SITE.brilhoSuave}` }
-                                  : { background: SITE.superficie2, color: SITE.texto, border: `1px solid ${SITE.borda}` }}
+                                  ? { background: VENDA.verde, color: VENDA.sobreVerde, boxShadow: `0 8px 30px ${VENDA.brilhoSuave}` }
+                                  : { background: VENDA.superficie2, color: VENDA.texto, border: `1px solid ${VENDA.borda}` }}
                               >
                                 Escolher plano {billingTab.charAt(0).toUpperCase() + billingTab.slice(1)}
                               </button>
@@ -715,16 +665,16 @@ export function OfertaDeContratacao({
                                       key={chaveDoRecurso(recurso)}
                                       className={cn(
                                         "flex items-start gap-2 leading-[1.45]",
-                                        emDestaque ? "text-[15px]" : "text-[12px]"
+                                        emDestaque ? "text-[14px]" : "text-[12px]"
                                       )}
-                                      style={{ color: SITE.textoSuave }}
+                                      style={{ color: VENDA.textoSuave }}
                                     >
-                                      <Check size={14} strokeWidth={2.5} className="mt-[1px] shrink-0" style={{ color: SITE.verde }} />
+                                      <Check size={14} strokeWidth={2.5} className="mt-[1px] shrink-0" style={{ color: VENDA.verde }} />
                                       <span>
                                         {recurso.forte && (
                                           <b
                                             className={emDestaque ? "texto-brilho" : undefined}
-                                            style={{ fontWeight: 600, color: emDestaque ? undefined : SITE.texto }}
+                                            style={{ fontWeight: 600, color: emDestaque ? undefined : VENDA.texto }}
                                           >
                                             {recurso.forte}
                                           </b>
@@ -756,7 +706,7 @@ export function OfertaDeContratacao({
           Duas janelas separadas fariam uma fechar e outra abrir no meio de uma
           decisão de compra, e cada troca dessas é uma chance de desistir. */}
       <Dialog open={!!confirmPlan} onOpenChange={v => { if (!v) fecharConfirmacao(); }}>
-        <DialogContent className="max-w-[400px] rounded-[7px] bg-white">
+        <DialogContent className="max-w-[400px] rounded-[8px] bg-white">
           {confirmPlan && (() => {
             const plan = PLANS.find(p => p.key === confirmPlan)!;
             // Com desconto, como no cartão: se o diálogo mostrasse o preço
@@ -775,7 +725,7 @@ export function OfertaDeContratacao({
               return (
                 <>
                   <DialogHeader>
-                    <DialogTitle className="text-[16px]">Como você prefere pagar?</DialogTitle>
+                    <DialogTitle className="text-[14px]">Como você prefere pagar?</DialogTitle>
                   </DialogHeader>
                   <p className="text-[13px] text-muted-foreground">
                     {plan.name} — {periodo}, total de{" "}
@@ -787,7 +737,7 @@ export function OfertaDeContratacao({
                     <button
                       type="button"
                       onClick={() => setFormaDePagamento("avista")}
-                      className="text-left rounded-[5px] border border-gray-200 px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5"
+                      className="text-left rounded-[6px] border border-card-border px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5"
                     >
                       <p className="text-[13px] font-semibold text-foreground">À vista</p>
                       <p className="text-[12px] text-muted-foreground mt-0.5">
@@ -798,7 +748,7 @@ export function OfertaDeContratacao({
                     <button
                       type="button"
                       onClick={() => setFormaDePagamento("parcelado")}
-                      className="text-left rounded-[5px] border border-gray-200 px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5"
+                      className="text-left rounded-[6px] border border-card-border px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5"
                     >
                       <p className="text-[13px] font-semibold text-foreground">Parcelado</p>
                       {/* O juro é dito aqui, e não no checkout. Parcelado sai
@@ -811,7 +761,7 @@ export function OfertaDeContratacao({
                     </button>
                   </div>
                   <div className="pt-2">
-                    <Button variant="outline" onClick={fecharConfirmacao} className="w-full rounded-[5px]">
+                    <Button variant="outline" onClick={fecharConfirmacao} className="w-full rounded-[6px]">
                       Cancelar
                     </Button>
                   </div>
@@ -823,7 +773,7 @@ export function OfertaDeContratacao({
             return (
               <>
                 <DialogHeader>
-                  <DialogTitle className="text-[16px]">Confirmar seleção de plano</DialogTitle>
+                  <DialogTitle className="text-[14px]">Confirmar seleção de plano</DialogTitle>
                 </DialogHeader>
                 <div className="py-2 space-y-3">
                   <div className="flex items-center justify-between py-3 border-y border-gray-100">
@@ -857,11 +807,11 @@ export function OfertaDeContratacao({
                   <Button
                     variant="outline"
                     onClick={() => (billingTab === "mensal" ? fecharConfirmacao() : setFormaDePagamento(null))}
-                    className="flex-1 rounded-[5px]"
+                    className="flex-1 rounded-[6px]"
                   >
                     {billingTab === "mensal" ? "Cancelar" : "Voltar"}
                   </Button>
-                  <Button onClick={handleConfirmPlan} disabled={confirming} className="flex-1 rounded-[5px]">
+                  <Button onClick={handleConfirmPlan} disabled={confirming} className="flex-1 rounded-[6px]">
                     {confirming ? "Aguarde..." : "Confirmar"}
                   </Button>
                 </div>
@@ -873,14 +823,14 @@ export function OfertaDeContratacao({
 
       {/* ── Sucesso ── */}
       <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
-        <DialogContent className="max-w-[400px] rounded-[7px] bg-white text-center">
+        <DialogContent className="max-w-[400px] rounded-[8px] bg-white text-center">
           <div className="flex flex-col items-center py-4 gap-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-[color:var(--accent-50)] flex items-center justify-center">
               <CircleCheck size={36} className="fill-primary stroke-white" />
             </div>
             <div>
               <h2 className="text-[18px] font-bold text-foreground">Parabéns!</h2>
-              <p className="text-[15px] text-foreground mt-1 leading-snug" style={{ fontWeight: 500 }}>
+              <p className="text-[14px] text-foreground mt-1 leading-snug" style={{ fontWeight: 500 }}>
                 Seu plano foi selecionado com sucesso.
               </p>
               <p className="text-[13px] text-muted-foreground mt-2 leading-snug">

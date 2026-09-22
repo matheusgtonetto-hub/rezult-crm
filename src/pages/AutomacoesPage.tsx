@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
 import fixWebmDuration from "fix-webm-duration";
 import { supabase } from "@/lib/supabase";
+import { PALETA_DO_APP, COR_DE_TAG_PADRAO } from "@/lib/paleta-do-app";
 import { IA_MODELS, IA_PROVIDER_LABELS, IA_COST_LABELS, type IaProvider } from "@/lib/ai-models";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
@@ -879,7 +880,7 @@ function FlowPreview({ flow }: { flow: { nodes: CanvasNode[]; trigger: TriggerCo
   const all = flow?.nodes ?? [];
   if (all.length === 0) {
     return (
-      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "#9CA3AF" }}>
+      <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "var(--text-muted)" }}>
         Automação vazia
       </div>
     );
@@ -938,22 +939,22 @@ function FlowPreview({ flow }: { flow: { nodes: CanvasNode[]; trigger: TriggerCo
       ))}
       {/* Nós */}
       {flowNodes.map(n => {
-        const h = PREVIEW_HEADER[n.type] ?? { color: "#9CA3AF", title: n.label, icon: Zap };
+        const h = PREVIEW_HEADER[n.type] ?? { color: "var(--text-muted)", title: n.label, icon: Zap };
         const Icon = h.icon;
         const lines = previewBodyLines(n);
         return (
           <foreignObject key={n.id} x={n.x} y={n.y} width={W(n)} height={H(n)}>
-            <div style={{ width: "100%", height: "100%", boxSizing: "border-box", background: "#FFFFFF", border: "1px solid #E5E7EB", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.08)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: lines.length ? "1px solid #EEEEEE" : "none" }}>
+            <div style={{ width: "100%", height: "100%", boxSizing: "border-box", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, boxShadow: "0 1px 4px rgba(0,0,0,0.08)", overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderBottom: lines.length ? "1px solid var(--border-default)" : "none" }}>
                 <Icon size={16} color={h.color} />
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#111111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.title}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.title}</span>
               </div>
               {lines.length > 0 && (
                 <div style={{ padding: "8px 10px", display: "flex", flexDirection: "column", gap: 5 }}>
                   {lines.map((l, i) => {
                     const LI = l.icon;
                     return (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "#374151", background: `${h.color}12`, border: `1px solid ${h.color}30`, borderRadius: 7, padding: "4px 7px", overflow: "hidden" }}>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: "var(--text-heading)", background: `${h.color}12`, border: `1px solid ${h.color}30`, borderRadius: 10, padding: "4px 7px", overflow: "hidden" }}>
                         {LI ? <LI size={12} color={h.color} /> : null}
                         <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{l.text}</span>
                       </div>
@@ -1011,12 +1012,12 @@ function SeletorDeGrupo({
           display: "flex", alignItems: "center", justifyContent: "space-between",
           width: "100%", marginTop: 4, padding: "8px 12px", fontSize: 13,
           border: "1px solid hsl(var(--border))", borderRadius: 6,
-          background: "hsl(var(--background))", color: valor ? "hsl(var(--foreground))" : "#9CA3AF",
+          background: "hsl(var(--background))", color: valor ? "hsl(var(--foreground))" : "var(--text-muted)",
           cursor: "pointer", textAlign: "left",
         }}
       >
         <span>{valor || "Selecione ou crie um grupo"}</span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "#6B7280", flexShrink: 0 }}><path d="m6 9 6 6 6-6"/></svg>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: "var(--text-muted)", flexShrink: 0 }}><path d="m6 9 6 6 6-6"/></svg>
       </button>
       {aberto && (
         <div style={{
@@ -1052,14 +1053,14 @@ function SeletorDeGrupo({
                 placeholder="Nome do grupo..."
                 style={{
                   flex: 1, padding: "5px 8px", fontSize: 12,
-                  border: "1px solid hsl(var(--border))", borderRadius: 5,
+                  border: "1px solid hsl(var(--border))", borderRadius: 6,
                   background: "hsl(var(--background))", color: "hsl(var(--foreground))", outline: "none",
                 }}
               />
               <button
                 type="button"
                 onClick={confirmarNovo}
-                style={{ padding: "5px 10px", fontSize: 12, fontWeight: 600, border: "none", borderRadius: 5, background: "hsl(var(--primary))", color: "#fff", cursor: "pointer" }}
+                style={{ padding: "5px 10px", fontSize: 12, fontWeight: 600, border: "none", borderRadius: 6, background: "hsl(var(--primary))", color: "var(--text-on-accent)", cursor: "pointer" }}
               >
                 OK
               </button>
@@ -1071,7 +1072,7 @@ function SeletorDeGrupo({
               style={{
                 display: "block", width: "100%", padding: "9px 14px", fontSize: 13, fontWeight: 600,
                 border: "none", borderTop: grupos.length > 0 ? "1px solid hsl(var(--border))" : "none",
-                cursor: "pointer", background: "transparent", color: "hsl(var(--primary))", textAlign: "right",
+                cursor: "pointer", background: "transparent", color: "var(--text-link)", textAlign: "right",
               }}
             >
               Criar
@@ -2181,29 +2182,29 @@ export default function AutomacoesPage() {
   const Sidebar = () => (
     <>
       {!leftCollapsed ? (
-        <aside style={{ width: 240, minWidth: 240, background: "#FFFFFF", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", borderRight: "1px solid #e5e7eb", display: "flex", flexDirection: "column", position: "relative", zIndex: 2, flexShrink: 0 }}>
-          <div style={{ padding: 12, borderBottom: "1px solid #E5E5E5" }}>
+        <aside style={{ width: 240, minWidth: 240, background: "var(--surface-card)", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", borderRight: "1px solid var(--border-default)", display: "flex", flexDirection: "column", position: "relative", zIndex: 2, flexShrink: 0 }}>
+          <div style={{ padding: 12, borderBottom: "1px solid var(--border-default)" }}>
             <div style={{ position: "relative" }}>
-              <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+              <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar automação..."
-                style={{ width: "100%", background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 8, padding: "8px 32px 8px 30px", fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                style={{ width: "100%", background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 32px 8px 30px", fontSize: 12, outline: "none", boxSizing: "border-box" }}
                 onFocus={e => { e.currentTarget.style.border = "1px solid hsl(var(--primary))"; }}
-                onBlur={e => { e.currentTarget.style.border = "1px solid #E5E5E5"; }}
+                onBlur={e => { e.currentTarget.style.border = "1px solid var(--border-default)"; }}
               />
               <span
                 title="Filtrar por estado"
                 style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", display: "inline-flex", lineHeight: 0 }}
               >
-                <Power size={14} style={{ color: "#9CA3AF", cursor: "pointer" }} />
+                <Power size={14} style={{ color: "var(--text-muted)", cursor: "pointer" }} />
               </span>
             </div>
             <Button
               onClick={() => setCreateOpen(true)}
               size="sm"
-              className="w-full justify-center rounded-lg bg-primary text-white hover:bg-primary/90 font-semibold mt-2"
+              className="w-full justify-center rounded-lg bg-primary text-[color:var(--text-on-accent)] hover:bg-primary/90 font-semibold mt-2"
             >
               <Plus size={14} className="mr-1.5" /> Adicionar automação
             </Button>
@@ -2220,7 +2221,7 @@ export default function AutomacoesPage() {
                 <div key={g.name}>
                   <button
                     onClick={() => { if (renamingGroup !== g.name) setOpenGroups(s => ({ ...s, [g.name]: !open })); }}
-                    className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-bold text-[#09090b] transition-colors"
+                    className="w-full flex items-center gap-1.5 px-2 py-1.5 text-sm font-bold text-[color:var(--text-heading)] transition-colors"
                     style={{ fontFamily: "Inter, sans-serif" }}
                   >
                     {renamingGroup === g.name ? (
@@ -2236,7 +2237,7 @@ export default function AutomacoesPage() {
                         onClick={e => e.stopPropagation()}
                         style={{
                           fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.3,
-                          color: "#6B7280", background: "transparent", border: "none",
+                          color: "var(--text-muted)", background: "transparent", border: "none",
                           borderBottom: "1.5px solid hsl(var(--primary))", outline: "none",
                           padding: "0 2px", width: "100%",
                         }}
@@ -2266,10 +2267,10 @@ export default function AutomacoesPage() {
                             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); requestLeave(() => openEditor(item.id)); } }}
                             className={`flex items-center gap-2 px-3 h-[32px] font-normal leading-[16px] border-l-[3px] cursor-pointer ${
                               sel
-                                ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-[4px]"
+                                ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-sm"
                                 : "w-full border-transparent"
                             }`}
-                            style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 500, letterSpacing: 0, color: "#09090b" }}
+                            style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 500, letterSpacing: 0, color: "var(--text-heading)" }}
                           >
                             <Workflow size={14} className={sel ? "text-primary" : ""} />
                             <span className="truncate text-left flex-1">{item.name}</span>
@@ -2291,17 +2292,17 @@ export default function AutomacoesPage() {
 
           <button
             onClick={() => setLeftCollapsed(true)}
-            style={{ position: "absolute", right: -12, top: "50%", transform: "translateY(-50%)", width: 24, height: 24, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
+            style={{ position: "absolute", right: -12, top: "50%", transform: "translateY(-50%)", width: 24, height: 24, borderRadius: "50%", background: "var(--surface-card)", border: "1px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", zIndex: 10 }}
           >
-            <ChevronLeft size={14} color="#6B7280" />
+            <ChevronLeft size={14} color="var(--text-muted)" />
           </button>
         </aside>
       ) : (
         <button
           onClick={() => setLeftCollapsed(false)}
-          style={{ width: 24, height: 60, alignSelf: "center", background: "#FFFFFF", border: "1px solid #E5E5E5", borderLeft: "none", borderRadius: "0 8px 8px 0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+          style={{ width: 24, height: 60, alignSelf: "center", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderLeft: "none", borderRadius: "0 8px 8px 0", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
         >
-          <ChevronRight size={14} color="#6B7280" />
+          <ChevronRight size={14} color="var(--text-muted)" />
         </button>
       )}
     </>
@@ -2310,7 +2311,7 @@ export default function AutomacoesPage() {
   // ─── RENDER ───────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100%", background: "hsl(var(--background))", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "var(--altura-util)", width: "100%", background: "hsl(var(--background))", overflow: "hidden" }}>
       {/* Left sidebar — sempre visível */}
       {Sidebar()}
 
@@ -2319,20 +2320,20 @@ export default function AutomacoesPage() {
         <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
           {/* Header */}
           <div style={{ padding: "20px 28px 0", background: "hsl(var(--background))" }}>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: "#111111", margin: 0 }}>Fluxo de automações</h1>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-heading)", margin: 0 }}>Fluxo de automações</h1>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 16 }}>
               <div style={{ display: "flex", gap: 0 }}>
-                <button style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "#111111", background: "#FFFFFF", border: "none", borderBottom: "2px solid hsl(var(--primary))", cursor: "pointer" }}>
+                <button style={{ padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "var(--text-heading)", background: "var(--surface-card)", border: "none", borderBottom: "2px solid hsl(var(--primary))", cursor: "pointer" }}>
                   Minhas Automações
                 </button>
               </div>
               <div style={{ position: "relative" }}>
-                <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+                <Search size={14} style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)" }} />
                 <input
                   value={listSearch}
                   onChange={e => setListSearch(e.target.value)}
                   placeholder="Pesquisar..."
-                  style={{ background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: "7px 12px 7px 30px", fontSize: 12, outline: "none", width: 200 }}
+                  style={{ background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 8, padding: "7px 12px 7px 30px", fontSize: 12, outline: "none", width: 200 }}
                 />
               </div>
             </div>
@@ -2347,10 +2348,10 @@ export default function AutomacoesPage() {
             ) : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 16 }}>
                 {/* Create card */}
-                <div style={{ background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 12, padding: 20, display: "flex", flexDirection: "column", gap: 12, minHeight: 260 }}>
+                <div style={{ background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 20, display: "flex", flexDirection: "column", gap: 12, minHeight: 260 }}>
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: "#111111" }}>Criar nova automação</div>
-                    <div style={{ fontSize: 12, color: "#6B7280", marginTop: 4, lineHeight: 1.5 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>Criar nova automação</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4, lineHeight: 1.5 }}>
                       Crie sua nova automação e aumente seus resultados. Lembre-se, não há limites para sua criatividade.
                     </div>
                   </div>
@@ -2359,16 +2360,16 @@ export default function AutomacoesPage() {
                       <button
                         key={g.name}
                         onClick={() => { setNewGroup(g.name); setCreateOpen(true); }}
-                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: "1px solid #E5E5E5", borderRadius: 8, background: i === 0 ? "hsl(var(--primary))" : "#FFFFFF", color: i === 0 ? "#FFFFFF" : "#374151", fontSize: 12, fontWeight: 500, cursor: "pointer", textAlign: "left" }}
+                        style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 8, background: i === 0 ? "hsl(var(--primary))" : "var(--surface-card)", color: i === 0 ? "var(--text-on-accent)" : "var(--text-heading)", fontSize: 12, fontWeight: 500, cursor: "pointer", textAlign: "left" }}
                       >
-                        <Zap size={13} color={i === 0 ? "#FFFFFF" : "hsl(var(--primary))"} />
+                        <Zap size={13} color={i === 0 ? "var(--text-on-accent)" : "var(--text-link)"} />
                         {g.name}
                       </button>
                     ))}
                   </div>
                   <button
                     onClick={() => setCreateOpen(true)}
-                    style={{ marginTop: "auto", border: "1px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "hsl(var(--primary))", fontSize: 12, fontWeight: 600, padding: "8px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+                    style={{ marginTop: "auto", border: "1px solid var(--border-default)", borderRadius: 8, background: "transparent", color: "var(--text-link)", fontSize: 12, fontWeight: 600, padding: "8px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
                   >
                     <Plus size={14} /> Criar nova automação
                   </button>
@@ -2376,23 +2377,23 @@ export default function AutomacoesPage() {
 
                 {/* Automation cards */}
                 {filteredAutomations.map(auto => (
-                  <div key={auto.id} style={{ background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 200 }}>
+                  <div key={auto.id} style={{ background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 200 }}>
                     {/* Mini-mapa do fluxo */}
-                    <div style={{ height: 120, background: "#F8FAFC", borderBottom: "1px solid #E5E5E5", position: "relative", overflow: "hidden" }}>
+                    <div style={{ height: 120, background: "#F8FAFC", borderBottom: "1px solid var(--border-default)", position: "relative", overflow: "hidden" }}>
                       <FlowPreview flow={auto.flow} />
                       {auto.active && (
-                        <div style={{ position: "absolute", top: 8, right: 8, background: "#DCFCE7", color: "#15803D", fontSize: 10, fontWeight: 600, padding: "2px 6px", borderRadius: 4 }}>
+                        <div style={{ position: "absolute", top: 8, right: 8, background: "var(--accent-50)", color: "var(--accent-800)", fontSize: 12, fontWeight: 600, padding: "2px 6px", borderRadius: 6 }}>
                           Ativo
                         </div>
                       )}
                     </div>
                     <div style={{ padding: 14, flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: "#111111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{auto.name}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{auto.name}</div>
                       <button
                         onClick={() => openEditor(auto.id)}
-                        style={{ marginTop: "auto", border: "1px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "#374151", fontSize: 12, fontWeight: 500, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+                        style={{ marginTop: "auto", border: "1px solid var(--border-default)", borderRadius: 8, background: "transparent", color: "var(--text-heading)", fontSize: 12, fontWeight: 500, padding: "7px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
                         onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.color = "hsl(var(--primary))"; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.color = "#374151"; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.color = "var(--text-heading)"; }}
                       >
                         <ArrowRight size={13} /> Abrir automação
                       </button>
@@ -2433,10 +2434,10 @@ export default function AutomacoesPage() {
 
           {/* Default: Blocos básicos (when no node selected) */}
           {!nodePanel && !triggerPanel && (
-            <aside style={{ width: 270, minWidth: 270, height: "80%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden", marginLeft: 10, alignSelf: "center", border: "1px solid #E5E7EB", borderRadius: 8 }}>
-              <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", textAlign: "center" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#111" }}>Blocos básicos</div>
-                <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>Arraste para o canvas ou clique para adicionar</div>
+            <aside style={{ width: 270, minWidth: 270, height: "80%", background: "var(--surface-card)", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden", marginLeft: 10, alignSelf: "center", border: "1px solid var(--border-default)", borderRadius: 8 }}>
+              <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", textAlign: "center" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Blocos básicos</div>
+                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Arraste para o canvas ou clique para adicionar</div>
               </div>
               <div style={{ flex: 1, overflowY: "auto" }}>
                 {ACTION_TYPES.map(at => {
@@ -2460,16 +2461,16 @@ export default function AutomacoesPage() {
                       const newNode: CanvasNode = { id: `n${Date.now()}`, type: at.id as ActionNodeType, x, y, label: at.label };
                       setNodes(prev => [...prev, newNode]);
                     }}
-                      style={{ width: "90%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "8px 16px", background: "transparent", border: "1px dashed #E5E7EB", borderRadius: 5, cursor: isComingSoon ? "default" : "grab", textAlign: "center", opacity: isComingSoon ? 0.6 : 1, margin: "6px auto" }}
-                      onMouseEnter={e => { if (!isComingSoon) { e.currentTarget.style.background = "#D1FAE5"; e.currentTarget.style.borderColor = "hsl(163, 77%, 31%)"; e.currentTarget.style.borderRadius = "5px"; } }}
-                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#E5E7EB"; }}
+                      style={{ width: "90%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10, padding: "8px 16px", background: "transparent", border: "1px dashed var(--border-default)", borderRadius: 10, cursor: isComingSoon ? "default" : "grab", textAlign: "center", opacity: isComingSoon ? 0.6 : 1, margin: "6px auto" }}
+                      onMouseEnter={e => { if (!isComingSoon) { e.currentTarget.style.background = "var(--accent-50)"; e.currentTarget.style.borderColor = "hsl(163, 77%, 31%)"; e.currentTarget.style.borderRadius = "5px"; } }}
+                      onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "var(--border-default)"; }}
                     >
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         <Icon size={14} color={at.color} />
                       </div>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: "#374151" }}>{at.label}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}>{at.label}</span>
                       {isComingSoon && (
-                        <span style={{ fontSize: 9, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 4, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 6, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
                       )}
                     </button>
                   );
@@ -2606,18 +2607,18 @@ export default function AutomacoesPage() {
           <section style={{ flex: 1, position: "relative", overflow: "hidden", background: "hsl(var(--background))", backgroundImage: "radial-gradient(circle, #E8E8E8 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
 
           {/* Toolbar */}
-          <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "#FFFFFF", borderRadius: 12, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", padding: "8px 12px", display: "flex", alignItems: "center", gap: 4, zIndex: 20 }}>
+          <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "var(--surface-card)", borderRadius: 12, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", padding: "8px 12px", display: "flex", alignItems: "center", gap: 4, zIndex: 20 }}>
             {/* Active toggle */}
             <button
               onClick={() => toggleActive(selectedAutomation.id, !selectedAutomation.active)}
               title={selectedAutomation.active ? "Desativar" : "Ativar"}
-              style={{ width: 32, height: 32, borderRadius: 8, background: selectedAutomation.active ? "#DCFCE7" : "transparent", border: "none", color: selectedAutomation.active ? "#15803D" : "#6B7280", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-              onMouseEnter={e => !selectedAutomation.active && (e.currentTarget.style.background = "#F3F4F6")}
+              style={{ width: 32, height: 32, borderRadius: 8, background: selectedAutomation.active ? "var(--accent-50)" : "transparent", border: "none", color: selectedAutomation.active ? "var(--accent-800)" : "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              onMouseEnter={e => !selectedAutomation.active && (e.currentTarget.style.background = "var(--neutral-50)")}
               onMouseLeave={e => !selectedAutomation.active && (e.currentTarget.style.background = "transparent")}
             >
               <Power size={15} />
             </button>
-            <div style={{ width: 1, background: "#E5E5E5", height: 20, margin: "0 2px" }} />
+            <div style={{ width: 1, background: "var(--neutral-200)", height: 20, margin: "0 2px" }} />
             {[
               { icon: Save,       label: saving ? "Salvando..." : "Salvar",    action: handleSave },
               { icon: Pencil,     label: "Renomear",   action: () => {
@@ -2634,18 +2635,18 @@ export default function AutomacoesPage() {
               const Icon = t.icon;
               return (
                 <button key={i} title={t.label} onClick={t.action}
-                  style={{ width: 32, height: 32, borderRadius: 8, background: "transparent", border: "none", color: "#6B7280", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                  onMouseEnter={e => e.currentTarget.style.background = "#F3F4F6"}
+                  style={{ width: 32, height: 32, borderRadius: 8, background: "transparent", border: "none", color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  onMouseEnter={e => e.currentTarget.style.background = "var(--neutral-50)"}
                   onMouseLeave={e => e.currentTarget.style.background = "transparent"}
                 >
                   <Icon size={15} />
                 </button>
               );
             })}
-            <div style={{ width: 1, background: "#E5E5E5", height: 20, margin: "0 2px" }} />
+            <div style={{ width: 1, background: "var(--neutral-200)", height: 20, margin: "0 2px" }} />
             <button title="Excluir" onClick={() => setDeleteOpen(true)}
-              style={{ width: 32, height: 32, borderRadius: 8, background: "transparent", border: "none", color: "#EF4444", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-              onMouseEnter={e => e.currentTarget.style.background = "#FEE2E2"}
+              style={{ width: 32, height: 32, borderRadius: 8, background: "transparent", border: "none", color: "var(--danger-fg)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              onMouseEnter={e => e.currentTarget.style.background = "var(--danger-bg)"}
               onMouseLeave={e => e.currentTarget.style.background = "transparent"}
             >
               <Trash2 size={15} />
@@ -2653,7 +2654,7 @@ export default function AutomacoesPage() {
           </div>
 
           {/* Automation name badge */}
-          <div style={{ position: "absolute", top: 16, left: 16, background: "#FFFFFF", borderRadius: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "#374151", zIndex: 20, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <div style={{ position: "absolute", top: 16, left: 16, background: "var(--surface-card)", borderRadius: 8, boxShadow: "0 1px 4px rgba(0,0,0,0.06)", padding: "6px 12px", fontSize: 12, fontWeight: 600, color: "var(--text-heading)", zIndex: 20, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {selectedAutomation.name}
           </div>
 
@@ -2730,7 +2731,7 @@ export default function AutomacoesPage() {
                       // A posição exata vem do portPosMap (medido do DOM); fallback aproximado.
                       x1 = pp?.x ?? realParent.x + 287;
                       y1 = pp?.y ?? realParent.y + 90;
-                      stroke = suffix.endsWith("-none") ? "#16A34A" : "#06B6D4";
+                      stroke = suffix.endsWith("-none") ? "var(--accent-500)" : "#06B6D4";
                     } else {
                       return null;
                     }
@@ -2771,7 +2772,7 @@ export default function AutomacoesPage() {
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "error", fromId: epid }); }}
                     >
                       <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke="#EF4444" strokeWidth={2} fill="none" strokeLinecap="round" strokeDasharray="5,5" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="var(--danger-400)" strokeWidth={2} fill="none" strokeLinecap="round" strokeDasharray="5,5" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
@@ -2794,7 +2795,7 @@ export default function AutomacoesPage() {
                       onClick={e => { e.stopPropagation(); setSelectedConn(isSel ? null : { nodeId: n.id, type: "timeout", fromId: tpid }); }}
                     >
                       <path d={pathD} stroke="rgba(0,0,0,0)" strokeWidth={14} fill="none" style={{ pointerEvents: "stroke" }} />
-                      <path d={pathD} stroke="#EF4444" strokeWidth={2} fill="none" strokeLinecap="round" strokeDasharray="2,6" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
+                      <path d={pathD} stroke="var(--danger-400)" strokeWidth={2} fill="none" strokeLinecap="round" strokeDasharray="2,6" opacity={isSel ? 1 : 0.75} style={{ pointerEvents: "stroke" }} />
                     </g>
                   );
                 })}
@@ -2802,7 +2803,7 @@ export default function AutomacoesPage() {
                 {portDragLine && (
                   <path
                     d={buildOrthPath(portDragLine.x1, portDragLine.y1, portDragLine.x2, portDragLine.y2)}
-                    stroke={portDragLine.isError ? "#EF4444" : "#378ADD"} strokeWidth={2.5} fill="none"
+                    stroke={portDragLine.isError ? "var(--danger-400)" : "#378ADD"} strokeWidth={2.5} fill="none"
                     strokeLinecap="round" strokeDasharray="5,5"
                     style={{ pointerEvents: "none" }}
                   />
@@ -2869,10 +2870,10 @@ export default function AutomacoesPage() {
                   >
                     <button
                       onClick={e => { e.stopPropagation(); disconnectNode(selectedConn.nodeId, selectedConn.type, selectedConn.fromId); }}
-                      style={{ width: 32, height: 32, borderRadius: "50%", background: "#FFFFFF", border: "1px solid #FCA5A5", boxShadow: "0 2px 8px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                      style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--surface-card)", border: "1px solid #FCA5A5", boxShadow: "0 2px 8px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
                       title="Desconectar"
                     >
-                      <Trash2 size={13} color="#EF4444" />
+                      <Trash2 size={13} color="var(--danger-fg)" />
                     </button>
                   </div>
                 );
@@ -2938,8 +2939,8 @@ export default function AutomacoesPage() {
                 return (
                   <div key={`chip_${i}`} style={{
                     position: "absolute", left: nd.x, top: nd.y - 56,
-                    width: 260, background: "#FFFFFF",
-                    border: "1px solid #E5E5E5",
+                    width: 260, background: "var(--surface-card)",
+                    border: "1px solid var(--border-default)",
                     borderLeft: `3px solid ${sColor}`,
                     borderRadius: 8,
                     padding: "6px 10px 6px 8px",
@@ -2949,8 +2950,8 @@ export default function AutomacoesPage() {
                   }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: sColor, flexShrink: 0, minWidth: 22, textAlign: "center" }}>{i + 1}°</span>
                     <div style={{ minWidth: 0 }}>
-                      <div style={{ fontSize: 11, color: "#374151", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmtDate(entry.created_at)}</div>
-                      <div style={{ fontSize: 10, color: "#6B7280", marginTop: 1 }}>{statusLabel}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-heading)", fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmtDate(entry.created_at)}</div>
+                      <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1 }}>{statusLabel}</div>
                     </div>
                   </div>
                 );
@@ -2960,7 +2961,7 @@ export default function AutomacoesPage() {
               {addNodeMenu && (
                 <div
                   data-node
-                  style={{ position: "absolute", left: addNodeMenu.x, top: addNodeMenu.y, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 12, padding: 6, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 30 }}
+                  style={{ position: "absolute", left: addNodeMenu.x, top: addNodeMenu.y, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, padding: 6, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", width: 220, zIndex: 30 }}
                   onClick={e => e.stopPropagation()}
                 >
                   {ACTION_TYPES.map(at => {
@@ -2971,14 +2972,14 @@ export default function AutomacoesPage() {
                         key={at.id}
                         disabled={isComingSoon}
                         onClick={() => { if (!isComingSoon) handleAddNode(at.id, at.label); }}
-                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", borderRadius: 8, cursor: isComingSoon ? "default" : "pointer", textAlign: "left", fontSize: 13, color: "#111111", opacity: isComingSoon ? 0.6 : 1 }}
-                        onMouseEnter={e => { if (!isComingSoon) e.currentTarget.style.background = "#F9FAFB"; }}
+                        style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", background: "transparent", border: "none", borderRadius: 8, cursor: isComingSoon ? "default" : "pointer", textAlign: "left", fontSize: 13, color: "var(--text-heading)", opacity: isComingSoon ? 0.6 : 1 }}
+                        onMouseEnter={e => { if (!isComingSoon) e.currentTarget.style.background = "var(--neutral-50)"; }}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                       >
                         <Icon size={16} color={at.color} />
                         <span style={{ flex: 1 }}>{at.label}</span>
                         {isComingSoon && (
-                          <span style={{ fontSize: 9, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 4, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 6, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
                         )}
                       </button>
                     );
@@ -2989,14 +2990,14 @@ export default function AutomacoesPage() {
           </div>
 
           {/* Zoom controls */}
-          <div style={{ position: "absolute", right: 16, bottom: 60, display: "flex", flexDirection: "column", gap: 4, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 4, zIndex: 20 }}>
+          <div style={{ position: "absolute", right: 16, bottom: 60, display: "flex", flexDirection: "column", gap: 4, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 4, zIndex: 20 }}>
             <button onClick={() => setZoom(z => Math.min(2.5, z + 0.1))} style={zoomBtn}><Plus size={14} /></button>
             <button onClick={() => setZoom(z => Math.max(0.4, z - 0.1))} style={zoomBtn}><Minus size={14} /></button>
             <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} style={zoomBtn}><Maximize2 size={14} /></button>
           </div>
 
           {/* Nav arrows */}
-          <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 4, zIndex: 20 }}>
+          <div style={{ position: "absolute", bottom: 16, left: "50%", transform: "translateX(-50%)", display: "flex", gap: 4, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 4, zIndex: 20 }}>
             <button onClick={() => requestLeave(() => setView("list"))} style={zoomBtn} title="Voltar à lista"><ArrowLeft size={14} /></button>
             <button style={zoomBtn}><ArrowRight size={14} /></button>
           </div>
@@ -3006,29 +3007,29 @@ export default function AutomacoesPage() {
 
           {/* ── Logs Panel — painel lateral direito ──────────────────────── */}
           {logsPanel && (
-            <div style={{ position: "absolute", top: 0, right: 0, width: 360, height: "100%", background: "#FFFFFF", borderLeft: "1px solid #E5E5E5", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", zIndex: 25, display: "flex", flexDirection: "column" }}>
+            <div style={{ position: "absolute", top: 0, right: 0, width: 360, height: "100%", background: "var(--surface-card)", borderLeft: "1px solid var(--border-default)", boxShadow: "-4px 0 20px rgba(0,0,0,0.08)", zIndex: 25, display: "flex", flexDirection: "column" }}>
 
               {/* Header */}
-              <div style={{ padding: "12px 14px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
+              <div style={{ padding: "12px 14px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: 0.5 }}>Logs do bloco</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>Logs do bloco</span>
                   {logsPanelNode && (
                     <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                      <Play size={11} fill="hsl(var(--primary))" color="hsl(var(--primary))" />
-                      <span style={{ fontSize: 13, fontWeight: 600, color: "#111111" }}>{logsPanelNode.label}</span>
+                      <Play size={11} fill="var(--text-link)" color="var(--text-link)" />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>{logsPanelNode.label}</span>
                     </div>
                   )}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
                   <button onClick={() => { if (selectedId) { refreshNodeStats(selectedId); if (logsPanel) refreshLogsPanelEntries(selectedId, logsPanel.nodeId); } }}
                     title="Atualizar logs"
-                    style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
+                    style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
                     onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                   ><RefreshCw size={13} /></button>
                   <button onClick={() => { setLogsPanel(null); setLogsPanelSelectedEntry(null); setLogsPanelPath([]); }}
-                    style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")}
+                    style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}
+                    onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
                     onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                   ><X size={14} /></button>
                 </div>
@@ -3038,7 +3039,7 @@ export default function AutomacoesPage() {
               {logsPanelSelectedEntry && (
                 <div style={{ padding: "7px 12px", background: "#EFF6FF", borderBottom: "0.5px solid #BFDBFE", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                   <User size={12} color="#3B82F6" style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: 11, color: "#1D4ED8", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: 12, color: "#1D4ED8", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {logsPanelSelectedEntry.leadName}
                   </span>
                   <button onClick={() => { setLogsPanelSelectedEntry(null); setLogsPanelPath([]); }}
@@ -3048,7 +3049,7 @@ export default function AutomacoesPage() {
               )}
 
               {/* Tabs */}
-              <div style={{ display: "flex", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+              <div style={{ display: "flex", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
                 {([
                   { id: "entraram" as const, label: "Entraram", count: logsPanelTabCounts.entraram },
                   { id: "success" as const, label: "Sucessos", count: logsPanelTabCounts.success },
@@ -3058,25 +3059,25 @@ export default function AutomacoesPage() {
                   const sel = logsPanelTab === tab.id;
                   return (
                     <button key={tab.id} onClick={() => setLogsPanelTab(tab.id)}
-                      style={{ flex: 1, padding: "9px 4px", background: "transparent", border: "none", borderBottom: sel ? "2px solid hsl(var(--primary))" : "2px solid transparent", color: sel ? "hsl(var(--primary))" : "#6B7280", fontSize: 11, fontWeight: sel ? 700 : 400, cursor: "pointer" }}
+                      style={{ flex: 1, padding: "9px 4px", background: "transparent", border: "none", borderBottom: sel ? "2px solid hsl(var(--primary))" : "2px solid transparent", color: sel ? "hsl(var(--primary))" : "var(--text-muted)", fontSize: 12, fontWeight: sel ? 700 : 400, cursor: "pointer" }}
                     >{tab.label}</button>
                   );
                 })}
               </div>
 
               {/* Filtros */}
-              <div style={{ padding: "8px 12px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <div style={{ padding: "8px 12px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 <div style={{ flex: 1, position: "relative" }}>
-                  <User size={12} style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF", pointerEvents: "none" }} />
+                  <User size={12} style={{ position: "absolute", left: 7, top: "50%", transform: "translateY(-50%)", color: "var(--text-muted)", pointerEvents: "none" }} />
                   <select value={logsPanelLeadFilter} onChange={e => setLogsPanelLeadFilter(e.target.value)}
-                    style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 6, padding: "5px 6px 5px 22px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: logsPanelLeadFilter ? "#111" : "#9CA3AF", appearance: "none" }}
+                    style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 6, padding: "5px 6px 5px 22px", fontSize: 12, background: "var(--neutral-50)", outline: "none", cursor: "pointer", color: logsPanelLeadFilter ? "var(--text-heading)" : "var(--text-muted)", appearance: "none" }}
                   >
                     <option value="">Selecionar lead</option>
                     {logsPanelLeads.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
                   </select>
                 </div>
                 <select value={logsPanelPeriod} onChange={e => setLogsPanelPeriod(e.target.value)}
-                  style={{ border: "1px solid #E5E5E5", borderRadius: 6, padding: "5px 8px", fontSize: 11, background: "#F9FAFB", outline: "none", cursor: "pointer", color: "#374151", flexShrink: 0 }}
+                  style={{ border: "1px solid var(--border-default)", borderRadius: 6, padding: "5px 8px", fontSize: 12, background: "var(--neutral-50)", outline: "none", cursor: "pointer", color: "var(--text-heading)", flexShrink: 0 }}
                 >
                   <option value="week">Última semana</option>
                   <option value="month">Último mês</option>
@@ -3087,9 +3088,9 @@ export default function AutomacoesPage() {
               {/* Lista */}
               <div style={{ flex: 1, overflowY: "auto" }}>
                 {logsPanelLoading ? (
-                  <div style={{ padding: "32px 0", textAlign: "center", color: "#6B7280", fontSize: 13 }}>Carregando...</div>
+                  <div style={{ padding: "32px 0", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>Carregando...</div>
                 ) : logsPanelFilteredEntries.length === 0 ? (
-                  <div style={{ padding: "32px 16px", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>Nenhum registro encontrado</div>
+                  <div style={{ padding: "32px 16px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>Nenhum registro encontrado</div>
                 ) : logsPanelFilteredEntries.map((entry, i) => {
                   const isActive = logsPanelSelectedEntry?.leadId === entry.lead_id;
                   const isEntraram = logsPanelTab === "entraram";
@@ -3101,16 +3102,16 @@ export default function AutomacoesPage() {
                     : (entry.status === "success" ? "Concluído com sucesso" : entry.error_message || (entry.status === "alert" ? "Alerta no bloco" : "Erro no bloco"));
                   return (
                     <button key={entry.id} onClick={() => loadEntryPath(entry.lead_id, entry.lead_name)}
-                      style={{ width: "100%", padding: "11px 14px", background: isActive ? "#EFF6FF" : "transparent", border: "none", borderBottom: "0.5px solid #F5F5F5", borderLeft: isActive ? "2px solid #3B82F6" : "2px solid transparent", textAlign: "left", cursor: "pointer", display: "flex", gap: 10, alignItems: "flex-start" }}
-                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "#F9FAFB"; }}
+                      style={{ width: "100%", padding: "11px 14px", background: isActive ? "#EFF6FF" : "transparent", border: "none", borderBottom: "0.5px solid var(--neutral-100)", borderLeft: isActive ? "2px solid #3B82F6" : "2px solid transparent", textAlign: "left", cursor: "pointer", display: "flex", gap: 10, alignItems: "flex-start" }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--neutral-50)"; }}
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
                     >
                       <EntIcon size={15} color={entColor} style={{ flexShrink: 0, marginTop: 1 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, color: "#374151" }}>{fmtDate(entry.created_at)}</div>
-                        <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>{desc}</div>
+                        <div style={{ fontSize: 12, color: "var(--text-heading)" }}>{fmtDate(entry.created_at)}</div>
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>{desc}</div>
                       </div>
-                      {i === 0 && <RotateCcw size={13} color="#9CA3AF" style={{ flexShrink: 0, marginTop: 2 }} />}
+                      {i === 0 && <RotateCcw size={13} color="var(--text-muted)" style={{ flexShrink: 0, marginTop: 2 }} />}
                     </button>
                   );
                 })}
@@ -3168,11 +3169,11 @@ export default function AutomacoesPage() {
                       key={opt.id}
                       type="button"
                       onClick={() => setStartType(opt.id)}
-                      style={{ border: `1.5px solid ${startType === opt.id ? "hsl(var(--primary))" : "#E5E5E5"}`, borderRadius: 10, padding: "10px 8px", background: startType === opt.id ? "hsl(var(--primary) / 0.04)" : "#FFFFFF", cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "column", gap: 4 }}
+                      style={{ border: `1.5px solid ${startType === opt.id ? "hsl(var(--primary))" : "var(--border-default)"}`, borderRadius: 10, padding: "10px 8px", background: startType === opt.id ? "hsl(var(--primary) / 0.04)" : "var(--surface-card)", cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "column", gap: 4 }}
                     >
-                      <Icon size={18} color={startType === opt.id ? "hsl(var(--primary))" : "#6B7280"} />
-                      <span style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{opt.label}</span>
-                      <span style={{ fontSize: 10, color: "#6B7280", lineHeight: 1.4 }}>{opt.desc}</span>
+                      <Icon size={18} color={startType === opt.id ? "hsl(var(--primary))" : "var(--text-muted)"} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}>{opt.label}</span>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>{opt.desc}</span>
                     </button>
                   );
                 })}
@@ -3191,18 +3192,18 @@ export default function AutomacoesPage() {
                       key={tpl.id}
                       type="button"
                       onClick={() => { setSelectedTemplate(tpl.id); if (!newName.trim()) setNewName(tpl.name); if (!newDesc.trim()) setNewDesc(tpl.description); }}
-                      style={{ display: "flex", gap: 10, alignItems: "flex-start", textAlign: "left", border: `1.5px solid ${sel ? "hsl(var(--primary))" : "#E5E5E5"}`, borderRadius: 10, padding: "10px 12px", background: sel ? "hsl(var(--primary) / 0.04)" : "#FFFFFF", cursor: "pointer" }}
+                      style={{ display: "flex", gap: 10, alignItems: "flex-start", textAlign: "left", border: `1.5px solid ${sel ? "hsl(var(--primary))" : "var(--border-default)"}`, borderRadius: 10, padding: "10px 12px", background: sel ? "hsl(var(--primary) / 0.04)" : "var(--surface-card)", cursor: "pointer" }}
                     >
                       <div style={{ width: 30, height: 30, borderRadius: 8, background: "hsl(var(--primary) / 0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <Icon size={15} color="hsl(var(--primary))" />
+                        <Icon size={15} color="var(--text-link)" />
                       </div>
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#111111", display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)", display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{ flex: 1 }}>{tpl.name}</span>
-                          {sel && <CheckCircle2 size={14} color="hsl(var(--primary))" />}
+                          {sel && <CheckCircle2 size={14} color="var(--text-link)" />}
                         </div>
-                        <div style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.4, marginTop: 2 }}>{tpl.description}</div>
-                        <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 4 }}>Gatilho: {tpl.flow.trigger.label} · Grupo: {tpl.group}</div>
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4, marginTop: 2 }}>{tpl.description}</div>
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>Gatilho: {tpl.flow.trigger.label} · Grupo: {tpl.group}</div>
                       </div>
                     </button>
                   );
@@ -3235,8 +3236,8 @@ export default function AutomacoesPage() {
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
             {/* Category list */}
-            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
-              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar gatilho</div>
+            <div style={{ width: 160, borderRight: "1px solid var(--border-default)", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>Adicionar gatilho</div>
               {TRIGGER_CATEGORIES_VISIVEIS.map(cat => {
                 const Icon = cat.icon;
                 const sel = selectedTriggerCat === cat.id;
@@ -3244,7 +3245,7 @@ export default function AutomacoesPage() {
                   <button
                     key={cat.id}
                     onClick={() => setSelectedTriggerCat(cat.id)}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#F0FDF4" : "transparent", border: "none", borderLeft: sel ? "2px solid hsl(var(--primary))" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "hsl(var(--primary))" : "#374151", fontWeight: sel ? 600 : 400, textAlign: "left" }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "var(--accent-50)" : "transparent", border: "none", borderLeft: sel ? "2px solid hsl(var(--primary))" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "hsl(var(--primary))" : "var(--text-heading)", fontWeight: sel ? 600 : 400, textAlign: "left" }}
                   >
                     <Icon size={14} />
                     {cat.label}
@@ -3258,10 +3259,10 @@ export default function AutomacoesPage() {
                 const cat = TRIGGER_CATEGORIES_VISIVEIS.find(c => c.id === selectedTriggerCat)!;
                 return (
                   <>
-                    <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
-                    <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 16 }}>{cat.description}</div>
+                    <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{cat.label}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{cat.description}</div>
                     {trigger && trigger.categoryId === cat.id && (
-                      <div style={{ marginBottom: 12, padding: "6px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, fontSize: 11, color: "#15803D", display: "flex", alignItems: "center", gap: 6 }}>
+                      <div style={{ marginBottom: 12, padding: "6px 10px", background: "var(--accent-50)", border: "0.5px solid var(--accent-200)", borderRadius: 8, fontSize: 12, color: "var(--accent-800)", display: "flex", alignItems: "center", gap: 6 }}>
                         <CheckCircle2 size={12} /> Gatilho atual: {trigger.label}
                       </div>
                     )}
@@ -3273,19 +3274,19 @@ export default function AutomacoesPage() {
                             key={t.id}
                             onClick={() => !isComingSoon && handleSelectTrigger(cat, t)}
                             disabled={isComingSoon}
-                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: isComingSoon ? "#F9FAFB" : "#FFFFFF", cursor: isComingSoon ? "default" : "pointer", textAlign: "left", transition: "all 0.1s", opacity: isComingSoon ? 0.7 : 1 }}
-                            onMouseEnter={e => { if (!isComingSoon) { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.background = "#F0FDF4"; } }}
-                            onMouseLeave={e => { if (!isComingSoon) { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; } }}
+                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid var(--border-default)", borderRadius: 8, background: isComingSoon ? "var(--neutral-50)" : "var(--surface-card)", cursor: isComingSoon ? "default" : "pointer", textAlign: "left", transition: "all 0.1s", opacity: isComingSoon ? 0.7 : 1 }}
+                            onMouseEnter={e => { if (!isComingSoon) { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.background = "var(--accent-50)"; } }}
+                            onMouseLeave={e => { if (!isComingSoon) { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.background = "var(--surface-card)"; } }}
                           >
-                            <ArrowRight size={14} color={isComingSoon ? "#9CA3AF" : "hsl(var(--primary))"} style={{ marginTop: 1, flexShrink: 0 }} />
+                            <ArrowRight size={14} color={isComingSoon ? "var(--text-muted)" : "hsl(var(--primary))"} style={{ marginTop: 1, flexShrink: 0 }} />
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: isComingSoon ? "#6B7280" : "#111111" }}>{t.label}</div>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: isComingSoon ? "var(--text-muted)" : "var(--text-heading)" }}>{t.label}</div>
                                 {isComingSoon && (
-                                  <span style={{ fontSize: 9, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 4, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 6, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
                                 )}
                               </div>
-                              <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{t.description}</div>
+                              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.4 }}>{t.description}</div>
                             </div>
                           </button>
                         );
@@ -3303,31 +3304,31 @@ export default function AutomacoesPage() {
       <Dialog open={!!iaPickerNode} onOpenChange={v => !v && setIaPickerNode(null)}>
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
-            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", flexShrink: 0 }}>
-              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar ação de IA</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderLeft: "2px solid hsl(var(--primary))", background: "#F0FDF4", fontSize: 12, fontWeight: 600, color: "hsl(var(--primary))" }}>
+            <div style={{ width: 160, borderRight: "1px solid var(--border-default)", padding: "16px 0", flexShrink: 0 }}>
+              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>Adicionar ação de IA</div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", borderLeft: "2px solid hsl(var(--primary))", background: "var(--accent-50)", fontSize: 12, fontWeight: 600, color: "var(--text-link)" }}>
                 <MessageCircle size={14} /> Mensagens
               </div>
             </div>
             <div style={{ flex: 1, padding: "16px 20px", overflowY: "auto" }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#111", marginBottom: 2 }}>Mensagens</div>
-              <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 14 }}>Adicione ações de IA baseadas em mensagens</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)", marginBottom: 2 }}>Mensagens</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 14 }}>Adicione ações de IA baseadas em mensagens</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {IA_ACTION_TYPES.map(t => {
                   const Icon = t.icon;
                   return (
                     <button key={t.id} disabled={t.soon}
                       onClick={() => { if (t.soon || !iaPickerNode) return; const node = iaPickerNode; addIaAction(node, t.id); setNodePanel(node); setIaPickerNode(null); }}
-                      style={{ display: "flex", alignItems: "flex-start", gap: 10, textAlign: "left", padding: "11px 12px", border: "1px solid #E5E5E5", borderRadius: 10, background: "#FFF", cursor: t.soon ? "default" : "pointer", opacity: t.soon ? 0.55 : 1 }}
+                      style={{ display: "flex", alignItems: "flex-start", gap: 10, textAlign: "left", padding: "11px 12px", border: "1px solid var(--border-default)", borderRadius: 10, background: "var(--surface-card)", cursor: t.soon ? "default" : "pointer", opacity: t.soon ? 0.55 : 1 }}
                       onMouseEnter={e => { if (!t.soon) e.currentTarget.style.borderColor = "hsl(var(--primary))"; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; }}>
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-default)"; }}>
                       <Icon size={16} color="#8B5CF6" style={{ flexShrink: 0, marginTop: 1 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "#111", display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)", display: "flex", alignItems: "center", gap: 6 }}>
                           {t.label}
-                          {t.soon && <span style={{ fontSize: 9, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 4, padding: "1px 5px" }}>EM BREVE</span>}
+                          {t.soon && <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 6, padding: "1px 5px" }}>EM BREVE</span>}
                         </div>
-                        <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{t.desc}</div>
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.4 }}>{t.desc}</div>
                       </div>
                     </button>
                   );
@@ -3342,14 +3343,14 @@ export default function AutomacoesPage() {
       <Dialog open={acoesPickerOpen} onOpenChange={setAcoesPickerOpen}>
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
-            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
-              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar ação</div>
+            <div style={{ width: 160, borderRight: "1px solid var(--border-default)", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>Adicionar ação</div>
               {ACTION_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
                 const sel = selectedActionPickerCat === cat.id;
                 return (
                   <button key={cat.id} onClick={() => setSelectedActionPickerCat(cat.id)}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#FFF7ED" : "transparent", border: "none", borderLeft: sel ? "2px solid #F97316" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#F97316" : "#374151", fontWeight: sel ? 600 : 400, textAlign: "left" }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#FFF7ED" : "transparent", border: "none", borderLeft: sel ? "2px solid #F97316" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#F97316" : "var(--text-heading)", fontWeight: sel ? 600 : 400, textAlign: "left" }}
                   >
                     <Icon size={14} />{cat.label}
                   </button>
@@ -3361,27 +3362,27 @@ export default function AutomacoesPage() {
                 const cat = ACTION_CATEGORIES.find(c => c.id === selectedActionPickerCat)!;
                 return (
                   <>
-                    <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
-                    <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 16 }}>{cat.description}</div>
+                    <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{cat.label}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{cat.description}</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                       {cat.actions.map(action => {
                         const AIcon = action.icon;
                         return (
                           <button key={action.id}
                             onClick={() => { if (nodePanel) addActionItem(nodePanel, { categoryId: cat.id, actionId: action.id, label: action.label, description: action.description }); setAcoesPickerOpen(false); }}
-                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid var(--border-default)", borderRadius: 8, background: "var(--surface-card)", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = "#F97316"; e.currentTarget.style.background = "#FFF7ED"; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.background = "var(--surface-card)"; }}
                           >
-                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#FFF7ED", border: "0.5px solid #FED7AA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: 8, background: "#FFF7ED", border: "0.5px solid #FED7AA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                               <AIcon size={14} color="#F97316" />
                             </div>
                             <div>
                               <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                                <span style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{action.label}</span>
-                                {action.warning && <span style={{ fontSize: 10, fontWeight: 600, background: "#FEF3C7", color: "#B45309", padding: "1px 6px", borderRadius: 4 }}>Atenção</span>}
+                                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}>{action.label}</span>
+                                {action.warning && <span style={{ fontSize: 12, fontWeight: 600, background: "#FEF3C7", color: "#B45309", padding: "1px 6px", borderRadius: 6 }}>Atenção</span>}
                               </div>
-                              <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{action.description}</div>
+                              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.4 }}>{action.description}</div>
                             </div>
                           </button>
                         );
@@ -3400,14 +3401,14 @@ export default function AutomacoesPage() {
       <Dialog open={condicoesPickerOpen} onOpenChange={setCondicoesPickerOpen}>
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
-            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
-              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111111" }}>Adicionar condição</div>
+            <div style={{ width: 160, borderRight: "1px solid var(--border-default)", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>Adicionar condição</div>
               {CONDITION_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
                 const sel = selectedCondPickerCat === cat.id;
                 return (
                   <button key={cat.id} onClick={() => setSelectedCondPickerCat(cat.id)}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#F3F4FF" : "transparent", border: "none", borderLeft: sel ? "2px solid #6366F1" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#6366F1" : "#374151", fontWeight: sel ? 600 : 400, textAlign: "left" }}>
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#F3F4FF" : "transparent", border: "none", borderLeft: sel ? "2px solid #6366F1" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#6366F1" : "var(--text-heading)", fontWeight: sel ? 600 : 400, textAlign: "left" }}>
                     <Icon size={14} />{cat.label}
                   </button>
                 );
@@ -3418,8 +3419,8 @@ export default function AutomacoesPage() {
                 const cat = CONDITION_CATEGORIES.find(c => c.id === selectedCondPickerCat)!;
                 return (
                   <>
-                    <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
-                    <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 16 }}>{cat.description}</div>
+                    <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{cat.label}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{cat.description}</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                       {cat.conditions.map(cond => {
                         const CondIcon = cond.icon ?? Filter;
@@ -3429,19 +3430,19 @@ export default function AutomacoesPage() {
                               if (nodePanel) addConditionItem(nodePanel, { categoryId: cat.id, conditionId: cond.id, label: cond.label });
                               setCondicoesPickerOpen(false);
                             }}
-                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                            style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid var(--border-default)", borderRadius: 8, background: "var(--surface-card)", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = "#6366F1"; e.currentTarget.style.background = "#F3F4FF"; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
+                            onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.background = "var(--surface-card)"; }}
                           >
-                            <div style={{ width: 28, height: 28, borderRadius: 7, background: "#F3F4FF", border: "0.5px solid #C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: 8, background: "#F3F4FF", border: "0.5px solid #C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                               <CondIcon size={14} color="#6366F1" />
                             </div>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: 12, fontWeight: 600, color: "#111111", display: "flex", alignItems: "center", gap: 6 }}>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "flex", alignItems: "center", gap: 6 }}>
                                 {cond.label}
-                                {cond.warning && <span style={{ fontSize: 10, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 4, padding: "1px 6px" }}>Atenção</span>}
+                                {cond.warning && <span style={{ fontSize: 12, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 6, padding: "1px 6px" }}>Atenção</span>}
                               </div>
-                              <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{cond.description}</div>
+                              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.4 }}>{cond.description}</div>
                             </div>
                           </button>
                         );
@@ -3459,13 +3460,13 @@ export default function AutomacoesPage() {
       <Dialog open={espePickerOpen} onOpenChange={setEspePickerOpen}>
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
-            <div style={{ width: 160, borderRight: "1px solid #E5E5E5", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
+            <div style={{ width: 160, borderRight: "1px solid var(--border-default)", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
               {ESPERA_CATEGORIES.map(cat => {
                 const Icon = cat.icon;
                 const sel = selectedEspePickerCat === cat.id;
                 return (
                   <button key={cat.id} onClick={() => setSelectedEspePickerCat(cat.id)}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#EFF6FF" : "transparent", border: "none", borderLeft: sel ? "2px solid #3B82F6" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#3B82F6" : "#374151", fontWeight: sel ? 600 : 400, textAlign: "left" }}>
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#EFF6FF" : "transparent", border: "none", borderLeft: sel ? "2px solid #3B82F6" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#3B82F6" : "var(--text-heading)", fontWeight: sel ? 600 : 400, textAlign: "left" }}>
                     <Icon size={14} />{cat.label}
                   </button>
                 );
@@ -3476,8 +3477,8 @@ export default function AutomacoesPage() {
                 const cat = ESPERA_CATEGORIES.find(c => c.id === selectedEspePickerCat)!;
                 return (
                   <>
-                    <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "#111111" }}>{cat.label}</div>
-                    <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 16 }}>{cat.description}</div>
+                    <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{cat.label}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{cat.description}</div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                       {cat.items.map(item => (
                         <button key={item.id}
@@ -3494,16 +3495,16 @@ export default function AutomacoesPage() {
                             }
                             setEspePickerOpen(false);
                           }}
-                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid #E5E5E5", borderRadius: 8, background: "#FFFFFF", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
+                          style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid var(--border-default)", borderRadius: 8, background: "var(--surface-card)", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = "#3B82F6"; e.currentTarget.style.background = "#EFF6FF"; }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.background = "#FFFFFF"; }}
+                          onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.background = "var(--surface-card)"; }}
                         >
-                          <div style={{ width: 28, height: 28, borderRadius: 7, background: "#EFF6FF", border: "0.5px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "#EFF6FF", border: "0.5px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                             {item.id === "usuario_parou" ? <MessageCircle size={14} color="#3B82F6" /> : <Clock size={14} color="#3B82F6" />}
                           </div>
                           <div>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: "#111111" }}>{item.label}</div>
-                            <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{item.description}</div>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}>{item.label}</div>
+                            <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.4 }}>{item.description}</div>
                           </div>
                         </button>
                       ))}
@@ -3589,21 +3590,21 @@ export default function AutomacoesPage() {
 
 const zoomBtn: React.CSSProperties = {
   width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none",
-  color: "#6B7280", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+  color: "var(--text-muted)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
 };
 
 const tcpSelectStyle: React.CSSProperties = {
-  width: "100%", border: "1px solid #E5E5E5", borderRadius: 6,
-  padding: "7px 10px", fontSize: 12, background: "#FFFFFF", outline: "none", cursor: "pointer",
+  width: "100%", border: "1px solid var(--border-default)", borderRadius: 6,
+  padding: "7px 10px", fontSize: 12, background: "var(--surface-card)", outline: "none", cursor: "pointer",
 };
 
 const tcpInputStyle: React.CSSProperties = {
-  width: "100%", border: "1px solid #E5E5E5", borderRadius: 6,
-  padding: "7px 10px", fontSize: 12, background: "#FFFFFF", outline: "none", boxSizing: "border-box",
+  width: "100%", border: "1px solid var(--border-default)", borderRadius: 6,
+  padding: "7px 10px", fontSize: 12, background: "var(--surface-card)", outline: "none", boxSizing: "border-box",
 };
 
 const tcpWarning = (text: string) => (
-  <div style={{ background: "#FFFBEB", border: "0.5px solid #FCD34D", borderRadius: 8, padding: "10px 12px", fontSize: 11, color: "#92400E", lineHeight: 1.5 }}>
+  <div style={{ background: "#FFFBEB", border: "0.5px solid #FCD34D", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
     <span style={{ fontWeight: 700 }}>⚠ </span>{text}
   </div>
 );
@@ -3683,13 +3684,13 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
         <a
           href="/configuracoes/conexoes" target="_blank" rel="noopener noreferrer"
           title="Gerenciar conexões em Configurações → Conexão"
-          style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "1px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "#6B7280" }}
+          style={{ width: 32, height: 32, borderRadius: 6, background: "var(--neutral-50)", border: "1px solid var(--border-default)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, color: "var(--text-muted)" }}
         >
-          <ArrowLeftRight size={13} color="#6B7280" />
+          <ArrowLeftRight size={13} color="var(--text-muted)" />
         </a>
       </div>
       {whatsappConnections.length === 0 && (
-        <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0", lineHeight: 1.4 }}>
           Nenhuma conexão cadastrada. Adicione em <strong>Configurações → Conexão</strong>.
         </p>
       )}
@@ -3699,7 +3700,7 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
   const KeywordsBlock = () => (
     <>
       <div>
-        <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Tipo da comparação das palavras-chaves</div>
+        <div style={{ fontSize: 12, color: "var(--text-heading)", marginBottom: 6 }}>Tipo da comparação das palavras-chaves</div>
         <select value={(cfg.keywordType as string) ?? "Contém"} onChange={e => updateConfig("keywordType", e.target.value)} style={tcpSelectStyle}>
           <option value="Contém">Contém</option>
           <option value="Igual a">Igual a</option>
@@ -3717,11 +3718,11 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
           onChange={e => updateConfig("keywords", e.target.value)}
           placeholder="Digite palavras-chave..."
           rows={3}
-          style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
+          style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 6, padding: "8px 10px", fontSize: 12, resize: "none", outline: "none", boxSizing: "border-box", fontFamily: "inherit" }}
         />
       </div>
       <div>
-        <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Indica as condições para iniciar uma nova sessão na automação</div>
+        <div style={{ fontSize: 12, color: "var(--text-heading)", marginBottom: 6 }}>Indica as condições para iniciar uma nova sessão na automação</div>
         <select value={(cfg.sessionCondition as string) ?? "not_in"} onChange={e => updateConfig("sessionCondition", e.target.value)} style={tcpSelectStyle}>
           <option value="not_in">Iniciar apenas se o contato não estiver atualmente nesta automação</option>
           <option value="always">Sempre iniciar uma nova sessão</option>
@@ -3733,8 +3734,8 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
 
   const SourceBadge = () => (
     <div>
-      <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Fonte de dados</div>
-      <span style={{ display: "inline-block", background: "#3B82F6", color: "#FFFFFF", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>Api-request-1</span>
+      <div style={{ fontSize: 12, color: "var(--text-heading)", marginBottom: 6 }}>Fonte de dados</div>
+      <span style={{ display: "inline-block", background: "#3B82F6", color: "#FFFFFF", fontSize: 12, fontWeight: 600, padding: "3px 10px", borderRadius: 20 }}>Api-request-1</span>
     </div>
   );
 
@@ -3757,7 +3758,7 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Pipeline (opcional)</div>
+              <div style={{ fontSize: 12, color: "var(--text-heading)", marginBottom: 6 }}>Pipeline (opcional)</div>
               <select
                 value={(cfg.pipeline as string) ?? ""}
                 onChange={e => { updateConfig("pipeline", e.target.value); updateConfig("stage", ""); }}
@@ -3843,7 +3844,7 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
             )}
             {trigger.triggerId === "neg_perdido" && (
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontSize: 12, color: "#374151" }}>Receber fonte de dados do provedor do negócio</span>
+                <span style={{ fontSize: 12, color: "var(--text-heading)" }}>Receber fonte de dados do provedor do negócio</span>
                 <Switch checked={!!(cfg.receberFonte)} onCheckedChange={v => updateConfig("receberFonte", v)} className="scale-75" />
               </div>
             )}
@@ -3874,7 +3875,7 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
       case "lead_manual":
       case "atividade_exec":
         return (
-          <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
             Sem configurações adicionais para este gatilho.
           </div>
         );
@@ -3889,7 +3890,7 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>{label}</div>
+              <div style={{ fontSize: 12, color: "var(--text-heading)", marginBottom: 6 }}>{label}</div>
               <input type="number" min={0} value={(cfg[key] as number) ?? 0}
                 onChange={e => updateConfig(key, Number(e.target.value))} style={tcpInputStyle} />
             </div>
@@ -3912,19 +3913,19 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
             {isMsg && (
               <>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                  <span style={{ fontSize: 12, color: "#374151" }}>
+                  <span style={{ fontSize: 12, color: "var(--text-heading)" }}>
                     {isSent ? "Monitorar mensagens enviadas em grupos" : "Ouvir mensagens enviadas em grupos"}
                   </span>
                   <Switch checked={!!(cfg.groupMessages)} onCheckedChange={v => updateConfig("groupMessages", v)} className="scale-75" />
                 </div>
                 {isSent && (
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                    <span style={{ fontSize: 12, color: "#374151" }}>Considerar mensagens agendadas</span>
+                    <span style={{ fontSize: 12, color: "var(--text-heading)" }}>Considerar mensagens agendadas</span>
                     <Switch checked={!!(cfg.scheduledMessages)} onCheckedChange={v => updateConfig("scheduledMessages", v)} className="scale-75" />
                   </div>
                 )}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                  <span style={{ fontSize: 12, color: "#374151" }}>Receber fonte de dados do provedor da mensagem</span>
+                  <span style={{ fontSize: 12, color: "var(--text-heading)" }}>Receber fonte de dados do provedor da mensagem</span>
                   <Switch checked={!!(cfg.receberFonte)} onCheckedChange={v => updateConfig("receberFonte", v)} className="scale-75" />
                 </div>
               </>
@@ -3942,7 +3943,7 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
             {InstanceRow({ label: "Qual a instância que irá ouvir os comentários e iniciar a automação?" })}
             {KeywordsBlock()}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <span style={{ fontSize: 12, color: "#374151" }}>Receber fonte de dados do provedor do comentário</span>
+              <span style={{ fontSize: 12, color: "var(--text-heading)" }}>Receber fonte de dados do provedor do comentário</span>
               <Switch checked={!!(cfg.receberFonte)} onCheckedChange={v => updateConfig("receberFonte", v)} className="scale-75" />
             </div>
           </div>
@@ -4018,7 +4019,7 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Modo de disparo</div>
+              <div style={{ fontSize: 12, color: "var(--text-heading)", marginBottom: 6 }}>Modo de disparo</div>
               <select value={(cfg.mode as string) ?? "any"} onChange={e => updateConfig("mode", e.target.value)} style={tcpSelectStyle}>
                 <option value="any">Qualquer alteração</option>
                 <option value="specific">Para um valor específico</option>
@@ -4133,7 +4134,7 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
 
               return (
                 <div>
-                  <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Valor esperado</div>
+                  <div style={{ fontSize: 12, color: "var(--text-heading)", marginBottom: 6 }}>Valor esperado</div>
                   {input}
                 </div>
               );
@@ -4146,16 +4147,16 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>URL do webhook</div>
+              <div style={{ fontSize: 12, color: "var(--text-heading)", marginBottom: 6 }}>URL do webhook</div>
               <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
-                <div style={{ flex: 1, background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 6, padding: "8px 10px", fontSize: 11, color: "#374151", lineHeight: 1.5, wordBreak: "break-all" }}>
+                <div style={{ flex: 1, background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 6, padding: "8px 10px", fontSize: 12, color: "var(--text-heading)", lineHeight: 1.5, wordBreak: "break-all" }}>
                   {webhookUrl}
                 </div>
                 <button
                   onClick={() => navigator.clipboard.writeText(webhookUrl).then(() => toast.success("URL copiada"))}
-                  style={{ width: 32, height: 32, borderRadius: 6, background: "#F3F4F6", border: "1px solid #E5E5E5", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
+                  style={{ width: 32, height: 32, borderRadius: 6, background: "var(--neutral-50)", border: "1px solid var(--border-default)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
                 >
-                  <Copy size={13} color="#6B7280" />
+                  <Copy size={13} color="var(--text-muted)" />
                 </button>
               </div>
             </div>
@@ -4171,17 +4172,17 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 8, padding: "10px 12px" }}>
               <div style={{ fontSize: 12, color: "#0369A1", fontWeight: 600, marginBottom: 4 }}>Como funciona</div>
-              <div style={{ fontSize: 11, color: "#0C4A6E", lineHeight: 1.5 }}>
+              <div style={{ fontSize: 12, color: "#0C4A6E", lineHeight: 1.5 }}>
                 Esta automação é iniciada quando outra automação usa a ação <strong>"Iniciar Automação"</strong> apontando para ela.
               </div>
             </div>
             <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Restringir à automação (opcional)</div>
-              <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 6 }}>Deixe em branco para aceitar de qualquer automação.</div>
+              <div style={{ fontSize: 12, color: "var(--text-heading)", marginBottom: 6 }}>Restringir à automação (opcional)</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>Deixe em branco para aceitar de qualquer automação.</div>
               <select
                 value={(cfg.automacao_id as string) ?? ""}
                 onChange={e => updateConfig("automacao_id", e.target.value)}
-                style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 6, padding: "6px 8px", fontSize: 12, background: "#FFFFFF", color: "#374151" }}
+                style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 6, padding: "6px 8px", fontSize: 12, background: "var(--surface-card)", color: "var(--text-heading)" }}
               >
                 <option value="">Qualquer automação</option>
                 {outrasAutos.map(a => (
@@ -4200,8 +4201,8 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
               <span style={{ fontSize: 20 }}>🔌</span>
             </div>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#111111", marginBottom: 4 }}>MCP Server Tool</div>
-              <div style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.5 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)", marginBottom: 4 }}>MCP Server Tool</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
                 Este gatilho permite que agentes de IA chamem automações via protocolo MCP.<br />
                 <span style={{ color: "#7C3AED", fontWeight: 600 }}>Disponível em breve.</span>
               </div>
@@ -4213,42 +4214,42 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Modo</div>
+              <div style={{ fontSize: 12, color: "var(--text-heading)", marginBottom: 6 }}>Modo</div>
               <select value={(cfg.mode as string) ?? "fixed"} onChange={e => updateConfig("mode", e.target.value)} style={tcpSelectStyle}>
                 <option value="fixed">Intervalo fixo</option>
                 <option value="cron">Expressão cron</option>
               </select>
             </div>
             <div>
-              <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>Intervalo em minutos</div>
+              <div style={{ fontSize: 12, color: "var(--text-heading)", marginBottom: 6 }}>Intervalo em minutos</div>
               <input type="number" min={15} value={(cfg.interval as number) ?? 60}
                 onChange={e => updateConfig("interval", Number(e.target.value))} style={tcpInputStyle} />
             </div>
             {tcpWarning("O intervalo mínimo é de 15 minutos.")}
-            <div style={{ background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 8, padding: "10px 12px" }}>
-              <div style={{ fontSize: 11, color: "#6B7280", display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 8, padding: "10px 12px" }}>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
                 <Calendar size={12} /> Próxima execução
               </div>
-              <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 4 }}>Não agendado</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>Não agendado</div>
             </div>
           </div>
         );
 
       default:
-        return <div style={{ fontSize: 12, color: "#6B7280" }}>Sem configurações adicionais.</div>;
+        return <div style={{ fontSize: 12, color: "var(--text-muted)" }}>Sem configurações adicionais.</div>;
     }
   };
 
   return (
-    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 8px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "flex-start", gap: 10 }}>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "flex-start", gap: 10 }}>
         <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
-          <ArrowLeft size={14} color="#6B7280" />
+          <ArrowLeft size={14} color="var(--text-muted)" />
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "#111111", lineHeight: 1.3 }}>{trigger.label}</div>
-          <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, lineHeight: 1.4 }}>{trigger.description}</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)", lineHeight: 1.3 }}>{trigger.label}</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.4 }}>{trigger.description}</div>
         </div>
       </div>
       {/* Body */}
@@ -4256,12 +4257,12 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
         {renderBody()}
       </div>
       {/* Footer */}
-      <div style={{ padding: "10px 16px", borderTop: "1px solid #E5E5E5" }}>
+      <div style={{ padding: "10px 16px", borderTop: "1px solid var(--border-default)" }}>
         <button
           onClick={onChangeTrigger}
-          style={{ width: "100%", border: "1px solid #E5E5E5", borderRadius: 8, background: "transparent", color: "#6B7280", fontSize: 12, padding: "7px", cursor: "pointer" }}
+          style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, background: "transparent", color: "var(--text-muted)", fontSize: 12, padding: "7px", cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.color = "hsl(var(--primary))"; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = "#E5E5E5"; e.currentTarget.style.color = "#6B7280"; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.color = "var(--text-muted)"; }}
         >
           Alterar gatilho
         </button>
@@ -4289,34 +4290,34 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
       style={{
         position: "absolute", left: node.x, top: node.y, width: 280,
         zIndex: 2,
-        background: "#FFFFFF",
-        border: `1px solid ${selected ? "hsl(var(--primary))" : "#D1D5DB"}`,
+        background: "var(--surface-card)",
+        border: `1px solid ${selected ? "hsl(var(--primary))" : "var(--border-strong)"}`,
         borderRadius: 12, cursor: "grab",
         boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "none",
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 14px 10px", borderBottom: "1px solid #E5E5E5" }}>
-        <Play size={14} fill="hsl(var(--primary))" color="hsl(var(--primary))" />
-        <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Início</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 14px 10px", borderBottom: "1px solid var(--border-default)" }}>
+        <Play size={14} fill="var(--text-link)" color="var(--text-link)" />
+        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Início</span>
       </div>
       <div style={{ padding: "10px 14px 14px" }}>
         {node.trigger ? (
           <div
-            style={{ padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, marginBottom: 8 }}
+            style={{ padding: "8px 10px", background: "var(--accent-50)", border: "0.5px solid var(--accent-200)", borderRadius: 8, marginBottom: 8 }}
           >
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
               <div
                 onClick={(e) => { e.stopPropagation(); onTriggerClick?.(); }}
                 style={{ flex: 1, cursor: "pointer" }}
               >
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#15803D" }}>{node.trigger.label}</div>
-                <div style={{ fontSize: 11, color: "#4ADE80", marginTop: 2 }}>{node.trigger.description}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)" }}>{node.trigger.label}</div>
+                <div style={{ fontSize: 12, color: "var(--accent-800)", marginTop: 2 }}>{node.trigger.description}</div>
               </div>
               <button
                 onClick={(e) => { e.stopPropagation(); onRemoveTrigger?.(); }}
                 title="Remover gatilho"
-                style={{ background: "transparent", border: "none", cursor: "pointer", padding: 2, color: "#86EFAC", borderRadius: 4, flexShrink: 0, display: "flex", alignItems: "center" }}
-                onMouseEnter={e => { e.currentTarget.style.color = "#EF4444"; e.currentTarget.style.background = "#FEE2E2"; }}
+                style={{ background: "transparent", border: "none", cursor: "pointer", padding: 2, color: "#86EFAC", borderRadius: 10, flexShrink: 0, display: "flex", alignItems: "center" }}
+                onMouseEnter={e => { e.currentTarget.style.color = "var(--danger-fg)"; e.currentTarget.style.background = "var(--danger-bg)"; }}
                 onMouseLeave={e => { e.currentTarget.style.color = "#86EFAC"; e.currentTarget.style.background = "transparent"; }}
               >
                 <Trash2 size={13} />
@@ -4324,42 +4325,42 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
             </div>
           </div>
         ) : (
-          <div style={{ fontSize: 12, color: "#6B7280", marginBottom: 8, lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8, lineHeight: 1.5 }}>
             O gatilho é responsável por acionar a automação. Clique para adicionar um gatilho:
           </div>
         )}
         <button
           onClick={(e) => { e.stopPropagation(); onAddTrigger(); }}
-          style={{ width: "100%", border: "1px dashed #CCCCCC", background: "transparent", color: "#6B7280", fontSize: 12, padding: "6px", borderRadius: 6, cursor: "pointer", marginTop: 4 }}
+          style={{ width: "100%", border: "1px dashed var(--border-strong)", background: "transparent", color: "var(--text-muted)", fontSize: 12, padding: "6px", borderRadius: 6, cursor: "pointer", marginTop: 4 }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.color = "hsl(var(--primary))"; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = "#CCCCCC"; e.currentTarget.style.color = "#6B7280"; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-strong)"; e.currentTarget.style.color = "var(--text-muted)"; }}
         >
           {node.trigger ? "Alterar gatilho" : "+ Adicionar gatilho"}
         </button>
-        <div style={{ position: "relative", fontSize: 11, color: "#6B7280", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: 8 }}>
+        <div style={{ position: "relative", fontSize: 12, color: "var(--text-muted)", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: 8 }}>
           <span>Quando o evento ocorrer, então</span>
           <div
             data-port
             data-from-node={node.id}
             title="Arraste para adicionar próximo passo"
             onMouseDown={onPortDragStart}
-            style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#378ADD", border: "2px solid #FFFFFF", cursor: "crosshair", boxShadow: "0 0 0 3px rgba(55,138,221,0.25)", zIndex: 3 }}
+            style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#378ADD", border: "2px solid var(--surface-card)", cursor: "crosshair", boxShadow: "0 0 0 3px rgba(55,138,221,0.25)", zIndex: 3 }}
           />
         </div>
       </div>
       {/* Metrics */}
-      <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid var(--border-default)", fontSize: 12 }}>
         {([
-          { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
-          { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))",             label: "Alertas"  },
-          { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))",             label: "Erros"    },
+          { key: "success" as const, count: stats?.s ?? 0, color: "var(--text-link)", label: "Sucessos" },
+          { key: "alert"   as const, count: stats?.a ?? 0, color: "var(--text-link)",             label: "Alertas"  },
+          { key: "error"   as const, count: stats?.e ?? 0, color: "var(--text-link)",             label: "Erros"    },
         ]).map(({ key, count, color, label }) => (
           <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
             style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
-            onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
+            onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "var(--neutral-50)"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
           >
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{count}</div>
             <div style={{ color }}>{label}</div>
           </button>
         ))}
@@ -4402,7 +4403,7 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
       <div style={{ padding: "6px 10px", borderBottom: `0.5px solid ${c.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, background: c.header }}>
         <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <StickyNote size={12} color={c.headerText} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: c.headerText }}>Anotação</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: c.headerText }}>Anotação</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 2 }}>
           {/* Color picker button */}
@@ -4412,7 +4413,7 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
               onMouseDown={e => e.stopPropagation()}
               onClick={e => { e.stopPropagation(); setColorPickerOpen(v => !v); }}
               title="Alterar cor"
-              style={{ width: 18, height: 18, borderRadius: 4, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: c.headerText, padding: 0 }}
+              style={{ width: 18, height: 18, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: c.headerText, padding: 0 }}
               onMouseEnter={e => (e.currentTarget.style.background = `${c.border}99`)}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
             >
@@ -4422,7 +4423,7 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
               <div
                 data-action
                 onMouseDown={e => e.stopPropagation()}
-                style={{ position: "absolute", top: 22, right: 0, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 6, display: "flex", gap: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.12)", zIndex: 50 }}
+                style={{ position: "absolute", top: 22, right: 0, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 6, display: "flex", gap: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.12)", zIndex: 50 }}
               >
                 {NOTE_COLORS.map((col, i) => (
                   <button
@@ -4443,7 +4444,7 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
             onMouseDown={e => e.stopPropagation()}
             onClick={onDelete}
             title="Excluir anotação"
-            style={{ width: 18, height: 18, borderRadius: 4, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: c.headerText, padding: 0 }}
+            style={{ width: 18, height: 18, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: c.headerText, padding: 0 }}
             onMouseEnter={e => (e.currentTarget.style.background = `${c.border}99`)}
             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
           >
@@ -4546,7 +4547,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         left: -8, top: 32,  // centro em (0, 40) do nó — coincide com endpoint das linhas SVG
         width: 16, height: 16,
         borderRadius: "50%",
-        background: portDragging === "error" ? "#FCA5A5" : portDragging === "normal" ? "#93C5FD" : "#FFFFFF",
+        background: portDragging === "error" ? "#FCA5A5" : portDragging === "normal" ? "#93C5FD" : "var(--surface-card)",
         border: `2px solid ${portDragging === "error" ? "#EF4444" : portDragging === "normal" ? "#3B82F6" : "#9CA3AF"}`,
         boxShadow: portDragging != null && portHovered
           ? `0 0 0 5px ${portDragging === "error" ? "rgba(239,68,68,0.25)" : "rgba(55,138,221,0.25)"}`
@@ -4563,17 +4564,17 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     <div
       data-action
       onMouseDown={e => e.stopPropagation()}
-      style={{ position: "absolute", top: -40, right: 0, display: "flex", gap: 4, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 8, padding: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+      style={{ position: "absolute", top: -40, right: 0, display: "flex", gap: 4, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 4, boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
     >
       {([
         { Ic: Trash2,     title: "Excluir",    action: onDelete,   hoverBg: "#FEE2E2", hoverColor: "#EF4444" },
-        { Ic: Copy,       title: "Duplicar",   action: onDuplicate, hoverBg: "#F3F4F6", hoverColor: "#374151" },
+        { Ic: Copy,       title: "Duplicar",   action: onDuplicate, hoverBg: "var(--neutral-50)", hoverColor: "var(--text-heading)" },
         { Ic: StickyNote, title: "Anotações",  action: onAddNote,  hoverBg: "#FEF9C3", hoverColor: "#854D0E" },
       ] as const).map(({ Ic, title, action, hoverBg, hoverColor }, i) => (
         <button key={i} title={title} onClick={action}
-          style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}
+          style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}
           onMouseEnter={e => { e.currentTarget.style.background = hoverBg; (e.currentTarget.style as CSSStyleDeclaration).color = hoverColor; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#6B7280"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}
         ><Ic size={13} /></button>
       ))}
     </div>
@@ -4588,8 +4589,8 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         style={{
           position: "absolute", left: node.x, top: node.y, width: 280,
           zIndex: 2,
-          background: "#FFFFFF",
-          border: `1px solid ${selected ? "#F97316" : "#D1D5DB"}`,
+          background: "var(--surface-card)",
+          border: `1px solid ${selected ? "#F97316" : "var(--border-strong)"}`,
           borderRadius: 12, cursor: "grab",
           boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
         }}
@@ -4597,9 +4598,9 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         {inputPort}
         {selected && toolbar}
         {/* Header */}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", gap: 8 }}>
           <Zap size={16} color="#F97316" />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Ação</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Ação</span>
         </div>
         {/* Body */}
         <div style={{ padding: "10px 14px" }}>
@@ -4610,16 +4611,16 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                 const actData = catData?.actions.find(a => a.id === item.actionId);
                 const AIcon = actData?.icon ?? Zap;
                 return (
-                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 7, fontSize: 12, color: "#374151" }}>
+                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 6, fontSize: 12, color: "var(--text-heading)" }}>
                     <AIcon size={12} color="#F97316" />
                     <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
                     {removeActionItem && (
                       <button
                         onMouseDown={e => e.stopPropagation()}
                         onClick={e => { e.stopPropagation(); removeActionItem(item.id); }}
-                        style={{ background: "transparent", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center", color: "#9CA3AF", flexShrink: 0 }}
-                        onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                        onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                        style={{ background: "transparent", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center", color: "var(--text-muted)", flexShrink: 0 }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")}
+                        onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}
                       >
                         <Trash2 size={11} />
                       </button>
@@ -4629,7 +4630,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
               })}
             </div>
           ) : (
-            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 8 }}>
               Execute ações no sistema. Clique para adicionar ações:
             </div>
           )}
@@ -4637,7 +4638,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             data-action
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onOpenAcoesPicker?.(); }}
-            style={{ width: "100%", border: "1px dashed #FED7AA", background: "#FFF7ED", color: "#F97316", fontSize: 12, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            style={{ width: "100%", border: "1px dashed #FED7AA", background: "#FFF7ED", color: "#92400E", fontSize: 12, padding: "7px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
             onMouseEnter={e => { e.currentTarget.style.background = "#FFEDD5"; e.currentTarget.style.borderColor = "#F97316"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "#FFF7ED"; e.currentTarget.style.borderColor = "#FED7AA"; }}
           >
@@ -4646,17 +4647,17 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           {/* Output ports */}
           <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro na execução da ação</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Caso ocorrer erro na execução da ação</span>
               <div
                 data-port
                 data-from-node={`${node.id}__error`}
                 onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }}
                 title="Arraste para tratar o erro"
-                style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }}
+                style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid var(--danger-400)", cursor: "crosshair", zIndex: 3 }}
               />
             </div>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-              <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Próximo passo</span>
               <div
                 data-port data-from-node={node.id}
                 onMouseDown={onPortDragStart}
@@ -4666,21 +4667,21 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           </div>
         </div>
         {/* Footer */}
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid var(--border-default)", fontSize: 12 }}>
           {([
-            { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
-            { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas"  },
-            { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros"    },
+            { key: "success" as const, count: stats?.s ?? 0, color: "var(--text-link)", label: "Sucessos" },
+            { key: "alert"   as const, count: stats?.a ?? 0, color: "var(--text-link)", label: "Alertas"  },
+            { key: "error"   as const, count: stats?.e ?? 0, color: "var(--text-link)", label: "Erros"    },
           ]).map(({ key, count, color, label }) => (
             <button
               key={key}
               data-action
               onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
               style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
-              onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
+              onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "var(--neutral-50)"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
             >
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{count}</div>
               <div style={{ color }}>{label}</div>
             </button>
           ))}
@@ -4693,16 +4694,16 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const items = node.conditionItems ?? [];
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#8B5CF6" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "var(--surface-card)", border: `1px solid ${selected ? "#8B5CF6" : "var(--border-strong)"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", gap: 8 }}>
           <Filter size={15} color="#8B5CF6" />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Condições</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Condições</span>
         </div>
         <div style={{ padding: "10px 14px" }}>
           {items.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>Faça filtros para seguir caminhos diferentes.<br />Clique para adicionar uma condição:</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 8 }}>Faça filtros para seguir caminhos diferentes.<br />Clique para adicionar uma condição:</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {items.map(item => {
@@ -4711,23 +4712,23 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                 const CondIcon = condData?.icon ?? Filter;
                 return (
                   <div key={item.id}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 5, padding: "5px 8px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 7, fontSize: 11, color: "#374151" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 5, padding: "5px 8px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 6, fontSize: 12, color: "var(--text-heading)" }}>
                       <CondIcon size={10} color="#8B5CF6" style={{ flexShrink: 0, marginTop: 2 }} />
                       <div style={{ flex: 1, overflow: "hidden" }}>
                         <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? item.label}</div>
-                        {condData?.description && <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData.description}</div>}
+                        {condData?.description && <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData.description}</div>}
                       </div>
                       <button
                         data-action
                         onMouseDown={e => e.stopPropagation()}
                         onClick={e => { e.stopPropagation(); removeConditionItem?.(item.id); }}
-                        style={{ width: 16, height: 16, borderRadius: 3, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#C4B5FD", flexShrink: 0, padding: 0 }}
-                        onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                        style={{ width: 16, height: 16, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#C4B5FD", flexShrink: 0, padding: 0 }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")}
                         onMouseLeave={e => (e.currentTarget.style.color = "#C4B5FD")}
                       ><X size={10} /></button>
                     </div>
                     <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 5, marginTop: 3, paddingRight: 8 }}>
-                      <span style={{ fontSize: 10, color: "#6B7280" }}>Se esta condição for verdadeira</span>
+                      <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Se esta condição for verdadeira</span>
                       <div data-port data-from-node={`${node.id}_${item.id}`} onMouseDown={e => onConditionPortDragStart?.(e, item.id)}
                         style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 10, height: 10, borderRadius: "50%", background: "#A5F3FC", border: "2px solid #06B6D4", cursor: "crosshair", zIndex: 3 }} />
                     </div>
@@ -4742,7 +4743,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             data-action
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onSelect(); onOpenCondicoesPicker?.(); }}
-            style={{ width: "100%", marginTop: 8, padding: "7px 0", background: "transparent", border: "1px dashed #DDD6FE", borderRadius: 7, fontSize: 12, color: "#8B5CF6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+            style={{ width: "100%", marginTop: 8, padding: "7px 0", background: "transparent", border: "1px dashed #DDD6FE", borderRadius: 6, fontSize: 12, color: "#7C3AED", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
             onMouseEnter={e => (e.currentTarget.style.background = "#F5F3FF")}
             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
           >
@@ -4752,31 +4753,31 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           {/* Bottom ports */}
           <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 3 }}>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-              <span style={{ fontSize: 10, color: "#6B7280" }}>Todas as condições forem verdadeiras</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Todas as condições forem verdadeiras</span>
               <div data-port data-from-node={node.id} onMouseDown={onPortDragStart}
                 style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 10, height: 10, borderRadius: "50%", background: "#DDD6FE", border: "2px solid #8B5CF6", cursor: "crosshair", zIndex: 3 }} />
             </div>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-              <span style={{ fontSize: 10, color: "#EF4444" }}>Quando não atender a nenhuma condição</span>
+              <span style={{ fontSize: 12, color: "var(--danger-fg)" }}>Quando não atender a nenhuma condição</span>
               <div data-port data-from-node={`${node.id}__error`} onMouseDown={e => { e.stopPropagation(); onErrorPortDragStart?.(e); }}
-                style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 10, height: 10, borderRadius: "50%", background: "#FEE2E2", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }} />
+                style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 10, height: 10, borderRadius: "50%", background: "var(--danger-bg)", border: "2px solid var(--danger-400)", cursor: "crosshair", zIndex: 3 }} />
             </div>
           </div>
 
           {/* Stats */}
         </div>
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid var(--border-default)", fontSize: 12 }}>
           {([
-            { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
-            { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))",             label: "Alertas"  },
-            { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))",             label: "Erros"    },
+            { key: "success" as const, count: stats?.s ?? 0, color: "var(--text-link)", label: "Sucessos" },
+            { key: "alert"   as const, count: stats?.a ?? 0, color: "var(--text-link)",             label: "Alertas"  },
+            { key: "error"   as const, count: stats?.e ?? 0, color: "var(--text-link)",             label: "Erros"    },
           ]).map(({ key, count, color, label }) => (
             <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
               style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
-              onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
+              onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "var(--neutral-50)"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
             >
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{count}</div>
               <div style={{ color }}>{label}</div>
             </button>
           ))}
@@ -4789,12 +4790,12 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const espera = node.espera;
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#3B82F6" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "var(--surface-card)", border: `1px solid ${selected ? "#3B82F6" : "var(--border-strong)"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", gap: 8 }}>
           <Clock size={15} color="#3B82F6" />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Espera</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Espera</span>
         </div>
         <div style={{ padding: "10px 14px" }}>
           {espera ? (() => {
@@ -4803,19 +4804,19 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             if (!item) return null;
             const ItemIcon = espera.type === "usuario_parou" ? MessageCircle : Clock;
             return (
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 8px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 7 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 8px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 10 }}>
                 <ItemIcon size={13} color="#3B82F6" style={{ flexShrink: 0, marginTop: 1 }} />
                 <div style={{ flex: 1, overflow: "hidden" }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "#1D4ED8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
-                  <div style={{ fontSize: 11, color: "#6B7280", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.description}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.description}</div>
                 </div>
               </div>
             );
           })() : (
-            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>Espera um determinado tempo para continuar a execução. Adicione um tipo de espera:</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>Espera um determinado tempo para continuar a execução. Adicione um tipo de espera:</div>
           )}
           <div style={{ position: "relative", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-            <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
+            <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Próximo passo</span>
             <div data-port data-from-node={node.id} onMouseDown={onPortDragStart}
               style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#BFDBFE", border: "2px solid #3B82F6", cursor: "crosshair", zIndex: 3 }} />
           </div>
@@ -4828,31 +4829,31 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const branches = node.randomBranches ?? DEFAULT_BRANCHES;
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#F97316" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "var(--surface-card)", border: `1px solid ${selected ? "#F97316" : "var(--border-strong)"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(249,115,22,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", gap: 8 }}>
           <Shuffle size={15} color="#F97316" />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Randomizador</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Randomizador</span>
         </div>
         <div style={{ padding: "10px 14px" }}>
-          <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>Divida o fluxo em ramificações aleatórias. Clique para adicionar um randomizador:</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 8 }}>Divida o fluxo em ramificações aleatórias. Clique para adicionar um randomizador:</div>
           <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {branches.map((b, i) => (
-              <div key={b.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", paddingRight: 22, background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 6 }}>
-                <div style={{ width: 20, height: 20, borderRadius: 5, background: BRANCH_COLORS[i % BRANCH_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "#FFF" }}>{b.label}</span>
+              <div key={b.id} style={{ position: "relative", display: "flex", alignItems: "center", gap: 6, padding: "6px 10px", paddingRight: 22, background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 6 }}>
+                <div style={{ width: 20, height: 20, borderRadius: 6, background: BRANCH_COLORS[i % BRANCH_COLORS.length], display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#FFF" }}>{b.label}</span>
                 </div>
-                <span style={{ flex: 1, fontSize: 11, color: "#374151", fontWeight: 500 }}>{b.label}</span>
-                <span style={{ fontSize: 11, color: "#374151", fontWeight: 600 }}>{b.percentage}%</span>
+                <span style={{ flex: 1, fontSize: 12, color: "var(--text-heading)", fontWeight: 500 }}>{b.label}</span>
+                <span style={{ fontSize: 12, color: "var(--text-heading)", fontWeight: 600 }}>{b.percentage}%</span>
                 {branches.length > 1 && (
                   <button
                     data-action
                     onMouseDown={e => e.stopPropagation()}
                     onClick={e => { e.stopPropagation(); onRemoveRandomBranch?.(b.id); }}
-                    style={{ width: 16, height: 16, borderRadius: 3, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#D1D5DB", flexShrink: 0, padding: 0, marginRight: 2 }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "#D1D5DB")}
+                    style={{ width: 16, height: 16, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--neutral-400)", flexShrink: 0, padding: 0, marginRight: 2 }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "var(--neutral-400)")}
                   ><X size={10} /></button>
                 )}
                 <div data-port data-from-node={`${node.id}_${b.id}`} onMouseDown={e => onBranchPortDragStart?.(e, b.id)}
@@ -4863,25 +4864,25 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           <button
             data-action
             onClick={(e) => { e.stopPropagation(); onAddRandomBranch?.(); onSelect(); }}
-            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, marginTop: 8, padding: "7px 0", border: "1px dashed #E5E5E5", borderRadius: 7, background: "transparent", color: "#6B7280", fontSize: 11, fontWeight: 500, cursor: "pointer" }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#F3F4F6"; e.currentTarget.style.borderColor = "#9CA3AF"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 5, marginTop: 8, padding: "7px 0", border: "1px dashed var(--border-default)", borderRadius: 6, background: "transparent", color: "var(--text-muted)", fontSize: 12, fontWeight: 500, cursor: "pointer" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "var(--neutral-50)"; e.currentTarget.style.borderColor = "#9CA3AF"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.borderColor = "var(--border-default)"; }}
           >
             <Plus size={11} /> Adicionar ramificação
           </button>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid var(--border-default)", fontSize: 12 }}>
           {([
-            { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
-            { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas"  },
-            { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros"    },
+            { key: "success" as const, count: stats?.s ?? 0, color: "var(--text-link)", label: "Sucessos" },
+            { key: "alert"   as const, count: stats?.a ?? 0, color: "var(--text-link)", label: "Alertas"  },
+            { key: "error"   as const, count: stats?.e ?? 0, color: "var(--text-link)", label: "Erros"    },
           ]).map(({ key, count, color, label }) => (
             <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
               style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
-              onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
+              onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "var(--neutral-50)"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
             >
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{count}</div>
               <div style={{ color }}>{label}</div>
             </button>
           ))}
@@ -4891,20 +4892,20 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
   }
 
   if (node.type === "ia") {
-    const PURPLE = "#8B5CF6";
+    const PURPLE = "#8B5CF6";  // identidade do bloco de IA: vive no ícone e na borda, nunca no texto
     const acts = node.iaActions ?? [];
     return (
       <div data-node onMouseDown={onDragStart}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `${selected ? 2 : 1}px solid ${selected ? PURPLE : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "var(--surface-card)", border: `${selected ? 2 : 1}px solid ${selected ? PURPLE : "#E5E5E5"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(139,92,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", gap: 8 }}>
           <Bot size={15} color={PURPLE} />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>IA</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>IA</span>
         </div>
         <div style={{ padding: "10px 14px" }}>
           {acts.length === 0 && (
-            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>Utilize ações com inteligência artificial. Clique para adicionar uma ação com IA:</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 8 }}>Utilize ações com inteligência artificial. Clique para adicionar uma ação com IA:</div>
           )}
           {acts.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
@@ -4915,17 +4916,17 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 8 }}>
                       <AIcon size={13} color={PURPLE} style={{ flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{IA_ACTION_LABEL[a.type]}</div>
-                        <div style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{IA_ACTION_TYPES.find(t => t.id === a.type)?.desc}</div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{IA_ACTION_LABEL[a.type]}</div>
+                        <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{IA_ACTION_TYPES.find(t => t.id === a.type)?.desc}</div>
                       </div>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: "#FFF", background: PURPLE, borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>{a.outputVar}</span>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#FFF", background: PURPLE, borderRadius: 6, padding: "1px 6px", flexShrink: 0 }}>{a.outputVar}</span>
                       <button
                         data-action
                         onMouseDown={e => e.stopPropagation()}
                         onClick={e => { e.stopPropagation(); onRemoveIaAction?.(a.id); }}
                         title="Remover ação"
-                        style={{ width: 16, height: 16, borderRadius: 3, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#C4B5FD", flexShrink: 0, padding: 0 }}
-                        onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
+                        style={{ width: 16, height: 16, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#C4B5FD", flexShrink: 0, padding: 0 }}
+                        onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")}
                         onMouseLeave={e => (e.currentTarget.style.color = "#C4B5FD")}>
                         <Trash2 size={11} />
                       </button>
@@ -4933,22 +4934,22 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                     {a.type === "intencao" && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 5 }}>
                         {(a.intencoes ?? []).map((it, i) => (
-                          <div key={it.id} style={{ position: "relative", minHeight: 24, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, padding: "3px 10px 3px 8px", background: "#ECFEFF", border: "0.5px solid #A5F3FC", borderRadius: 7 }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: it.nome.trim() ? "#0E7490" : "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 210 }}>{it.nome.trim() || `Intenção ${i + 1}`}</span>
+                          <div key={it.id} style={{ position: "relative", minHeight: 24, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, padding: "3px 10px 3px 8px", background: "#ECFEFF", border: "0.5px solid #A5F3FC", borderRadius: 10 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: it.nome.trim() ? "#0E7490" : "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 210 }}>{it.nome.trim() || `Intenção ${i + 1}`}</span>
                             <div data-port data-from-node={`${node.id}_${it.id}`} onMouseDown={e => onConditionPortDragStart?.(e, it.id)} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 11, height: 11, borderRadius: "50%", background: "#A5F3FC", border: "2px solid #06B6D4", cursor: "crosshair", zIndex: 3 }} />
                           </div>
                         ))}
-                        <div style={{ position: "relative", minHeight: 24, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, padding: "3px 10px 3px 8px", background: "#F0FDF4", border: "0.5px solid #BBF7D0", borderRadius: 7 }}>
-                          <span style={{ fontSize: 10, fontWeight: 600, color: "#16A34A" }}>Nenhuma intenção encontrada</span>
-                          <div data-port data-from-node={`${node.id}_${a.id}-none`} onMouseDown={e => onConditionPortDragStart?.(e, `${a.id}-none`)} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 11, height: 11, borderRadius: "50%", background: "#BBF7D0", border: "2px solid #16A34A", cursor: "crosshair", zIndex: 3 }} />
+                        <div style={{ position: "relative", minHeight: 24, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, padding: "3px 10px 3px 8px", background: "var(--accent-50)", border: "0.5px solid var(--accent-200)", borderRadius: 10 }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)" }}>Nenhuma intenção encontrada</span>
+                          <div data-port data-from-node={`${node.id}_${a.id}-none`} onMouseDown={e => onConditionPortDragStart?.(e, `${a.id}-none`)} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 11, height: 11, borderRadius: "50%", background: "#BBF7D0", border: "2px solid var(--accent-500)", cursor: "crosshair", zIndex: 3 }} />
                         </div>
                       </div>
                     )}
                     {a.type === "sentimento" && (
                       <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 5 }}>
                         {(a.sentimentos ?? []).map((s, i) => (
-                          <div key={s.id} style={{ position: "relative", minHeight: 24, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, padding: "3px 10px 3px 8px", background: "#ECFEFF", border: "0.5px solid #A5F3FC", borderRadius: 7 }}>
-                            <span style={{ fontSize: 10, fontWeight: 600, color: s.nome.trim() ? "#0E7490" : "#9CA3AF", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 210 }}>{s.nome.trim() || `Sentimento ${i + 1}`}</span>
+                          <div key={s.id} style={{ position: "relative", minHeight: 24, display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, padding: "3px 10px 3px 8px", background: "#ECFEFF", border: "0.5px solid #A5F3FC", borderRadius: 10 }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: s.nome.trim() ? "#0E7490" : "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 210 }}>{s.nome.trim() || `Sentimento ${i + 1}`}</span>
                             <div data-port data-from-node={`${node.id}_${s.id}`} onMouseDown={e => onConditionPortDragStart?.(e, s.id)} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 11, height: 11, borderRadius: "50%", background: "#A5F3FC", border: "2px solid #06B6D4", cursor: "crosshair", zIndex: 3 }} />
                           </div>
                         ))}
@@ -4957,7 +4958,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                     {a.type === "extrator_params" && (a.parametros ?? []).length > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 4, paddingLeft: 2 }}>
                         {(a.parametros ?? []).map(p => (
-                          <span key={p.id} style={{ fontSize: 9, fontWeight: 600, color: "#7C3AED", background: "#EDE9FE", border: "0.5px solid #DDD6FE", borderRadius: 4, padding: "1px 6px" }}>{p.nome || "param"}</span>
+                          <span key={p.id} style={{ fontSize: 12, fontWeight: 600, color: "#7C3AED", background: "#EDE9FE", border: "0.5px solid #DDD6FE", borderRadius: 6, padding: "1px 6px" }}>{p.nome || "param"}</span>
                         ))}
                       </div>
                     )}
@@ -4967,29 +4968,29 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             </div>
           )}
           <button data-action onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onOpenIaPicker?.(); }}
-            style={{ width: "100%", border: "1px dashed #DDD6FE", background: "#F5F3FF", color: PURPLE, fontSize: 12, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            style={{ width: "100%", border: "1px dashed #DDD6FE", background: "#F5F3FF", color: PURPLE, fontSize: 12, padding: "7px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
             onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
             <Plus size={13} /> Adicionar ação com IA
           </button>
           <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-              <span style={{ fontSize: 11, color: "#EF4444" }}>Caso ocorra erro na execução da IA</span>
-              <div data-port data-from-node={`${node.id}__error`} onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }} />
+              <span style={{ fontSize: 12, color: "var(--danger-fg)" }}>Caso ocorra erro na execução da IA</span>
+              <div data-port data-from-node={`${node.id}__error`} onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid var(--danger-400)", cursor: "crosshair", zIndex: 3 }} />
             </div>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-              <span style={{ fontSize: 11, color: PURPLE, fontWeight: 500 }}>Próximo passo</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Próximo passo</span>
               <div data-port data-from-node={node.id} onMouseDown={onPortDragStart} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#DDD6FE", border: `2px solid ${PURPLE}`, cursor: "crosshair", zIndex: 3 }} />
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "8px 14px", borderTop: "1px solid var(--border-default)", fontSize: 12 }}>
           <div style={{ textAlign: "center", padding: "4px 8px", flex: 1 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{stats?.tokAvg ? Math.round(stats.tokAvg).toLocaleString("pt-BR") : "0"}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{stats?.tokAvg ? Math.round(stats.tokAvg).toLocaleString("pt-BR") : "0"}</div>
             <div style={{ color: PURPLE }}>Média Tokens</div>
           </div>
-          {([{ key: "success" as const, count: stats?.s ?? 0, color: PURPLE, label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "#EF4444", label: "Erros" }]).map(({ key, count, color, label }) => (
-            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+          {([{ key: "success" as const, count: stats?.s ?? 0, color: PURPLE, label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "#F59E0B", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "var(--danger-fg)", label: "Erros" }]).map(({ key, count, color, label }) => (
+            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "var(--neutral-50)"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{count}</div>
               <div style={{ color }}>{label}</div>
             </button>
           ))}
@@ -5002,35 +5003,35 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const apiRequests = node.apiConfig?.requests ?? [];
     return (
       <div data-node onMouseDown={onDragStart} onClick={onSelect}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#3B82F6" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "var(--surface-card)", border: `1px solid ${selected ? "#3B82F6" : "var(--border-strong)"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", gap: 8 }}>
           <Braces size={15} color="#3B82F6" />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>API</span>
+          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>API</span>
         </div>
         <div style={{ padding: "10px 14px" }}>
           {apiRequests.length === 0 && (
-            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>Faça chamadas a APIs externas para integrar com outros sistemas ou serviços. Clique para adicionar uma chamada de API:</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 8 }}>Faça chamadas a APIs externas para integrar com outros sistemas ou serviços. Clique para adicionar uma chamada de API:</div>
           )}
           {apiRequests.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
               {apiRequests.map(req => (
-                <div key={req.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 7, fontSize: 11 }}>
+                <div key={req.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 6, fontSize: 12 }}>
                   {req.type === "json" ? <Braces size={12} color="#3B82F6" /> : <FileDown size={12} color="#3B82F6" />}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{req.type === "json" ? "Requisição HTTP via JSON" : "Requisição de arquivo HTTP"}</div>
-                    <div style={{ color: "#3B82F6", fontSize: 10 }}>{req.method} {req.url ? `· ${req.url.substring(0, 20)}${req.url.length > 20 ? "…" : ""}` : ""}</div>
+                    <div style={{ fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{req.type === "json" ? "Requisição HTTP via JSON" : "Requisição de arquivo HTTP"}</div>
+                    <div style={{ color: "#1D4ED8", fontSize: 12 }}>{req.method} {req.url ? `· ${req.url.substring(0, 20)}${req.url.length > 20 ? "…" : ""}` : ""}</div>
                   </div>
-                  <span style={{ fontSize: 9, fontWeight: 700, color: "#3B82F6", background: "#DBEAFE", borderRadius: 3, padding: "1px 5px", flexShrink: 0 }}>{req.name}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "#1D4ED8", background: "#DBEAFE", borderRadius: 6, padding: "1px 5px", flexShrink: 0 }}>{req.name}</span>
                   <button
                     data-action
                     onMouseDown={e => e.stopPropagation()}
                     onClick={e => { e.stopPropagation(); onRemoveApiRequest?.(req.id); }}
                     title="Remover"
-                    style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 3, padding: 0, flexShrink: 0 }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "#FEE2E2"; e.currentTarget.style.color = "#EF4444"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9CA3AF"; }}
+                    style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, padding: 0, flexShrink: 0 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "var(--danger-bg)"; e.currentTarget.style.color = "var(--danger-fg)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}
                   ><X size={11} /></button>
                 </div>
               ))}
@@ -5039,25 +5040,25 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           <button
             data-action onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onSelect(); onOpenApiPicker?.(); }}
-            style={{ width: "100%", border: "1px dashed #BFDBFE", background: "#EFF6FF", color: "#3B82F6", fontSize: 12, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            style={{ width: "100%", border: "1px dashed #BFDBFE", background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, padding: "7px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
             onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; }}
           ><Plus size={13} /> Adicionar API</button>
           <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro no envio da mensagem</span>
-              <div data-port data-from-node={`${node.id}__error`} onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }} />
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Caso ocorrer erro no envio da mensagem</span>
+              <div data-port data-from-node={`${node.id}__error`} onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid var(--danger-400)", cursor: "crosshair", zIndex: 3 }} />
             </div>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-              <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Próximo passo</span>
               <div data-port data-from-node={node.id} onMouseDown={onPortDragStart} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#93C5FD", border: "2px solid #3B82F6", cursor: "crosshair", zIndex: 3 }} />
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
-          {([{ key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros" }]).map(({ key, count, color, label }) => (
-            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid var(--border-default)", fontSize: 12 }}>
+          {([{ key: "success" as const, count: stats?.s ?? 0, color: "var(--text-link)", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "var(--text-link)", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "var(--text-link)", label: "Erros" }]).map(({ key, count, color, label }) => (
+            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "var(--neutral-50)"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{count}</div>
               <div style={{ color }}>{label}</div>
             </button>
           ))}
@@ -5070,16 +5071,16 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
     const ops = node.fieldOps ?? [];
     return (
       <div data-node onMouseDown={onDragStart} onClick={onSelect}
-        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "#FFFFFF", border: `1px solid ${selected ? "#22C55E" : "#D1D5DB"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(34,197,94,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
+        style={{ position: "absolute", left: node.x, top: node.y, width: 280, zIndex: 2, background: "var(--surface-card)", border: `1px solid ${selected ? "var(--accent-500)" : "var(--border-strong)"}`, borderRadius: 12, cursor: "grab", boxShadow: selected ? "0 4px 16px rgba(34,197,94,0.15)" : "0 1px 4px rgba(0,0,0,0.06)" }}>
         {inputPort}
         {selected && toolbar}
-        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
-          <Sliders size={15} color="#22C55E" />
-          <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Operações de campos</span>
+        <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", gap: 8 }}>
+          <Sliders size={15} color="var(--accent-700)" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Operações de campos</span>
         </div>
         <div style={{ padding: "10px 14px" }}>
           {ops.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5, marginBottom: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5, marginBottom: 8 }}>
               Realize operações com campos do sistema, campos adicionais ou fontes de dados. Clique para adicionar uma operação de campo:
             </div>
           ) : (
@@ -5091,13 +5092,13 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                 const opTitle = op.type === "loop_array" ? "Loop de array" : op.type === "analise_telefone" ? "Análise de telefone" : op.type === "formatacao_data" ? "Formatação de data" : (op as FieldOpMapeamento).fieldLabel || "Campo não selecionado";
                 const opSub   = op.type === "mapeamento" && (op as FieldOpMapeamento).value ? `= ${(op as FieldOpMapeamento).value}` : null;
                 return (
-                <div key={op.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 7, fontSize: 11 }}>
-                  <OpIcon size={11} color="#22C55E" />
+                <div key={op.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--accent-50)", border: "0.5px solid var(--accent-200)", borderRadius: 6, fontSize: 12 }}>
+                  <OpIcon size={11} color="var(--accent-700)" />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{opTitle}</div>
-                    {opSub && <div style={{ color: "#22C55E", fontSize: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{opSub}</div>}
+                    <div style={{ fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{opTitle}</div>
+                    {opSub && <div style={{ color: "var(--accent-800)", fontSize: 12, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{opSub}</div>}
                   </div>
-                  {dsName && <span style={{ fontSize: 9, fontWeight: 700, background: dsColor ?? "#6366F1", color: "#fff", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{dsName}</span>}
+                  {dsName && <span style={{ fontSize: 12, fontWeight: 700, background: dsColor ?? "#6366F1", color: "#fff", borderRadius: 6, padding: "1px 5px", flexShrink: 0 }}>{dsName}</span>}
                 </div>
               );})}
 
@@ -5106,25 +5107,25 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           <button
             data-action onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onSelect(); }}
-            style={{ width: "100%", border: "1px dashed #86EFAC", background: "#F0FDF4", color: "#22C55E", fontSize: 12, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#DCFCE7"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#F0FDF4"; }}
+            style={{ width: "100%", border: "1px dashed var(--accent-200)", background: "var(--accent-50)", color: "var(--accent-800)", fontSize: 12, padding: "7px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            onMouseEnter={e => { e.currentTarget.style.background = "var(--accent-50)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "var(--accent-50)"; }}
           ><Plus size={13} /> Adicionar mapeamento de campo</button>
           <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro</span>
-              <div data-port data-from-node={`${node.id}__error`} onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }} />
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Caso ocorrer erro</span>
+              <div data-port data-from-node={`${node.id}__error`} onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid var(--danger-400)", cursor: "crosshair", zIndex: 3 }} />
             </div>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-              <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Próximo passo</span>
               <div data-port data-from-node={node.id} onMouseDown={onPortDragStart} style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#93C5FD", border: "2px solid #3B82F6", cursor: "crosshair", zIndex: 3 }} />
             </div>
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
-          {([{ key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros" }]).map(({ key, count, color, label }) => (
-            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+        <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid var(--border-default)", fontSize: 12 }}>
+          {([{ key: "success" as const, count: stats?.s ?? 0, color: "var(--text-link)", label: "Sucessos" }, { key: "alert" as const, count: stats?.a ?? 0, color: "var(--text-link)", label: "Alertas" }, { key: "error" as const, count: stats?.e ?? 0, color: "var(--text-link)", label: "Erros" }]).map(({ key, count, color, label }) => (
+            <button key={key} data-action onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }} style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }} onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "var(--neutral-50)"; }} onMouseLeave={e => { e.currentTarget.style.background = "none"; }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{count}</div>
               <div style={{ color }}>{label}</div>
             </button>
           ))}
@@ -5141,8 +5142,8 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         style={{
           position: "absolute", left: node.x, top: node.y, width: 280,
           zIndex: 2,
-          background: "#FFFFFF",
-          border: `1px solid ${selected ? "hsl(var(--primary))" : "#D1D5DB"}`,
+          background: "var(--surface-card)",
+          border: `1px solid ${selected ? "hsl(var(--primary))" : "var(--border-strong)"}`,
           borderRadius: 12, padding: 14, cursor: "grab",
           boxShadow: selected ? "0 4px 12px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.04)",
         }}
@@ -5150,17 +5151,17 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         {inputPort}
         {selected && toolbar}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: at ? `${at.color}18` : "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <Icon size={15} color={at?.color ?? "#6B7280"} />
+          <div style={{ width: 30, height: 30, borderRadius: 8, background: at ? `${at.color}18` : "var(--neutral-50)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Icon size={15} color={at?.color ?? "var(--text-muted)"} />
           </div>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#111111" }}>{node.label}</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>{node.label}</span>
         </div>
-        <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 8 }}>Clique para configurar</div>
+        <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8 }}>Clique para configurar</div>
         <div
           data-port data-from-node={node.id}
           title="Arraste para adicionar próximo passo"
           onMouseDown={onPortDragStart}
-          style={{ position: "absolute", right: -8, top: "50%", transform: "translateY(-50%)", width: 16, height: 16, borderRadius: "50%", background: "#378ADD", border: "2.5px solid #FFF", cursor: "crosshair", boxShadow: "0 0 0 3px rgba(55,138,221,0.25)", zIndex: 5 }}
+          style={{ position: "absolute", right: -8, top: "50%", transform: "translateY(-50%)", width: 16, height: 16, borderRadius: "50%", background: "#378ADD", border: "2.5px solid var(--surface-card)", cursor: "crosshair", boxShadow: "0 0 0 3px rgba(55,138,221,0.25)", zIndex: 5 }}
         />
       </div>
     );
@@ -5174,8 +5175,8 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
       style={{
         position: "absolute", left: node.x, top: node.y, width: 280,
         zIndex: 2,
-        background: "#FFFFFF",
-        border: `1px solid ${selected ? "#3B82F6" : "#D1D5DB"}`,
+        background: "var(--surface-card)",
+        border: `1px solid ${selected ? "#3B82F6" : "var(--border-strong)"}`,
         borderRadius: 12, cursor: "grab",
         boxShadow: selected ? "0 4px 16px rgba(59,130,246,0.15)" : "0 1px 4px rgba(0,0,0,0.06)",
       }}
@@ -5185,15 +5186,15 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
       {selected && toolbar}
 
       {/* Header */}
-      <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #E5E5E5", display: "flex", alignItems: "center", gap: 8 }}>
+      <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", gap: 8 }}>
         <MessageCircle size={16} color="#3B82F6" />
-        <span style={{ fontSize: 13, fontWeight: 700, color: "#111111" }}>Mensagem</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Mensagem</span>
       </div>
 
       {/* Body */}
       <div style={{ padding: "10px 14px" }}>
         {(!node.subBlocks || node.subBlocks.length === 0) ? (
-          <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
             Envie e receba mensagens. Clique para adicionar uma mensagem:
           </div>
         ) : (
@@ -5201,16 +5202,16 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             {node.subBlocks.map(b => {
               const SBIcon = SUB_BLOCK_ICONS[b.type];
               return (
-                <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#F9FAFB", border: "1px solid #E5E5E5", borderRadius: 7, fontSize: 12, color: "#374151" }}>
-                  <SBIcon size={12} color="#6B7280" />
+                <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, color: "var(--text-heading)" }}>
+                  <SBIcon size={12} color="var(--text-muted)" />
                   <span style={{ flex: 1 }}>{b.type === "atraso_tempo" ? `Atraso de ${b.delaySeconds ?? 0} segundos` : SUB_BLOCK_LABELS[b.type]}</span>
                   {removeSubBlock && (
                     <button
                       onMouseDown={e => e.stopPropagation()}
                       onClick={e => { e.stopPropagation(); removeSubBlock(b.id); }}
-                      style={{ background: "transparent", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center", color: "#9CA3AF", flexShrink: 0 }}
-                      onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                      onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                      style={{ background: "transparent", border: "none", cursor: "pointer", padding: 2, display: "flex", alignItems: "center", color: "var(--text-muted)", flexShrink: 0 }}
+                      onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")}
+                      onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}
                     >
                       <Trash2 size={11} />
                     </button>
@@ -5225,28 +5226,28 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
         <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
           {hasUserInput && (
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-              <span style={{ fontSize: 11, color: "#6B7280" }}>Caso o contato não responda</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Caso o contato não responda</span>
               <div
                 data-port
                 data-from-node={`${node.id}__timeout`}
                 onMouseDown={(e) => { e.stopPropagation(); onTimeoutPortDragStart?.(e); }}
                 title="Arraste para o que fazer se o contato não responder no prazo"
-                style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }}
+                style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid var(--danger-400)", cursor: "crosshair", zIndex: 3 }}
               />
             </div>
           )}
           <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-            <span style={{ fontSize: 11, color: "#6B7280" }}>Caso ocorrer erro no envio da mensagem</span>
+            <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Caso ocorrer erro no envio da mensagem</span>
             <div
               data-port
               data-from-node={`${node.id}__error`}
               onMouseDown={(e) => { e.stopPropagation(); onErrorPortDragStart?.(e); }}
               title="Arraste para tratar o erro"
-              style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid #EF4444", cursor: "crosshair", zIndex: 3 }}
+              style={{ position: "absolute", right: -21, top: "50%", transform: "translateY(-50%)", width: 12, height: 12, borderRadius: "50%", background: "#FCA5A5", border: "2px solid var(--danger-400)", cursor: "crosshair", zIndex: 3 }}
             />
           </div>
           <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
-            <span style={{ fontSize: 11, color: "#3B82F6", fontWeight: 500 }}>Próximo passo</span>
+            <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>Próximo passo</span>
             <div
               data-port data-from-node={node.id}
               onMouseDown={onPortDragStart}
@@ -5257,21 +5258,21 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
       </div>
 
       {/* Footer metrics */}
-      <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid #E5E5E5", fontSize: 11 }}>
+      <div style={{ display: "flex", justifyContent: "space-around", padding: "5px 14px", borderTop: "1px solid var(--border-default)", fontSize: 12 }}>
         {([
-          { key: "success" as const, count: stats?.s ?? 0, color: "hsl(var(--primary))", label: "Sucessos" },
-          { key: "alert"   as const, count: stats?.a ?? 0, color: "hsl(var(--primary))", label: "Alertas"  },
-          { key: "error"   as const, count: stats?.e ?? 0, color: "hsl(var(--primary))", label: "Erros"    },
+          { key: "success" as const, count: stats?.s ?? 0, color: "var(--text-link)", label: "Sucessos" },
+          { key: "alert"   as const, count: stats?.a ?? 0, color: "var(--text-link)", label: "Alertas"  },
+          { key: "error"   as const, count: stats?.e ?? 0, color: "var(--text-link)", label: "Erros"    },
         ]).map(({ key, count, color, label }) => (
           <button
             key={key}
             data-action
             onClick={(e) => { e.stopPropagation(); if (count > 0) onStatClick?.(key); }}
             style={{ background: "none", border: "none", cursor: count > 0 ? "pointer" : "default", textAlign: "center", padding: "4px 8px", borderRadius: 6, flex: 1 }}
-            onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "#F3F4F6"; }}
+            onMouseEnter={e => { if (count > 0) e.currentTarget.style.background = "var(--neutral-50)"; }}
             onMouseLeave={e => { e.currentTarget.style.background = "none"; }}
           >
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>{count}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{count}</div>
             <div style={{ color }}>{label}</div>
           </button>
         ))}
@@ -5303,20 +5304,20 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
     const catData = CONDITION_CATEGORIES.find(c => c.id === selectedItem.categoryId);
     const condData = catData?.conditions.find(c => c.id === selectedItem.conditionId);
     return (
-      <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+      <aside style={{ width: 300, minWidth: 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
           <button
             onClick={() => setSelectedItemId(null)}
-            style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0, width: "100%", textAlign: "left" }}
+            style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--text-heading)", padding: 0, width: "100%", textAlign: "left" }}
           >
             <ArrowLeft size={15} />
             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? selectedItem.label}</span>
             {condData?.warning && (
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 4, padding: "2px 8px", flexShrink: 0 }}>Atenção</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 6, padding: "2px 8px", flexShrink: 0 }}>Atenção</span>
             )}
           </button>
           {condData?.description && (
-            <p style={{ fontSize: 12, color: "#6B7280", margin: "6px 0 0", paddingLeft: 21 }}>{condData.description}</p>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0", paddingLeft: 21 }}>{condData.description}</p>
           )}
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
@@ -5335,14 +5336,14 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
   }
 
   return (
-    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "var(--text-heading)", padding: 0 }}>
             <ArrowLeft size={16} /> Condições
           </button>
           <div style={{ display: "flex", gap: 2 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -5350,11 +5351,11 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
             ))}
           </div>
         </div>
-        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Defina condições para ramificar o fluxo</p>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Defina condições para ramificar o fluxo</p>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
         {(node.conditionItems ?? []).length === 0 ? (
-          <div style={{ paddingTop: 8, fontSize: 12, color: "#9CA3AF" }}>Nenhuma condição adicionada ainda.</div>
+          <div style={{ paddingTop: 8, fontSize: 12, color: "var(--text-muted)" }}>Nenhuma condição adicionada ainda.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {(node.conditionItems ?? []).map(item => {
@@ -5370,15 +5371,15 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
                 >
                   <Icon size={13} color="#8B5CF6" style={{ flexShrink: 0 }} />
                   <div style={{ flex: 1, overflow: "hidden" }}>
-                    <div style={{ fontSize: 12, fontWeight: 500, color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? item.label}</div>
-                    <div style={{ fontSize: 10, color: "#9CA3AF", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.description}</div>
+                    <div style={{ fontSize: 12, fontWeight: 500, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? item.label}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.description}</div>
                   </div>
-                  <ChevronRight size={12} color="#9CA3AF" style={{ flexShrink: 0 }} />
+                  <ChevronRight size={12} color="var(--text-muted)" style={{ flexShrink: 0 }} />
                   <button
                     onClick={e => { e.stopPropagation(); removeConditionItem(item.id); }}
-                    style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF", flexShrink: 0 }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                    style={{ width: 20, height: 20, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", flexShrink: 0 }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}
                   ><X size={11} /></button>
                 </div>
               );
@@ -5386,9 +5387,9 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
           </div>
         )}
       </div>
-      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid var(--border-default)", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={onOpenPicker}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #C7D2FE", borderRadius: 8, background: "#F3F4FF", color: "#6366F1", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #C7D2FE", borderRadius: 8, background: "#F3F4FF", color: "#4338CA", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#E0E7FF"; e.currentTarget.style.borderColor = "#6366F1"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "#F3F4FF"; e.currentTarget.style.borderColor = "#C7D2FE"; }}
         >
@@ -5414,7 +5415,7 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
   const set = (key: string, val: string | boolean | number) => updateItem({ [key]: val });
 
   const lbl = (text: string) => (
-    <label style={{ fontSize: 11, fontWeight: 600, color: "#8B5CF6", display: "block", marginBottom: 4, lineHeight: 1.4 }}>{text}</label>
+    <label style={{ fontSize: 12, fontWeight: 600, color: "#7C3AED", display: "block", marginBottom: 4, lineHeight: 1.4 }}>{text}</label>
   );
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 16 }}>{children}</div>;
 
@@ -5428,18 +5429,18 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
 
   const numInp = (placeholder: string, key: string, min?: number) => (
     <input type="number" value={String(cfg[key] ?? "")} onChange={e => set(key, Number(e.target.value))} placeholder={placeholder} min={min}
-      style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} />
+      style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} />
   );
 
   const selInp = (key: string, opts: { value: string; label: string }[], placeholder = "Selecionar") => (
     <select value={String(cfg[key] ?? "")} onChange={e => set(key, e.target.value)}
-      style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", background: "#FFF", boxSizing: "border-box" as const }}>
+      style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", background: "var(--surface-card)", boxSizing: "border-box" as const }}>
       <option value="">{placeholder}</option>
       {opts.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
   );
 
-  const noConfig = <div style={{ fontSize: 12, color: "#9CA3AF", padding: "8px 0" }}>Esta condição não requer configuração.</div>;
+  const noConfig = <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "8px 0" }}>Esta condição não requer configuração.</div>;
 
   const warningBox = (text: string) => (
     <div style={{ padding: "10px 12px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, fontSize: 12, color: "#92400E", marginBottom: 16, display: "flex", gap: 8, alignItems: "flex-start" }}>
@@ -5500,7 +5501,7 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
           {lbl("Selecione as tags para verificar se existem no lead")}
           {selInp("tag_ids", crmTags.map(t => ({ value: t.id, label: t.name })), "Selecione as tags")}
         </>)}
-        <p style={{ fontSize: 11, color: "#6B7280", marginTop: -8, lineHeight: 1.4 }}>Será verdadeiro se o lead possuir pelo menos uma das tags informadas</p>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: -8, lineHeight: 1.4 }}>Será verdadeiro se o lead possuir pelo menos uma das tags informadas</p>
       </>
     );
     if (id === "pos_atend") return <>{grp(<>{attendantSel("atendente", "Selecione os atendentes que deseja verificar se são os atendentes responsáveis do lead. Deixe em branco para considerar qualquer um.")}</>)}</>;
@@ -5533,10 +5534,10 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
         {paramField}
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "end", marginBottom: 8 }}>
           <div>{lbl("está entre")}{numInp("0", "valor_min")}</div>
-          <span style={{ fontSize: 12, color: "#6B7280", paddingBottom: 9 }}>e</span>
+          <span style={{ fontSize: 12, color: "var(--text-muted)", paddingBottom: 9 }}>e</span>
           <div>{lbl(" ")}{numInp("9999", "valor_max")}</div>
         </div>
-        <p style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>valores iguais são considerados como verdadeiros</p>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>valores iguais são considerados como verdadeiros</p>
       </>
     );
   }
@@ -5563,7 +5564,7 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
               const sel = selDays.includes(d.id);
               return (
                 <button key={d.id} onClick={() => toggleDay(d.id)}
-                  style={{ width: 32, height: 32, borderRadius: "50%", border: `2px solid ${sel ? "#3B82F6" : "#E5E7EB"}`, background: sel ? "#3B82F6" : "#FFF", color: sel ? "#FFF" : "#6B7280", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
+                  style={{ width: 32, height: 32, borderRadius: "50%", border: `2px solid ${sel ? "#3B82F6" : "var(--border-default)"}`, background: sel ? "#3B82F6" : "var(--surface-card)", color: sel ? "#FFF" : "var(--text-muted)", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>
                   {d.short}
                 </button>
               );
@@ -5571,9 +5572,9 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
           </div>
         </>)}
         <div style={{ display: "grid", gridTemplateColumns: "1fr auto 1fr", gap: 8, alignItems: "end", marginBottom: 16 }}>
-          <div>{lbl("Intervalo de horas entre")}<input type="time" value={String(cfg["hora_inicio"] ?? "00:00")} onChange={e => set("hora_inicio", e.target.value)} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} /></div>
-          <span style={{ fontSize: 12, color: "#6B7280", paddingBottom: 9 }}>e</span>
-          <div>{lbl(" ")}<input type="time" value={String(cfg["hora_fim"] ?? "23:59")} onChange={e => set("hora_fim", e.target.value)} style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} /></div>
+          <div>{lbl("Intervalo de horas entre")}<input type="time" value={String(cfg["hora_inicio"] ?? "00:00")} onChange={e => set("hora_inicio", e.target.value)} style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} /></div>
+          <span style={{ fontSize: 12, color: "var(--text-muted)", paddingBottom: 9 }}>e</span>
+          <div>{lbl(" ")}<input type="time" value={String(cfg["hora_fim"] ?? "23:59")} onChange={e => set("hora_fim", e.target.value)} style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} /></div>
         </div>
         {grp(<>{lbl("Fuso horário")}{selInp("timezone", tzOpts, "America/Sao_Paulo (BRT)")}</>)}
       </>
@@ -5645,16 +5646,16 @@ const DAYS_OF_WEEK = [
 
 // ─── Editores das ações de IA com ramificação/extração (Fase 2/3) ──────────────
 
-const IA_ADD_BTN: React.CSSProperties = { width: "100%", border: "1px dashed #DDD6FE", background: "#F5F3FF", color: "#8B5CF6", fontSize: 12, fontWeight: 600, padding: "7px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8 };
-const IA_ITEM_BOX: React.CSSProperties = { border: "1px solid #E5E5E5", borderRadius: 8, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "#FFF" };
+const IA_ADD_BTN: React.CSSProperties = { width: "100%", border: "1px dashed #DDD6FE", background: "#F5F3FF", color: "#7C3AED", fontSize: 12, fontWeight: 600, padding: "7px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8 };
+const IA_ITEM_BOX: React.CSSProperties = { border: "1px solid var(--border-default)", borderRadius: 8, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "var(--surface-card)" };
 
 function IaItemHeader({ index, color, onRemove }: { index: number; color: string; onRemove: () => void }) {
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color }}>#{index + 1}</span>
-      <button onClick={onRemove} title="Remover" style={{ width: 22, height: 22, borderRadius: 5, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center" }}
-        onMouseEnter={e => { e.currentTarget.style.background = "#FEE2E2"; e.currentTarget.style.color = "#EF4444"; }}
-        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9CA3AF"; }}>
+      <span style={{ fontSize: 12, fontWeight: 700, color }}>#{index + 1}</span>
+      <button onClick={onRemove} title="Remover" style={{ width: 22, height: 22, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center" }}
+        onMouseEnter={e => { e.currentTarget.style.background = "var(--danger-bg)"; e.currentTarget.style.color = "var(--danger-fg)"; }}
+        onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}>
         <Trash2 size={12} />
       </button>
     </div>
@@ -5676,9 +5677,9 @@ function IaVarTextarea({ value, onChange, rows = 5, placeholder }: { value: stri
   return (
     <div style={{ position: "relative" }}>
       <textarea ref={taRef} value={value} onChange={e => onChange(e.target.value)} rows={rows} placeholder={placeholder}
-        style={{ width: "100%", padding: "8px 34px 8px 10px", border: "1px solid #E5E5E5", borderRadius: 8, fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", background: "#FFF", resize: "vertical", fontFamily: "inherit" }} />
+        style={{ width: "100%", padding: "8px 34px 8px 10px", border: "1px solid var(--border-default)", borderRadius: 8, fontSize: 13, color: "var(--text-heading)", outline: "none", boxSizing: "border-box", background: "var(--surface-card)", resize: "vertical", fontFamily: "inherit" }} />
       <button type="button" onClick={() => setVarOpen(o => !o)} title="Inserir variável"
-        style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 5, border: "1px solid #DDD6FE", background: "#F5F3FF", color: "#8B5CF6", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, lineHeight: 1 }}>
+        style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 6, border: "1px solid #DDD6FE", background: "#F5F3FF", color: "#7C3AED", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, lineHeight: 1 }}>
         <Braces size={13} />
       </button>
       {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
@@ -5702,7 +5703,7 @@ function IaIntencaoEditor({ a, updateAction, inputStyle, labelStyle }: { a: IaAc
   return (
     <div>
       <label style={labelStyle}>Intenções a identificar</label>
-      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 8px", lineHeight: 1.4 }}>Cada intenção vira uma saída no bloco. A IA roteia para a que melhor corresponder à conversa.</p>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 8px", lineHeight: 1.4 }}>Cada intenção vira uma saída no bloco. A IA roteia para a que melhor corresponder à conversa.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {items.map((it, i) => (
           <div key={it.id} style={IA_ITEM_BOX}>
@@ -5718,7 +5719,7 @@ function IaIntencaoEditor({ a, updateAction, inputStyle, labelStyle }: { a: IaAc
         <Plus size={13} /> Adicionar intenção
       </button>
       <IaExtraInstructions a={a} updateAction={updateAction} labelStyle={labelStyle} />
-      <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 6 }}>Saída disponível como <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.intencao}}`}</span>.</p>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>Saída disponível como <span style={{ fontFamily: "monospace", color: "var(--text-muted)" }}>{`{{${a.outputVar}.intencao}}`}</span>.</p>
     </div>
   );
 }
@@ -5729,7 +5730,7 @@ function IaSentimentoEditor({ a, updateAction, inputStyle, labelStyle }: { a: Ia
   return (
     <div>
       <label style={labelStyle}>Sentimentos a identificar</label>
-      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 8px", lineHeight: 1.4 }}>Cada sentimento vira uma saída no bloco. A IA roteia para o que melhor corresponder.</p>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 8px", lineHeight: 1.4 }}>Cada sentimento vira uma saída no bloco. A IA roteia para o que melhor corresponder.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {items.map((s, i) => (
           <div key={s.id} style={IA_ITEM_BOX}>
@@ -5744,7 +5745,7 @@ function IaSentimentoEditor({ a, updateAction, inputStyle, labelStyle }: { a: Ia
         <Plus size={13} /> Adicionar sentimento
       </button>
       <IaExtraInstructions a={a} updateAction={updateAction} labelStyle={labelStyle} />
-      <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 6 }}>Saída disponível como <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.sentimento}}`}</span>.</p>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>Saída disponível como <span style={{ fontFamily: "monospace", color: "var(--text-muted)" }}>{`{{${a.outputVar}.sentimento}}`}</span>.</p>
     </div>
   );
 }
@@ -5764,7 +5765,7 @@ function IaParamsEditor({ a, updateAction, inputStyle, labelStyle }: { a: IaActi
   return (
     <div>
       <label style={labelStyle}>Parâmetros a extrair</label>
-      <p style={{ fontSize: 11, color: "#9CA3AF", margin: "0 0 8px", lineHeight: 1.4 }}>A IA extrai cada valor da conversa. Use o nome como campo do resultado.</p>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "0 0 8px", lineHeight: 1.4 }}>A IA extrai cada valor da conversa. Use o nome como campo do resultado.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         {items.map((p, i) => (
           <div key={p.id} style={IA_ITEM_BOX}>
@@ -5784,7 +5785,7 @@ function IaParamsEditor({ a, updateAction, inputStyle, labelStyle }: { a: IaActi
         <Plus size={13} /> Adicionar parâmetro
       </button>
       <IaExtraInstructions a={a} updateAction={updateAction} labelStyle={labelStyle} />
-      <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 6 }}>Cada valor fica disponível como <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.nome}}`}</span>.</p>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 6 }}>Cada valor fica disponível como <span style={{ fontFamily: "monospace", color: "var(--text-muted)" }}>{`{{${a.outputVar}.nome}}`}</span>.</p>
     </div>
   );
 }
@@ -5815,7 +5816,7 @@ function IaTranscricaoEditor({ a, updateAction, inputStyle, labelStyle }: { a: I
           {IA_AUDIO_LANGS.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
         </select>
       </div>
-      <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.4 }}>Usa a Whisper da OpenAI — requer uma chave da <strong>OpenAI</strong> cadastrada. Resultado em <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.texto}}`}</span>.</p>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>Usa a Whisper da OpenAI — requer uma chave da <strong>OpenAI</strong> cadastrada. Resultado em <span style={{ fontFamily: "monospace", color: "var(--text-muted)" }}>{`{{${a.outputVar}.texto}}`}</span>.</p>
     </div>
   );
 }
@@ -5830,18 +5831,18 @@ function IaPanel({ node, onClose, onDelete, onDuplicate, updateAction, removeAct
   onAddAction: () => void;
 }) {
   const actions = node.iaActions ?? [];
-  const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 10px", border: "1px solid #E5E5E5", borderRadius: 8, fontSize: 13, color: "#111", outline: "none", boxSizing: "border-box", background: "#FFF" };
-  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 };
+  const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 10px", border: "1px solid var(--border-default)", borderRadius: 8, fontSize: 13, color: "var(--text-heading)", outline: "none", boxSizing: "border-box", background: "var(--surface-card)" };
+  const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 6 };
 
   return (
-    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0 }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--text-heading)", padding: 0 }}>
             <ArrowLeft size={16} style={{ flexShrink: 0 }} /> <span>Inteligência Artificial</span>
           </button>
           <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                 <Icon size={13} />
@@ -5849,12 +5850,12 @@ function IaPanel({ node, onClose, onDelete, onDuplicate, updateAction, removeAct
             ))}
           </div>
         </div>
-        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0", lineHeight: 1.4 }}>Ações de IA usando a chave do provedor cadastrada em Configurações → Chaves de API.</p>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0", lineHeight: 1.4 }}>Ações de IA usando a chave do provedor cadastrada em Configurações → Chaves de API.</p>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>
         {actions.length === 0 && (
-          <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.5 }}>Nenhuma ação de IA ainda. Clique em "Adicionar ação com IA" para começar.</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>Nenhuma ação de IA ainda. Clique em "Adicionar ação com IA" para começar.</div>
         )}
         {actions.map(a => {
           const Icon = IA_ACTION_TYPES.find(t => t.id === a.type)?.icon ?? Bot;
@@ -5863,10 +5864,10 @@ function IaPanel({ node, onClose, onDelete, onDuplicate, updateAction, removeAct
             <div key={a.id} style={{ border: "1px solid #EDE9FE", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 12, background: "#FCFAFF" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Icon size={15} color="#8B5CF6" />
-                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: "#111" }}>{IA_ACTION_LABEL[a.type]}</span>
-                <button onClick={() => removeAction(a.id)} title="Remover ação" style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center" }}
-                  onMouseEnter={e => { e.currentTarget.style.background = "#FEE2E2"; e.currentTarget.style.color = "#EF4444"; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9CA3AF"; }}>
+                <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>{IA_ACTION_LABEL[a.type]}</span>
+                <button onClick={() => removeAction(a.id)} title="Remover ação" style={{ width: 24, height: 24, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  onMouseEnter={e => { e.currentTarget.style.background = "var(--danger-bg)"; e.currentTarget.style.color = "var(--danger-fg)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}>
                   <Trash2 size={13} />
                 </button>
               </div>
@@ -5889,7 +5890,7 @@ function IaPanel({ node, onClose, onDelete, onDuplicate, updateAction, removeAct
                 <div>
                   <label style={labelStyle}>{a.type === "assistente_chat" ? "Instruções do assistente" : "Instruções"}</label>
                   <IaVarTextarea value={a.instructions ?? ""} onChange={(v) => updateAction(a.id, { instructions: v })} rows={5} placeholder="Descreva o que a IA deve fazer. Use {{gatilho.nome}}, {{lead.name}} ou saídas de outros blocos." />
-                  <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>Resultado disponível como <span style={{ fontFamily: "monospace", color: "#6B7280" }}>{`{{${a.outputVar}.resposta}}`}</span>.</p>
+                  <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4 }}>Resultado disponível como <span style={{ fontFamily: "monospace", color: "var(--text-muted)" }}>{`{{${a.outputVar}.resposta}}`}</span>.</p>
                 </div>
               ) : a.type === "intencao" ? (
                 <IaIntencaoEditor a={a} updateAction={updateAction} inputStyle={inputStyle} labelStyle={labelStyle} />
@@ -5900,13 +5901,13 @@ function IaPanel({ node, onClose, onDelete, onDuplicate, updateAction, removeAct
               ) : a.type === "transcricao_audio" ? (
                 <IaTranscricaoEditor a={a} updateAction={updateAction} inputStyle={inputStyle} labelStyle={labelStyle} />
               ) : (
-                <p style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.5 }}>A configuração específica desta ação será liberada em breve.</p>
+                <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>A configuração específica desta ação será liberada em breve.</p>
               )}
             </div>
           );
         })}
         <button onClick={onAddAction}
-          style={{ width: "100%", border: "1px dashed #DDD6FE", background: "#F5F3FF", color: "#8B5CF6", fontSize: 13, fontWeight: 600, padding: "10px 0", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+          style={{ width: "100%", border: "1px dashed #DDD6FE", background: "#F5F3FF", color: "#7C3AED", fontSize: 13, fontWeight: 600, padding: "10px 0", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
           onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
           <Plus size={14} /> Adicionar ação com IA
         </button>
@@ -5949,15 +5950,15 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
   };
 
   return (
-    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={espera ? onOpenPicker : onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0, maxWidth: 200, overflow: "hidden" }}>
+          <button onClick={espera ? onOpenPicker : onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--text-heading)", padding: 0, maxWidth: 200, overflow: "hidden" }}>
             <ArrowLeft size={16} style={{ flexShrink: 0 }} />
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentItem ? currentItem.label : "Espera"}</span>
           </button>
           <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -5965,14 +5966,14 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
             ))}
           </div>
         </div>
-        {currentItem && <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0", lineHeight: 1.4 }}>{currentItem.description}</p>}
+        {currentItem && <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0", lineHeight: 1.4 }}>{currentItem.description}</p>}
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
         {/* No type selected — show picker trigger */}
         {!espera && (
           <button onClick={onOpenPicker}
-            style={{ width: "100%", padding: "40px 0", border: "1.5px dashed #BFDBFE", borderRadius: 8, background: "#F0F9FF", color: "#3B82F6", fontSize: 13, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "background 0.1s" }}
+            style={{ width: "100%", padding: "40px 0", border: "1.5px dashed #BFDBFE", borderRadius: 8, background: "#F0F9FF", color: "#1D4ED8", fontSize: 13, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "background 0.1s" }}
             onMouseEnter={e => (e.currentTarget.style.background = "#DBEAFE")}
             onMouseLeave={e => (e.currentTarget.style.background = "#F0F9FF")}
           >
@@ -5985,13 +5986,13 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
         {espera?.type === "intervalo_semana" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 8 }}>Dias da semana que poderá continuar a execução</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 8 }}>Dias da semana que poderá continuar a execução</label>
               <div style={{ display: "flex", gap: 4 }}>
                 {DAYS_OF_WEEK.map(d => {
                   const sel = (espera.days ?? []).includes(d.id);
                   return (
                     <button key={d.id} onClick={() => toggleDay(d.id)}
-                      style={{ width: 30, height: 30, borderRadius: "50%", border: `1.5px solid ${sel ? "#3B82F6" : "#E5E5E5"}`, background: sel ? "#3B82F6" : "#FFFFFF", color: sel ? "#FFFFFF" : "#6B7280", fontSize: 11, fontWeight: sel ? 700 : 400, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0 }}>
+                      style={{ width: 30, height: 30, borderRadius: "50%", border: `1.5px solid ${sel ? "#3B82F6" : "var(--border-default)"}`, background: sel ? "#3B82F6" : "var(--surface-card)", color: sel ? "#FFFFFF" : "var(--text-muted)", fontSize: 12, fontWeight: sel ? 700 : 400, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", padding: 0, flexShrink: 0 }}>
                       {d.label[0]}
                     </button>
                   );
@@ -5999,25 +6000,25 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
               </div>
             </div>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Intervalo de horas</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 6 }}>Intervalo de horas</label>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
                 <div>
-                  <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 3 }}>entre</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 3 }}>entre</div>
                   <input type="time" value={espera.startTime ?? "00:00"} onChange={e => updateEspera({ startTime: e.target.value })}
-                    style={{ width: 110, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none" }} />
+                    style={{ width: 110, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none" }} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 3 }}>e</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 3 }}>e</div>
                   <input type="time" value={espera.endTime ?? "23:59"} onChange={e => updateEspera({ endTime: e.target.value })}
-                    style={{ width: 110, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none" }} />
+                    style={{ width: 110, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none" }} />
                 </div>
               </div>
-              <p style={{ fontSize: 11, color: "#3B82F6", marginTop: 6, lineHeight: 1.4 }}>Será considerado um horário aleatório entre o horário de início e fim</p>
+              <p style={{ fontSize: 12, color: "#1D4ED8", marginTop: 6, lineHeight: 1.4 }}>Será considerado um horário aleatório entre o horário de início e fim</p>
             </div>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Fuso horário</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 6 }}>Fuso horário</label>
               <select value={espera.timezone ?? "America/Sao_Paulo (BRT)"} onChange={e => updateEspera({ timezone: e.target.value })}
-                style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", background: "#FFFFFF", cursor: "pointer" }}>
+                style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", background: "var(--surface-card)", cursor: "pointer" }}>
                 {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
               </select>
             </div>
@@ -6027,11 +6028,11 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
         {/* minutos */}
         {espera?.type === "minutos" && (
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 8 }}>Quantos minutos esperar para continuar a execução?</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 8 }}>Quantos minutos esperar para continuar a execução?</label>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input type="number" min={1} value={espera.amount ?? 5} onChange={e => updateEspera({ amount: Number(e.target.value) })}
-                style={{ width: 80, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
-              <span style={{ fontSize: 12, color: "#6B7280" }}>minutos</span>
+                style={{ width: 80, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>minutos</span>
             </div>
           </div>
         )}
@@ -6039,11 +6040,11 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
         {/* dias */}
         {espera?.type === "dias" && (
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 8 }}>Quantos dias esperar para continuar a execução?</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 8 }}>Quantos dias esperar para continuar a execução?</label>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input type="number" min={1} value={espera.amount ?? 1} onChange={e => updateEspera({ amount: Number(e.target.value) })}
-                style={{ width: 80, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
-              <span style={{ fontSize: 12, color: "#6B7280" }}>dias</span>
+                style={{ width: 80, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>dias</span>
             </div>
           </div>
         )}
@@ -6051,11 +6052,11 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
         {/* horas */}
         {espera?.type === "horas" && (
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 8 }}>Quantas horas esperar para continuar a execução?</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 8 }}>Quantas horas esperar para continuar a execução?</label>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input type="number" min={1} value={espera.amount ?? 5} onChange={e => updateEspera({ amount: Number(e.target.value) })}
-                style={{ width: 80, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
-              <span style={{ fontSize: 12, color: "#6B7280" }}>horas</span>
+                style={{ width: 80, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>horas</span>
             </div>
           </div>
         )}
@@ -6063,11 +6064,11 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
         {/* segundos */}
         {espera?.type === "segundos" && (
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 8 }}>Quantos segundos esperar para continuar a execução?</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 8 }}>Quantos segundos esperar para continuar a execução?</label>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input type="number" min={1} value={espera.amount ?? 5} onChange={e => updateEspera({ amount: Number(e.target.value) })}
-                style={{ width: 80, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
-              <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
+                style={{ width: 80, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>segundos</span>
             </div>
           </div>
         )}
@@ -6076,41 +6077,41 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
         {espera?.type === "dia_horario" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Data para seguir a automação</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 6 }}>Data para seguir a automação</label>
               <div style={{ position: "relative" }}>
                 <input ref={dataRef} type="text" placeholder="" value={espera.dateField ?? ""} onChange={e => updateEspera({ dateField: e.target.value })}
-                  style={{ width: "100%", padding: "7px 56px 7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+                  style={{ width: "100%", padding: "7px 56px 7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
                 <div style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", display: "flex", gap: 2 }}>
                   <button type="button" title="Copiar"
                     onClick={() => { navigator.clipboard.writeText(espera.dateField ?? "").catch(() => {}); toast.success("Copiado!"); }}
-                    style={{ width: 22, height: 22, border: "1px solid #E5E5E5", borderRadius: 4, background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Copy size={11} /></button>
+                    style={{ width: 22, height: 22, border: "1px solid var(--border-default)", borderRadius: 6, background: "var(--neutral-50)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Copy size={11} /></button>
                   <button type="button" title="Inserir campo variável"
                     onClick={() => setDataVarOpen(o => !o)}
-                    style={{ width: 22, height: 22, border: "0.5px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", color: "#3B82F6", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700 }}><Braces size={12} /></button>
+                    style={{ width: 22, height: 22, border: "0.5px solid #3B82F6", borderRadius: 6, background: "#EFF6FF", color: "#1D4ED8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}><Braces size={12} /></button>
                 </div>
                 {dataVarOpen && <VarPicker onInsert={inserirVarData} onClose={() => setDataVarOpen(false)} />}
               </div>
-              <p style={{ fontSize: 11, color: "#3B82F6", marginTop: 6, lineHeight: 1.4 }}>Utilize campos adicionais de data, textos no formato ISO 8601 ou textos nos formatos YYYY-MM-DD ou DD/MM/YYYY</p>
+              <p style={{ fontSize: 12, color: "#1D4ED8", marginTop: 6, lineHeight: 1.4 }}>Utilize campos adicionais de data, textos no formato ISO 8601 ou textos nos formatos YYYY-MM-DD ou DD/MM/YYYY</p>
             </div>
             <div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
                 <div>
-                  <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 3 }}>entre</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 3 }}>entre</div>
                   <input type="time" value={espera.dateStartTime ?? "00:00"} onChange={e => updateEspera({ dateStartTime: e.target.value })}
-                    style={{ width: 110, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none" }} />
+                    style={{ width: 110, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none" }} />
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 3 }}>e</div>
+                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 3 }}>e</div>
                   <input type="time" value={espera.dateEndTime ?? "23:59"} onChange={e => updateEspera({ dateEndTime: e.target.value })}
-                    style={{ width: 110, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none" }} />
+                    style={{ width: 110, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none" }} />
                 </div>
               </div>
-              <p style={{ fontSize: 11, color: "#3B82F6", marginTop: 6, lineHeight: 1.4 }}>Será considerado um horário aleatório entre o horário de início e fim</p>
+              <p style={{ fontSize: 12, color: "#1D4ED8", marginTop: 6, lineHeight: 1.4 }}>Será considerado um horário aleatório entre o horário de início e fim</p>
             </div>
             <div>
-              <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Fuso horário</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 6 }}>Fuso horário</label>
               <select value={espera.dateTimezone ?? "America/Sao_Paulo (BRT)"} onChange={e => updateEspera({ dateTimezone: e.target.value })}
-                style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", background: "#FFFFFF", cursor: "pointer" }}>
+                style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", background: "var(--surface-card)", cursor: "pointer" }}>
                 {TIMEZONES.map(tz => <option key={tz} value={tz}>{tz}</option>)}
               </select>
             </div>
@@ -6120,11 +6121,11 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
         {/* usuario_parou */}
         {espera?.type === "usuario_parou" && (
           <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 8 }}>Tempo em segundos que o usuário parou de responder</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 8 }}>Tempo em segundos que o usuário parou de responder</label>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input type="number" min={1} value={espera.amount ?? 5} onChange={e => updateEspera({ amount: Number(e.target.value) })}
-                style={{ width: 80, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
-              <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
+                style={{ width: 80, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", textAlign: "right" }} />
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>segundos</span>
             </div>
           </div>
         )}
@@ -6263,14 +6264,14 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
   const branches = node.randomBranches ?? DEFAULT_BRANCHES;
   const total = branches.reduce((s, b) => s + b.percentage, 0);
   return (
-    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "var(--text-heading)", padding: 0 }}>
             <ArrowLeft size={16} /> Randomizador
           </button>
           <div style={{ display: "flex", gap: 2 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -6278,7 +6279,7 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
             ))}
           </div>
         </div>
-        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Modifique as ramificações e seus percentuais</p>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Modifique as ramificações e seus percentuais</p>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
         {total !== 100 && (
@@ -6291,7 +6292,7 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
             const color = BRANCH_COLORS[i % BRANCH_COLORS.length];
             return (
               <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "#374151", minWidth: 16, textAlign: "center" }}>{b.label}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)", minWidth: 16, textAlign: "center" }}>{b.label}</span>
                 <input
                   type="range" min={0} max={100} value={b.percentage}
                   onChange={e => updateBranch(b.id, { percentage: Number(e.target.value) })}
@@ -6299,13 +6300,13 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
                 />
                 <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
                   <input type="number" min={0} max={100} value={b.percentage} onChange={e => updateBranch(b.id, { percentage: Number(e.target.value) })}
-                    style={{ width: 46, border: "1px solid #E5E5E5", borderRadius: 5, padding: "4px 6px", fontSize: 12, outline: "none", textAlign: "center", background: "#FFF" }} />
-                  <span style={{ fontSize: 11, color: "#6B7280" }}>%</span>
+                    style={{ width: 46, border: "1px solid var(--border-default)", borderRadius: 6, padding: "4px 6px", fontSize: 12, outline: "none", textAlign: "center", background: "var(--surface-card)" }} />
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>%</span>
                 </div>
                 {branches.length > 2 && (
-                  <button onClick={() => removeBranch(b.id)} style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF", flexShrink: 0 }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                  <button onClick={() => removeBranch(b.id)} style={{ width: 20, height: 20, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", flexShrink: 0 }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}
                   ><X size={11} /></button>
                 )}
               </div>
@@ -6313,11 +6314,11 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
           })}
         </div>
       </div>
-      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid var(--border-default)", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={addBranch}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #E5E5E5", borderRadius: 8, background: "#F9FAFB", color: "#374151", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-          onMouseEnter={e => { e.currentTarget.style.background = "#F3F4F6"; e.currentTarget.style.borderColor = "#9CA3AF"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed var(--border-default)", borderRadius: 8, background: "var(--neutral-50)", color: "var(--text-heading)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "var(--neutral-50)"; e.currentTarget.style.borderColor = "#9CA3AF"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "var(--neutral-50)"; e.currentTarget.style.borderColor = "var(--border-default)"; }}
         >
           <Plus size={13} /> Adicionar ramificação
         </button>
@@ -6373,11 +6374,11 @@ function WebhookTreeNode({ data, path, depth, onSelect, selectedPath }: {
         <button
           onClick={() => onSelect(path)}
           title="Usar este campo"
-          style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: "0 2px", color: isSelected ? "#2563EB" : "#AAA", display: "flex", alignItems: "center" }}
+          style={{ flexShrink: 0, background: "none", border: "none", cursor: "pointer", padding: "0 2px", color: isSelected ? "#2563EB" : "var(--text-muted)", display: "flex", alignItems: "center" }}
         >
           <Copy size={11} />
         </button>
-        <span style={{ fontSize: 11, color: typeof data === "string" ? "#16A34A" : "#EA580C", fontFamily: "monospace", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={str}>
+        <span style={{ fontSize: 12, color: typeof data === "string" ? "#16A34A" : "#EA580C", fontFamily: "monospace", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={str}>
           {typeof data === "string" ? `"${str}"` : str}
         </span>
       </span>
@@ -6387,17 +6388,17 @@ function WebhookTreeNode({ data, path, depth, onSelect, selectedPath }: {
   if (Array.isArray(data)) {
     return (
       <div style={{ paddingLeft: indent }}>
-        <button onClick={() => setOpen(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#6B7280", fontFamily: "monospace", padding: "2px 0", display: "flex", alignItems: "center", gap: 3 }}>
+        <button onClick={() => setOpen(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace", padding: "2px 0", display: "flex", alignItems: "center", gap: 3 }}>
           {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
-          <span style={{ color: "#9CA3AF" }}>[{data.length}]</span>
+          <span style={{ color: "var(--text-muted)" }}>[{data.length}]</span>
         </button>
         {open && data.slice(0, 10).map((item, i) => (
           <div key={i} style={{ paddingLeft: 12, paddingTop: 2 }}>
-            <span style={{ fontSize: 10, color: "#9CA3AF", fontFamily: "monospace" }}>{i}: </span>
+            <span style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "monospace" }}>{i}: </span>
             <WebhookTreeNode data={item} path={`${path}.${i}`} depth={0} onSelect={onSelect} selectedPath={selectedPath} />
           </div>
         ))}
-        {data.length > 10 && <span style={{ paddingLeft: 12, fontSize: 10, color: "#9CA3AF" }}>…+{data.length - 10}</span>}
+        {data.length > 10 && <span style={{ paddingLeft: 12, fontSize: 12, color: "var(--text-muted)" }}>…+{data.length - 10}</span>}
       </div>
     );
   }
@@ -6411,11 +6412,11 @@ function WebhookTreeNode({ data, path, depth, onSelect, selectedPath }: {
           <div key={key} style={{ paddingTop: 2, paddingBottom: 2 }}>
             <div style={{ display: "flex", alignItems: "flex-start", gap: 3 }}>
               {isObj && (
-                <button onClick={() => setOpen(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 0", flexShrink: 0, color: "#9CA3AF", display: "flex", alignItems: "center" }}>
+                <button onClick={() => setOpen(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", padding: "2px 0", flexShrink: 0, color: "var(--text-muted)", display: "flex", alignItems: "center" }}>
                   {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
                 </button>
               )}
-              <span style={{ fontSize: 11, color: "#0891B2", fontWeight: 500, fontFamily: "monospace", flexShrink: 0 }}>{key}:</span>
+              <span style={{ fontSize: 12, color: "#0891B2", fontWeight: 500, fontFamily: "monospace", flexShrink: 0 }}>{key}:</span>
               {!isObj && <WebhookTreeNode data={val} path={full} depth={0} onSelect={onSelect} selectedPath={selectedPath} />}
             </div>
             {isObj && open && (
@@ -6432,7 +6433,7 @@ function WebhookTreeNode({ data, path, depth, onSelect, selectedPath }: {
 
 function WebhookTree({ data, onSelect, selectedPath }: { data: unknown; onSelect: (path: string) => void; selectedPath: string }) {
   return (
-    <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, padding: "10px 14px", maxHeight: 220, overflowY: "auto" }}>
+    <div style={{ background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 8, padding: "10px 14px", maxHeight: 220, overflowY: "auto" }}>
       <WebhookTreeNode data={data} path="" depth={0} onSelect={onSelect} selectedPath={selectedPath} />
     </div>
   );
@@ -6621,16 +6622,16 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
 
   return (
     <>
-      <div ref={pickerRef} style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 580, display: apiModal ? "none" : "flex", overflow: "hidden", opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? "all" : "none" }}>
-        <div style={{ width: 210, borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", maxHeight: 340 }}>
-          <div style={{ padding: "8px 10px", borderBottom: "1px solid #E5E7EB", flexShrink: 0 }}>
+      <div ref={pickerRef} style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 580, display: apiModal ? "none" : "flex", overflow: "hidden", opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? "all" : "none" }}>
+        <div style={{ width: 210, borderRight: "1px solid var(--border-default)", display: "flex", flexDirection: "column", maxHeight: 340 }}>
+          <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
             <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..."
-              style={{ width: "100%", padding: "5px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+              style={{ width: "100%", padding: "5px 8px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
           </div>
           <div style={{ flex: 1, overflowY: "auto" }}>
             {categories.map(c => (
               <button key={c.id} onClick={() => { setCat(c.id); setSearch(""); }}
-                style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "#EFF6FF" : "transparent", color: cat === c.id ? "#3B82F6" : "#374151", fontWeight: cat === c.id ? 600 : 400 }}>
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "#EFF6FF" : "transparent", color: cat === c.id ? "#3B82F6" : "var(--text-heading)", fontWeight: cat === c.id ? 600 : 400 }}>
                 {c.label}
               </button>
             ))}
@@ -6639,28 +6640,28 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
         <div style={{ flex: 1, display: "flex", flexDirection: "column", maxHeight: 340, position: "relative" }}>
           <div style={{ flex: 1, overflowY: "auto" }}>
             {fields.length === 0 ? (
-              <div style={{ padding: 16, fontSize: 12, color: "#9CA3AF" }}>Nenhum campo disponível</div>
+              <div style={{ padding: 16, fontSize: 12, color: "var(--text-muted)" }}>Nenhum campo disponível</div>
             ) : fields.map(f => (
               <button key={f.key} onClick={() => handleFieldClick(f)}
-                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 14px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: "#374151", textAlign: "left" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 14px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: "var(--text-heading)", textAlign: "left" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                 <span style={{
                   fontSize: f.icon.length > 1 ? 12 : 10,
                   fontWeight: 700,
-                  color: f.icon === "#" ? "#F97316" : f.icon === "{}" ? "#3B82F6" : "#6B7280",
-                  background: f.icon === "#" ? "#FFF7ED" : f.icon === "{}" ? "#EFF6FF" : "#F3F4F6",
-                  borderRadius: 3, padding: "1px 5px", flexShrink: 0,
+                  color: f.icon === "#" ? "#F97316" : f.icon === "{}" ? "#3B82F6" : "var(--text-muted)",
+                  background: f.icon === "#" ? "#FFF7ED" : f.icon === "{}" ? "#EFF6FF" : "var(--neutral-50)",
+                  borderRadius: 10, padding: "1px 5px", flexShrink: 0,
                 }}>{f.icon}</span>
                 {f.label}
               </button>
             ))}
           </div>
           {activeCat.isAdditional && fields.length === 0 && (
-            <div style={{ padding: "8px 14px", borderTop: "1px solid #E5E7EB", textAlign: "right", flexShrink: 0 }}>
+            <div style={{ padding: "8px 14px", borderTop: "1px solid var(--border-default)", textAlign: "right", flexShrink: 0 }}>
               <button
                 onClick={() => { onClose(); window.location.hash = "/configuracoes"; toast.info("Acesse Configurações → Campos adicionais para criar campos"); }}
-                style={{ fontSize: 12, fontWeight: 600, color: "#3B82F6", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                style={{ fontSize: 12, fontWeight: 600, color: "#1D4ED8", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                 Criar campo
               </button>
             </div>
@@ -6672,58 +6673,58 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
       {apiModal && (
         <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.4)" }}
           onClick={() => setApiModal(null)}>
-          <div style={{ background: "#fff", borderRadius: 12, padding: 24, width: 420, boxShadow: "0 12px 40px rgba(0,0,0,0.18)" }}
+          <div style={{ background: "var(--surface-card)", borderRadius: 12, padding: 24, width: 420, boxShadow: "0 12px 40px rgba(0,0,0,0.18)" }}
             onClick={e => e.stopPropagation()}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#111" }}>Dado de entrada da api</div>
-              <button onClick={() => setApiModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "#6B7280" }}><X size={16} /></button>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>Dado de entrada da api</div>
+              <button onClick={() => setApiModal(null)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}><X size={16} /></button>
             </div>
             <div style={{ marginBottom: 14 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 11, background: "#EFF6FF", color: "#3B82F6", border: "1px solid #BFDBFE", borderRadius: 4, padding: "1px 6px", fontWeight: 700 }}>{"{}"}</span>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 12, background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", borderRadius: 6, padding: "1px 6px", fontWeight: 700 }}>{"{}"}</span>
                 Valor selecionado
               </div>
-              <div style={{ fontSize: 11, color: "#9CA3AF", marginBottom: 6 }}>Escreva ou selecione um valor do json</div>
+              <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>Escreva ou selecione um valor do json</div>
               <input
                 autoFocus
                 value={apiPath}
                 onChange={e => setApiPath(e.target.value)}
                 placeholder="Ex: data.name"
-                style={{ width: "100%", padding: "8px 12px", border: "1px solid #3B82F6", borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
+                style={{ width: "100%", padding: "8px 12px", border: "1px solid #3B82F6", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }}
                 onKeyDown={e => { if (e.key === "Enter") confirmApiPath(); }}
               />
             </div>
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#374151", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <span>Dados recebidos</span>
                 {activeFieldOp ? null : apiModal.sourceName === "webhook" ? (
                   <button onClick={handleRefreshPayload} disabled={refreshingPayload}
-                    style={{ fontSize: 11, padding: "3px 10px", background: refreshingPayload ? "#93C5FD" : "#3B82F6", color: "#fff", border: "none", borderRadius: 5, cursor: refreshingPayload ? "default" : "pointer", fontWeight: 600 }}>
+                    style={{ fontSize: 12, padding: "3px 10px", background: refreshingPayload ? "#93C5FD" : "#3B82F6", color: "#fff", border: "none", borderRadius: 6, cursor: refreshingPayload ? "default" : "pointer", fontWeight: 600 }}>
                     {refreshingPayload ? "Atualizando…" : "Atualizar"}
                   </button>
                 ) : (
                   <button onClick={testApiRequest} disabled={apiTestLoading}
-                    style={{ fontSize: 11, padding: "3px 10px", background: apiTestLoading ? "#93C5FD" : "#3B82F6", color: "#fff", border: "none", borderRadius: 5, cursor: apiTestLoading ? "default" : "pointer", fontWeight: 600 }}>
+                    style={{ fontSize: 12, padding: "3px 10px", background: apiTestLoading ? "#93C5FD" : "#3B82F6", color: "#fff", border: "none", borderRadius: 6, cursor: apiTestLoading ? "default" : "pointer", fontWeight: 600 }}>
                     {apiTestLoading ? "Testando…" : "Testar"}
                   </button>
                 )}
               </div>
               {activeFieldOp ? (
                 activeFieldOp.type === "analise_telefone" ? (
-                  <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, overflow: "hidden" }}>
+                  <div style={{ background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 8, overflow: "hidden" }}>
                     {ANALISE_TEL_FIELDS.map((f, i) => (
                       <button key={f.key}
                         onClick={() => { onInsert(`{{${(activeFieldOp as FieldOpAnaliseTel).datasourceName}.${f.key}}}`); onClose(); }}
-                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "7px 12px", background: "transparent", border: "none", borderBottom: i < ANALISE_TEL_FIELDS.length - 1 ? "1px solid #F3F4F6" : "none", cursor: "pointer", textAlign: "left", fontSize: 12 }}
+                        style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "7px 12px", background: "transparent", border: "none", borderBottom: i < ANALISE_TEL_FIELDS.length - 1 ? "1px solid var(--neutral-100)" : "none", cursor: "pointer", textAlign: "left", fontSize: 12 }}
                         onMouseEnter={e => (e.currentTarget.style.background = "#EFF6FF")}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                         <span style={{ fontWeight: 600, color: "#1D4ED8", minWidth: 140, flexShrink: 0 }}>{f.key}</span>
-                        <span style={{ color: "#6B7280", fontFamily: "monospace", fontSize: 11 }}>{f.desc}</span>
+                        <span style={{ color: "var(--text-muted)", fontFamily: "monospace", fontSize: 12 }}>{f.desc}</span>
                       </button>
                     ))}
                   </div>
                 ) : (
-                  <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 7, padding: "10px 14px", fontSize: 12, color: "#166534" }}>
+                  <div style={{ background: "var(--accent-50)", border: "1px solid var(--accent-200)", borderRadius: 6, padding: "10px 14px", fontSize: 12, color: "var(--accent-800)" }}>
                     Campos disponíveis após a execução do fluxo.
                   </div>
                 )
@@ -6731,12 +6732,12 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
                 webhookPayload && typeof webhookPayload === "object" && webhookPayload !== null
                   ? <WebhookTree data={webhookPayload} onSelect={path => setApiPath(path)} selectedPath={apiPath} />
                   : (
-                  <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 7, padding: "10px 14px", fontSize: 12, color: "#0369A1" }}>
+                  <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 6, padding: "10px 14px", fontSize: 12, color: "#0369A1" }}>
                     Nenhum dado recebido ainda — envie um webhook para ver os campos disponíveis.
                   </div>
                 )
               ) : (
-                <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 7, padding: "10px 14px", fontSize: 11, color: apiTestResponses[apiModal.sourceName] ? "#374151" : "#9CA3AF", fontFamily: "monospace", maxHeight: 160, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
+                <div style={{ background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 6, padding: "10px 14px", fontSize: 12, color: apiTestResponses[apiModal.sourceName] ? "var(--text-heading)" : "var(--text-muted)", fontFamily: "monospace", maxHeight: 160, overflow: "auto", whiteSpace: "pre-wrap", wordBreak: "break-all" }}>
                   {apiTestResponses[apiModal.sourceName]
                     ? JSON.stringify(apiTestResponses[apiModal.sourceName], null, 2)
                     : "Clique em \"Testar\" para ver o retorno da API"}
@@ -6762,20 +6763,20 @@ function MethodDropdown({ value, onChange }: { value: string; onChange: (v: stri
   const methods = ["POST", "GET", "PUT", "PATCH", "DELETE"].filter(m => m.includes(search.toUpperCase()));
   return (
     <div style={{ position: "relative" }}>
-      <button onClick={() => setOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, fontWeight: 600, color: "#3B82F6", background: "#fff", cursor: "pointer", minWidth: 90 }}>
+      <button onClick={() => setOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, fontWeight: 600, color: "#1D4ED8", background: "var(--surface-card)", cursor: "pointer", minWidth: 90 }}>
         {value} <ChevronDown size={12} />
       </button>
       {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", minWidth: 130, overflow: "hidden" }}>
-          <div style={{ padding: "6px 8px", borderBottom: "1px solid #E5E7EB" }}>
-            <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..." style={{ width: "100%", padding: "4px 6px", border: "1px solid #E5E7EB", borderRadius: 4, fontSize: 11, outline: "none", boxSizing: "border-box" }} />
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, zIndex: 50, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 8, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", minWidth: 130, overflow: "hidden" }}>
+          <div style={{ padding: "6px 8px", borderBottom: "1px solid var(--border-default)" }}>
+            <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..." style={{ width: "100%", padding: "4px 6px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }} />
           </div>
           {methods.map(m => (
             <button key={m} onClick={() => { onChange(m); setOpen(false); setSearch(""); }}
-              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: m === value ? "#3B82F6" : "#374151", fontWeight: m === value ? 600 : 400, textAlign: "left" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: m === value ? "#3B82F6" : "var(--text-heading)", fontWeight: m === value ? 600 : 400, textAlign: "left" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-              {m === value && <span style={{ color: "#3B82F6", fontSize: 10 }}>✓</span>}
+              {m === value && <span style={{ color: "#1D4ED8", fontSize: 12 }}>✓</span>}
               {m !== value && <span style={{ display: "inline-block", width: 14 }} />}
               {m}
             </button>
@@ -6798,17 +6799,17 @@ function BodyEditor({ value, onChange }: { value: string; onChange: (v: string) 
     setTimeout(() => { ta.focus(); ta.setSelectionRange(s + v.length, s + v.length); }, 0);
   };
   return (
-    <div style={{ position: "relative", border: "1px solid #E5E7EB", borderRadius: 6, overflow: "hidden", background: "#FAFAFA" }}>
+    <div style={{ position: "relative", border: "1px solid var(--border-default)", borderRadius: 6, overflow: "hidden", background: "var(--neutral-25)" }}>
       <div style={{ display: "flex", maxHeight: 260 }}>
-        <div style={{ padding: "8px 6px", background: "#F3F4F6", borderRight: "1px solid #E5E7EB", minWidth: 28, textAlign: "right", userSelect: "none", overflowY: "hidden" }}>
-          {lines.map((_, i) => <div key={i} style={{ fontSize: 11, lineHeight: "20px", color: "#9CA3AF", fontFamily: "monospace" }}>{i + 1}</div>)}
+        <div style={{ padding: "8px 6px", background: "var(--neutral-50)", borderRight: "1px solid var(--border-default)", minWidth: 28, textAlign: "right", userSelect: "none", overflowY: "hidden" }}>
+          {lines.map((_, i) => <div key={i} style={{ fontSize: 12, lineHeight: "20px", color: "var(--text-muted)", fontFamily: "monospace" }}>{i + 1}</div>)}
         </div>
         <textarea ref={taRef} value={value} onChange={e => onChange(e.target.value)} spellCheck={false}
           style={{ flex: 1, padding: "8px 10px", border: "none", outline: "none", resize: "none", fontSize: 12, fontFamily: "monospace", lineHeight: "20px", background: "transparent", minHeight: 120, maxHeight: 260, overflowY: "auto" }} />
       </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 6px", borderTop: "1px solid #E5E7EB", position: "relative" }}>
+      <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 6px", borderTop: "1px solid var(--border-default)", position: "relative" }}>
         <button onClick={() => setVarOpen(o => !o)} title="Inserir variável"
-          style={{ width: 24, height: 24, borderRadius: 5, border: "1px solid #3B82F6", background: "#EFF6FF", color: "#3B82F6", fontSize: 11, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid #3B82F6", background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Braces size={13} />
         </button>
         {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
@@ -6876,38 +6877,38 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
 
   // ── Left config panel ───────────────────────────────────────────────────────
   const leftPanel = selectedReq ? (
-    <div style={{ width: 300, minWidth: 300, display: "flex", flexDirection: "column", borderRight: showAdvanced ? "1px solid #E5E5E5" : "none", height: "100%" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
-        <button onClick={() => { setSelectedReqId(null); setShowAdvanced(false); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111", padding: 0, marginBottom: 4 }}>
+    <div style={{ width: 300, minWidth: 300, display: "flex", flexDirection: "column", borderRight: showAdvanced ? "1px solid var(--border-default)" : "none", height: "100%" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
+        <button onClick={() => { setSelectedReqId(null); setShowAdvanced(false); }} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--text-heading)", padding: 0, marginBottom: 4 }}>
           <ArrowLeft size={15} />{selectedReq.type === "json" ? "Requisição HTTP com comunicação via JSON" : "Requisição de arquivo HTTP"}
         </button>
-        <p style={{ fontSize: 11, color: "#6B7280", margin: 0, paddingLeft: 21 }}>{API_REQUEST_TYPES.find(t => t.id === selectedReq.type)?.description}</p>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: 0, paddingLeft: 21 }}>{API_REQUEST_TYPES.find(t => t.id === selectedReq.type)?.description}</p>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 4 }}>Fonte de dados</div>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#3B82F6", background: "#EFF6FF", borderRadius: 5, padding: "3px 10px" }}>{selectedReq.name}</span>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>Fonte de dados</div>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "#1D4ED8", background: "#EFF6FF", borderRadius: 6, padding: "3px 10px" }}>{selectedReq.name}</span>
         </div>
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 6 }}>Método</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>Método</div>
           <select value={selectedReq.method} onChange={e => upd({ method: e.target.value })}
-            style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", cursor: "pointer" }}>
+            style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", cursor: "pointer" }}>
             {["POST", "GET", "PUT", "PATCH", "DELETE"].map(m => <option key={m}>{m}</option>)}
           </select>
         </div>
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, color: "#6B7280", marginBottom: 6 }}>Url da requisição</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>Url da requisição</div>
           <div style={{ position: "relative" }}>
             <textarea value={selectedReq.url} onChange={e => upd({ url: e.target.value })} placeholder="https://..." rows={3}
-              style={{ width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none", resize: "none", boxSizing: "border-box" }} />
+              style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", resize: "none", boxSizing: "border-box" }} />
             <div style={{ display: "flex", gap: 4, justifyContent: "flex-end", marginTop: 4, position: "relative" }}>
               <button onClick={() => navigator.clipboard?.writeText(selectedReq.url)} title="Copiar"
-                style={{ width: 24, height: 24, border: "1px solid #E5E7EB", borderRadius: 4, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280" }}>
+                style={{ width: 24, height: 24, border: "1px solid var(--border-default)", borderRadius: 6, background: "var(--surface-card)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}>
                 <Copy size={12} />
               </button>
               <div style={{ position: "relative" }}>
                 <button onClick={() => setUrlVarOpen(o => !o)} title="Inserir variável"
-                  style={{ width: 24, height: 24, border: "1px solid #3B82F6", borderRadius: 4, background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", fontSize: 11, fontWeight: 700 }}>
+                  style={{ width: 24, height: 24, border: "1px solid #3B82F6", borderRadius: 6, background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#1D4ED8", fontSize: 12, fontWeight: 700 }}>
                   <Braces size={13} />
                 </button>
                 {urlVarOpen && <VarPicker onInsert={insertUrlVar} onClose={() => setUrlVarOpen(false)} />}
@@ -6915,45 +6916,45 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
             </div>
           </div>
         </div>
-        <button onClick={() => setShowAdvanced(true)} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", color: "#3B82F6", fontSize: 12, fontWeight: 500, padding: 0 }}>
+        <button onClick={() => setShowAdvanced(true)} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", color: "#1D4ED8", fontSize: 12, fontWeight: 500, padding: 0 }}>
           Configurações avançadas <ChevronRight size={14} />
         </button>
       </div>
     </div>
   ) : (
     <div style={{ width: 300, minWidth: 300, display: "flex", flexDirection: "column", height: "100%" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111", padding: 0 }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "var(--text-heading)", padding: 0 }}>
             <ArrowLeft size={16} /> API
           </button>
           <div style={{ display: "flex", gap: 2 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}><Icon size={13} /></button>
             ))}
           </div>
         </div>
-        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Faça chamadas a APIs externas para integrar com outros sistemas ou serviços.</p>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Faça chamadas a APIs externas para integrar com outros sistemas ou serviços.</p>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
         {requests.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
             {requests.map(req => (
               <div key={req.id} onClick={() => { setSelectedReqId(req.id); setShowAdvanced(false); }}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", border: "1px solid #BFDBFE", borderRadius: 7, cursor: "pointer", background: "#EFF6FF" }}
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", border: "1px solid #BFDBFE", borderRadius: 10, cursor: "pointer", background: "#EFF6FF" }}
                 onMouseEnter={e => (e.currentTarget.style.background = "#DBEAFE")} onMouseLeave={e => (e.currentTarget.style.background = "#EFF6FF")}>
                 {req.type === "json" ? <Braces size={14} color="#3B82F6" /> : <FileDown size={14} color="#3B82F6" />}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {req.type === "json" ? "Requisição HTTP com comunicação..." : "Requisição de arquivo HTTP"}
                   </div>
-                  <div style={{ fontSize: 11, color: "#3B82F6" }}>{req.method}</div>
+                  <div style={{ fontSize: 12, color: "#1D4ED8" }}>{req.method}</div>
                 </div>
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#3B82F6", background: "#DBEAFE", borderRadius: 4, padding: "1px 6px", flexShrink: 0 }}>{req.name}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#1D4ED8", background: "#DBEAFE", borderRadius: 6, padding: "1px 6px", flexShrink: 0 }}>{req.name}</span>
                 <button onClick={e => { e.stopPropagation(); removeApiRequest(req.id); }}
-                  style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center" }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")} onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}>
+                  style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")} onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}>
                   <X size={11} />
                 </button>
               </div>
@@ -6961,7 +6962,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
           </div>
         )}
         <button onClick={() => setShowTypePicker(true)}
-          style={{ width: "100%", border: "1px dashed #BFDBFE", background: "#EFF6FF", color: "#3B82F6", fontSize: 12, padding: "8px 0", borderRadius: 7, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+          style={{ width: "100%", border: "1px dashed #BFDBFE", background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, padding: "8px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
           onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; }} onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; }}>
           <Plus size={13} /> Adicionar API
         </button>
@@ -6976,31 +6977,31 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
 
   const advPanel = selectedReq && showAdvanced ? (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", height: "100%", minWidth: 0 }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "#111" }}>Configurações avançadas</div>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>Configurações avançadas</div>
       </div>
-      <div style={{ padding: "12px 16px", borderBottom: "1px solid #E5E5E5", flexShrink: 0, display: "flex", gap: 8, alignItems: "center" }}>
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid var(--border-default)", flexShrink: 0, display: "flex", gap: 8, alignItems: "center" }}>
         <MethodDropdown value={selectedReq.method} onChange={v => upd({ method: v })} />
         <div style={{ flex: 1, position: "relative", display: "flex", gap: 4 }}>
           <input value={selectedReq.url} onChange={e => upd({ url: e.target.value })} placeholder="https://..."
-            style={{ flex: 1, padding: "7px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, outline: "none" }} />
+            style={{ flex: 1, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none" }} />
           <button onClick={() => navigator.clipboard?.writeText(selectedReq.url)} title="Copiar"
-            style={{ width: 28, height: 28, border: "1px solid #E5E7EB", borderRadius: 5, background: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}>
+            style={{ width: 28, height: 28, border: "1px solid var(--border-default)", borderRadius: 8, background: "var(--surface-card)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", flexShrink: 0 }}>
             <Copy size={12} />
           </button>
           <div style={{ position: "relative", flexShrink: 0 }}>
             <button onClick={() => setUrlVarOpen(o => !o)} title="Inserir variável"
-              style={{ width: 28, height: 28, border: "1px solid #3B82F6", borderRadius: 5, background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", fontSize: 12, fontWeight: 700 }}>
+              style={{ width: 28, height: 28, border: "1px solid #3B82F6", borderRadius: 8, background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#1D4ED8", fontSize: 12, fontWeight: 700 }}>
               <Braces size={13} />
             </button>
             {urlVarOpen && <VarPicker onInsert={insertUrlVar} onClose={() => setUrlVarOpen(false)} />}
           </div>
         </div>
       </div>
-      <div style={{ display: "flex", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+      <div style={{ display: "flex", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
         {tabs.map(tab => (
           <button key={tab} onClick={() => setAdvTab(tab as typeof advTab)}
-            style={{ flex: 1, padding: "8px 4px", border: "none", background: "transparent", borderBottom: `2px solid ${advTab === tab ? "#3B82F6" : "transparent"}`, fontSize: 12, fontWeight: advTab === tab ? 600 : 400, color: advTab === tab ? "#3B82F6" : "#6B7280", cursor: "pointer" }}>
+            style={{ flex: 1, padding: "8px 4px", border: "none", background: "transparent", borderBottom: `2px solid ${advTab === tab ? "#3B82F6" : "transparent"}`, fontSize: 12, fontWeight: advTab === tab ? 600 : 400, color: advTab === tab ? "#3B82F6" : "var(--text-muted)", cursor: "pointer" }}>
             {tab === "headers" ? "Cabeçalho" : tab === "params" ? "Parâmetros" : tab === "body" ? "Corpo" : "Resposta do Cabeçalho"}
           </button>
         ))}
@@ -7014,17 +7015,17 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
               {(advTab === "headers" ? selectedReq.headers : advTab === "params" ? selectedReq.params : selectedReq.responseHeaders).map((h, i) => (
                 <div key={i} style={{ display: "flex", gap: 4, alignItems: "center" }}>
                   <input value={h.key} onChange={e => updateKV(advTab as "headers" | "params" | "responseHeaders", i, e.target.value, h.value)} placeholder="Chave"
-                    style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 11, outline: "none" }} />
+                    style={{ flex: 1, padding: "6px 8px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none" }} />
                   <input value={h.value} onChange={e => updateKV(advTab as "headers" | "params" | "responseHeaders", i, h.key, e.target.value)} placeholder="Valor"
-                    style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 11, outline: "none" }} />
+                    style={{ flex: 1, padding: "6px 8px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none" }} />
                   <button onClick={() => removeKV(advTab as "headers" | "params" | "responseHeaders", i)}
-                    style={{ width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")} onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}><X size={11} /></button>
+                    style={{ width: 22, height: 22, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")} onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}><X size={11} /></button>
                 </div>
               ))}
             </div>
             <button onClick={() => addKV(advTab as "headers" | "params" | "responseHeaders")}
-              style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", border: "0.5px dashed #E5E5E5", borderRadius: 6, background: "transparent", color: "#6B7280", fontSize: 11, cursor: "pointer" }}>
+              style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 4, padding: "6px 10px", border: "0.5px dashed var(--border-default)", borderRadius: 6, background: "transparent", color: "var(--text-muted)", fontSize: 12, cursor: "pointer" }}>
               <Plus size={11} /> Adicionar
             </button>
           </div>
@@ -7035,7 +7036,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
 
   return (
     <>
-      <aside style={{ width: selectedReq && showAdvanced ? 820 : 300, minWidth: selectedReq && showAdvanced ? 820 : 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "row", flexShrink: 0, overflow: "hidden" }}>
+      <aside style={{ width: selectedReq && showAdvanced ? 820 : 300, minWidth: selectedReq && showAdvanced ? 820 : 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "row", flexShrink: 0, overflow: "hidden" }}>
         {leftPanel}
         {advPanel}
       </aside>
@@ -7043,23 +7044,23 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
       <Dialog open={showTypePicker} onOpenChange={setShowTypePicker}>
         <DialogContent style={{ maxWidth: 480, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 280 }}>
-            <div style={{ width: 140, borderRight: "1px solid #E5E5E5", padding: "16px 0" }}>
-              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "#111" }}>Adicionar API</div>
-              <button style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: "#EFF6FF", border: "none", borderLeft: "2px solid #3B82F6", cursor: "pointer", fontSize: 12, color: "#3B82F6", fontWeight: 600 }}>
+            <div style={{ width: 140, borderRight: "1px solid var(--border-default)", padding: "16px 0" }}>
+              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>Adicionar API</div>
+              <button style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: "#EFF6FF", border: "none", borderLeft: "2px solid #3B82F6", cursor: "pointer", fontSize: 12, color: "#1D4ED8", fontWeight: 600 }}>
                 <Globe size={14} /> HTTP
               </button>
             </div>
             <div style={{ flex: 1, padding: "16px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
               {API_REQUEST_TYPES.map(t => (
                 <button key={t.id} onClick={() => handleAddRequest(t.id)}
-                  style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", border: "1px solid #E5E7EB", borderRadius: 8, cursor: "pointer", background: "#fff", textAlign: "left" }}
-                  onMouseEnter={e => (e.currentTarget.style.borderColor = "#3B82F6")} onMouseLeave={e => (e.currentTarget.style.borderColor = "#E5E7EB")}>
-                  <div style={{ width: 30, height: 30, borderRadius: 7, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", border: "1px solid var(--border-default)", borderRadius: 8, cursor: "pointer", background: "var(--surface-card)", textAlign: "left" }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = "#3B82F6")} onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-default)")}>
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {t.id === "json" ? <Braces size={15} color="#3B82F6" /> : <FileDown size={15} color="#3B82F6" />}
                   </div>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111", marginBottom: 3 }}>{t.label}</div>
-                    <div style={{ fontSize: 11, color: "#6B7280", lineHeight: 1.4 }}>{t.description}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)", marginBottom: 3 }}>{t.label}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>{t.description}</div>
                   </div>
                 </button>
               ))}
@@ -7124,7 +7125,7 @@ function CamposValueInput({ value, onChange, placeholder }: {
   };
 
   const sharedBoxStyle: React.CSSProperties = {
-    width: "100%", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6,
+    width: "100%", padding: "8px 10px", border: "1px solid var(--border-default)", borderRadius: 6,
     fontSize: 12, boxSizing: "border-box", lineHeight: 1.6, minHeight: 62,
   };
 
@@ -7146,14 +7147,14 @@ function CamposValueInput({ value, onChange, placeholder }: {
           style={{ ...sharedBoxStyle, cursor: "text", display: "flex", flexWrap: "wrap", gap: "4px 3px", alignContent: "flex-start" }}
         >
           {value === "" ? (
-            <span style={{ color: "#9CA3AF", fontSize: 12 }}>{placeholder ?? "Digite um valor ou use {} para inserir variável..."}</span>
+            <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{placeholder ?? "Digite um valor ou use {} para inserir variável..."}</span>
           ) : tokens.map((t, i) =>
             t.type === "var" ? (
-              <span key={i} style={{ background: varColor(t.content), color: "#fff", borderRadius: 5, padding: "2px 8px", fontSize: 11, fontWeight: 600, lineHeight: "18px", display: "inline-flex", alignItems: "center" }}>
+              <span key={i} style={{ background: varColor(t.content), color: "#fff", borderRadius: 6, padding: "2px 8px", fontSize: 12, fontWeight: 600, lineHeight: "18px", display: "inline-flex", alignItems: "center" }}>
                 {varLabel(t.content)}
               </span>
             ) : (
-              <span key={i} style={{ fontSize: 12, whiteSpace: "pre-wrap", color: "#111", lineHeight: "22px" }}>{t.content}</span>
+              <span key={i} style={{ fontSize: 12, whiteSpace: "pre-wrap", color: "var(--text-heading)", lineHeight: "22px" }}>{t.content}</span>
             )
           )}
         </div>
@@ -7162,13 +7163,13 @@ function CamposValueInput({ value, onChange, placeholder }: {
         <button
           onMouseDown={e => e.preventDefault()}
           onClick={() => { navigator.clipboard.writeText(value).catch(() => {}); toast.success("Copiado!"); }}
-          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}
+          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid var(--border-default)", background: "var(--neutral-50)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", flexShrink: 0 }}
         ><Copy size={12} /></button>
         <div style={{ position: "relative", flexShrink: 0 }}>
           <button
             onMouseDown={e => e.preventDefault()}
             onClick={() => { setEditing(true); setVarOpen(o => !o); }}
-            style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0, fontSize: 11, fontWeight: 700 }}
+            style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#1D4ED8", flexShrink: 0, fontSize: 12, fontWeight: 700 }}
           ><Braces size={13} /></button>
           {varOpen && <VarPicker onInsert={insertVar} onClose={() => { setVarOpen(false); }} />}
         </div>
@@ -7240,16 +7241,16 @@ function FieldDestPicker({ onSelect, onClose, customFieldGroups }: {
   const fields = activeCat.fields.filter(f => !search || f.label.toLowerCase().includes(search.toLowerCase()));
 
   return (
-    <div ref={pickerRef} style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999, background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 480, display: "flex", overflow: "hidden", opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? "all" : "none" }}>
-      <div style={{ width: 180, borderRight: "1px solid #E5E7EB", display: "flex", flexDirection: "column", maxHeight: 300 }}>
-        <div style={{ padding: "8px 10px", borderBottom: "1px solid #E5E7EB", flexShrink: 0 }}>
+    <div ref={pickerRef} style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 9999, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.14)", width: 480, display: "flex", overflow: "hidden", opacity: pos.ready ? 1 : 0, pointerEvents: pos.ready ? "all" : "none" }}>
+      <div style={{ width: 180, borderRight: "1px solid var(--border-default)", display: "flex", flexDirection: "column", maxHeight: 300 }}>
+        <div style={{ padding: "8px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
           <input autoFocus value={search} onChange={e => setSearch(e.target.value)} placeholder="Pesquisar..."
-            style={{ width: "100%", padding: "5px 8px", border: "1px solid #E5E7EB", borderRadius: 5, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} />
+            style={{ width: "100%", padding: "5px 8px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" as const }} />
         </div>
         <div style={{ flex: 1, overflowY: "auto" }}>
           {categories.map(c => (
             <button key={c.id} onClick={() => { setCat(c.id); setSearch(""); }}
-              style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "#F0FDF4" : "transparent", color: cat === c.id ? "#16A34A" : "#374151", fontWeight: cat === c.id ? 600 : 400 }}>
+              style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "#F0FDF4" : "transparent", color: cat === c.id ? "#16A34A" : "var(--text-heading)", fontWeight: cat === c.id ? 600 : 400 }}>
               {c.label}
             </button>
           ))}
@@ -7258,15 +7259,15 @@ function FieldDestPicker({ onSelect, onClose, customFieldGroups }: {
       <div style={{ flex: 1, display: "flex", flexDirection: "column", maxHeight: 300 }}>
         <div style={{ flex: 1, overflowY: "auto" }}>
           {fields.length === 0 ? (
-            <div style={{ padding: 16, fontSize: 12, color: "#9CA3AF" }}>
+            <div style={{ padding: 16, fontSize: 12, color: "var(--text-muted)" }}>
               {activeCat.isAdditional ? "Nenhum campo adicional criado." : "Nenhum campo disponível"}
             </div>
           ) : fields.map(f => (
             <button key={f.key} onClick={() => { onSelect(f.key, f.label); onClose(); }}
-              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 14px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: "#374151", textAlign: "left" }}
-              onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+              style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 14px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: "var(--text-heading)", textAlign: "left" }}
+              onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#22C55E", background: "#F0FDF4", borderRadius: 3, padding: "1px 5px", flexShrink: 0 }}>T</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent-800)", background: "var(--accent-50)", borderRadius: 6, padding: "1px 5px", flexShrink: 0 }}>T</span>
               {f.label}
             </button>
           ))}
@@ -7327,13 +7328,13 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
   };
 
   const panelHeader = (title: string, subtitle: string, onBack: () => void) => (
-    <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+    <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+        <button onClick={onBack} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "var(--text-heading)", padding: 0 }}>
           <ArrowLeft size={16} /> {title}
         </button>
         <div style={{ display: "flex", gap: 2 }}>
-          {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+          {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
             <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
               onMouseEnter={e => (e.currentTarget.style.background = hover)}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -7341,7 +7342,7 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
           ))}
         </div>
       </div>
-      <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>{subtitle}</p>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>{subtitle}</p>
     </div>
   );
 
@@ -7351,24 +7352,24 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
     if (selectedOp.type === "mapeamento") {
       const op = selectedOp as FieldOpMapeamento;
       return (
-        <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-          <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
-            <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+        <aside style={{ width: 300, minWidth: 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
+            <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "var(--text-heading)", padding: 0 }}>
               <ArrowLeft size={16} /> Mapeamento de campo
             </button>
-            <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Realiza operações de mapeamento de campos (do sistema, fonte de dados,...)</p>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Realiza operações de mapeamento de campos (do sistema, fonte de dados,...)</p>
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Campo de destino</label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 4 }}>Campo de destino</label>
                 <div style={{ position: "relative" }}>
                   <button
-                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, background: "#fff", cursor: "pointer", color: op.fieldKey ? "#111" : "#9CA3AF" }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, background: "var(--surface-card)", cursor: "pointer", color: op.fieldKey ? "var(--text-heading)" : "var(--text-muted)" }}
                     onClick={() => setDestPickerOpen(v => !v)}
                   >
                     <span>{op.fieldLabel || "Selecionar"}</span>
-                    <ChevronDown size={12} style={{ color: "#9CA3AF", flexShrink: 0 }} />
+                    <ChevronDown size={12} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
                   </button>
                   {destPickerOpen && (
                     <FieldDestPicker
@@ -7380,7 +7381,7 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
                 </div>
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Valor que será atribuído ao campo</label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 4 }}>Valor que será atribuído ao campo</label>
                 <CamposValueInput
                   value={op.value}
                   onChange={v => updateFieldOp(op.id, { value: v })}
@@ -7397,28 +7398,28 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
     if (selectedOp.type === "loop_array") {
       const op = selectedOp as FieldOpLoopArray;
       return (
-        <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-          <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
-            <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+        <aside style={{ width: 300, minWidth: 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
+            <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "var(--text-heading)", padding: 0 }}>
               <ArrowLeft size={16} /> Loop de array
             </button>
-            <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Itera sobre um array de dados</p>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Itera sobre um array de dados</p>
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Fonte de dados</label>
-                <span style={{ fontSize: 11, fontWeight: 700, background: op.datasourceColor, color: "#fff", borderRadius: 6, padding: "3px 8px" }}>{op.datasourceName}</span>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 6 }}>Fonte de dados</label>
+                <span style={{ fontSize: 12, fontWeight: 700, background: op.datasourceColor, color: "#fff", borderRadius: 6, padding: "3px 8px" }}>{op.datasourceName}</span>
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Parâmetro</label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 4 }}>Parâmetro</label>
                 <div style={{ position: "relative" }}>
                   <button
-                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, background: "#fff", cursor: "pointer", color: op.paramKey ? "#111" : "#9CA3AF" }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, background: "var(--surface-card)", cursor: "pointer", color: op.paramKey ? "var(--text-heading)" : "var(--text-muted)" }}
                     onClick={() => setParamPickerOpen(v => !v)}
                   >
                     <span>{op.paramLabel || "Selecionar"}</span>
-                    <ChevronDown size={12} style={{ color: "#9CA3AF", flexShrink: 0 }} />
+                    <ChevronDown size={12} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
                   </button>
                   {paramPickerOpen && (
                     <FieldDestPicker
@@ -7439,21 +7440,21 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
     if (selectedOp.type === "analise_telefone") {
       const op = selectedOp as FieldOpAnaliseTel;
       return (
-        <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-          <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
-            <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+        <aside style={{ width: 300, minWidth: 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
+            <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "var(--text-heading)", padding: 0 }}>
               <ArrowLeft size={16} /> Análise de telefone
             </button>
-            <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Analisa um número de telefone</p>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Analisa um número de telefone</p>
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Fonte de dados com o resultado</label>
-                <span style={{ fontSize: 11, fontWeight: 700, background: op.datasourceColor, color: "#fff", borderRadius: 6, padding: "3px 8px" }}>{op.datasourceName}</span>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 6 }}>Fonte de dados com o resultado</label>
+                <span style={{ fontSize: 12, fontWeight: 700, background: op.datasourceColor, color: "#fff", borderRadius: 6, padding: "3px 8px" }}>{op.datasourceName}</span>
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Telefone</label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 4 }}>Telefone</label>
                 <CamposValueInput
                   value={op.phone}
                   onChange={v => updateFieldOp(op.id, { phone: v })}
@@ -7461,11 +7462,11 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
                 />
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>País padrão</label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 4 }}>País padrão</label>
                 <select
                   value={op.defaultCountry}
                   onChange={e => updateFieldOp(op.id, { defaultCountry: e.target.value })}
-                  style={{ width: "100%", height: 34, padding: "0 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", background: "#fff", outline: "none" }}
+                  style={{ width: "100%", height: 34, padding: "0 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, color: "var(--text-heading)", background: "var(--surface-card)", outline: "none" }}
                 >
                   <option value="BR">Brasil (BR)</option>
                   <option value="US">Estados Unidos (US)</option>
@@ -7483,21 +7484,21 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
     if (selectedOp.type === "formatacao_data") {
       const op = selectedOp as FieldOpFormatacaoData;
       return (
-        <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-          <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
-            <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+        <aside style={{ width: 300, minWidth: 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+          <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
+            <button onClick={() => setSelectedOpId(null)} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "var(--text-heading)", padding: 0 }}>
               <ArrowLeft size={16} /> Formatação de data
             </button>
-            <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Formatação e manipulação de data</p>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Formatação e manipulação de data</p>
           </div>
           <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Fonte de dados com o resultado</label>
-                <span style={{ fontSize: 11, fontWeight: 700, background: op.datasourceColor, color: "#fff", borderRadius: 6, padding: "3px 8px" }}>{op.datasourceName}</span>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 6 }}>Fonte de dados com o resultado</label>
+                <span style={{ fontSize: 12, fontWeight: 700, background: op.datasourceColor, color: "#fff", borderRadius: 6, padding: "3px 8px" }}>{op.datasourceName}</span>
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Data</label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 4 }}>Data</label>
                 <CamposValueInput
                   value={op.date}
                   onChange={v => updateFieldOp(op.id, { date: v })}
@@ -7505,11 +7506,11 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
                 />
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Fuso horário</label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 4 }}>Fuso horário</label>
                 <select
                   value={op.timezone}
                   onChange={e => updateFieldOp(op.id, { timezone: e.target.value })}
-                  style={{ width: "100%", height: 34, padding: "0 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", background: "#fff", outline: "none" }}
+                  style={{ width: "100%", height: 34, padding: "0 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, color: "var(--text-heading)", background: "var(--surface-card)", outline: "none" }}
                 >
                   <option value="America/Sao_Paulo">America/Sao_Paulo (BRT)</option>
                   <option value="America/Manaus">America/Manaus (AMT)</option>
@@ -7521,18 +7522,18 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
                 </select>
               </div>
               <div>
-                <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", marginBottom: 4 }}>Adicionar tempo à data</label>
+                <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 4 }}>Adicionar tempo à data</label>
                 <div style={{ display: "flex", gap: 8 }}>
                   <input
                     type="number"
                     value={op.addAmount}
                     onChange={e => updateFieldOp(op.id, { addAmount: Number(e.target.value) })}
-                    style={{ flex: 1, height: 34, padding: "0 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", background: "#fff", outline: "none" }}
+                    style={{ flex: 1, height: 34, padding: "0 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, color: "var(--text-heading)", background: "var(--surface-card)", outline: "none" }}
                   />
                   <select
                     value={op.addUnit}
                     onChange={e => updateFieldOp(op.id, { addUnit: e.target.value })}
-                    style={{ flex: 1, height: 34, padding: "0 8px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", background: "#fff", outline: "none" }}
+                    style={{ flex: 1, height: 34, padding: "0 8px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, color: "var(--text-heading)", background: "var(--surface-card)", outline: "none" }}
                   >
                     <option value="segundos">Segundos</option>
                     <option value="minutos">Minutos</option>
@@ -7552,7 +7553,7 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
 
   // ── List view ────────────────────────────────────────────────────────────────
   return (
-    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       {panelHeader("Operações de campos", "Realize operações com campos do sistema, campos adicionais ou fontes de dados. Clique para adicionar uma operação de campo:", onClose)}
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
         {fieldOps.length > 0 && (
@@ -7566,23 +7567,23 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
               const opSub   = isMap && (op as FieldOpMapeamento).value ? `= ${(op as FieldOpMapeamento).value}` : null;
               return (
                 <div key={op.id}
-                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8, cursor: "pointer" }}
+                  style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 10px", background: "var(--accent-50)", border: "0.5px solid var(--accent-200)", borderRadius: 8, cursor: "pointer" }}
                   onClick={() => setSelectedOpId(op.id)}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#DCFCE7")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#F0FDF4")}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--accent-50)")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "var(--accent-50)")}
                 >
-                  <OpIcon size={13} color="#22C55E" style={{ flexShrink: 0 }} />
+                  <OpIcon size={13} color="var(--accent-700)" style={{ flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#111", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{opTitle}</div>
-                    {opSub && <div style={{ fontSize: 10, color: "#6B7280", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>{opSub}</div>}
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{opTitle}</div>
+                    {opSub && <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 1 }}>{opSub}</div>}
                   </div>
-                  {dsName && <span style={{ fontSize: 9, fontWeight: 700, background: dsColor, color: "#fff", borderRadius: 4, padding: "1px 5px", flexShrink: 0 }}>{dsName}</span>}
+                  {dsName && <span style={{ fontSize: 12, fontWeight: 700, background: dsColor, color: "#fff", borderRadius: 6, padding: "1px 5px", flexShrink: 0 }}>{dsName}</span>}
                   <button
                     onMouseDown={e => e.stopPropagation()}
                     onClick={e => { e.stopPropagation(); removeFieldOp(op.id); }}
-                    style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 3, padding: 0, flexShrink: 0 }}
-                    onMouseEnter={e => { e.currentTarget.style.background = "#FEE2E2"; e.currentTarget.style.color = "#EF4444"; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "#9CA3AF"; }}
+                    style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 6, padding: 0, flexShrink: 0 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = "var(--danger-bg)"; e.currentTarget.style.color = "var(--danger-fg)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = "var(--text-muted)"; }}
                   ><X size={11} /></button>
                 </div>
               );
@@ -7590,40 +7591,40 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
           </div>
         )}
         {fieldOps.length === 0 && (
-          <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 4, lineHeight: 1.5 }}>Nenhuma operação adicionada ainda.</div>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 4, lineHeight: 1.5 }}>Nenhuma operação adicionada ainda.</div>
         )}
       </div>
-      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid var(--border-default)", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
         <button onClick={handleAddMapeamento}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #86EFAC", borderRadius: 8, background: "#F9FAFB", color: "#22C55E", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-          onMouseEnter={e => { e.currentTarget.style.background = "#F0FDF4"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "#F9FAFB"; }}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed var(--accent-200)", borderRadius: 8, background: "var(--neutral-50)", color: "var(--accent-800)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "var(--accent-50)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "var(--neutral-50)"; }}
         >
           <Plus size={13} /> Adicionar mapeamento de campo
         </button>
         <div style={{ position: "relative" }}>
           <button
             onClick={() => setShowOutrasPicker(v => !v)}
-            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #E5E5E5", borderRadius: 8, background: "#F9FAFB", color: "#22C55E", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#F0FDF4"; e.currentTarget.style.borderColor = "#86EFAC"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#E5E5E5"; }}
+            style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed var(--border-default)", borderRadius: 8, background: "var(--neutral-50)", color: "var(--accent-800)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "var(--accent-50)"; e.currentTarget.style.borderColor = "var(--accent-200)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "var(--neutral-50)"; e.currentTarget.style.borderColor = "var(--border-default)"; }}
           >
             <Plus size={13} /> Adicionar outra operação de campo
           </button>
           {showOutrasPicker && (
-            <div style={{ position: "absolute", bottom: "calc(100% + 4px)", left: 0, right: 0, background: "#fff", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 20, overflow: "hidden" }}>
+            <div style={{ position: "absolute", bottom: "calc(100% + 4px)", left: 0, right: 0, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.12)", zIndex: 20, overflow: "hidden" }}>
               {OUTROS_OP_TYPES.map(({ type, Icon: OpIcon, label, sub }) => (
                 <button key={type} onClick={() => handleAddOutra(type)}
                   style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "none", border: "none", cursor: "pointer", textAlign: "left" }}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#F0FDF4")}
+                  onMouseEnter={e => (e.currentTarget.style.background = "var(--accent-50)")}
                   onMouseLeave={e => (e.currentTarget.style.background = "none")}
                 >
-                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "#F0FDF4", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                    <OpIcon size={15} color="#22C55E" />
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "var(--accent-50)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <OpIcon size={15} color="var(--accent-700)" />
                   </div>
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{label}</div>
-                    <div style={{ fontSize: 11, color: "#6B7280" }}>{sub}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>{label}</div>
+                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>{sub}</div>
                   </div>
                 </button>
               ))}
@@ -7660,16 +7661,16 @@ function AcoesFieldInput({ value, onChange, placeholder }: {
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        style={{ flex: 1, height: 34, padding: "0 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", background: "#fff" }}
+        style={{ flex: 1, height: 34, padding: "0 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, color: "var(--text-heading)", outline: "none", background: "var(--surface-card)" }}
       />
       <button
         onClick={() => { navigator.clipboard.writeText(value).catch(() => {}); toast.success("Copiado!"); }}
-        style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #E5E7EB", background: "#F9FAFB", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}
+        style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid var(--border-default)", background: "var(--neutral-50)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", flexShrink: 0 }}
       ><Copy size={12} /></button>
       <div style={{ position: "relative", flexShrink: 0 }}>
         <button
           onClick={() => setVarOpen(o => !o)}
-          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", flexShrink: 0, fontSize: 11, fontWeight: 700 }}
+          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#1D4ED8", flexShrink: 0, fontSize: 12, fontWeight: 700 }}
         ><Braces size={13} /></button>
         {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
       </div>
@@ -7702,7 +7703,7 @@ function AcoesFieldTextarea({ value, onChange, placeholder, rows = 4 }: {
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         rows={rows}
-        style={{ width: "100%", padding: "8px 38px 8px 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: "#111", outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }}
+        style={{ width: "100%", padding: "8px 38px 8px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, color: "var(--text-heading)", outline: "none", resize: "vertical", boxSizing: "border-box", fontFamily: "inherit" }}
       />
       <button
         type="button"
@@ -7725,7 +7726,7 @@ function AcoesSelect({ value, onChange, options, placeholder }: {
     <select
       value={value}
       onChange={e => onChange(e.target.value)}
-      style={{ width: "100%", height: 34, padding: "0 10px", border: "1px solid #E5E7EB", borderRadius: 6, fontSize: 12, color: value ? "#111" : "#9CA3AF", background: "#fff", outline: "none", cursor: "pointer" }}
+      style={{ width: "100%", height: 34, padding: "0 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, color: value ? "var(--text-heading)" : "var(--text-muted)", background: "var(--surface-card)", outline: "none", cursor: "pointer" }}
     >
       {placeholder && <option value="" disabled>{placeholder}</option>}
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -7745,10 +7746,10 @@ function TagMultiSelect({ selectedIds, onChange, crmTags, addTag }: {
   const [search, setSearch] = useState("");
   const [createMode, setCreateMode] = useState(false);
   const [newName, setNewName] = useState("");
-  const [newColor, setNewColor] = useState("#3B82F6");
+  const [newColor, setNewColor] = useState<string>(COR_DE_TAG_PADRAO);
   const [creating, setCreating] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const TAG_COLORS = ["#EF4444","#F97316","#EAB308","#22C55E","#14B8A6","#3B82F6","#8B5CF6","#EC4899","#6B7280","#92400E"];
+  const TAG_COLORS = PALETA_DO_APP;
   const filtered = crmTags.filter(t => t.name.toLowerCase().includes(search.toLowerCase()));
 
   useEffect(() => {
@@ -7768,7 +7769,7 @@ function TagMultiSelect({ selectedIds, onChange, crmTags, addTag }: {
             const tag = crmTags.find(t => t.id === id);
             if (!tag) return null;
             return (
-              <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: tag.color ? tag.color + "28" : "#E5E7EB", color: tag.color || "#374151", border: `1px solid ${tag.color || "#D1D5DB"}44`, borderRadius: 12, padding: "2px 8px", fontSize: 11, fontWeight: 500 }}>
+              <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: tag.color ? tag.color + "28" : "var(--neutral-200)", color: tag.color || "var(--text-heading)", border: `1px solid ${tag.color || "var(--border-strong)"}44`, borderRadius: 12, padding: "2px 8px", fontSize: 12, fontWeight: 500 }}>
                 {tag.name}
                 <button onClick={() => onChange(selectedIds.filter(i => i !== id))} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", color: "inherit", opacity: 0.7 }}>
                   <X size={10} />
@@ -7779,26 +7780,26 @@ function TagMultiSelect({ selectedIds, onChange, crmTags, addTag }: {
         </div>
       )}
       <button onClick={() => { setOpen(v => !v); setCreateMode(false); setSearch(""); }}
-        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 6, padding: "7px 10px", fontSize: 12, cursor: "pointer", color: selectedIds.length === 0 ? "#9CA3AF" : "#374151" }}>
+        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 6, padding: "7px 10px", fontSize: 12, cursor: "pointer", color: selectedIds.length === 0 ? "var(--text-muted)" : "var(--text-heading)" }}>
         <span>{selectedIds.length === 0 ? "Selecione as tags" : `${selectedIds.length} tag${selectedIds.length > 1 ? "s" : ""} selecionada${selectedIds.length > 1 ? "s" : ""}`}</span>
-        <ChevronDown size={12} style={{ color: "#9CA3AF" }} />
+        <ChevronDown size={12} style={{ color: "var(--text-muted)" }} />
       </button>
       {open && (
-        <div style={{ position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0, zIndex: 50, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column", maxHeight: 260 }}>
+        <div style={{ position: "absolute", top: "calc(100% + 2px)", left: 0, right: 0, zIndex: 50, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 6, boxShadow: "0 4px 12px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column", maxHeight: 260 }}>
           {!createMode && (
             <div style={{ padding: "8px 8px 4px" }}>
-              <input type="text" placeholder="Pesquisar..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...tcpInputStyle, fontSize: 11 }} autoFocus />
+              <input type="text" placeholder="Pesquisar..." value={search} onChange={e => setSearch(e.target.value)} style={{ ...tcpInputStyle, fontSize: 12 }} autoFocus />
             </div>
           )}
           {!createMode && (
             <div style={{ overflowY: "auto", flex: 1, padding: "4px 0" }}>
-              {filtered.length === 0 && <div style={{ padding: "8px 12px", fontSize: 11, color: "#9CA3AF" }}>Nenhuma tag encontrada.</div>}
+              {filtered.length === 0 && <div style={{ padding: "8px 12px", fontSize: 12, color: "var(--text-muted)" }}>Nenhuma tag encontrada.</div>}
               {filtered.map(tag => {
                 const checked = selectedIds.includes(tag.id);
                 return (
                   <div key={tag.id} onClick={() => onChange(checked ? selectedIds.filter(i => i !== tag.id) : [...selectedIds, tag.id])}
                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 12px", cursor: "pointer", background: checked ? "#EFF6FF" : "transparent" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", background: tag.color ? tag.color + "28" : "#E5E7EB", color: tag.color || "#374151", border: `1px solid ${tag.color || "#D1D5DB"}44`, borderRadius: 12, padding: "2px 10px", fontSize: 11, fontWeight: 500 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", background: tag.color ? tag.color + "28" : "var(--neutral-200)", color: tag.color || "var(--text-heading)", border: `1px solid ${tag.color || "var(--border-strong)"}44`, borderRadius: 12, padding: "2px 10px", fontSize: 12, fontWeight: 500 }}>
                       {tag.name}
                     </span>
                     {checked && <CheckCircle2 size={12} style={{ color: "#3B82F6" }} />}
@@ -7809,29 +7810,29 @@ function TagMultiSelect({ selectedIds, onChange, crmTags, addTag }: {
           )}
           {createMode && (
             <div style={{ padding: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-              <input type="text" placeholder="Nome da tag..." value={newName} onChange={e => setNewName(e.target.value)} style={{ ...tcpInputStyle, fontSize: 11 }} autoFocus onKeyDown={e => { if (e.key === "Escape") setCreateMode(false); }} />
+              <input type="text" placeholder="Nome da tag..." value={newName} onChange={e => setNewName(e.target.value)} style={{ ...tcpInputStyle, fontSize: 12 }} autoFocus onKeyDown={e => { if (e.key === "Escape") setCreateMode(false); }} />
               <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                 {TAG_COLORS.map(c => (
                   <button key={c} onClick={() => setNewColor(c)} style={{ width: 18, height: 18, borderRadius: "50%", background: c, flexShrink: 0, border: newColor === c ? "2px solid #111" : "1.5px solid transparent", cursor: "pointer" }} />
                 ))}
               </div>
               <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
-                <button onClick={() => setCreateMode(false)} style={{ fontSize: 11, color: "#6B7280", background: "none", border: "none", cursor: "pointer" }}>Cancelar</button>
+                <button onClick={() => setCreateMode(false)} style={{ fontSize: 12, color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}>Cancelar</button>
                 <button disabled={!newName.trim() || creating} onClick={async () => {
                   if (!newName.trim() || creating) return;
                   setCreating(true);
                   const ok = await addTag(newName.trim(), "", newColor);
                   setCreating(false);
                   if (ok) { setNewName(""); setCreateMode(false); }
-                }} style={{ fontSize: 11, background: "#3B82F6", color: "#FFF", border: "none", borderRadius: 4, padding: "3px 10px", cursor: "pointer", opacity: !newName.trim() || creating ? 0.5 : 1 }}>
+                }} style={{ fontSize: 12, background: "#3B82F6", color: "#FFF", border: "none", borderRadius: 6, padding: "3px 10px", cursor: "pointer", opacity: !newName.trim() || creating ? 0.5 : 1 }}>
                   {creating ? "Criando..." : "Criar"}
                 </button>
               </div>
             </div>
           )}
           {!createMode && (
-            <div style={{ padding: "6px 8px", borderTop: "0.5px solid #F3F4F6", display: "flex", justifyContent: "flex-end" }}>
-              <button onClick={() => { setCreateMode(true); setSearch(""); setNewName(""); setNewColor("#3B82F6"); }} style={{ fontSize: 11, color: "#3B82F6", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Criar</button>
+            <div style={{ padding: "6px 8px", borderTop: "0.5px solid var(--neutral-100)", display: "flex", justifyContent: "flex-end" }}>
+              <button onClick={() => { setCreateMode(true); setSearch(""); setNewName(""); setNewColor("#3B82F6"); }} style={{ fontSize: 12, color: "#1D4ED8", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Criar</button>
             </div>
           )}
         </div>
@@ -7851,7 +7852,7 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
   const lbl = (text: string) => (
-    <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>
+    <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>
   );
   const grp = (children: React.ReactNode) => (
     <div style={{ marginBottom: 14 }}>{children}</div>
@@ -7899,7 +7900,7 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
 
     case "ganhar_negocio":
     case "restaurar_negocio":
-      return <div style={{ paddingTop: 12, fontSize: 12, color: "#6B7280" }}>Nenhuma configuração adicional necessária.</div>;
+      return <div style={{ paddingTop: 12, fontSize: 12, color: "var(--text-muted)" }}>Nenhuma configuração adicional necessária.</div>;
 
     case "perder_negocio":
       return (
@@ -7922,8 +7923,8 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
             />
           </>)}
           {grp(
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 12px", background: "#F9FAFB", borderRadius: 8, border: "1px solid #E5E7EB" }}>
-              <span style={{ fontSize: 12, color: "#374151", flex: 1 }}>Transferir o mesmo atendente como responsável do lead?</span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 12px", background: "var(--neutral-50)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
+              <span style={{ fontSize: 12, color: "var(--text-heading)", flex: 1 }}>Transferir o mesmo atendente como responsável do lead?</span>
               <Switch checked={!!(cfg.transf_responsavel)} onCheckedChange={v => set("transf_responsavel", v)} />
             </div>
           )}
@@ -7935,8 +7936,8 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
 
     case "remover_atend_neg":
       return grp(
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 12px", background: "#F9FAFB", borderRadius: 8, border: "1px solid #E5E7EB" }}>
-          <span style={{ fontSize: 12, color: "#374151", flex: 1 }}>Remover o atendente responsável do lead?</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 12px", background: "var(--neutral-50)", borderRadius: 8, border: "1px solid var(--border-default)" }}>
+          <span style={{ fontSize: 12, color: "var(--text-heading)", flex: 1 }}>Remover o atendente responsável do lead?</span>
           <Switch checked={!!(cfg.remover_responsavel)} onCheckedChange={v => set("remover_responsavel", v)} />
         </div>
       );
@@ -7983,14 +7984,14 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
       return (
         <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "12px 14px" }}>
           <div style={{ marginBottom: 6 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 4, padding: "2px 8px" }}>Atenção</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 6, padding: "2px 8px" }}>Atenção</span>
           </div>
           <p style={{ fontSize: 12, color: "#92400E", margin: 0 }}>Esta ação removerá o negócio permanentemente. Esta operação não pode ser desfeita.</p>
         </div>
       );
 
     default:
-      return <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;
+      return <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;
   }
 }
 
@@ -8006,9 +8007,9 @@ function LeadsConfigForm({ item, updateActionItem, crmTags, addTag, crmLists, te
 }) {
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
-  const lbl = (text: string) => <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>;
+  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>;
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
-  const TAG_COLORS = ["#EF4444","#F97316","#EAB308","#22C55E","#14B8A6","#3B82F6","#8B5CF6","#EC4899","#6B7280","#92400E"];
+  const TAG_COLORS = PALETA_DO_APP;
 
   switch (item.actionId) {
     case "adicionar_tags":
@@ -8069,10 +8070,10 @@ function LeadsConfigForm({ item, updateActionItem, crmTags, addTag, crmLists, te
     case "criar_lead":
     case "deletar_lead":
     case "remover_atend_lead":
-      return <div style={{ paddingTop: 12, fontSize: 12, color: "#6B7280" }}>Nenhuma configuração adicional necessária.</div>;
+      return <div style={{ paddingTop: 12, fontSize: 12, color: "var(--text-muted)" }}>Nenhuma configuração adicional necessária.</div>;
 
     default:
-      return <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;
+      return <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;
   }
 }
 
@@ -8085,7 +8086,7 @@ function MensagensConfigForm({ item, updateActionItem, teamMembers }: {
 }) {
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
-  const lbl = (text: string) => <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>;
+  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>;
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
 
   switch (item.actionId) {
@@ -8110,10 +8111,10 @@ function MensagensConfigForm({ item, updateActionItem, teamMembers }: {
     case "finalizar_atend":
     case "desativar_auto_chat":
     case "ativar_auto_chat":
-      return <div style={{ paddingTop: 12, fontSize: 12, color: "#6B7280" }}>Nenhuma configuração adicional necessária.</div>;
+      return <div style={{ paddingTop: 12, fontSize: 12, color: "var(--text-muted)" }}>Nenhuma configuração adicional necessária.</div>;
 
     default:
-      return <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;
+      return <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;
   }
 }
 
@@ -8125,7 +8126,7 @@ function ProdutosConfigForm({ item, updateActionItem }: {
 }) {
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
-  const lbl = (text: string) => <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>;
+  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>;
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
   return (
     <>
@@ -8145,7 +8146,7 @@ function MetaEventConfigForm({ item, updateActionItem }: {
   const { company } = useCompany();
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
-  const lbl = (text: string) => <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>;
+  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>;
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
 
   const [pixels, setPixels] = useState<{ id: string; name: string; pixel_id: string }[]>([]);
@@ -8168,7 +8169,7 @@ function MetaEventConfigForm({ item, updateActionItem }: {
       {grp(<>
         {lbl("Pixel do Meta Ads")}
         {pixels.length === 0 ? (
-          <div style={{ fontSize: 11, color: "#EF4444", padding: "8px 10px", border: "1px solid #FCA5A5", borderRadius: 6, background: "#FEF2F2" }}>
+          <div style={{ fontSize: 12, color: "var(--danger-fg)", padding: "8px 10px", border: "1px solid #FCA5A5", borderRadius: 6, background: "var(--danger-bg)" }}>
             Nenhum pixel cadastrado. Vá em <strong>Configurações → Chaves de API</strong> para adicionar.
           </div>
         ) : (
@@ -8203,7 +8204,7 @@ function MetaEventConfigForm({ item, updateActionItem }: {
         {lbl("Valor monetário (opcional — para Purchase)")}
         <AcoesFieldInput value={(cfg.event_value as string) ?? ""} onChange={v => set("event_value", v)} placeholder="Ex: 97.00 ou {{lead.valor}}" />
       </>)}
-      <div style={{ fontSize: 11, color: "#9CA3AF", lineHeight: 1.6 }}>
+      <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
         Email e telefone do lead são hasheados automaticamente (SHA-256) antes do envio.
       </div>
     </>
@@ -8219,7 +8220,7 @@ function SistemaConfigForm({ item, updateActionItem, automations }: {
 }) {
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
-  const lbl = (text: string) => <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>;
+  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>;
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
 
   switch (item.actionId) {
@@ -8247,7 +8248,7 @@ function SistemaConfigForm({ item, updateActionItem, automations }: {
       return <MetaEventConfigForm item={item} updateActionItem={updateActionItem} />;
 
     default:
-      return <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;
+      return <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>;
   }
 }
 
@@ -8259,7 +8260,7 @@ function AtividadesConfigForm({ item, updateActionItem }: {
 }) {
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
-  const lbl = (text: string) => <label style={{ fontSize: 11, fontWeight: 600, color: "#F97316", display: "block", marginBottom: 4 }}>{text}</label>;
+  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>;
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
   return (
     <>
@@ -8305,16 +8306,16 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
     const actData = catData?.actions.find(a => a.id === selectedItem.actionId);
     const isWarning = actData?.warning;
     return (
-      <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+      <aside style={{ width: 300, minWidth: 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+        <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
           <button
             onClick={() => setSelectedItemId(null)}
-            style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "#111111", padding: 0, width: "100%", textAlign: "left" }}
+            style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 13, fontWeight: 700, color: "var(--text-heading)", padding: 0, width: "100%", textAlign: "left" }}
           >
             <ArrowLeft size={15} />
             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedItem.label}</span>
             {isWarning && (
-              <span style={{ fontSize: 10, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 4, padding: "2px 8px", flexShrink: 0 }}>Atenção</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 6, padding: "2px 8px", flexShrink: 0 }}>Atenção</span>
             )}
           </button>
         </div>
@@ -8326,7 +8327,7 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
           {selectedItem.categoryId === "sistema" && <SistemaConfigForm item={selectedItem} updateActionItem={updateActionItem} automations={automations} />}
           {selectedItem.categoryId === "atividades" && <AtividadesConfigForm item={selectedItem} updateActionItem={updateActionItem} />}
           {!["negocios","leads","mensagens","produtos","sistema","atividades"].includes(selectedItem.categoryId) && (
-            <div style={{ fontSize: 12, color: "#9CA3AF", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>
+            <div style={{ fontSize: 12, color: "var(--text-muted)", paddingTop: 8 }}>Configuração não disponível para esta ação.</div>
           )}
         </div>
       </aside>
@@ -8334,14 +8335,14 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
   }
 
   return (
-    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "#FFFFFF", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
-      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5", flexShrink: 0 }}>
+    <aside style={{ width: 300, minWidth: 300, height: "100%", background: "var(--surface-card)", boxShadow: "2px 0 12px rgba(0,0,0,0.10)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "var(--text-heading)", padding: 0 }}>
             <ArrowLeft size={16} /> Ações
           </button>
           <div style={{ display: "flex", gap: 2 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }] as const).map(({ Icon, action, color, hover }, i) => (
+            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -8349,11 +8350,11 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
             ))}
           </div>
         </div>
-        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Execute ações no sistema</p>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Execute ações no sistema</p>
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
         {(node.actionItems ?? []).length === 0 ? (
-          <div style={{ paddingTop: 8, fontSize: 12, color: "#9CA3AF" }}>Nenhuma ação adicionada ainda.</div>
+          <div style={{ paddingTop: 8, fontSize: 12, color: "var(--text-muted)" }}>Nenhuma ação adicionada ainda.</div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {(node.actionItems ?? []).map(item => {
@@ -8369,12 +8370,12 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
                   onMouseLeave={e => (e.currentTarget.style.background = "#FFF7ED")}
                 >
                   <AIcon size={13} color="#F97316" />
-                  <span style={{ flex: 1, fontSize: 12, color: "#374151" }}>{item.label}</span>
+                  <span style={{ flex: 1, fontSize: 12, color: "var(--text-heading)" }}>{item.label}</span>
                   <button
                     onClick={e => { e.stopPropagation(); removeActionItem(item.id); }}
-                    style={{ width: 20, height: 20, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" }}
-                    onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                    onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                    style={{ width: 20, height: 20, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" }}
+                    onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")}
+                    onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}
                   ><X size={11} /></button>
                 </div>
               );
@@ -8382,9 +8383,9 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
           </div>
         )}
       </div>
-      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0 }}>
+      <div style={{ borderTop: "1px solid var(--border-default)", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={onOpenPicker}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #FED7AA", borderRadius: 8, background: "#FFF7ED", color: "#F97316", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #FED7AA", borderRadius: 8, background: "#FFF7ED", color: "#92400E", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#FFEDD5"; e.currentTarget.style.borderColor = "#F97316"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "#FFF7ED"; e.currentTarget.style.borderColor = "#FED7AA"; }}
         >
@@ -8406,7 +8407,7 @@ const MENSAGEM_SUB_BLOCKS: { type: SubBlockType; icon: React.ElementType; color:
   { type: "arquivo_url",     icon: Link2,      color: "#3B82F6" },
 ];
 
-const sbToolBtn: React.CSSProperties = { width: 22, height: 22, borderRadius: 4, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#9CA3AF" };
+const sbToolBtn: React.CSSProperties = { width: 22, height: 22, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)" };
 
 function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
   b: SubBlock;
@@ -8520,32 +8521,32 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
   const removeButton = (id: string) => updateSubBlock(b.id, { buttons: (b.buttons ?? []).filter(x => x.id !== id) });
 
   return (
-    <div style={{ marginBottom: 8, border: "1px solid #E5E5E5", borderRadius: 10, background: "#FAFAFA" }}>
+    <div style={{ marginBottom: 8, border: "1px solid var(--border-default)", borderRadius: 10, background: "var(--neutral-25)" }}>
       {/* Sub-block toolbar */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", gap: 2, borderBottom: "0.5px solid #F0F0F0", background: "#F9FAFB", position: "relative", borderTopLeftRadius: 10, borderTopRightRadius: 10 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", padding: "4px 8px", gap: 2, borderBottom: "0.5px solid var(--neutral-100)", background: "var(--neutral-50)", position: "relative", borderTopLeftRadius: 10, borderTopRightRadius: 10 }}>
         {b.type === "mensagem_texto" && (
           <button onClick={() => setSettingsOpen(o => !o)} title="Configurações" style={sbToolBtn}
             onMouseEnter={e => (e.currentTarget.style.color = "#3B82F6")}
-            onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+            onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}
           ><Settings size={11} /></button>
         )}
         <button onClick={() => removeSubBlock(b.id)} style={sbToolBtn}
-          onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-          onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+          onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")}
+          onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}
         ><Trash2 size={11} /></button>
         {settingsOpen && (
           <>
             <div onClick={() => setSettingsOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-            <div style={{ position: "absolute", top: "100%", right: 6, marginTop: 4, width: 252, background: "#FFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 41, padding: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#111", marginBottom: 10 }}>Configurações da mensagem de texto</div>
+            <div style={{ position: "absolute", top: "100%", right: 6, marginTop: 4, width: 252, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", zIndex: 41, padding: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)", marginBottom: 10 }}>Configurações da mensagem de texto</div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                <span style={{ fontSize: 12, color: "#374151" }}>Quebrar mensagens?</span>
+                <span style={{ fontSize: 12, color: "var(--text-heading)" }}>Quebrar mensagens?</span>
                 <button onClick={() => updateSubBlock(b.id, { splitMessages: !b.splitMessages })}
-                  style={{ width: 36, height: 20, borderRadius: 100, background: b.splitMessages ? "#3B82F6" : "#D1D5DB", position: "relative", transition: "background 0.15s", flexShrink: 0, border: "none", cursor: "pointer", padding: 0 }}>
-                  <span style={{ position: "absolute", top: 2, left: b.splitMessages ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "#FFF", transition: "left 0.15s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
+                  style={{ width: 36, height: 20, borderRadius: 100, background: b.splitMessages ? "#3B82F6" : "var(--neutral-300)", position: "relative", transition: "background 0.15s", flexShrink: 0, border: "none", cursor: "pointer", padding: 0 }}>
+                  <span style={{ position: "absolute", top: 2, left: b.splitMessages ? 18 : 2, width: 16, height: 16, borderRadius: "50%", background: "var(--surface-card)", transition: "left 0.15s", boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }} />
                 </button>
               </div>
-              <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: 8, lineHeight: 1.4 }}>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 8, lineHeight: 1.4 }}>
                 Quando ativo, cada parágrafo (separado por linha em branco) é enviado como uma mensagem separada.
               </p>
             </div>
@@ -8557,7 +8558,7 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
       <div style={{ padding: "10px 12px" }}>
         {b.type === "mensagem_texto" && (
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 12, fontWeight: 600, color: "#374151" }}><AlignLeft size={13} /> Mensagem de texto</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}><AlignLeft size={13} /> Mensagem de texto</div>
             <CamposValueInput
               value={b.text ?? ""}
               onChange={v => updateSubBlock(b.id, { text: v })}
@@ -8569,17 +8570,17 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
                 {(b.buttons ?? []).map(bt => (
                   <div key={bt.id} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <input value={bt.label} onChange={e => updateButton(bt.id, e.target.value)} placeholder="Texto do botão"
-                      style={{ flex: 1, padding: "6px 8px", border: "1px solid #E5E5E5", borderRadius: 6, fontSize: 12, outline: "none" }} />
+                      style={{ flex: 1, padding: "6px 8px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none" }} />
                     <button onClick={() => removeButton(bt.id)} style={sbToolBtn}
-                      onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                      onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                      onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")}
+                      onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}
                     ><Trash2 size={11} /></button>
                   </div>
                 ))}
               </div>
             )}
             <button onClick={addButton}
-              style={{ width: "100%", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 0", border: "1px dashed #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#3B82F6", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+              style={{ width: "100%", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 0", border: "1px dashed #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
               onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; e.currentTarget.style.borderColor = "#3B82F6"; }}
               onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
             >
@@ -8589,87 +8590,87 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
         )}
         {b.type === "entrada_usuario" && (
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#3B82F6" }}><HelpCircle size={13} /> Entrada do usuário</div>
-            <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 11.5, color: "#1D4ED8", lineHeight: 1.45 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#1D4ED8" }}><HelpCircle size={13} /> Entrada do usuário</div>
+            <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 12, color: "#1D4ED8", lineHeight: 1.45 }}>
               A automação <strong>pausa e aguarda</strong> a resposta do contato no WhatsApp, e a guarda na variável abaixo.
             </div>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", margin: "10px 0 4px" }}>Salvar resposta na variável</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", margin: "10px 0 4px" }}>Salvar resposta na variável</label>
             <input
               value={b.varName ?? ""}
               onChange={e => updateSubBlock(b.id, { varName: e.target.value.replace(/[^a-zA-Z0-9_]/g, "") })}
               placeholder="resposta"
-              style={{ width: "100%", padding: "7px 10px", border: "1px solid #E5E5E5", borderRadius: 7, fontSize: 12, outline: "none", boxSizing: "border-box" }}
+              style={{ width: "100%", padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", boxSizing: "border-box" }}
             />
-            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0", lineHeight: 1.4 }}>
               Use depois como <span style={{ fontFamily: "monospace", color: "#6366F1" }}>{`{{${b.varName || "resposta"}}}`}</span>
             </p>
-            <label style={{ fontSize: 11, fontWeight: 600, color: "#374151", display: "block", margin: "12px 0 4px" }}>Aguardar resposta por até</label>
+            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", margin: "12px 0 4px" }}>Aguardar resposta por até</label>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
               <input type="number" min={1} value={b.timeoutAmount ?? 1}
                 onChange={e => updateSubBlock(b.id, { timeoutAmount: Math.max(1, Number(e.target.value)) })}
-                style={{ width: 64, padding: "7px 8px", border: "1px solid #E5E5E5", borderRadius: 7, fontSize: 12, outline: "none" }} />
+                style={{ width: 64, padding: "7px 8px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none" }} />
               <select value={b.timeoutUnit ?? "horas"}
                 onChange={e => updateSubBlock(b.id, { timeoutUnit: e.target.value as "minutos" | "horas" | "dias" })}
-                style={{ flex: 1, padding: "7px 8px", border: "1px solid #E5E5E5", borderRadius: 7, fontSize: 12, outline: "none", background: "#FFF", cursor: "pointer" }}>
+                style={{ flex: 1, padding: "7px 8px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", background: "var(--surface-card)", cursor: "pointer" }}>
                 <option value="minutos">minutos</option>
                 <option value="horas">horas</option>
                 <option value="dias">dias</option>
               </select>
             </div>
-            <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>
-              Se o contato não responder nesse prazo, o fluxo segue pela saída <span style={{ color: "#EF4444", fontWeight: 600 }}>"Caso o contato não responda"</span>.
+            <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0", lineHeight: 1.4 }}>
+              Se o contato não responder nesse prazo, o fluxo segue pela saída <span style={{ color: "var(--danger-fg)", fontWeight: 600 }}>"Caso o contato não responda"</span>.
             </p>
           </div>
         )}
         {b.type === "atraso_tempo" && (
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Clock size={13} /> Atraso de tempo</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}><Clock size={13} /> Atraso de tempo</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 12, color: "#6B7280" }}>Atraso de</span>
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Atraso de</span>
               <input type="number" min={0} value={b.delaySeconds ?? 0}
                 onChange={e => updateSubBlock(b.id, { delaySeconds: Number(e.target.value) })}
-                style={{ width: 64, padding: "5px 8px", border: "1px solid #E5E5E5", borderRadius: 6, fontSize: 12, outline: "none" }} />
-              <span style={{ fontSize: 12, color: "#6B7280" }}>segundos</span>
+                style={{ width: 64, padding: "5px 8px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none" }} />
+              <span style={{ fontSize: 12, color: "var(--text-muted)" }}>segundos</span>
             </div>
           </div>
         )}
         {b.type === "mensagem_audio" && (
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Mic size={13} /> Mensagem de áudio</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}><Mic size={13} /> Mensagem de áudio</div>
             {b.fileUrl ? (
-              <div style={{ padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8 }}>
+              <div style={{ padding: "8px 10px", background: "var(--accent-50)", border: "0.5px solid var(--accent-200)", borderRadius: 8 }}>
                 <audio controls src={b.fileUrl} style={{ width: "100%", height: 34 }} />
                 <button onClick={() => updateSubBlock(b.id, { fileUrl: undefined, fileName: undefined })}
-                  style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", color: "#EF4444", fontSize: 11, fontWeight: 600 }}>
+                  style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 5, background: "none", border: "none", cursor: "pointer", color: "var(--danger-fg)", fontSize: 12, fontWeight: 600 }}>
                   <Trash2 size={11} /> Remover áudio
                 </button>
               </div>
             ) : recording ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "#FEF2F2", border: "0.5px solid #FCA5A5", borderRadius: 8 }}>
-                <span className="animate-pulse" style={{ width: 10, height: 10, borderRadius: "50%", background: "#EF4444", flexShrink: 0 }} />
-                <span style={{ fontSize: 12, fontWeight: 600, color: "#B91C1C", fontVariantNumeric: "tabular-nums" }}>Gravando… {fmtSecs(recSecs)}</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "var(--danger-bg)", border: "0.5px solid #FCA5A5", borderRadius: 8 }}>
+                <span className="animate-pulse" style={{ width: 10, height: 10, borderRadius: "50%", background: "var(--danger-400)", flexShrink: 0 }} />
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--danger-fg)", fontVariantNumeric: "tabular-nums" }}>Gravando… {fmtSecs(recSecs)}</span>
                 <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                   <button onClick={cancelRecording}
-                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 9px", border: "0.5px solid #E5E5E5", borderRadius: 7, background: "#FFF", color: "#6B7280", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 9px", border: "0.5px solid var(--border-default)", borderRadius: 6, background: "var(--surface-card)", color: "var(--text-muted)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
                     <X size={11} /> Cancelar
                   </button>
                   <button onClick={stopRecording}
-                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 9px", border: "none", borderRadius: 7, background: "#EF4444", color: "#FFF", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                    <Square size={10} fill="#FFF" /> Parar
+                    style={{ display: "flex", alignItems: "center", gap: 4, padding: "5px 9px", border: "none", borderRadius: 6, background: "var(--danger-400)", color: "#FFF", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                    <Square size={10} fill="var(--surface-card)" /> Parar
                   </button>
                 </div>
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <button onClick={startRecording} disabled={uploading}
-                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 0", border: "none", borderRadius: 8, background: uploading ? "#F3F4F6" : "#EF4444", color: uploading ? "#9CA3AF" : "#FFF", fontSize: 12, fontWeight: 600, cursor: uploading ? "default" : "pointer" }}>
+                  style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 0", border: "none", borderRadius: 8, background: uploading ? "var(--neutral-50)" : "var(--danger-400)", color: uploading ? "var(--text-muted)" : "#FFF", fontSize: 12, fontWeight: 600, cursor: uploading ? "default" : "pointer" }}>
                   {uploading ? <Loader2 size={16} className="animate-spin" /> : <Mic size={15} />}
                   {uploading ? "Enviando…" : "Gravar agora"}
                 </button>
-                <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: uploading ? "default" : "pointer", fontSize: 11, color: "#6B7280" }}>
-                  {uploading ? <Loader2 size={20} color="#9CA3AF" className="animate-spin" /> : <Upload size={20} color="#D1D5DB" />}
+                <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed var(--border-strong)", borderRadius: 8, background: "var(--neutral-50)", cursor: uploading ? "default" : "pointer", fontSize: 12, color: "var(--text-muted)" }}>
+                  {uploading ? <Loader2 size={20} color="var(--text-muted)" className="animate-spin" /> : <Upload size={20} color="var(--neutral-400)" />}
                   {uploading ? "Enviando..." : "Selecionar arquivo"}
-                  <span style={{ fontSize: 10, color: "#9CA3AF" }}>MP3, OGG, M4A · máx 16MB</span>
+                  <span style={{ fontSize: 12, color: "var(--text-muted)" }}>MP3, OGG, M4A · máx 16MB</span>
                   <input type="file" accept="audio/*" style={{ display: "none" }} disabled={uploading}
                     onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.currentTarget.value = ""; }} />
                 </label>
@@ -8679,22 +8680,22 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
         )}
         {b.type === "arquivo_anexo" && (
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Paperclip size={13} /> Arquivo anexo</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}><Paperclip size={13} /> Arquivo anexo</div>
             {b.fileUrl ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F0FDF4", border: "0.5px solid #86EFAC", borderRadius: 8 }}>
-                <Paperclip size={13} color="#16A34A" style={{ flexShrink: 0 }} />
-                <a href={b.fileUrl} target="_blank" rel="noopener noreferrer" style={{ flex: 1, fontSize: 12, color: "#166534", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "none" }}>{b.fileName || "arquivo"}</a>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "var(--accent-50)", border: "0.5px solid var(--accent-200)", borderRadius: 8 }}>
+                <Paperclip size={13} color="var(--accent-700)" style={{ flexShrink: 0 }} />
+                <a href={b.fileUrl} target="_blank" rel="noopener noreferrer" style={{ flex: 1, fontSize: 12, color: "var(--accent-800)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "none" }}>{b.fileName || "arquivo"}</a>
                 <button onClick={() => updateSubBlock(b.id, { fileUrl: undefined, fileName: undefined })}
-                  style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", display: "flex", flexShrink: 0 }}
-                  onMouseEnter={e => (e.currentTarget.style.color = "#EF4444")}
-                  onMouseLeave={e => (e.currentTarget.style.color = "#9CA3AF")}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", flexShrink: 0 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}
                 ><Trash2 size={12} /></button>
               </div>
             ) : (
-              <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed #D1D5DB", borderRadius: 8, background: "#F9FAFB", cursor: uploading ? "default" : "pointer", fontSize: 11, color: "#6B7280" }}>
-                {uploading ? <Loader2 size={20} color="#9CA3AF" className="animate-spin" /> : <Upload size={20} color="#D1D5DB" />}
+              <label style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: 14, border: "0.5px dashed var(--border-strong)", borderRadius: 8, background: "var(--neutral-50)", cursor: uploading ? "default" : "pointer", fontSize: 12, color: "var(--text-muted)" }}>
+                {uploading ? <Loader2 size={20} color="var(--text-muted)" className="animate-spin" /> : <Upload size={20} color="var(--neutral-400)" />}
                 {uploading ? "Enviando..." : "Selecionar arquivo"}
-                <span style={{ fontSize: 10, color: "#9CA3AF" }}>Imagem, PDF ou documento · máx 16MB</span>
+                <span style={{ fontSize: 12, color: "var(--text-muted)" }}>Imagem, PDF ou documento · máx 16MB</span>
                 <input type="file" style={{ display: "none" }} disabled={uploading}
                   onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile(f); e.currentTarget.value = ""; }} />
               </label>
@@ -8703,7 +8704,7 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
         )}
         {b.type === "arquivo_url" && (
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#374151" }}><Link2 size={13} /> Arquivo URL Dinâmica</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}><Link2 size={13} /> Arquivo URL Dinâmica</div>
             <CamposValueInput
               value={b.fileUrl ?? ""}
               onChange={v => updateSubBlock(b.id, { fileUrl: v })}
@@ -8730,15 +8731,15 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
   const hasSubBlocks = (node.subBlocks ?? []).length > 0;
   const [addMenuOpen, setAddMenuOpen] = useState(false);
   return (
-    <aside style={{ width: 320, minWidth: 320, maxWidth: 320, height: "100%", background: "#FFFFFF", boxShadow: "4px 0 16px rgba(0,0,0,0.12)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
+    <aside style={{ width: 320, minWidth: 320, maxWidth: 320, height: "100%", background: "var(--surface-card)", boxShadow: "4px 0 16px rgba(0,0,0,0.12)", display: "flex", flexDirection: "column", flexShrink: 0, overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid #E5E5E5" }}>
+      <div style={{ padding: "14px 16px 10px", borderBottom: "1px solid var(--border-default)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "#111111", padding: 0 }}>
+          <button onClick={onClose} style={{ display: "flex", alignItems: "center", gap: 6, background: "none", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, color: "var(--text-heading)", padding: 0 }}>
             <ArrowLeft size={16} /> Mensagens
           </button>
           <div style={{ display: "flex", gap: 2 }}>
-            {[{ Icon: Trash2, action: onDelete, color: "#EF4444", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "#6B7280", hover: "#F3F4F6" }, { Icon: Download, action: () => {}, color: "#6B7280", hover: "#F3F4F6" }].map(({ Icon, action, color, hover }, i) => (
+            {[{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }, { Icon: Download, action: () => {}, color: "var(--text-muted)", hover: "var(--neutral-50)" }].map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -8746,17 +8747,17 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
             ))}
           </div>
         </div>
-        <p style={{ fontSize: 12, color: "#6B7280", margin: "4px 0 0" }}>Envie, receba e armazene respostas</p>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0" }}>Envie, receba e armazene respostas</p>
       </div>
 
       {/* Conexão — vinculada às conexões de Configurações → Conexão (whatsapp_connections) */}
-      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid #F0F0F0", flexShrink: 0 }}>
-        <label style={{ fontSize: 12, fontWeight: 600, color: "#374151", display: "block", marginBottom: 6 }}>Conexão</label>
+      <div style={{ padding: "12px 16px", borderBottom: "0.5px solid var(--neutral-100)", flexShrink: 0 }}>
+        <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 6 }}>Conexão</label>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <select
             value={node.connectionId ?? ""}
             onChange={e => onSetConnection(e.target.value || undefined)}
-            style={{ flex: 1, padding: "7px 10px", border: "1px solid #E5E5E5", borderRadius: 8, fontSize: 12, outline: "none", background: "#FFF" }}
+            style={{ flex: 1, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 8, fontSize: 12, outline: "none", background: "var(--surface-card)" }}
           >
             <option value="">Selecionar</option>
             {whatsappConnections.map(c => (
@@ -8768,15 +8769,15 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
           <a
             href="/configuracoes/conexoes" target="_blank" rel="noopener noreferrer"
             title="Gerenciar conexões em Configurações → Conexão"
-            style={{ width: 30, height: 30, borderRadius: 7, border: "1px solid #E5E5E5", background: "#FFF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#6B7280", flexShrink: 0 }}
+            style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border-default)", background: "var(--surface-card)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-muted)", flexShrink: 0 }}
           ><Settings size={12} /></a>
         </div>
         {whatsappConnections.length === 0 ? (
-          <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0", lineHeight: 1.4 }}>
             Nenhuma conexão cadastrada. Adicione em <strong>Configurações → Conexão</strong>.
           </p>
         ) : (
-          <p style={{ fontSize: 11, color: "#9CA3AF", margin: "6px 0 0", lineHeight: 1.4 }}>Deixe em branco para usar a conexão dos blocos anteriores.</p>
+          <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "6px 0 0", lineHeight: 1.4 }}>Deixe em branco para usar a conexão dos blocos anteriores.</p>
         )}
       </div>
 
@@ -8791,14 +8792,14 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
                   <button
                     onClick={() => onAddSubBlock(item.type)}
                     style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                    onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
                     onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                   >
                     <Icon size={15} color={item.color} />
-                    <span style={{ fontSize: 13, color: "#374151" }}>{SUB_BLOCK_LABELS[item.type]}</span>
+                    <span style={{ fontSize: 13, color: "var(--text-heading)" }}>{SUB_BLOCK_LABELS[item.type]}</span>
                   </button>
                   {idx < MENSAGEM_SUB_BLOCKS.length - 1 && (
-                    <div style={{ height: "0.5px", background: "#F0F0F0", margin: "0 16px" }} />
+                    <div style={{ height: "0.5px", background: "var(--neutral-100)", margin: "0 16px" }} />
                   )}
                 </div>
               );
@@ -8814,12 +8815,12 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
       </div>
 
       {/* Rodapé */}
-      <div style={{ borderTop: "1px solid #E5E5E5", padding: "12px 16px", flexShrink: 0, position: "relative" }}>
+      <div style={{ borderTop: "1px solid var(--border-default)", padding: "12px 16px", flexShrink: 0, position: "relative" }}>
         {addMenuOpen && (
           <>
             {/* clique fora fecha o menu */}
             <div onClick={() => setAddMenuOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
-            <div style={{ position: "absolute", bottom: "100%", left: 16, right: 16, marginBottom: 6, background: "#FFFFFF", border: "1px solid #E5E5E5", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", overflow: "hidden", zIndex: 41 }}>
+            <div style={{ position: "absolute", bottom: "100%", left: 16, right: 16, marginBottom: 6, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, boxShadow: "0 4px 20px rgba(0,0,0,0.12)", overflow: "hidden", zIndex: 41 }}>
               {MENSAGEM_SUB_BLOCKS.map((item, idx) => {
                 const Icon = item.icon;
                 return (
@@ -8827,14 +8828,14 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
                     <button
                       onClick={() => { onAddSubBlock(item.type); setAddMenuOpen(false); }}
                       style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "#F9FAFB")}
+                      onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
                       onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
                     >
                       <Icon size={15} color={item.color} />
-                      <span style={{ fontSize: 13, color: "#374151" }}>{SUB_BLOCK_LABELS[item.type]}</span>
+                      <span style={{ fontSize: 13, color: "var(--text-heading)" }}>{SUB_BLOCK_LABELS[item.type]}</span>
                     </button>
                     {idx < MENSAGEM_SUB_BLOCKS.length - 1 && (
-                      <div style={{ height: "0.5px", background: "#F0F0F0", margin: "0 14px" }} />
+                      <div style={{ height: "0.5px", background: "var(--neutral-100)", margin: "0 14px" }} />
                     )}
                   </div>
                 );
@@ -8843,7 +8844,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
           </>
         )}
         <button onClick={() => setAddMenuOpen(o => !o)}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#3B82F6", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; e.currentTarget.style.borderColor = "#3B82F6"; }}
           onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
         >

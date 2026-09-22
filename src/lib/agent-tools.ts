@@ -43,7 +43,7 @@ export const AGENT_TOOL_CATEGORY_LABELS: Record<AgentToolCategory, string> = {
 
 export const AGENT_TOOL_CATEGORY_STYLES: Record<AgentToolCategory, { bg: string; fg: string }> = {
   leitura:   { bg: "#F5F5F5", fg: "#666666" },
-  acao:      { bg: "#E1F5EE", fg: "#128A68" },
+  acao:      { bg: "#E1F5EE", fg: "#008762" },
   destrutiva: { bg: "#FEE2E2", fg: "#991B1B" },
 };
 

@@ -294,7 +294,7 @@ export function PipelineFilterPanel({
         <button className="h-[30px] px-3 inline-flex items-center gap-1.5 bg-card border border-card-border rounded-lg text-xs text-foreground hover:border-primary transition-colors whitespace-nowrap">
           <SlidersHorizontal size={13} className="text-muted-foreground" />
           Filtros
-          {badgeCount > 0 && <span className="text-[10px] font-bold bg-primary text-primary-foreground rounded-full px-1.5 min-w-[16px] text-center">{badgeCount}</span>}
+          {badgeCount > 0 && <span className="text-[12px] font-bold bg-primary text-primary-foreground rounded-full px-1.5 min-w-[16px] text-center">{badgeCount}</span>}
         </button>
       </PopoverTrigger>
 
@@ -331,14 +331,14 @@ export function PipelineFilterPanel({
                   {rotulo}
                 </span>
                 {qtd > 0 && (
-                  <span className="rounded-full bg-primary/15 text-primary text-[10px] font-bold px-1.5 leading-4">{qtd}</span>
+                  <span className="rounded-full bg-primary/15 text-primary text-[12px] font-bold px-1.5 leading-4">{qtd}</span>
                 )}
                 {/* O status mostra o VALOR escolhido, não uma contagem: "Ganho"
                     diz o que está filtrando, e "1" não diria nada. Só aparece
                     fora do padrão ("Em aberto"), senão a linha ficaria sempre
                     marcada e o realce perderia a função. */}
                 {chave === "status" && statusDraft !== "open" && (
-                  <span className="rounded-full bg-primary/15 text-primary text-[10px] font-bold px-1.5 leading-4">
+                  <span className="rounded-full bg-primary/15 text-primary text-[12px] font-bold px-1.5 leading-4">
                     {STATUS_OPCOES.find(o => o.valor === statusDraft)?.rotulo}
                   </span>
                 )}
@@ -561,7 +561,7 @@ export function PipelineFilterPanel({
                       este aviso, o número no menu diria 5 com duas marcadas na
                       tela, e não haveria como descobrir onde estão as outras. */}
                   {etapasForaDoFoco > 0 && (
-                    <p className="text-[11px] text-muted-foreground mt-2 pt-2 border-t">
+                    <p className="text-[12px] text-muted-foreground mt-2 pt-2 border-t">
                       +{etapasForaDoFoco} etapa{etapasForaDoFoco > 1 ? "s" : ""} marcada{etapasForaDoFoco > 1 ? "s" : ""} em outro pipeline.
                     </p>
                   )}

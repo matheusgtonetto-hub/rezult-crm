@@ -510,31 +510,31 @@ export default function CompanyRegisterPage() {
           por mais desfocado que o fundo esteja.
           O `overflow-hidden` é do gradiente que gira na borda e não recorta a
           sombra: box-shadow é desenhada fora da caixa. */}
-      <div className="relative w-full max-w-[1000px] rounded-[7px] p-[1px] overflow-hidden shadow-elev-3">
+      <div className="relative w-full max-w-[1000px] rounded-[8px] p-[1px] overflow-hidden shadow-elev-3">
         {/* Rotating border lights */}
         <div
           className="absolute inset-[-100%]"
           style={{
-            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+            background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, var(--accent-700) 65%, #4ade80 75%, var(--accent-700) 85%, transparent 95%)",
             animation: "spin-border 4s linear infinite",
           }}
         />
         <div
           className="absolute inset-[-100%]"
           style={{
-            background: "conic-gradient(from 180deg, transparent 0%, transparent 55%, #128A68 65%, #4ade80 75%, #128A68 85%, transparent 95%)",
+            background: "conic-gradient(from 180deg, transparent 0%, transparent 55%, var(--accent-700) 65%, #4ade80 75%, var(--accent-700) 85%, transparent 95%)",
             animation: "spin-border 4s linear infinite",
           }}
         />
 
-        <div className="relative w-full bg-card rounded-[7px] overflow-hidden flex" style={{ height: 600 }}>
+        <div className="relative w-full bg-card rounded-[8px] overflow-hidden flex" style={{ height: 600 }}>
           {/* ── Left sidebar ── */}
           <div className="w-[280px] shrink-0 flex flex-col pl-[35px] pr-[20px] pt-10 pb-10">
             <div className="flex items-center mb-5">
               <img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-7 w-auto" />
             </div>
 
-            <h2 className="text-[15px] font-semibold text-foreground mb-1">Finalize seu cadastro</h2>
+            <h2 className="text-[14px] font-semibold text-foreground mb-1">Finalize seu cadastro</h2>
             <p className="text-[12px] text-muted-foreground leading-snug mb-6">
               Usaremos essas informações para personalizar o Rezult às suas necessidades.
             </p>
@@ -554,8 +554,8 @@ export default function CompanyRegisterPage() {
                         com o círculo cheio da etapa em curso, que é o único que
                         deve puxar o olho. */}
                     <div className={cn(
-                      "w-[22px] h-[22px] rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 border-2",
-                      isActive ? "border-primary bg-primary text-white" :
+                      "w-[22px] h-[22px] rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0 border-2",
+                      isActive ? "border-primary bg-primary text-[color:var(--text-on-accent)]" :
                       isDone   ? "border-primary bg-card text-primary" :
                                  "border-muted-foreground/30 text-muted-foreground"
                     )}>
@@ -658,7 +658,7 @@ export default function CompanyRegisterPage() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleNext()}
-                    className={cn("h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(fullName))}
+                    className={cn("h-auto rounded-[6px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(fullName))}
                     autoFocus
                   />
                 </div>
@@ -669,7 +669,7 @@ export default function CompanyRegisterPage() {
                       virou "Seus objetivos". Vai para `profiles.phone` e também
                       preenche `companies.phone`, que é o que a Stripe usa como
                       dado de cobrança. */}
-                  <div className={cn("flex items-center border border-input rounded-[5px] focus-within:border-primary transition-colors bg-white", bordaDePreenchido(personalPhone))}>
+                  <div className={cn("flex items-center border border-input rounded-[6px] focus-within:border-primary transition-colors bg-white", bordaDePreenchido(personalPhone))}>
                     {/* O gatilho perde borda, fundo e altura próprios para
                         continuar sendo apenas a parte esquerda do campo de
                         telefone, e não uma caixa dentro de outra. A borda que
@@ -683,7 +683,7 @@ export default function CompanyRegisterPage() {
                         aria-label="Código do país"
                         className="h-auto w-auto shrink-0 border-0 border-r border-input rounded-none bg-transparent px-3 py-[9px] gap-1 focus:ring-0 focus:ring-offset-0 [&>svg]:hidden"
                       >
-                        <span className="text-[15px] leading-none">{DDI_OPTIONS.find(o => o.code === ddiPessoal)?.flag}</span>
+                        <span className="text-[14px] leading-none">{DDI_OPTIONS.find(o => o.code === ddiPessoal)?.flag}</span>
                         <ChevronDown size={11} className="text-muted-foreground" />
                       </SelectTrigger>
                       <SelectContent>
@@ -710,7 +710,7 @@ export default function CompanyRegisterPage() {
                     Qual cargo descreve melhor sua função?
                   </Label>
                   <Select value={jobTitle} onValueChange={setJobTitle}>
-                    <SelectTrigger id="job-title" className={cn("h-auto py-[9px] text-[13px] rounded-[5px] border-input focus:ring-0 focus:ring-offset-0 focus:border-primary [&>span]:truncate data-[placeholder]:text-muted-foreground", bordaDePreenchido(jobTitle))}>
+                    <SelectTrigger id="job-title" className={cn("h-auto py-[9px] text-[13px] rounded-[6px] border-input focus:ring-0 focus:ring-offset-0 focus:border-primary [&>span]:truncate data-[placeholder]:text-muted-foreground", bordaDePreenchido(jobTitle))}>
                       <SelectValue placeholder="Selecione seu cargo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -729,7 +729,7 @@ export default function CompanyRegisterPage() {
                       são frases inteiras ("Não, nunca usei CRM"), e em três
                       colunas cada uma quebraria em duas ou três linhas. */}
                   <Select value={crmExperience} onValueChange={setCrmExperience}>
-                    <SelectTrigger id="crm-experience" className={cn("h-auto py-[9px] text-[13px] rounded-[5px] border-input focus:ring-0 focus:ring-offset-0 focus:border-primary [&>span]:truncate data-[placeholder]:text-muted-foreground", bordaDePreenchido(crmExperience))}>
+                    <SelectTrigger id="crm-experience" className={cn("h-auto py-[9px] text-[13px] rounded-[6px] border-input focus:ring-0 focus:ring-offset-0 focus:border-primary [&>span]:truncate data-[placeholder]:text-muted-foreground", bordaDePreenchido(crmExperience))}>
                       <SelectValue placeholder="Selecione uma opção" />
                     </SelectTrigger>
                     <SelectContent>
@@ -774,7 +774,7 @@ export default function CompanyRegisterPage() {
                       // que faz este campo ler como observação pendurada na
                       // pergunta de cima, e não como mais um campo do
                       // formulário.
-                      className={cn("h-auto rounded-full text-[11px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(previousCrm, true))}
+                      className={cn("h-auto rounded-full text-[12px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(previousCrm, true))}
                     />
                   </div>
                 )}
@@ -793,7 +793,7 @@ export default function CompanyRegisterPage() {
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleNext()}
-                    className={cn("h-auto rounded-[5px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(companyName))}
+                    className={cn("h-auto rounded-[6px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(companyName))}
                     autoFocus
                   />
                 </div>
@@ -813,7 +813,7 @@ export default function CompanyRegisterPage() {
                       outros dois, e oito caixas empurrariam o resto para fora
                       do cartão. */}
                   <Select value={niche} onValueChange={setNiche}>
-                    <SelectTrigger id="company-niche" className={cn("h-auto py-[9px] text-[13px] rounded-[5px] border-input focus:ring-0 focus:ring-offset-0 focus:border-primary [&>span]:truncate data-[placeholder]:text-muted-foreground", bordaDePreenchido(niche))}>
+                    <SelectTrigger id="company-niche" className={cn("h-auto py-[9px] text-[13px] rounded-[6px] border-input focus:ring-0 focus:ring-offset-0 focus:border-primary [&>span]:truncate data-[placeholder]:text-muted-foreground", bordaDePreenchido(niche))}>
                       <SelectValue placeholder="Selecione o segmento" />
                     </SelectTrigger>
                     <SelectContent>
@@ -832,7 +832,7 @@ export default function CompanyRegisterPage() {
                     diferentes uma da outra, e `space-y` só sabe aplicar a mesma
                     para todos os filhos. Cada uma vem da margem do próprio
                     parágrafo, logo abaixo. */}
-                <div className="rounded-[7px] bg-primary/[0.06] px-3 py-3">
+                <div className="rounded-[8px] bg-primary/[0.06] px-3 py-3">
                   {/* `block` no rótulo: `<label>` é inline por padrão, e como
                       inline a altura da linha dele passa a ser decidida pelo
                       line-height do bloco em volta, não pelo `leading-none` que
@@ -879,7 +879,7 @@ export default function CompanyRegisterPage() {
                         <label
                           key={faixa}
                           className={cn(
-                            "flex items-center justify-center px-2 py-[9px] rounded-[5px] border text-center cursor-pointer transition-all",
+                            "flex items-center justify-center px-2 py-[9px] rounded-[6px] border text-center cursor-pointer transition-all",
                             "hover:border-primary/60",
                             "focus-within:ring-2 focus-within:ring-primary/30",
                             // Todas as caixas ficam brancas, marcada ou não:
@@ -938,7 +938,7 @@ export default function CompanyRegisterPage() {
                         <label
                           key={canal}
                           className={cn(
-                            "flex items-center gap-2.5 px-3 py-[12px] rounded-[5px] border cursor-pointer transition-all bg-card",
+                            "flex items-center gap-2.5 px-3 py-[12px] rounded-[6px] border cursor-pointer transition-all bg-card",
                             "hover:border-primary/60",
                             "focus-within:ring-2 focus-within:ring-primary/30",
                             marcado ? "border-primary text-primary" : "border-gray-300 text-foreground"
@@ -958,7 +958,7 @@ export default function CompanyRegisterPage() {
                           />
                           <span
                             className={cn(
-                              "w-4 h-4 rounded-[3px] border-[1.5px] flex items-center justify-center shrink-0 transition-colors",
+                              "w-4 h-4 rounded-[6px] border-[1.5px] flex items-center justify-center shrink-0 transition-colors",
                               marcado ? "border-primary bg-primary" : "border-gray-300"
                             )}
                           >
@@ -980,7 +980,7 @@ export default function CompanyRegisterPage() {
                       tamanho da dor, e é a segunda que diz se aquele cadastro
                       merece um telefonema no dia 2 do teste. */}
                   <Select value={monthlyLeads} onValueChange={setMonthlyLeads}>
-                    <SelectTrigger id="monthly-leads" className={cn("h-auto py-[9px] text-[13px] rounded-[5px] border-input focus:ring-0 focus:ring-offset-0 focus:border-primary [&>span]:truncate data-[placeholder]:text-muted-foreground", bordaDePreenchido(monthlyLeads))}>
+                    <SelectTrigger id="monthly-leads" className={cn("h-auto py-[9px] text-[13px] rounded-[6px] border-input focus:ring-0 focus:ring-offset-0 focus:border-primary [&>span]:truncate data-[placeholder]:text-muted-foreground", bordaDePreenchido(monthlyLeads))}>
                       <SelectValue placeholder="Selecione a faixa" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1039,7 +1039,7 @@ export default function CompanyRegisterPage() {
                         <label
                           key={objetivo}
                           className={cn(
-                            "flex items-center gap-2.5 px-3 py-[15px] rounded-[5px] border cursor-pointer transition-all bg-card",
+                            "flex items-center gap-2.5 px-3 py-[15px] rounded-[6px] border cursor-pointer transition-all bg-card",
                             "hover:border-primary/60",
                             "focus-within:ring-2 focus-within:ring-primary/30",
                             marcado ? "border-primary text-primary" : "border-gray-300 text-foreground"
@@ -1065,7 +1065,7 @@ export default function CompanyRegisterPage() {
                               explicar. */}
                           <span
                             className={cn(
-                              "w-4 h-4 rounded-[3px] border-[1.5px] flex items-center justify-center shrink-0 transition-colors",
+                              "w-4 h-4 rounded-[6px] border-[1.5px] flex items-center justify-center shrink-0 transition-colors",
                               marcado ? "border-primary bg-primary" : "border-gray-300"
                             )}
                           >
@@ -1094,7 +1094,7 @@ export default function CompanyRegisterPage() {
                 variant="outline"
                 onClick={handleBack}
                 disabled={step === 1}
-                className="h-auto py-[9px] px-5 rounded-[5px] font-semibold"
+                className="h-auto py-[9px] px-5 rounded-[6px] font-semibold"
               >
                 Voltar
               </Button>
@@ -1111,7 +1111,7 @@ export default function CompanyRegisterPage() {
               <Button
                 type="button"
                 onClick={step === TOTAL_DE_ETAPAS ? handleSubmit : handleNext}
-                className="h-auto py-[9px] px-5 rounded-[5px] font-semibold"
+                className="h-auto py-[9px] px-5 rounded-[6px] font-semibold"
                 style={step === TOTAL_DE_ETAPAS
                   ? { animation: "banner-btn-attention 1s ease-in-out infinite" }
                   : undefined}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { corDoTexto, iniciais } from "@/lib/iniciais";
+import { tintaSobre } from "@/lib/contraste";
 
 // Foto redonda de contato ou atendente, com iniciais coloridas como reserva.
 //
@@ -37,7 +38,7 @@ export function ConvAvatar({
   return (
     <div style={{
       width: size, height: size, borderRadius: "50%",
-      background: corDoTexto(name), color: "#fff",
+      background: corDoTexto(name), color: tintaSobre(corDoTexto(name)),
       display: "flex", alignItems: "center", justifyContent: "center",
       fontSize, fontWeight: 700, flexShrink: 0, ...style,
     }}>

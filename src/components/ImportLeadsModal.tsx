@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { normalizarTelefoneBr, telefonesIguais } from "@/lib/telefone";
+import { tintaSobre } from "@/lib/contraste";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -277,7 +278,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                   <div className="divide-y divide-muted max-h-[240px] overflow-y-auto">
                     {results.filter(r => r.status !== "ok").map((r, i) => (
                       <div key={i} className="px-3 py-2 text-xs flex items-start gap-2">
-                        <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                        <AlertCircle size={14} className="text-[color:var(--warning-fg)] shrink-0 mt-0.5" />
                         <div className="min-w-0">
                           <p className="font-medium text-foreground truncate">{r.name}{r.phone ? ` · ${r.phone}` : ""}</p>
                           <p className="text-muted-foreground">{r.detail}</p>
@@ -321,8 +322,8 @@ export function ImportLeadsModal({ open, onClose }: Props) {
               </>
             ) : parseError ? (
               <>
-                <AlertCircle size={28} className="mx-auto mb-2 text-red-500" />
-                <p className="text-sm font-medium text-red-600">{parseError}</p>
+                <AlertCircle size={28} className="mx-auto mb-2 text-[color:var(--danger-fg)]" />
+                <p className="text-sm font-medium text-[color:var(--danger-fg)]">{parseError}</p>
                 <p className="text-xs text-muted-foreground mt-1">{file.name}</p>
               </>
             ) : (
@@ -353,7 +354,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                   { label: "E-mail", value: emailCol,  set: setEmailCol },
                 ].map(({ label, value, set }) => (
                   <div key={label} className="space-y-1">
-                    <label className="text-[11px] font-medium text-muted-foreground">{label}</label>
+                    <label className="text-[12px] font-medium text-muted-foreground">{label}</label>
                     <Select value={value} onValueChange={set}>
                       <SelectTrigger className="h-8 text-xs rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary">
                         <SelectValue />
@@ -445,8 +446,8 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                           className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
                           style={{
                             background:   active ? tag.color + "22" : "transparent",
-                            borderColor:  active ? tag.color : "#DDDDDD",
-                            color:        active ? tag.color : "#666",
+                            borderColor:  active ? tag.color : "var(--neutral-300)",
+                            color:        active ? tag.color : "var(--text-muted)",
                           }}
                         >
                           {active && <X size={10} />}
@@ -467,7 +468,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                     {teamMembers.map(name => {
                       const selected = selectedResponsibles.includes(name);
                       const avatar = memberAvatars[name];
-                      const color = memberColors[name] ?? "#AAAAAA";
+                      const color = memberColors[name] ?? "var(--neutral-700)";
                       return (
                         <button
                           key={name}
@@ -483,7 +484,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                             className="flex items-center justify-center rounded shrink-0"
                             style={{
                               width: 14, height: 14,
-                              border: selected ? `2px solid ${color}` : "1.5px solid #CCCCCC",
+                              border: selected ? `2px solid ${color}` : "1.5px solid var(--border-strong)",
                               background: selected ? color : "transparent",
                             }}
                           >
@@ -496,7 +497,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                           {avatar ? (
                             <img src={avatar} alt={name} className="rounded-full object-cover shrink-0" style={{ width: 20, height: 20 }} />
                           ) : (
-                            <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 20, height: 20, background: color, fontSize: 9 }}>
+                            <div className="rounded-full flex items-center justify-center font-semibold shrink-0" style={{ width: 20, height: 20, background: color, color: tintaSobre(color), fontSize: 12 }}>
                               {name[0].toUpperCase()}
                             </div>
                           )}
@@ -506,7 +507,7 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                     })}
                   </div>
                   {selectedResponsibles.length > 0 && (
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-[12px] text-muted-foreground">
                       {selectedResponsibles.length === 1
                         ? `1 responsável selecionado`
                         : `${selectedResponsibles.length} responsáveis selecionados`}

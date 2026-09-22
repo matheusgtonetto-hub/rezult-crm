@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useCRM } from "@/context/CRMContext";
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from "recharts";
 import {
@@ -27,7 +27,10 @@ import { HorariosPanel } from "@/components/dashboard/HorariosPanel";
 import { TooltipSeries } from "@/components/dashboard/CaixaTooltip";
 import { RankingPanel } from "@/components/dashboard/RankingPanel";
 import { MultiatendimentoPanel } from "@/components/dashboard/MultiatendimentoPanel";
-import { fmt, parseEntryDate, tooltip, usePriorPeriod, variacao, meioDoPeriodo, ORIGIN_COLORS, PALETA } from "@/components/dashboard/useDashboardHelpers";
+import { fmt, parseEntryDate, tooltip, usePriorPeriod, variacao, meioDoPeriodo, ORIGIN_COLORS, PALETA, receitaDoGanho } from "@/components/dashboard/useDashboardHelpers";
+import { MEDALHAS, VERDE_DEMAIS, tintaDaMedalha } from "@/components/dashboard/medalhas";
+import { TabelaDoPainel, LINHA_CORPO, LINHA_PE } from "@/components/dashboard/TabelaPainel";
+import { tintaSobre } from "@/lib/contraste";
 
 
 /**
@@ -38,8 +41,11 @@ import { fmt, parseEntryDate, tooltip, usePriorPeriod, variacao, meioDoPeriodo, 
  * num deles para a legenda passar a mentir sobre a curva.
  *
  * `cor` é hexadecimal, e não token do tema, porque quem pinta é o SVG do
- * Recharts, que não resolve `hsl(var(--primary))`. Os valores são os mesmos dos
- * tokens: primária, sucesso e destrutiva.
+ * Recharts, que não resolve `hsl(var(--primary))`. Os valores vêm do Rezult CRM
+ * Design System, nos papéis que a seção 3.10 da matriz fixa: o esmeralda 400
+ * marca o GANHO, que é o resultado que o painel existe para mostrar; o charcoal
+ * fica com "Negócios", que é o universo contra o qual esse resultado se lê (o
+ * papel de comparação); e o vermelho de decadência fica na queda.
  */
 const AREAS_NEGOCIOS = [
   // `chave` é a contagem; `chaveValor` é o dinheiro do mesmo recorte. O botão
@@ -47,9 +53,9 @@ const AREAS_NEGOCIOS = [
   // "Negócios", e não "Novos": os três nomes aparecem juntos na legenda e no
   // tooltip, e "Novos" sozinho não dizia novos O QUÊ. Os outros dois já são
   // situações do negócio, então nomear a entrada pelo objeto fecha a frase.
-  { chave: "novos",    chaveValor: "novosValor",    nome: "Negócios", cor: "#128A68", id: "area-novos" },
-  { chave: "ganhos",   chaveValor: "ganhosValor",   nome: "Ganhos",   cor: "#10B981", id: "area-ganhos" },
-  { chave: "perdidos", chaveValor: "perdidosValor", nome: "Perdidos", cor: "#EF4444", id: "area-perdidos" },
+  { chave: "novos",    chaveValor: "novosValor",    nome: "Negócios", cor: "#2D2F33", id: "area-novos" },
+  { chave: "ganhos",   chaveValor: "ganhosValor",   nome: "Ganhos",   cor: "#01D8A4", id: "area-ganhos" },
+  { chave: "perdidos", chaveValor: "perdidosValor", nome: "Perdidos", cor: "#FD5555", id: "area-perdidos" },
 ] as const;
 
 /** Cor de cada série pelo NOME, que é a chave com que o Recharts devolve o
@@ -246,8 +252,8 @@ export default function DashboardPage() {
     const wp = wonLeads.filter(l => wonPriorIds.has(l.id));
     const lp = lostLeads.filter(l => lostPriorIds.has(l.id));
     return {
-      wonInPeriod: w, lostInPeriod: lo, revenueInPeriod: w.reduce((s, l) => s + l.value, 0),
-      wonPrior: wp, lostPrior: lp, revenuePrior: wp.reduce((s, l) => s + l.value, 0),
+      wonInPeriod: w, lostInPeriod: lo, revenueInPeriod: w.reduce((s, l) => s + receitaDoGanho(l), 0),
+      wonPrior: wp, lostPrior: lp, revenuePrior: wp.reduce((s, l) => s + receitaDoGanho(l), 0),
     };
   }, [allLeads, wonLeads, lostLeads, dateRange]);
 
@@ -259,6 +265,19 @@ export default function DashboardPage() {
       key: string; mes: string;
       novos: number; ganhos: number; perdidos: number;
       novosValor: number; ganhosValor: number; perdidosValor: number;
+      /**
+       * Quais negócios este compartimento já contou, por desfecho.
+       *
+       * Um negócio ganho, reaberto e ganho de novo tem DUAS atividades de
+       * ganho, e o laço somava `lead.value` uma vez por atividade: o mesmo
+       * negócio entrava duas vezes na contagem e na receita. Medido no banco em
+       * 20/09/2026: 7 negócios em 87 com ganho repetido, inflando a receita de
+       * R$ 44.753 para R$ 52.900 (18% a mais).
+       *
+       * Os conjuntos não saem daqui -- são apagados antes de o dado virar
+       * gráfico, logo abaixo.
+       */
+      ganhosVistos: Set<string>; perdasVistas: Set<string>;
     };
     const map = new Map<string, Bucket>();
     // Compara só a parte de data (sem horário) para não ser afetado pela normalização
@@ -275,7 +294,7 @@ export default function DashboardPage() {
         if (e && e >= periodCutoff && e <= periodTo) {
           const h = e.getHours();
           const key = String(h).padStart(2, "0");
-          const cur = map.get(key) || { key, mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0, novosValor: 0, ganhosValor: 0, perdidosValor: 0 };
+          const cur = map.get(key) || { key, mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0, novosValor: 0, ganhosValor: 0, perdidosValor: 0, ganhosVistos: new Set<string>(), perdasVistas: new Set<string>() };
           cur.novos++; cur.novosValor += lead.value;
           map.set(key, cur);
         }
@@ -284,9 +303,13 @@ export default function DashboardPage() {
           if (d < periodCutoff || d > periodTo) return;
           const h = d.getHours();
           const key = String(h).padStart(2, "0");
-          const cur = map.get(key) || { key, mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0, novosValor: 0, ganhosValor: 0, perdidosValor: 0 };
-          if (act.type === "won") { cur.ganhos++; cur.ganhosValor += lead.value; }
-          if (act.type === "lost") { cur.perdidos++; cur.perdidosValor += lead.value; }
+          const cur = map.get(key) || { key, mes: `${h}h`, novos: 0, ganhos: 0, perdidos: 0, novosValor: 0, ganhosValor: 0, perdidosValor: 0, ganhosVistos: new Set<string>(), perdasVistas: new Set<string>() };
+          if (act.type === "won" && !cur.ganhosVistos.has(lead.id)) {
+            cur.ganhosVistos.add(lead.id); cur.ganhos++; cur.ganhosValor += receitaDoGanho(lead);
+          }
+          if (act.type === "lost" && !cur.perdasVistas.has(lead.id)) {
+            cur.perdasVistas.add(lead.id); cur.perdidos++; cur.perdidosValor += lead.value;
+          }
           map.set(key, cur);
         });
       });
@@ -299,12 +322,18 @@ export default function DashboardPage() {
         ? new Date(periodTo.getFullYear(), periodTo.getMonth() + 1, 0)
         : new Date(periodTo);
       displayEnd.setHours(23, 59, 59, 999);
+      // Mas nunca além de hoje. A extensão até o fim do mês serve ao "Mês
+      // passado", que já terminou; no "Este mês" ela desenhava os dias que ainda
+      // não chegaram, rente ao eixo, como se as vendas tivessem parado.
+      const fimDeHoje = new Date();
+      fimDeHoje.setHours(23, 59, 59, 999);
+      if (displayEnd > fimDeHoje) displayEnd.setTime(fimDeHoje.getTime());
 
       const cursor = new Date(periodCutoff);
       cursor.setHours(0, 0, 0, 0);
       while (cursor <= displayEnd) {
         const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-${String(cursor.getDate()).padStart(2, "0")}`;
-        map.set(key, { key, mes: `${cursor.getDate()}/${cursor.getMonth() + 1}`, novos: 0, ganhos: 0, perdidos: 0, novosValor: 0, ganhosValor: 0, perdidosValor: 0 });
+        map.set(key, { key, mes: `${cursor.getDate()}/${cursor.getMonth() + 1}`, novos: 0, ganhos: 0, perdidos: 0, novosValor: 0, ganhosValor: 0, perdidosValor: 0, ganhosVistos: new Set<string>(), perdasVistas: new Set<string>() });
         cursor.setDate(cursor.getDate() + 1);
       }
 
@@ -321,19 +350,71 @@ export default function DashboardPage() {
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
           const bucket = map.get(key);
           if (!bucket) return;
-          if (act.type === "won") { bucket.ganhos++; bucket.ganhosValor += lead.value; }
-          if (act.type === "lost") { bucket.perdidos++; bucket.perdidosValor += lead.value; }
+          if (act.type === "won" && !bucket.ganhosVistos.has(lead.id)) {
+            bucket.ganhosVistos.add(lead.id); bucket.ganhos++; bucket.ganhosValor += receitaDoGanho(lead);
+          }
+          if (act.type === "lost" && !bucket.perdasVistas.has(lead.id)) {
+            bucket.perdasVistas.add(lead.id); bucket.perdidos++; bucket.perdidosValor += lead.value;
+          }
         });
       });
 
     } else {
-      // ── MESES: sempre 12 buckets mensais ──
+      // ── MESES: do primeiro ao último mês DO PERÍODO ──
+      //
+      // Eram 12 buckets fixos, contados a partir do início do período, sem olhar
+      // onde ele termina. Num filtro de 1 Jan a 19 Set, o eixo desenhava até
+      // Dez -- três meses no FUTURO, fora do recorte e zerados por construção.
+      // O rótulo do cabeçalho dizia uma coisa e o eixo mostrava outra.
+      //
+      // O eixo agora cobre o período escolhido, nem mais nem menos. Mês dentro
+      // do período e sem movimento CONTINUA aparecendo, zerado: ali o zero é o
+      // dado ("não houve venda em março"), e apagá-lo esconderia justamente o
+      // buraco que a pessoa precisa ver.
       const monthNames = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+      // As duas pontas são aparadas, e cada uma por um motivo diferente.
+      //
+      // FIM: nunca além do mês corrente. Um filtro de "este ano" aberto em
+      // setembro inclui outubro a dezembro, mas ali não há zero a mostrar -- há
+      // futuro. Série temporal não desenha o que ainda não aconteceu.
+      //
+      // INÍCIO: nunca antes do primeiro registro da conta. Uma conta aberta em
+      // maio, num filtro de ano inteiro, desenhava janeiro a abril rente ao eixo
+      // -- e ali o zero não é "não vendemos", é "não existíamos". Zero só
+      // informa quando havia alguém para produzir o número.
+      //
+      // O que NÃO é aparado é o meio: mês dentro do período, depois do primeiro
+      // registro e sem movimento, continua aparecendo zerado. Ali o zero é o
+      // dado, e apagá-lo esconderia o buraco que a pessoa precisa enxergar.
+      let primeiroDado: Date | null = null;
+      const marcar = (d: Date | null) => {
+        if (d && !Number.isNaN(d.getTime()) && (!primeiroDado || d < primeiroDado)) primeiroDado = d;
+      };
+      allLeads.forEach(lead => {
+        marcar(lead.created_at ? new Date(lead.created_at) : parseEntryDate(lead.entryDate));
+        // As atividades entram na conta: um lead importado hoje pode carregar um
+        // ganho registrado meses atrás, e cortar aquele mês apagaria uma venda
+        // que existe.
+        lead.activities.forEach(act => marcar(new Date(act.date)));
+      });
+
       const cursor = new Date(periodCutoff);
       cursor.setDate(1);
-      for (let i = 0; i < 12; i++) {
+      cursor.setHours(0, 0, 0, 0);
+      if (primeiroDado) {
+        const mesDoPrimeiro = new Date((primeiroDado as Date).getFullYear(), (primeiroDado as Date).getMonth(), 1);
+        if (mesDoPrimeiro > cursor) { cursor.setTime(mesDoPrimeiro.getTime()); }
+      }
+
+      const hoje = new Date();
+      const mesCorrente = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+      const fimDoPeriodo = new Date(periodTo.getFullYear(), periodTo.getMonth(), 1);
+      const ultimoMes = fimDoPeriodo < mesCorrente ? fimDoPeriodo : mesCorrente;
+
+      while (cursor <= ultimoMes) {
         const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}`;
-        map.set(key, { key, mes: `${monthNames[cursor.getMonth()]}/${String(cursor.getFullYear()).slice(2)}`, novos: 0, ganhos: 0, perdidos: 0, novosValor: 0, ganhosValor: 0, perdidosValor: 0 });
+        map.set(key, { key, mes: `${monthNames[cursor.getMonth()]}/${String(cursor.getFullYear()).slice(2)}`, novos: 0, ganhos: 0, perdidos: 0, novosValor: 0, ganhosValor: 0, perdidosValor: 0, ganhosVistos: new Set<string>(), perdasVistas: new Set<string>() });
         cursor.setMonth(cursor.getMonth() + 1);
       }
 
@@ -350,13 +431,20 @@ export default function DashboardPage() {
           const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
           const bucket = map.get(key);
           if (!bucket) return;
-          if (act.type === "won") { bucket.ganhos++; bucket.ganhosValor += lead.value; }
-          if (act.type === "lost") { bucket.perdidos++; bucket.perdidosValor += lead.value; }
+          if (act.type === "won" && !bucket.ganhosVistos.has(lead.id)) {
+            bucket.ganhosVistos.add(lead.id); bucket.ganhos++; bucket.ganhosValor += receitaDoGanho(lead);
+          }
+          if (act.type === "lost" && !bucket.perdasVistas.has(lead.id)) {
+            bucket.perdasVistas.add(lead.id); bucket.perdidos++; bucket.perdidosValor += lead.value;
+          }
         });
       });
     }
 
-    return [...map.values()].sort((a, b) => a.key.localeCompare(b.key));
+    // Os conjuntos de controle ficam para trás: o gráfico recebe só os números.
+    return [...map.values()]
+      .sort((a, b) => a.key.localeCompare(b.key))
+      .map(({ ganhosVistos: _g, perdasVistas: _p, ...dado }) => dado);
   }, [allLeads, dateRange]);
 
   /**
@@ -394,11 +482,16 @@ export default function DashboardPage() {
     allLeads.forEach(lead => {
       const e = lead.created_at ? new Date(lead.created_at) : parseEntryDate(lead.entryDate);
       if (e && e >= periodCutoff && e <= periodTo) contar(e, "novos");
+      // Um negócio conta UMA vez por desfecho, como no gráfico do período:
+      // ganho, reaberto e ganho de novo são duas atividades do mesmo negócio, e
+      // contá-las duas vezes inflava a hora (e o dia) em que isso aconteceu.
+      let jaGanhou = false;
+      let jaPerdeu = false;
       lead.activities.forEach(act => {
         const d = new Date(act.date);
         if (d < periodCutoff || d > periodTo) return;
-        if (act.type === "won") contar(d, "ganhos");
-        if (act.type === "lost") contar(d, "perdidos");
+        if (act.type === "won" && !jaGanhou) { jaGanhou = true; contar(d, "ganhos"); }
+        if (act.type === "lost" && !jaPerdeu) { jaPerdeu = true; contar(d, "perdidos"); }
       });
     });
 
@@ -504,7 +597,7 @@ export default function DashboardPage() {
           // motivo, é a sobra de vários. Uma cor própria o faria parecer o
           // quarto motivo mais comum.
           detalhes: resto > 0
-            ? [...topo, { nome: "Outros motivos", valor: resto, extras: [fatia(resto)], cor: "#94A3B8" }]
+            ? [...topo, { nome: "Outros motivos", valor: resto, extras: [fatia(resto)], cor: "#B4B4B7" }]
             : topo,
         };
       });
@@ -530,7 +623,7 @@ export default function DashboardPage() {
       const ml = leadsForMember(periodLeads, m);           // workload: entrou no período
       const won = leadsForMember(wonInPeriod, m);          // ganhos no período (por atividade — igual ao KPI)
       const lost = leadsForMember(lostInPeriod, m).length; // perdidos no período (por atividade — igual ao KPI)
-      const totalValue = won.reduce((s, l) => s + l.value, 0);
+      const totalValue = won.reduce((s, l) => s + receitaDoGanho(l), 0);
       const closed = won.length + lost;
       return {
         name: m,
@@ -540,7 +633,7 @@ export default function DashboardPage() {
         convRate: closed > 0 ? (won.length / closed * 100).toFixed(0) : "—",
         totalValue,
         avgTicket: won.length > 0 ? totalValue / won.length : 0,
-        color: memberColors[m] || "#888",
+        color: memberColors[m] || "#525154",
       };
     }).sort((a, b) => b.totalValue - a.totalValue);
   }, [periodLeads, wonInPeriod, lostInPeriod, teamMembers, memberColors]);
@@ -567,7 +660,10 @@ export default function DashboardPage() {
         .filter(a => a.won > 0 || a.lost > 0 || a.total > 0)
         .map(a => ({
           nome: a.name,
-          cor: a.color,
+          // Sem `cor`: quem pinta é o painel, com a rampa da marca por posição
+          // no anel. A cor do avatar (hash do nome) continua valendo onde ela
+          // IDENTIFICA a pessoa -- avatar, tabela, conversa --, mas no anel ela
+          // só separava fatias, e enchia de roxo um dashboard verde.
           negocios: a.total,
           ganhos: a.won,
           perdidos: a.lost,
@@ -580,7 +676,7 @@ export default function DashboardPage() {
     return teamMembers.map(m => {
       const ml = leadsForMember(periodLeads, m);
       const value = donutMode === "value" ? ml.reduce((s, l) => s + l.value, 0) : ml.length;
-      return { name: m, value, color: memberColors[m] || "#888" };
+      return { name: m, value, color: memberColors[m] || "#525154" };
     }).filter(d => d.value > 0);
   }, [periodLeads, teamMembers, memberColors, donutMode]);
 
@@ -590,7 +686,7 @@ export default function DashboardPage() {
     wonInPeriod.forEach(l => {
       if (!l.productId || !map.has(l.productId)) return;
       const cur = map.get(l.productId)!;
-      cur.count++; cur.value += l.value;
+      cur.count++; cur.value += receitaDoGanho(l);
     });
     return [...map.values()].sort((a, b) => b.value - a.value || b.count - a.count);
   }, [wonInPeriod, products]);
@@ -775,6 +871,9 @@ export default function DashboardPage() {
     // cartões do topo ficam com ~296px cada e as duas rosquinhas de Origem com
     // ~594px por coluna. Com a barra fora, esses 1220px voltam inteiros para os
     // gráficos.
+    // Sem classe de escopo: desde a Onda 0 os tokens do design system são
+    // globais (src/index.css), e a ponte `.rz-ds-v3` que existia só aqui foi
+    // removida. Ver seção 6 da matriz: token é global ou não é token.
     <div className="pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto">
       <Tabs value={visao} onValueChange={v => setVisao(v as VisaoDoDashboard)} className="space-y-6">
       {/* Header em três colunas, e não num `justify-between` de dois lados.
@@ -802,7 +901,7 @@ export default function DashboardPage() {
               eco: trocar para "Equipe" trocava o título para "Equipe" também, e
               a mesma palavra aparecia duas vezes na mesma linha. O título passa a
               nomear a TELA, que é o que não muda, e as abas dizem o recorte. */}
-          <h1 className="text-[23px] font-semibold text-foreground">Dashboards</h1>
+          <h1 className="text-[24px] font-semibold text-foreground">Dashboards</h1>
           {/* No lugar do subtítulo fixo ("Desempenho geral do seu negócio"),
               o período que está filtrando. Aquela frase valia para qualquer
               conta em qualquer dia; esta responde a pergunta que a pessoa
@@ -814,13 +913,18 @@ export default function DashboardPage() {
         </div>
         {/* Seletor de visão: as três abas lado a lado, no centro do cabeçalho.
 
-            A escolhida leva o verde CHEIO da barra lateral do app (`bg-primary`,
-            que é o mesmo `--primary` do `SIDEBAR_BG`) com texto branco. É o
-            verde que o produto usa para "você está aqui", e aqui ele responde
-            exatamente isso.
+            A escolhida leva o verde CHEIO do item ativo do app (`bg-primary`,
+            `--accent-400`) com tinta charcoal, que é a decisão D2: sobre
+            emerald a tinta nunca é branca.
 
-            As não escolhidas seguem sobre o cinza da moldura (`bg-muted/40`), o
-            mesmo dos outros pares de botões do dashboard.
+            A trilha é BRANCA com `--shadow-xs`, e não cinza. O `bg-muted/40`
+            que estava aqui foi escrito quando o canvas do app era branco; desde
+            que a D5 tornou o canvas `--bg-app` (#F7F7F7), cinza a 40% sobre
+            cinza compunha em #F5F5F5 e dava 1,02:1 -- o controle sumia no
+            fundo. A regra passa a ser a mesma da barra lateral: superfície
+            clara sobre o canvas cinza, descolada por borda e sombra. Nos
+            controles que ficam DENTRO de um cartão branco vale o inverso,
+            `--neutral-100` chapado, como sulco.
 
             A distinção não é só de matiz -- verde escuro contra branco separa
             também por claro e escuro, então continua legível para quem não
@@ -838,7 +942,7 @@ export default function DashboardPage() {
           role="tablist"
           aria-label="Visões do dashboard"
         >
-          <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-muted/40">
+          <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-card shadow-[var(--shadow-xs)]">
             {VISOES_DO_DASHBOARD.map(({ id, Icone }) => {
               const ativa = id === visao;
               return (
@@ -921,6 +1025,9 @@ export default function DashboardPage() {
               return [
                 {
                   label: "Total de negócios",
+                  // Para onde a seta do canto leva: a lista de Leads com o mesmo
+                  // recorte do cartão. `null` = a lista inteira.
+                  statusNaLista: null as "won" | "lost" | "open" | null,
                   value: periodLeads.length,
                   sub: fmt(periodLeads.reduce((s, l) => s + l.value, 0)),
                   delta: compara(periodLeads, priorPeriodLeads, porEntrada),
@@ -928,13 +1035,15 @@ export default function DashboardPage() {
                 },
                 {
                   label: "Total em vendas",
+                  statusNaLista: "won" as const,
                   value: wonInPeriod.length,
-                  sub: fmt(wonInPeriod.reduce((s, l) => s + l.value, 0)),
+                  sub: fmt(wonInPeriod.reduce((s, l) => s + receitaDoGanho(l), 0)),
                   delta: compara(wonInPeriod, wonPrior, porFechamento("won")),
                   tom: "success" as const,
                 },
                 {
                   label: "Total perdidos",
+                  statusNaLista: "lost" as const,
                   value: lostInPeriod.length,
                   sub: fmt(lostInPeriod.reduce((s, l) => s + l.value, 0)),
                   delta: compara(lostInPeriod, lostPrior, porFechamento("lost")),
@@ -942,6 +1051,7 @@ export default function DashboardPage() {
                 },
                 {
                   label: "Total em aberto",
+                  statusNaLista: "open" as const,
                   value: openInPeriod.length,
                   sub: fmt(openInPeriod.reduce((s, l) => s + l.value, 0)),
                   delta: compara(openInPeriod, openPrior, porEntrada),
@@ -971,6 +1081,12 @@ export default function DashboardPage() {
                 // O número de negócios precisa dizer de que ele é contagem: os
                 // quatro cartões contam negócios, em situações diferentes.
                 sufixo={c.value === 1 ? "negócio" : "negócios"}
+                // A seta do canto abre a LISTA por trás do número, já filtrada
+                // pelo mesmo recorte. Sem o filtro ela largaria a pessoa na
+                // lista inteira, obrigando-a a refazer à mão o corte que acabou
+                // de clicar.
+                aoAbrir={() => navigate(c.statusNaLista ? `/leads?status=${c.statusNaLista}` : "/leads")}
+                rotuloDeAbrir={`Ver ${c.label.toLowerCase()} na lista de leads`}
               />
             ))}
           </div>
@@ -991,7 +1107,7 @@ export default function DashboardPage() {
               meios e terços, então dá para reequilibrar a linha em passos de
               1/6 sem trocar a grade de novo. */}
           <div className="grid grid-cols-1 lg:grid-cols-6 gap-4">
-          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 lg:col-span-4">
+          <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 lg:col-span-4">
             <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
               {/* items-start, e não items-center: com o subtítulo o bloco de
                   texto ficou mais alto que o par de botões, e centralizar
@@ -1010,7 +1126,7 @@ export default function DashboardPage() {
                     só duas opções, e o dropdown esconderia metade da escolha
                     atrás de um clique. Assim as duas ficam visíveis e o estado
                     atual se lê sem abrir nada. */}
-                <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-muted/40">
+                <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-[color:var(--neutral-100)]">
                   {([
                     { id: "quantidade", rotulo: "Quantidade" },
                     { id: "receita",    rotulo: "Receita" },
@@ -1042,24 +1158,17 @@ export default function DashboardPage() {
                     As sombras (feDropShadow) que existiam aqui saíram: com o
                     degradê embaixo da curva elas viravam borrão, e cada filtro
                     custa um passe de rasterização por série. */}
-                <AreaChart data={monthlyData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-                  <defs>
-                    {areasDoPeriodo.map(a => (
-                      <linearGradient key={a.id} id={a.id} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={a.cor} stopOpacity={0.24} />
-                        <stop offset="100%" stopColor={a.cor} stopOpacity={0} />
-                      </linearGradient>
-                    ))}
-                  </defs>
-                  {/* Grade pontilhada e só horizontal: linha vertical em série
-                      temporal não ajuda a ler valor, só polui. */}
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" vertical={false} />
-                  <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} dy={4} />
+                <LineChart data={monthlyData} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                  {/* Grade tracejada e só horizontal: linha vertical em série
+                      temporal não ajuda a ler valor, só polui. O traço 4 5 e a
+                      cor são os do `LineChart` do material. */}
+                  <CartesianGrid strokeDasharray="4 5" stroke="var(--border-default)" vertical={false} />
+                  <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} axisLine={false} tickLine={false} dy={4} />
                   {/* Em receita o eixo vai abreviado (R$ 12k) e mais largo; em
                       quantidade segue inteiro e sem decimal, que é o certo para
                       contagem de negócios. */}
                   <YAxis
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
                     axisLine={false}
                     tickLine={false}
                     allowDecimals={false}
@@ -1077,21 +1186,25 @@ export default function DashboardPage() {
                     }
                   />
                   {areasDoPeriodo.map(a => (
-                    <Area
+                    <Line
                       key={a.chave}
                       type="monotone"
                       dataKey={metricaPeriodo === "receita" ? a.chaveValor : a.chave}
                       name={a.nome}
                       stroke={a.cor}
-                      strokeWidth={2}
-                      fill={`url(#${a.id})`}
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                       dot={false}
-                      activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }}
+                      /* Miolo branco com aro da série, como o material: sobre a
+                         linha cheia um ponto sólido some, e o furo branco é o
+                         que o faz aparecer. */
+                      activeDot={{ r: 5, strokeWidth: 2.5, stroke: a.cor, fill: "#FFFFFF" }}
                       animationEasing="ease-out"
                       animationDuration={800}
                     />
                   ))}
-                </AreaChart>
+                </LineChart>
               </ResponsiveContainer>
             )}
           </div>
@@ -1125,7 +1238,10 @@ export default function DashboardPage() {
                   </span>
                 ),
                 nome: p.name,
-                sub: p.sku ? `SKU: ${p.sku}` : undefined,
+                // Sem o SKU sob o nome (saiu em 20/09/2026, a pedido do dono):
+                // ele é código de cadastro, e quem lê um ranking de vendas
+                // reconhece o produto pelo NOME. A linha ficou de uma altura só.
+                // O campo segue no cadastro do produto, em Configurações.
                 valores: [
                   String(p.count),
                   /* Ticket médio POR VENDA deste produto: a receita dele
@@ -1136,6 +1252,7 @@ export default function DashboardPage() {
                   p.count > 0 ? fmt(p.value / p.count) : "—",
                   p.value > 0 ? fmt(p.value) : "—",
                 ],
+                numeros: [p.count, p.count > 0 ? p.value / p.count : 0, p.value],
               }))}
             />
 
@@ -1161,8 +1278,8 @@ export default function DashboardPage() {
                     />
                   ) : (
                     <span
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-semibold shrink-0"
-                      style={{ background: a.color }}
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                      style={{ background: a.color, color: tintaSobre(a.color) }}
                     >
                       {a.name[0]?.toUpperCase() ?? "?"}
                     </span>
@@ -1177,6 +1294,7 @@ export default function DashboardPage() {
                     a.avgTicket > 0 ? fmt(a.avgTicket) : "—",
                     a.totalValue > 0 ? fmt(a.totalValue) : "—",
                   ],
+                  numeros: [a.won, a.avgTicket, a.totalValue],
                 }))}
             />
           </div>
@@ -1200,7 +1318,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 lg:grid-cols-10 gap-4">
             <OriginPanel periodLeads={periodLeads} className="lg:col-span-3" />
 
-            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 lg:col-span-4">
+            <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 lg:col-span-4">
               <h3 className="text-sm font-semibold text-foreground">Motivo de perda por origem</h3>
               <p className="text-xs text-muted-foreground mt-0.5 mb-4">Onde você perde, e por quê</p>
               {/* Sem ramo de "vazio": período sem perda desenha o anel cinza com
@@ -1262,7 +1380,7 @@ export default function DashboardPage() {
           <HorariosPanel horas={rankingDoCiclo.horas} dias={rankingDoCiclo.dias} className="lg:col-span-2" />
 
           {/* Hourly results */}
-          <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 lg:col-span-4">
+          <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 lg:col-span-4">
             <div className="flex items-start justify-between gap-4 mb-4 flex-wrap">
               <div>
                 <h3 className="text-sm font-semibold text-foreground">Resultados por horário/dia</h3>
@@ -1285,7 +1403,7 @@ export default function DashboardPage() {
                   continuam nomeadas no tooltip, com cor e valor no ponto olhado,
                   que é onde a identificação faz falta -- e o painel de cima já
                   desenha as mesmas três curvas sem legenda nenhuma. */}
-              <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-muted/40">
+              <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-[color:var(--neutral-100)]">
                 {([
                   { id: "dias",  rotulo: "Dias" },
                   { id: "horas", rotulo: "Horas" },
@@ -1309,38 +1427,32 @@ export default function DashboardPage() {
                 período sem movimento entra o ciclo zerado e os eixos ficam de
                 pé, como no "Resultado no período". */}
             <ResponsiveContainer width="100%" height={260}>
-                {/* Mesmo tratamento do gráfico mensal. Os gradientes têm ids
-                    próprios (sufixo -h): dois <linearGradient> com o mesmo id na
-                    página fazem o segundo herdar o primeiro. */}
-                <AreaChart data={dadosDoCiclo} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
-                  <defs>
-                    {AREAS_NEGOCIOS.map(a => (
-                      <linearGradient key={a.id} id={`${a.id}-h`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={a.cor} stopOpacity={0.24} />
-                        <stop offset="100%" stopColor={a.cor} stopOpacity={0} />
-                      </linearGradient>
-                    ))}
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--card-border))" vertical={false} />
-                  <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} dy={4} />
-                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} width={44} />
+                {/* Mesmo tratamento do gráfico mensal. Sem <defs>: com a linha
+                    pura não há mais degradê, e com ele foi embora a armadilha
+                    dos ids repetidos (dois <linearGradient> com o mesmo id na
+                    página fazem o segundo herdar o primeiro). */}
+                <LineChart data={dadosDoCiclo} margin={{ top: 8, right: 8, left: -12, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="4 5" stroke="var(--border-default)" vertical={false} />
+                  <XAxis dataKey="mes" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} axisLine={false} tickLine={false} dy={4} />
+                  <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} width={44} />
                   <Tooltip content={<TooltipSeries cores={COR_DA_SERIE} />} />
                   {AREAS_NEGOCIOS.map(a => (
-                    <Area
+                    <Line
                       key={a.chave}
                       type="monotone"
                       dataKey={a.chave}
                       name={a.nome}
                       stroke={a.cor}
-                      strokeWidth={2}
-                      fill={`url(#${a.id}-h)`}
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
                       dot={false}
-                      activeDot={{ r: 4, strokeWidth: 2, stroke: "#fff" }}
+                      activeDot={{ r: 5, strokeWidth: 2.5, stroke: a.cor, fill: "#FFFFFF" }}
                       animationEasing="ease-out"
                       animationDuration={800}
                     />
                   ))}
-                </AreaChart>
+                </LineChart>
             </ResponsiveContainer>
           </div>
           </div>
@@ -1385,7 +1497,7 @@ export default function DashboardPage() {
           {/* Top SDR + Top Closer */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Top SDR */}
-            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
+            <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5">
               <div className="mb-4">
                 <h3 className="text-sm font-semibold text-foreground">Top SDR</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Agendamentos e conversão por usuário</p>
@@ -1395,107 +1507,81 @@ export default function DashboardPage() {
                   dos rankings e do UTM. Trocar a tabela por uma frase solta
                   encolhia o cartão ao lado de um vizinho de altura cheia, e a
                   linha ficava com um painel inteiro de desnível. */}
-                <div className="border border-card-border rounded-lg overflow-hidden">
-                  <table className="w-full text-xs border-collapse">
-                    {/* Faixa verde do "Performance por UTM": --primary chapado,
-                        texto branco, e as réguas entre colunas em branco a 20%.
-
-                        Sem `border-b`: a troca de cor entre a faixa e o corpo
-                        branco já é a divisa, e o traço cinza que estava aqui
-                        sujava a banda por baixo. Os cantos são recortados pelo
-                        `overflow-hidden` da moldura, que já existia. */}
-                    <thead>
-                      <tr className="bg-primary [&>th]:border-r [&>th]:border-white/20 [&>th:last-child]:border-r-0">
-                        <th className="text-left px-3 py-2 font-semibold text-white">Usuário</th>
-                        <th className="text-center px-3 py-2 font-semibold text-white">Agendamentos</th>
-                        <th className="text-center px-3 py-2 font-semibold text-white">Reuniões ocorridas</th>
-                        <th className="text-center px-3 py-2 font-semibold text-white">Conversão</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-card-border">
-                      {activityStats.topSchedulers.length === 0 && (
-                        <tr>
-                          <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
-                            Nenhuma reunião agendada no período.
-                          </td>
-                        </tr>
-                      )}
-                      {activityStats.topSchedulers.map((u, i) => {
-                        const medal = i === 0 ? "bg-yellow-500" : i === 1 ? "bg-gray-400" : i === 2 ? "bg-amber-600" : "bg-muted-foreground/40";
-                        return (
-                          <tr key={u.name} className="hover:bg-muted/30 transition-colors">
-                            <td className="px-3 py-2.5 border-r border-card-border">
-                              <div className="flex items-center gap-2">
-                                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 ${medal}`}>{i + 1}</span>
-                                <span className="font-medium text-foreground truncate max-w-[100px]">{u.name}</span>
-                              </div>
-                            </td>
-                            <td className="px-3 py-2.5 text-center border-r border-card-border">
-                              <button onClick={() => setDrillDialog({ open: true, title: `Agendamentos — ${u.name}`, items: u.scheduledItems })} className="font-semibold text-foreground tabular-nums hover:underline cursor-pointer">{u.count}</button>
-                            </td>
-                            <td className="px-3 py-2.5 text-center border-r border-card-border">
-                              <button onClick={() => setDrillDialog({ open: true, title: `Reuniões ocorridas — ${u.name}`, items: u.completedItems })} className="font-semibold text-success tabular-nums hover:underline cursor-pointer">{u.completed}</button>
-                            </td>
-                            <td className="px-3 py-2.5 text-center font-bold tabular-nums text-success">{u.convRate}%</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <TabelaDoPainel
+                  linhas={activityStats.topSchedulers.map((u, i) => ({ ...u, rank: i }))}
+                  chave={u => u.name}
+                  vazio="Nenhuma reunião agendada no período."
+                  inicial={{ coluna: "count", desc: true }}
+                  colunas={[
+                    { id: "nome", rotulo: "Usuário", alinhar: "esquerda", filtro: u => u.name },
+                    { id: "count", rotulo: "Agendamentos", valor: u => u.count },
+                    { id: "completed", rotulo: "Reuniões ocorridas", valor: u => u.completed },
+                    { id: "convRate", rotulo: "Conversão", valor: u => u.convRate },
+                  ]}
+                  celulas={u => {
+                    // A medalha segue o ranking original da linha, não a posição na tela.
+                    const medal = MEDALHAS[u.rank] ?? VERDE_DEMAIS;
+                    return (
+                      <>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[12px] font-bold shrink-0 tabular-nums" style={{ background: medal, color: tintaDaMedalha(medal) }}>{u.rank + 1}</span>
+                        <span className="font-medium text-foreground truncate max-w-[100px]">{u.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <button onClick={() => setDrillDialog({ open: true, title: `Agendamentos — ${u.name}`, items: u.scheduledItems })} className="font-semibold text-foreground tabular-nums hover:underline cursor-pointer">{u.count}</button>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <button onClick={() => setDrillDialog({ open: true, title: `Reuniões ocorridas — ${u.name}`, items: u.completedItems })} className="font-semibold text-success tabular-nums hover:underline cursor-pointer">{u.completed}</button>
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-bold tabular-nums text-success">{u.convRate}%</td>
+                      </>
+                    );
+                  }}
+                />
             </div>
 
             {/* Top Closer */}
-            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
+            <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5">
               <div className="mb-4">
                 <h3 className="text-sm font-semibold text-foreground">Top Closer</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Reuniões realizadas e conversão em vendas</p>
               </div>
               {/* Mesmo tratamento do Top SDR ao lado. Ver o comentário lá. */}
-                <div className="border border-card-border rounded-lg overflow-hidden">
-                  <table className="w-full text-xs border-collapse">
-                    {/* Mesma faixa verde do Top SDR ao lado. Ver o comentário
-                        lá: os dois ficam lado a lado na mesma linha, e qualquer
-                        diferença de tratamento entre eles lê como desalinho. */}
-                    <thead>
-                      <tr className="bg-primary [&>th]:border-r [&>th]:border-white/20 [&>th:last-child]:border-r-0">
-                        <th className="text-left px-3 py-2 font-semibold text-white">Usuário</th>
-                        <th className="text-center px-3 py-2 font-semibold text-white">Reuniões Realizadas</th>
-                        <th className="text-center px-3 py-2 font-semibold text-white">Vendas</th>
-                        <th className="text-center px-3 py-2 font-semibold text-white">Conversão</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-card-border">
-                      {activityStats.topCompleters.length === 0 && (
-                        <tr>
-                          <td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">
-                            Nenhuma venda registrada no período.
-                          </td>
-                        </tr>
-                      )}
-                      {activityStats.topCompleters.map((u, i) => {
-                        const medal = i === 0 ? "bg-yellow-500" : i === 1 ? "bg-gray-400" : i === 2 ? "bg-amber-600" : "bg-muted-foreground/40";
-                        return (
-                          <tr key={u.name} className="hover:bg-muted/30 transition-colors">
-                            <td className="px-3 py-2.5 border-r border-card-border">
-                              <div className="flex items-center gap-2">
-                                <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 ${medal}`}>{i + 1}</span>
-                                <span className="font-medium text-foreground truncate max-w-[100px]">{u.name}</span>
-                              </div>
-                            </td>
-                            <td className="px-3 py-2.5 text-center border-r border-card-border">
-                              <button onClick={() => setDrillDialog({ open: true, title: `Reuniões realizadas — ${u.name}`, items: u.completedItems })} className="font-semibold text-foreground tabular-nums hover:underline cursor-pointer">{u.count}</button>
-                            </td>
-                            <td className="px-3 py-2.5 text-center border-r border-card-border">
-                              <button onClick={() => setDrillDialog({ open: true, title: `Vendas — ${u.name}`, items: u.wonItems })} className="font-semibold text-success tabular-nums hover:underline cursor-pointer">{u.won}</button>
-                            </td>
-                            <td className="px-3 py-2.5 text-center font-bold tabular-nums text-success">{u.convRate}%</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                <TabelaDoPainel
+                  linhas={activityStats.topCompleters.map((u, i) => ({ ...u, rank: i }))}
+                  chave={u => u.name}
+                  vazio="Nenhuma venda registrada no período."
+                  inicial={{ coluna: "won", desc: true }}
+                  colunas={[
+                    { id: "nome", rotulo: "Usuário", alinhar: "esquerda", filtro: u => u.name },
+                    { id: "count", rotulo: "Reuniões realizadas", valor: u => u.count },
+                    { id: "won", rotulo: "Vendas", valor: u => u.won },
+                    { id: "convRate", rotulo: "Conversão", valor: u => u.convRate },
+                  ]}
+                  celulas={u => {
+                    // A medalha segue o ranking original da linha, não a posição na tela.
+                    const medal = MEDALHAS[u.rank] ?? VERDE_DEMAIS;
+                    return (
+                      <>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[12px] font-bold shrink-0 tabular-nums" style={{ background: medal, color: tintaDaMedalha(medal) }}>{u.rank + 1}</span>
+                        <span className="font-medium text-foreground truncate max-w-[100px]">{u.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <button onClick={() => setDrillDialog({ open: true, title: `Reuniões realizadas — ${u.name}`, items: u.completedItems })} className="font-semibold text-foreground tabular-nums hover:underline cursor-pointer">{u.count}</button>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <button onClick={() => setDrillDialog({ open: true, title: `Vendas — ${u.name}`, items: u.wonItems })} className="font-semibold text-success tabular-nums hover:underline cursor-pointer">{u.won}</button>
+                    </td>
+                    <td className="px-3 py-2.5 text-center font-bold tabular-nums text-success">{u.convRate}%</td>
+                      </>
+                    );
+                  }}
+                />
             </div>
           </div>
 
@@ -1548,7 +1634,7 @@ export default function DashboardPage() {
               .sort((a, b) => b.scheduled - a.scheduled);
 
             return (
-              <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
+              <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5">
                 {/* Header. Era um `justify-between` com o aviso de vazio no
                     canto direito; sem ele sobrou um lado só, e a divisão em duas
                     caixas deixou de ter o que dividir. */}
@@ -1576,16 +1662,16 @@ export default function DashboardPage() {
                         { label: "Não compareceu", value: noShows, sub: `${noShowRate}% de no-show`, valueClass: noShows > 0 ? "text-destructive" : "text-muted-foreground" },
                       ].map(k => (
                         <div key={k.label} className="bg-muted/40 rounded-lg px-4 py-3">
-                          <p className="text-[11px] text-muted-foreground font-medium mb-1">{k.label}</p>
+                          <p className="text-[12px] text-muted-foreground font-medium mb-1">{k.label}</p>
                           <p className={`text-2xl font-bold leading-none ${k.valueClass}`}>{k.value}</p>
-                          <p className="text-[11px] text-muted-foreground mt-1">{k.sub}</p>
+                          <p className="text-[12px] text-muted-foreground mt-1">{k.sub}</p>
                         </div>
                       ))}
                     </div>
 
                     {/* Barra de composição */}
                     <div className="mb-5">
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1.5">
+                      <div className="flex items-center justify-between text-[12px] text-muted-foreground mb-1.5">
                         <span>Taxa de realização</span>
                         <span className="font-semibold text-foreground">{conclusionRate}%</span>
                       </div>
@@ -1596,48 +1682,39 @@ export default function DashboardPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-4 mt-1.5">
-                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-sm bg-success inline-block" />Realizadas</span>
-                        {noShowRate > 0 && <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-sm bg-destructive inline-block" />Não compareceu</span>}
-                        <span className="flex items-center gap-1 text-[10px] text-muted-foreground"><span className="w-2 h-2 rounded-sm bg-muted border border-card-border inline-block" />Pendente</span>
+                        <span className="flex items-center gap-1 text-[12px] text-muted-foreground"><span className="w-2 h-2 rounded-sm bg-success inline-block" />Realizadas</span>
+                        {noShowRate > 0 && <span className="flex items-center gap-1 text-[12px] text-muted-foreground"><span className="w-2 h-2 rounded-sm bg-destructive inline-block" />Não compareceu</span>}
+                        <span className="flex items-center gap-1 text-[12px] text-muted-foreground"><span className="w-2 h-2 rounded-sm bg-muted border border-card-border inline-block" />Pendente</span>
                       </div>
                     </div>
 
                     {/* Tabela por atendente */}
-                      <div className="border border-card-border rounded-lg overflow-hidden">
-                        <table className="w-full text-xs border-collapse">
-                          <thead>
-                            <tr className="bg-muted/40 border-b border-card-border">
-                              <th className="text-left px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Atendente</th>
-                              <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Agendadas</th>
-                              <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">Realizadas</th>
-                              <th className="text-center px-3 py-2 font-semibold text-muted-foreground border-r border-card-border">No-show</th>
-                              <th className="text-right px-3 py-2 font-semibold text-muted-foreground">Taxa</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-card-border">
-                            {userRows.length === 0 && (
-                              <tr>
-                                <td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">
-                                  Nenhuma reunião agendada no período.
-                                </td>
-                              </tr>
-                            )}
-                            {userRows.map(u => (
-                              <tr key={u.name} className="hover:bg-muted/30 transition-colors">
-                                <td className="px-3 py-2.5 font-medium text-foreground truncate max-w-[140px] border-r border-card-border">{u.name}</td>
-                                <td className="px-3 py-2.5 text-center text-muted-foreground border-r border-card-border">{u.scheduled}</td>
-                                <td className="px-3 py-2.5 text-center font-semibold text-success border-r border-card-border">{u.completed}</td>
-                                <td className="px-3 py-2.5 text-center text-destructive border-r border-card-border">{u.noShow > 0 ? u.noShow : "—"}</td>
+                      <TabelaDoPainel
+                        linhas={userRows}
+                        chave={u => u.name}
+                        vazio="Nenhuma reunião agendada no período."
+                        inicial={{ coluna: "scheduled", desc: true }}
+                        colunas={[
+                          { id: "nome", rotulo: "Atendente", alinhar: "esquerda", filtro: u => u.name },
+                          { id: "scheduled", rotulo: "Agendadas", valor: u => u.scheduled },
+                          { id: "completed", rotulo: "Realizadas", valor: u => u.completed },
+                          { id: "noShow", rotulo: "No-show", valor: u => u.noShow },
+                          { id: "rate", rotulo: "Taxa", valor: u => u.rate },
+                        ]}
+                        celulas={u => (
+                          <>
+                                <td className="px-3 py-2.5 font-medium text-foreground truncate max-w-[140px]">{u.name}</td>
+                                <td className="px-3 py-2.5 text-center text-muted-foreground">{u.scheduled}</td>
+                                <td className="px-3 py-2.5 text-center font-semibold text-success">{u.completed}</td>
+                                <td className="px-3 py-2.5 text-center text-destructive">{u.noShow > 0 ? u.noShow : "—"}</td>
                                 <td className="px-3 py-2.5 text-right">
-                                  <span className={`font-bold tabular-nums ${u.rate >= 70 ? "text-success" : u.rate >= 40 ? "text-yellow-500" : "text-destructive"}`}>
+                                  <span className={`font-bold tabular-nums ${u.rate >= 70 ? "text-success" : u.rate >= 40 ? "text-[color:var(--warning-fg)]" : "text-destructive"}`}>
                                     {u.rate}%
                                   </span>
                                 </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
+                          </>
+                        )}
+                      />
               </div>
             );
           })()}
@@ -1673,9 +1750,9 @@ export default function DashboardPage() {
           </div>
 
           {!funnelPipeline ? (
-            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 text-center text-sm text-muted-foreground">Nenhum pipeline encontrado.</div>
+            <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 text-center text-sm text-muted-foreground">Nenhum pipeline encontrado.</div>
           ) : funnelData.length === 0 ? (
-            <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5 text-center text-sm text-muted-foreground">Este pipeline não possui etapas.</div>
+            <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 text-center text-sm text-muted-foreground">Este pipeline não possui etapas.</div>
           ) : (() => {
             const maxCount = Math.max(...funnelData.map(d => d.count), 1);
             const firstCount = funnelData[0]?.count ?? 0;
@@ -1723,7 +1800,7 @@ export default function DashboardPage() {
                   />
                 </div>
 
-                <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
+                <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5">
                   <h3 className="text-sm font-semibold text-foreground mb-1">Leads por etapa no período</h3>
                   <p className="text-xs text-muted-foreground mb-4">Quantos negócios passaram por cada etapa</p>
                   {(() => {
@@ -1739,7 +1816,7 @@ export default function DashboardPage() {
                         name: "Ganhos",
                         leads: pWon.length,
                         stageId: "ganhos",
-                        color: "#10B981",
+                        color: "#008762",
                         isGanhos: true,
                       },
                     ];
@@ -1775,72 +1852,77 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Conversion table */}
-                <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
+                <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5">
                   <h3 className="text-sm font-semibold text-foreground mb-4">Tabela de conversão</h3>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-card-border text-xs text-muted-foreground">
-                          <th className="text-left pb-2 font-medium">Etapa</th>
-                          <th className="text-right pb-2 font-medium">Leads entraram</th>
-                          <th className="text-right pb-2 font-medium">Conv. etapa anterior</th>
-                          <th className="text-right pb-2 font-medium">Conv. desde o início</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-card-border">
-                        {funnelData.map((row, i) => {
-                          const prev = funnelData[i - 1];
-                          const stepConv = prev && prev.count > 0 ? `${((row.count / prev.count) * 100).toFixed(1)}%` : "—";
-                          const totalConv = firstCount > 0 ? `${((row.count / firstCount) * 100).toFixed(1)}%` : "—";
-                          return (
-                            <tr key={row.stage.id} className="hover:bg-muted/30 transition-colors">
-                              <td className="py-2.5">
-                                <div className="flex items-center gap-2">
-                                  <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: row.stage.color || "hsl(var(--primary))" }} />
-                                  <span className="font-medium text-foreground">{row.stage.title}</span>
-                                </div>
-                              </td>
-                              <td className="text-right py-2.5 font-semibold text-foreground">{row.count}</td>
-                              <td className="text-right py-2.5 text-muted-foreground">{stepConv}</td>
-                              <td className="text-right py-2.5 font-medium text-foreground">{totalConv}</td>
-                            </tr>
-                          );
-                        })}
-                        {(() => {
-                          const pipelineWon = pWon.length;
-                          const pipelineLost = pLost.length;
-                          const wonPct = firstCount > 0 ? `${((pipelineWon / firstCount) * 100).toFixed(1)}%` : "—";
-                          const lostPct = firstCount > 0 ? `${((pipelineLost / firstCount) * 100).toFixed(1)}%` : "—";
-                          return (
-                            <>
-                              <tr className="hover:bg-muted/30 transition-colors border-t-2 border-card-border">
-                                <td className="py-2.5">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-success" />
-                                    <span className="font-medium text-success">Ganhos</span>
-                                  </div>
-                                </td>
-                                <td className="text-right py-2.5 font-semibold text-success">{pipelineWon}</td>
-                                <td className="text-right py-2.5 text-muted-foreground">—</td>
-                                <td className="text-right py-2.5 font-medium text-success">{wonPct}</td>
-                              </tr>
-                              <tr className="hover:bg-muted/30 transition-colors">
-                                <td className="py-2.5">
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-destructive" />
-                                    <span className="font-medium text-destructive">Perdidos</span>
-                                  </div>
-                                </td>
-                                <td className="text-right py-2.5 font-semibold text-destructive">{pipelineLost}</td>
-                                <td className="text-right py-2.5 text-muted-foreground">—</td>
-                                <td className="text-right py-2.5 font-medium text-destructive">{lostPct}</td>
-                              </tr>
-                            </>
-                          );
-                        })()}
-                      </tbody>
-                    </table>
-                  </div>
+                  {/* A etapa abre na ordem do pipeline e volta a ela pelo cabeçalho
+                      "Etapa"; as colunas de número ordenam. "Conv. etapa anterior" é
+                      calculada ANTES de ordenar, contra a etapa anterior do pipeline, então
+                      não muda de sentido quando a linha troca de lugar na tela.
+
+                      Ganhos e Perdidos ficam presos no pé: são o desfecho do funil, não
+                      mais uma etapa dele. */}
+                  <TabelaDoPainel
+                    linhas={funnelData.map((row, i) => {
+                      const prev = funnelData[i - 1];
+                      return {
+                        ...row,
+                        posicao: i,
+                        convAnterior: prev && prev.count > 0 ? (row.count / prev.count) * 100 : null,
+                        convTotal: firstCount > 0 ? (row.count / firstCount) * 100 : null,
+                      };
+                    })}
+                    chave={row => row.stage.id}
+                    inicial={{ coluna: "etapa", desc: false }}
+                    colunas={[
+                      { id: "etapa", rotulo: "Etapa", alinhar: "esquerda", valor: r => r.posicao, primeiroCrescente: true },
+                      { id: "count", rotulo: "Leads entraram", valor: r => r.count },
+                      { id: "convAnterior", rotulo: "Conv. etapa anterior", valor: r => r.convAnterior ?? -1 },
+                      { id: "convTotal", rotulo: "Conv. desde o início", valor: r => r.convTotal ?? -1 },
+                    ]}
+                    celulas={row => (
+                      <>
+                        <td className="py-2.5 pr-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: row.stage.color || "hsl(var(--primary))" }} />
+                            <span className="font-medium text-foreground">{row.stage.title}</span>
+                          </div>
+                        </td>
+                        <td className="text-center py-2.5 px-3 tabular-nums font-semibold text-foreground">{row.count}</td>
+                        <td className="text-center py-2.5 px-3 tabular-nums text-muted-foreground">{row.convAnterior !== null ? `${row.convAnterior.toFixed(1)}%` : "—"}</td>
+                        <td className="text-center py-2.5 px-3 tabular-nums font-medium text-foreground">{row.convTotal !== null ? `${row.convTotal.toFixed(1)}%` : "—"}</td>
+                      </>
+                    )}
+                    pe={(() => {
+                      const wonPct = firstCount > 0 ? `${((pWon.length / firstCount) * 100).toFixed(1)}%` : "—";
+                      const lostPct = firstCount > 0 ? `${((pLost.length / firstCount) * 100).toFixed(1)}%` : "—";
+                      return (
+                        <>
+                          <tr className={`${LINHA_CORPO} ${LINHA_PE}`}>
+                            <td className="py-2.5 pr-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-success" />
+                                <span className="font-medium text-success">Ganhos</span>
+                              </div>
+                            </td>
+                            <td className="text-center py-2.5 px-3 tabular-nums font-semibold text-success">{pWon.length}</td>
+                            <td className="text-center py-2.5 px-3 text-muted-foreground">—</td>
+                            <td className="text-center py-2.5 px-3 tabular-nums font-medium text-success">{wonPct}</td>
+                          </tr>
+                          <tr className={LINHA_CORPO}>
+                            <td className="py-2.5 pr-3">
+                              <div className="flex items-center gap-2">
+                                <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-destructive" />
+                                <span className="font-medium text-destructive">Perdidos</span>
+                              </div>
+                            </td>
+                            <td className="text-center py-2.5 px-3 tabular-nums font-semibold text-destructive">{pLost.length}</td>
+                            <td className="text-center py-2.5 px-3 text-muted-foreground">—</td>
+                            <td className="text-center py-2.5 px-3 tabular-nums font-medium text-destructive">{lostPct}</td>
+                          </tr>
+                        </>
+                      );
+                    })()}
+                  />
                 </div>
 
               </div>

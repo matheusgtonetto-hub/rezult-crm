@@ -9,8 +9,15 @@
 
     <!-- O ?v= sobe junto com a imagem. Favicon é dos recursos que o navegador
          guarda com mais teimosia: sem trocar a URL, quem já visitou continua
-         vendo o ícone antigo por tempo indeterminado. -->
-    <link rel="icon" type="image/png" href="/favicon.png?v=3" />
+         vendo o ícone antigo por tempo indeterminado. Subiu para 4 em
+         19/09/2026, com a marca oficial nova. -->
+    <link rel="icon" type="image/png" href="/favicon.png?v=4" />
+    <!-- O .ico não é declarado por acaso: o navegador pede /favicon.ico sozinho
+         quando a aba abre, e sem esta linha ele usaria o arquivo velho em cache
+         em vez do que o <link> acima aponta. Traz 16, 32 e 48px. -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico?v=4" sizes="16x16 32x32 48x48" />
+    <!-- iOS, quando a pessoa põe o app na tela de início. -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=4" />
 
     <!-- Meta Pixel -->
     <script>
@@ -27,10 +34,10 @@
 <meta property="og:title" content="Rezult CRM" />
     <meta property="og:description" content="CRM simples para quem vende pelo WhatsApp" />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://app.rezultcrm.com/favicon.png" />
+    <meta property="og:image" content="https://app.rezultcrm.com/og-rezult.png?v=4" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:image" content="https://app.rezultcrm.com/favicon.png" />
+    <meta name="twitter:image" content="https://app.rezultcrm.com/og-rezult.png?v=4" />
   </head>
 
   <body>

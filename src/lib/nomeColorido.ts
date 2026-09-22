@@ -31,7 +31,7 @@ const CORES_CLIENTE = [
 ];
 
 const CORES_ATENDENTE = [
-  "#128A68", // verde da marca
+  "var(--accent-800)", // verde da marca. O 700 daria 4,33:1 sobre o fundo do chat (#FAFAFA); o 800 dá 6,3:1
   "#B45309", // âmbar escuro
   "#BE185D", // rosa escuro
   "#C2410C", // laranja queimado
@@ -49,6 +49,6 @@ function hash(texto: string): number {
 export function corDoNome(nome: string, lado: "cliente" | "atendente"): string {
   const limpo = (nome ?? "").trim().toLowerCase();
   const paleta = lado === "cliente" ? CORES_CLIENTE : CORES_ATENDENTE;
-  if (!limpo) return "#767676";
+  if (!limpo) return "var(--text-muted)";
   return paleta[hash(limpo) % paleta.length];
 }

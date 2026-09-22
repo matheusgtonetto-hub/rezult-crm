@@ -26,7 +26,7 @@ export function NoNextActionPanel({ allLeads }: NoNextActionPanelProps) {
   const visible = stuckLeads.slice(0, MAX_ROWS);
 
   return (
-    <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
+    <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5">
       <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
         Negócios sem próxima ação
         {stuckLeads.length > 0 && (

@@ -36,13 +36,12 @@ const ACTIVITY_TYPES: {
   type: ActivityType;
   icon: typeof CalendarDays;
   label: string;
-  color: string;
 }[] = [
-  { type: "meeting",   icon: CalendarDays,   label: "Reunião",   color: "text-blue-500 bg-blue-500/10 border-blue-500/30 data-[selected=true]:bg-blue-500 data-[selected=true]:text-white data-[selected=true]:border-blue-500" },
-  { type: "call",      icon: Phone,          label: "Ligação",   color: "text-green-500 bg-green-500/10 border-green-500/30 data-[selected=true]:bg-green-500 data-[selected=true]:text-white data-[selected=true]:border-green-500" },
-  { type: "whatsapp",  icon: MessageCircle,  label: "WhatsApp",  color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/30 data-[selected=true]:bg-emerald-500 data-[selected=true]:text-white data-[selected=true]:border-emerald-500" },
-  { type: "email",     icon: Mail,           label: "E-mail",    color: "text-orange-500 bg-orange-500/10 border-orange-500/30 data-[selected=true]:bg-orange-500 data-[selected=true]:text-white data-[selected=true]:border-orange-500" },
-  { type: "follow_up", icon: RefreshCw,      label: "Follow-up", color: "text-purple-500 bg-purple-500/10 border-purple-500/30 data-[selected=true]:bg-purple-500 data-[selected=true]:text-white data-[selected=true]:border-purple-500" },
+  { type: "meeting",   icon: CalendarDays,   label: "Reunião" },
+  { type: "call",      icon: Phone,          label: "Ligação" },
+  { type: "whatsapp",  icon: MessageCircle,  label: "WhatsApp" },
+  { type: "email",     icon: Mail,           label: "E-mail" },
+  { type: "follow_up", icon: RefreshCw,      label: "Follow-up" },
 ];
 
 const DURATION_OPTIONS = [
@@ -127,12 +126,12 @@ export function NewActivityDialog({ open, onClose, onSubmit, defaultEmail = "" }
           <div>
             <label className="text-xs text-muted-foreground mb-1.5 block">Tipo de atividade</label>
             <div className="flex gap-2 flex-wrap">
-              {ACTIVITY_TYPES.map(({ type: t, icon: Icon, label, color }) => (
+              {ACTIVITY_TYPES.map(({ type: t, icon: Icon, label }) => (
                 <button
                   key={t}
                   data-selected={type === t}
                   onClick={() => setType(t)}
-                  className={`flex flex-col items-center gap-1 px-3 py-2 rounded-lg border text-xs font-medium transition-all ${color}`}
+                  className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg border border-card-border text-xs font-medium transition-colors text-muted-foreground hover:bg-[color:var(--surface-hover)] data-[selected=true]:bg-primary data-[selected=true]:border-[color:var(--accent-500)] data-[selected=true]:text-[color:var(--text-on-accent)]"
                 >
                   <Icon size={16} />
                   <span>{label}</span>
@@ -163,8 +162,8 @@ export function NewActivityDialog({ open, onClose, onSubmit, defaultEmail = "" }
                     onClick={() => setDuration(opt.value)}
                     className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
                       durationMinutes === opt.value
-                        ? "bg-blue-500 text-white border-blue-500"
-                        : "bg-background border-card-border text-muted-foreground hover:border-blue-300"
+                        ? "bg-primary text-[color:var(--text-on-accent)] border-[color:var(--accent-500)]"
+                        : "bg-background border-card-border text-muted-foreground hover:bg-[color:var(--surface-hover)]"
                     }`}
                   >
                     {opt.label}

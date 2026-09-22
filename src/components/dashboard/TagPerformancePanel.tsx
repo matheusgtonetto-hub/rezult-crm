@@ -1,6 +1,9 @@
 import { useMemo } from "react";
 import type { Lead, Tag } from "@/data/mockData";
-import { fmt } from "./useDashboardHelpers";
+import { fmt, receitaDoGanho } from "./useDashboardHelpers";
+import {
+  MOLDURA, TABELA, LINHA_CABECALHO, CORPO, LINHA_CORPO, useTabelaPainel, type ColunaTabela,
+} from "./TabelaPainel";
 
 interface TagPerformancePanelProps {
   periodLeads: Lead[];
@@ -17,7 +20,7 @@ export function TagPerformancePanel({ periodLeads, crmTags }: TagPerformancePane
         const won = tagged.filter(l => l.dealStatus === "won");
         const lost = tagged.filter(l => l.dealStatus === "lost");
         const closed = won.length + lost.length;
-        const totalValue = won.reduce((s, l) => s + l.value, 0);
+        const totalValue = won.reduce((s, l) => s + receitaDoGanho(l), 0);
         return {
           tag,
           count: tagged.length,
@@ -31,34 +34,41 @@ export function TagPerformancePanel({ periodLeads, crmTags }: TagPerformancePane
       .sort((a, b) => b.count - a.count);
   }, [periodLeads, crmTags]);
 
+  type Linha = (typeof rows)[number];
+  const colunas: ColunaTabela<Linha>[] = [
+    { id: "tag", rotulo: "Tag", alinhar: "esquerda", filtro: r => r.tag.name },
+    { id: "count", rotulo: "Negócios", valor: r => r.count },
+    { id: "winRate", rotulo: "Conversão", valor: r => r.winRate },
+    { id: "avgTicket", rotulo: "Ticket médio", valor: r => r.avgTicket },
+  ];
+  // Abre por volume de negócios, que é a ordem em que as linhas já vinham.
+  const { visiveis, cabecalho } = useTabelaPainel(rows, colunas, { coluna: "count", desc: true });
+
   return (
-    <div className="bg-card border border-gray-200 rounded-xl shadow-elev-1 p-5">
+    <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5">
       <h3 className="text-sm font-semibold text-foreground mb-4">Performance por tag</h3>
       {rows.length === 0 ? (
         <p className="text-xs text-muted-foreground">Nenhum negócio com tag no período.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+        <div className={MOLDURA}>
+          <table className={TABELA}>
             <thead>
-              <tr className="border-b border-card-border text-xs text-muted-foreground">
-                <th className="text-left pb-2 font-medium">Tag</th>
-                <th className="text-right pb-2 font-medium">Negócios</th>
-                <th className="text-right pb-2 font-medium">Conversão</th>
-                <th className="text-right pb-2 font-medium">Ticket médio</th>
+              <tr className={LINHA_CABECALHO}>
+                {colunas.map(c => <th key={c.id} style={c.largura ? { width: c.largura } : undefined}>{cabecalho(c)}</th>)}
               </tr>
             </thead>
-            <tbody className="divide-y divide-card-border">
-              {rows.map(r => (
-                <tr key={r.tag.id} className="hover:bg-muted/30 transition-colors">
-                  <td className="py-2.5">
+            <tbody className={CORPO}>
+              {visiveis.map(r => (
+                <tr key={r.tag.id} className={LINHA_CORPO}>
+                  <td className="py-2.5 pr-3">
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: r.tag.color || "hsl(var(--primary))" }} />
                       <span className="font-medium text-foreground truncate max-w-[140px]">{r.tag.name}</span>
                     </div>
                   </td>
-                  <td className="text-right py-2.5 text-muted-foreground">{r.count}</td>
-                  <td className="text-right py-2.5 font-medium text-foreground">{r.winRate.toFixed(0)}%</td>
-                  <td className="text-right py-2.5 font-semibold text-foreground">{fmt(r.avgTicket)}</td>
+                  <td className="text-center py-2.5 px-3 tabular-nums text-muted-foreground">{r.count}</td>
+                  <td className="text-center py-2.5 px-3 tabular-nums font-medium text-foreground">{r.winRate.toFixed(0)}%</td>
+                  <td className="text-center py-2.5 px-3 tabular-nums font-semibold text-foreground">{fmt(r.avgTicket)}</td>
                 </tr>
               ))}
             </tbody>

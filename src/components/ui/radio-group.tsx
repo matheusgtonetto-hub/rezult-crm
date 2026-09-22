@@ -20,13 +20,16 @@ const RadioGroupItem = React.forwardRef<
     <RadioGroupPrimitive.Item
       ref={ref}
       className={cn(
-        "aspect-square h-4 w-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+        /* components/forms/Radio.jsx do design system: 18px, contorno neutro de
+           1,5px quando vazio e emerald 500 quando marcado, ponto interno de 9px.
+           Vazio NÃO é verde: o verde é o estado, não a existência do controle. */
+        "aspect-square h-[18px] w-[18px] rounded-full border-[1.5px] border-input bg-card text-[color:var(--accent-500)] transition-colors duration-[120ms] data-[state=checked]:border-[color:var(--accent-500)] focus:outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)] focus-visible:ring-offset-0 disabled:cursor-not-allowed disabled:border-border disabled:bg-muted",
         className,
       )}
       {...props}
     >
       <RadioGroupPrimitive.Indicator className="flex items-center justify-center">
-        <Circle className="h-2.5 w-2.5 fill-current text-current" />
+        <Circle className="h-[9px] w-[9px] fill-current text-current" />
       </RadioGroupPrimitive.Indicator>
     </RadioGroupPrimitive.Item>
   );

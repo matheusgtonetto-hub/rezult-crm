@@ -63,6 +63,8 @@ import { ExecutarAutomacaoWizard, leadParaAlvo } from "@/components/multiatendim
 import { LeadModal } from "@/components/LeadModal";
 import { CreateDealDialog } from "@/components/CreateDealDialog";
 import type { Contact } from "@/lib/contacts";
+import { tintaSobre } from "@/lib/contraste";
+import { SentinelaDeScroll } from "@/components/SentinelaDeScroll";
 
 const priorityColors: Record<string, string> = {
   Alta: "bg-destructive/10 text-destructive",
@@ -70,11 +72,21 @@ const priorityColors: Record<string, string> = {
   Baixa: "bg-muted text-muted-foreground",
 };
 
+/* Cor de etapa do pipeline. É DADO: o usuário escolhe e o banco grava, então
+ * fica em hex e não em token (regra "token no CSS, hex no dado" da matriz).
+ *
+ * Escurecida em 18/09/2026 pelo mesmo método da paleta de tag: cada tom manteve
+ * matiz e saturação e baixou a luminosidade até o texto branco passar 4,6:1.
+ * Motivo: essa cor pinta o avatar do card com a inicial em branco, e metade da
+ * paleta antiga reprovava ali (âmbar dava 2,1:1, laranja 2,8:1).
+ *
+ * Etapas já gravadas com as cores antigas continuam funcionando: o avatar
+ * calcula a tinta pela luminância (src/lib/contraste.ts). */
 const COLUMN_COLORS = [
-  "#AAAAAA", "#378ADD", "#128A68", "#F59E0B", "#8B5CF6",
-  "#E24B4A", "#EC4899", "#14B8A6", "#F97316", "#06B6D4",
-  "#84CC16", "#EAB308", "#6366F1", "#78716C", "#0EA5E9",
-  "#10B981", "#F43F5E", "#A855F7", "#3B82F6", "#22C55E",
+  "#747474", "#2276C9", "#008762", "#9E6506", "#8452F5",
+  "#DD2C2B", "#DB1778", "#0E8174", "#C35305", "#047F94",
+  "#517E0E", "#916F05", "#5E61F1", "#78716C", "#0B7CAF",
+  "#0C855D", "#E80D33", "#9E42F6", "#196CF4", "#17843F",
 ];
 
 type SortKey = "recent" | "oldest" | "value" | "name";
@@ -726,7 +738,7 @@ export default function PipelinePage() {
 
   if (myPerms.blockViewPipeline) {
     return (
-      <div className="relative flex h-screen bg-background">
+      <div className="relative flex h-[var(--altura-util)] bg-background">
         <div className="shrink-0 overflow-hidden h-full" style={{ width: sidebarOpen ? SIDEBAR_W : 0, transition: "width 300ms ease" }}>
           <div style={{ width: SIDEBAR_W, height: "100%" }}><PipelineSidebar /></div>
         </div>
@@ -742,7 +754,7 @@ export default function PipelinePage() {
             transition: "transform 300ms ease",
             zIndex: 20,
           }}
-          className="w-4 h-8 rounded-r-md bg-primary/60 text-white flex items-center justify-center shadow-sm hover:bg-primary/80 transition-colors cursor-pointer shrink-0"
+          className="w-4 h-8 rounded-r-md bg-primary/60 text-[color:var(--text-on-accent)] flex items-center justify-center shadow-sm hover:bg-primary/80 transition-colors cursor-pointer shrink-0"
         >
           {sidebarOpen ? <ChevronLeft size={11} /> : <ChevronRight size={11} />}
         </button>
@@ -757,7 +769,7 @@ export default function PipelinePage() {
 
   if (!activePipeline) {
     return (
-      <div className="relative flex h-screen bg-background">
+      <div className="relative flex h-[var(--altura-util)] bg-background">
         <div
           className="shrink-0 overflow-hidden h-full"
           style={{ width: sidebarOpen ? SIDEBAR_W : 0, transition: "width 300ms ease" }}
@@ -779,7 +791,7 @@ export default function PipelinePage() {
             transition: "transform 300ms ease",
             zIndex: 20,
           }}
-          className="w-4 h-8 rounded-r-md bg-primary/60 text-white flex items-center justify-center shadow-sm hover:bg-primary/80 transition-colors cursor-pointer shrink-0"
+          className="w-4 h-8 rounded-r-md bg-primary/60 text-[color:var(--text-on-accent)] flex items-center justify-center shadow-sm hover:bg-primary/80 transition-colors cursor-pointer shrink-0"
         >
           {sidebarOpen ? <ChevronLeft size={11} /> : <ChevronRight size={11} />}
         </button>
@@ -796,7 +808,7 @@ export default function PipelinePage() {
   }
 
   return (
-    <div className="relative flex h-screen bg-background">
+    <div className="relative flex h-[var(--altura-util)] bg-background">
       <div
         className="shrink-0 overflow-hidden h-full"
         style={{ width: sidebarOpen ? SIDEBAR_W : 0, transition: "width 300ms ease" }}
@@ -818,7 +830,7 @@ export default function PipelinePage() {
           transition: "transform 300ms ease",
           zIndex: 20,
         }}
-        className="w-4 h-8 rounded-r-md bg-primary/60 text-white flex items-center justify-center shadow-sm hover:bg-primary/80 transition-colors cursor-pointer shrink-0"
+        className="w-4 h-8 rounded-r-md bg-primary/60 text-[color:var(--text-on-accent)] flex items-center justify-center shadow-sm hover:bg-primary/80 transition-colors cursor-pointer shrink-0"
       >
         {sidebarOpen ? <ChevronLeft size={11} /> : <ChevronRight size={11} />}
       </button>
@@ -870,18 +882,18 @@ export default function PipelinePage() {
                 conteúdo: 16px de linha (`leading-4`) mais 6 em cima e 6 embaixo,
                 28px.
 
-                `leading-4` explícito porque `text-[11px]` define só o tamanho da
+                `leading-4` explícito porque `text-[12px]` define só o tamanho da
                 fonte. O `text-sm` que ele substitui trazia a entrelinha junto, e
                 sem repô-la a altura da linha cairia para a herdada do body,
                 mudando a altura do botão por tabela. */}
             <Button
-              className="rounded-lg font-semibold h-auto px-[10px] py-[6px] text-[11px] leading-4 gap-1"
+              className="rounded-lg font-semibold h-auto px-[10px] py-[6px] text-[12px] leading-4 gap-1"
               onClick={() => setAutomacaoAberta(true)}
             >
               <Plus size={14} /> Enviar Automação
             </Button>
             <Button
-              className="rounded-lg font-semibold h-auto px-[10px] py-[6px] text-[11px] leading-4 gap-1"
+              className="rounded-lg font-semibold h-auto px-[10px] py-[6px] text-[12px] leading-4 gap-1"
               onClick={() => setNovoLeadOpen(true)}
             >
               <Plus size={14} /> Novo Lead
@@ -891,7 +903,7 @@ export default function PipelinePage() {
           {/* Seletor "Visualizando como:" — apenas admins */}
           {isAdmin && teamMembers.length > 0 && (
             <div ref={viewPickerRef} className="relative flex items-center gap-2 shrink-0">
-              <span className="text-[11px] text-muted-foreground whitespace-nowrap">Visualizando como:</span>
+              <span className="text-[12px] text-muted-foreground whitespace-nowrap">Visualizando como:</span>
               <button
                 onClick={() => setViewPickerOpen(v => !v)}
                 className="flex items-center gap-1.5 h-[30px] px-3 rounded-lg border bg-card text-xs transition-colors hover:bg-secondary"
@@ -909,7 +921,7 @@ export default function PipelinePage() {
                     {memberAvatars[viewAsUser[0]] ? (
                       <img src={memberAvatars[viewAsUser[0]]} alt={viewAsUser[0]} className="rounded-full object-cover shrink-0" style={{ width: 18, height: 18 }} />
                     ) : (
-                      <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 18, height: 18, background: memberColors[viewAsUser[0]] ?? "#AAAAAA", fontSize: 9 }}>
+                      <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 18, height: 18, background: memberColors[viewAsUser[0]] ?? "var(--neutral-700)", fontSize: 12 }}>
                         {viewAsUser[0][0].toUpperCase()}
                       </div>
                     )}
@@ -933,7 +945,7 @@ export default function PipelinePage() {
                     onClick={() => setViewAsUser([])}
                     className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted"
                   >
-                    <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: viewAsUser.length === 0 ? "2px solid hsl(var(--primary))" : "1.5px solid #CCCCCC", background: viewAsUser.length === 0 ? "hsl(var(--primary))" : "transparent" }}>
+                    <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: viewAsUser.length === 0 ? "2px solid hsl(var(--primary))" : "1.5px solid var(--border-strong)", background: viewAsUser.length === 0 ? "hsl(var(--primary))" : "transparent" }}>
                       {viewAsUser.length === 0 && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                     </div>
                     <span className="text-xs" style={{ fontWeight: viewAsUser.length === 0 ? 600 : 400 }}>Todos os leads</span>
@@ -942,7 +954,7 @@ export default function PipelinePage() {
                     onClick={() => toggleViewAsUser("__no_responsible__")}
                     className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted"
                   >
-                    <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: viewAsUser.includes("__no_responsible__") ? "2px solid hsl(var(--primary))" : "1.5px solid #CCCCCC", background: viewAsUser.includes("__no_responsible__") ? "hsl(var(--primary))" : "transparent" }}>
+                    <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: viewAsUser.includes("__no_responsible__") ? "2px solid hsl(var(--primary))" : "1.5px solid var(--border-strong)", background: viewAsUser.includes("__no_responsible__") ? "hsl(var(--primary))" : "transparent" }}>
                       {viewAsUser.includes("__no_responsible__") && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                     </div>
                     <span className="text-xs" style={{ fontWeight: viewAsUser.includes("__no_responsible__") ? 600 : 400 }}>Sem responsável</span>
@@ -950,18 +962,18 @@ export default function PipelinePage() {
                   {teamMembers.map(name => {
                     const selected = viewAsUser.includes(name);
                     const avatar = memberAvatars[name];
-                    const color = memberColors[name] ?? "#AAAAAA";
+                    const color = memberColors[name] ?? "var(--neutral-700)";
                     return (
                       <button key={name} onClick={() => toggleViewAsUser(name)} className="flex items-center gap-2.5 w-full px-3 py-2 text-left transition-colors hover:bg-muted">
-                        <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: selected ? `2px solid ${color}` : "1.5px solid #CCCCCC", background: selected ? color : "transparent" }}>
+                        <div className="flex items-center justify-center rounded shrink-0" style={{ width: 15, height: 15, border: selected ? `2px solid ${color}` : "1.5px solid var(--border-strong)", background: selected ? color : "transparent" }}>
                           {selected && <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                         </div>
                         {avatar ? (
                           <img src={avatar} alt={name} className="rounded-full object-cover shrink-0" style={{ width: 22, height: 22 }} />
                         ) : (
-                          <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 22, height: 22, background: color, fontSize: 9 }}>{name[0].toUpperCase()}</div>
+                          <div className="rounded-full flex items-center justify-center font-semibold shrink-0" style={{ width: 22, height: 22, background: color, color: tintaSobre(color), fontSize: 12 }}>{name[0].toUpperCase()}</div>
                         )}
-                        <span className="text-xs truncate flex-1" style={{ color: "#111111", fontWeight: selected ? 600 : 400 }}>
+                        <span className="text-xs truncate flex-1" style={{ color: "var(--text-heading)", fontWeight: selected ? 600 : 400 }}>
                           {name}{name === myName ? " (você)" : ""}
                         </span>
                       </button>
@@ -1175,7 +1187,7 @@ export default function PipelinePage() {
                               <div
                                 ref={provided.innerRef}
                                 {...provided.droppableProps}
-                                className={`min-w-[280px] w-[280px] h-full flex flex-col rounded-xl border border-card-border bg-card shadow-elev-1 transition-colors ${
+                                className={`min-w-[280px] w-[280px] h-full flex flex-col rounded-2xl border border-card-border bg-card shadow-elev-1 transition-colors ${
                                   snapshot.isDraggingOver ? "bg-[#F8F9FA]" : ""
                                 }`}
                               >
@@ -1222,7 +1234,7 @@ export default function PipelinePage() {
                                       </PopoverContent>
                                     </Popover>
                                     <div className="min-w-0">
-                                      <h3 className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "#111111" }}>
+                                      <h3 className="truncate" style={{ fontSize: 14, fontWeight: 600, color: "var(--text-heading)" }}>
                                         {col.title}
                                       </h3>
                                       <p className="mt-0.5 whitespace-nowrap" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
@@ -1268,7 +1280,7 @@ export default function PipelinePage() {
                                     const lead = pegarLead(leadId);
                                     if (!lead) return null;
                                     const leadResps = lead.responsibles?.length ? lead.responsibles : (lead.responsible ? [lead.responsible] : []);
-                                    const respColor = memberColors[lead.responsible] || "#888888";
+                                    const respColor = memberColors[lead.responsible] || "var(--neutral-700)";
                                     return (
                                       <Draggable
                                         key={leadId}
@@ -1281,7 +1293,7 @@ export default function PipelinePage() {
                                             {...prov.draggableProps}
                                             {...prov.dragHandleProps}
                                             onClick={() => navigate(`/pipeline/lead/${leadId}`)}
-                                            className={`bg-card border border-card-border rounded-xl p-3 cursor-pointer shadow-elev-1 hover:shadow-elev-2 hover:border-border transition-all ${
+                                            className={`bg-card border border-card-border rounded-2xl p-3 cursor-pointer shadow-elev-1 hover:shadow-elev-2 hover:border-border transition-all ${
                                               snap.isDragging ? "shadow-elev-2 rotate-1" : ""
                                             } ${lead.dealStatus === "won" ? "glow-closed" : ""}`}
                                           >
@@ -1292,7 +1304,8 @@ export default function PipelinePage() {
                                                 avatarUrl={avatarUrls[normalizarTelefoneBr(lead.whatsapp)]}
                                                 size={32}
                                                 onError={() => refetchCardAvatar(lead.whatsapp)}
-                                                style={{ backgroundColor: col.color, fontSize: 12 }}
+                                                bg={col.color}
+                                                style={{ fontSize: 12 }}
                                               />
                                               <div className="min-w-0 flex-1">
                                                 <p className="text-sm font-medium text-foreground leading-tight truncate">
@@ -1306,12 +1319,12 @@ export default function PipelinePage() {
                                               </div>
                                               <div className="flex items-center gap-1 shrink-0">
                                                 {lead.dealStatus === "won" && (
-                                                  <Trophy size={12} style={{ color: "#128A68" }} />
+                                                  <Trophy size={12} style={{ color: "var(--accent-700)" }} />
                                                 )}
                                                 {lead.dealStatus === "lost" && (
-                                                  <XCircle size={12} style={{ color: "#E24B4A" }} />
+                                                  <XCircle size={12} style={{ color: "var(--danger-fg)" }} />
                                                 )}
-                                                <span className="text-[10px] font-mono text-muted-foreground">
+                                                <span className="text-[12px] font-mono text-muted-foreground">
                                                   #{lead.dealNumber}
                                                 </span>
                                               </div>
@@ -1322,7 +1335,7 @@ export default function PipelinePage() {
                                                 Não decide nada, só mostra pro time que o bot está com a caneta. */}
                                             {(lead.tags || []).includes("Agente") && agenteAtivoNome && (
                                               <div
-                                                className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full mb-1.5"
+                                                className="inline-flex items-center gap-1 text-[12px] font-medium px-1.5 py-0.5 rounded-full mb-1.5"
                                                 style={{ color: "#6D28D9", background: "#EDE9FE" }}
                                               >
                                                 <BotMessageSquare size={11} />
@@ -1342,11 +1355,11 @@ export default function PipelinePage() {
                                                   onMouseDown={e => e.stopPropagation()}
                                                   disabled={myPerms.blockChangeAttendant}
                                                   className="flex items-center gap-1.5 w-full text-left rounded-md px-1 -mx-1 py-0.5 mt-2 hover:bg-muted transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-                                                  style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}
+                                                  style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}
                                                 >
                                                   {leadResps.length === 0 ? (
                                                     <>
-                                                      <div className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center text-white" style={{ fontSize: 8, fontWeight: 700, backgroundColor: "#AAAAAA" }}>S</div>
+                                                      <div className="w-4 h-4 rounded-full shrink-0 flex items-center justify-center text-white" style={{ fontSize: 12, fontWeight: 700, backgroundColor: "var(--neutral-700)" }}>S</div>
                                                       <span>Sem responsável</span>
                                                     </>
                                                   ) : (
@@ -1355,17 +1368,17 @@ export default function PipelinePage() {
                                                       <div className="flex items-center shrink-0" style={{ gap: 0 }}>
                                                         {leadResps.slice(0, 3).map((name, idx) => {
                                                           const av = memberAvatars[name];
-                                                          const cl = memberColors[name] ?? "#AAAAAA";
+                                                          const cl = memberColors[name] ?? "var(--neutral-700)";
                                                           return av ? (
                                                             <img key={name} src={av} alt={name} title={name} className="rounded-full object-cover" style={{ width: 16, height: 16, marginLeft: idx > 0 ? -4 : 0, outline: "1.5px solid hsl(var(--card))", zIndex: 3 - idx }} />
                                                           ) : (
-                                                            <div key={name} title={name} className="rounded-full flex items-center justify-center text-white shrink-0" style={{ width: 16, height: 16, background: cl, fontSize: 7, fontWeight: 700, marginLeft: idx > 0 ? -4 : 0, outline: "1.5px solid hsl(var(--card))", zIndex: 3 - idx }}>
+                                                            <div key={name} title={name} className="rounded-full flex items-center justify-center shrink-0" style={{ width: 16, height: 16, background: cl, color: tintaSobre(cl), fontSize: 12, fontWeight: 700, marginLeft: idx > 0 ? -4 : 0, outline: "1.5px solid hsl(var(--card))", zIndex: 3 - idx }}>
                                                               {name[0].toUpperCase()}
                                                             </div>
                                                           );
                                                         })}
                                                         {leadResps.length > 3 && (
-                                                          <div className="rounded-full flex items-center justify-center font-semibold" style={{ width: 16, height: 16, background: "#E5E5E5", color: "#555", fontSize: 7, marginLeft: -4, outline: "1.5px solid hsl(var(--card))" }}>
+                                                          <div className="rounded-full flex items-center justify-center font-semibold" style={{ width: 16, height: 16, background: "var(--neutral-200)", color: "var(--text-muted)", fontSize: 12, marginLeft: -4, outline: "1.5px solid hsl(var(--card))" }}>
                                                             +{leadResps.length - 3}
                                                           </div>
                                                         )}
@@ -1389,7 +1402,7 @@ export default function PipelinePage() {
                                                   <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Responsáveis</span>
                                                   {leadResps.length > 0 && (
                                                     <button
-                                                      className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                                                      className="text-[12px] text-muted-foreground hover:text-destructive transition-colors"
                                                       onClick={e => { e.stopPropagation(); updateLead(leadId, { responsibles: [], responsible: "" }); setRespPopoverLeadId(null); }}
                                                     >
                                                       Limpar
@@ -1399,7 +1412,7 @@ export default function PipelinePage() {
                                                 {teamMembers.map(name => {
                                                   const selected = leadResps.includes(name);
                                                   const avatar = memberAvatars[name];
-                                                  const color = memberColors[name] ?? "#AAAAAA";
+                                                  const color = memberColors[name] ?? "var(--neutral-700)";
                                                   return (
                                                     <button
                                                       key={name}
@@ -1413,13 +1426,13 @@ export default function PipelinePage() {
                                                         updateLead(leadId, { responsibles: next, responsible: next[0] ?? "" });
                                                       }}
                                                     >
-                                                      <div className="flex items-center justify-center rounded shrink-0" style={{ width: 14, height: 14, border: selected ? `2px solid ${color}` : "1.5px solid #CCCCCC", background: selected ? color : "transparent" }}>
+                                                      <div className="flex items-center justify-center rounded shrink-0" style={{ width: 14, height: 14, border: selected ? `2px solid ${color}` : "1.5px solid var(--border-strong)", background: selected ? color : "transparent" }}>
                                                         {selected && <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>}
                                                       </div>
                                                       {avatar ? (
                                                         <img src={avatar} alt={name} className="rounded-full object-cover shrink-0" style={{ width: 20, height: 20 }} />
                                                       ) : (
-                                                        <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 20, height: 20, background: color, fontSize: 9 }}>{name[0].toUpperCase()}</div>
+                                                        <div className="rounded-full flex items-center justify-center font-semibold shrink-0" style={{ width: 20, height: 20, background: color, color: tintaSobre(color), fontSize: 12 }}>{name[0].toUpperCase()}</div>
                                                       )}
                                                       <span className="text-xs truncate flex-1" style={{ fontWeight: selected ? 600 : 400 }}>{name}</span>
                                                     </button>
@@ -1437,7 +1450,7 @@ export default function PipelinePage() {
 
                                             {/* Entry date */}
                                             {lead.entryDate && (
-                                              <div className="flex items-center gap-1 mt-0.5" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                                              <div className="flex items-center gap-1 mt-0.5" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
                                                 <Calendar size={11} />
                                                 {new Date(lead.entryDate + "T00:00:00").toLocaleDateString("pt-BR")}
                                               </div>
@@ -1450,7 +1463,7 @@ export default function PipelinePage() {
                                                   .filter(a => a.scheduledAt && !a.completedAt && new Date(a.scheduledAt) > new Date())
                                                   .sort((a, b) => new Date(a.scheduledAt!).getTime() - new Date(b.scheduledAt!).getTime())[0];
                                                 return next ? (
-                                                  <div className="flex items-center gap-1" style={{ fontSize: 11, color: "hsl(var(--muted-foreground))" }}>
+                                                  <div className="flex items-center gap-1" style={{ fontSize: 12, color: "hsl(var(--muted-foreground))" }}>
                                                     <CalendarClock size={11} />
                                                     {new Date(next.scheduledAt!).toLocaleDateString("pt-BR")}
                                                   </div>
@@ -1493,7 +1506,7 @@ export default function PipelinePage() {
                                                     align="end"
                                                     onClick={e => e.stopPropagation()}
                                                   >
-                                                    <p className="text-xs font-semibold text-[#111] mb-3">Enviar via WhatsApp</p>
+                                                    <p className="text-xs font-semibold text-[color:var(--text-heading)] mb-3">Enviar via WhatsApp</p>
                                                     {zapiInstances.length > 0 ? (
                                                       <div className="space-y-2">
                                                         {zapiInstances.map(inst => (
@@ -1503,14 +1516,14 @@ export default function PipelinePage() {
                                                               name={`wp-inst-${leadId}`}
                                                               checked={selectedZapiInstance === inst.instanceId}
                                                               onChange={() => setSelectedZapiInstance(inst.instanceId)}
-                                                              className="accent-[#128A68]"
+                                                              className="accent-[color:var(--accent-700)]"
                                                             />
-                                                            <span className="text-xs text-[#535353]">{inst.label}</span>
+                                                            <span className="text-xs text-[color:var(--text-body)]">{inst.label}</span>
                                                           </label>
                                                         ))}
                                                         <Button
                                                           size="sm"
-                                                          className="w-full bg-[#128A68] hover:bg-[#128A68]/90 h-7 text-xs mt-1"
+                                                          className="w-full bg-[color:var(--accent-700)] hover:bg-[color:var(--accent-700)]/90 h-7 text-xs mt-1"
                                                           onClick={e => {
                                                             e.stopPropagation();
                                                             openChat(leadId);
@@ -1522,7 +1535,7 @@ export default function PipelinePage() {
                                                       </div>
                                                     ) : (
                                                       <div className="space-y-2">
-                                                        <p className="text-xs text-[#AAAAAA]">Adicione um número de telefone ao lead para contato via WhatsApp.</p>
+                                                        <p className="text-xs text-[color:var(--text-muted)]">Adicione um número de telefone ao lead para contato via WhatsApp.</p>
                                                       </div>
                                                     )}
                                                   </PopoverContent>
@@ -1540,8 +1553,13 @@ export default function PipelinePage() {
                                                     return (
                                                       <span
                                                         key={tagName}
-                                                        className="text-[10px] px-1.5 rounded-full text-white font-medium whitespace-nowrap"
-                                                        style={{ paddingTop: 2, paddingBottom: 2, background: t.color || "#888" }}
+                                                        /* 10px (dono, 21/09/2026): o card do funil é estreito, e
+                                                           duas ou três tags em 12px empurravam o nome do negócio.
+                                                           Abaixo do piso de 12px da matriz, registrado lá como
+                                                           exceção. A tinta continua saindo de `tintaSobre`, que
+                                                           garante o contraste sobre a cor da tag. */
+                                                        className="text-[10px] px-1.5 rounded-full font-medium whitespace-nowrap"
+                                                        style={{ paddingTop: 2, paddingBottom: 2, background: t.color || "var(--neutral-100)", color: tintaSobre(t.color) }}
                                                       >
                                                         {tagName}
                                                       </span>
@@ -1597,8 +1615,8 @@ export default function PipelinePage() {
                                                 className="flex items-center justify-center gap-1.5 -mx-3 -mb-3 mt-3 py-1.5 rounded-b-xl text-xs font-semibold"
                                                 style={
                                                   lead.dealStatus === "won"
-                                                    ? { background: "#DCFCE7", color: "#128A68" }
-                                                    : { background: "#FEE2E2", color: "#E24B4A" }
+                                                    ? { background: "var(--accent-50)", color: "var(--accent-800)" }
+                                                    : { background: "var(--danger-bg)", color: "var(--danger-fg)" }
                                                 }
                                               >
                                                 {lead.dealStatus === "won"
@@ -1617,20 +1635,16 @@ export default function PipelinePage() {
                                       {carregandoColuna ? "Carregando…" : "Nenhum negócio nesta etapa"}
                                     </div>
                                   )}
-                                  {/* Diz quanto falta antes de pedir, porque o
-                                      cabeçalho mostra o total da etapa e sem
-                                      isto a coluna pareceria estar escondendo
-                                      cards sem motivo. */}
+                                  {/* A leva seguinte chega sozinha quando a
+                                      pessoa rola até aqui. Era um botão
+                                      "Carregar mais" -- um clique a cada leva,
+                                      num painel em que a pessoa já está
+                                      rolando. */}
                                   {col.dados?.temMais && (
-                                    <button
-                                      onClick={() => carregarMais(col.id)}
-                                      disabled={carregandoColuna}
-                                      className="w-full rounded-lg border border-dashed border-card-border py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-60"
-                                    >
-                                      {carregandoColuna
-                                        ? "Carregando…"
-                                        : `Carregar mais (${totalNaEtapa - col.filteredIds.length} restantes)`}
-                                    </button>
+                                    <SentinelaDeScroll
+                                      aoAlcancar={() => carregarMais(col.id)}
+                                      carregando={carregandoColuna}
+                                    />
                                   )}
                                 </div>
                               </div>
@@ -1773,28 +1787,28 @@ export default function PipelinePage() {
                   <div className="rounded-md border border-border bg-muted/30 px-4 py-2.5 flex items-center gap-2 min-w-0 overflow-hidden">
                     {/* Etapa atual */}
                     <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
-                      <span className="text-[11px] text-muted-foreground/50 truncate w-full text-center">{currentCol?.colTitle}</span>
+                      <span className="text-[12px] text-muted-foreground/50 truncate w-full text-center">{currentCol?.colTitle}</span>
                       <span className="block h-[2px] w-full rounded-full bg-muted-foreground/20" />
                     </div>
                     <ChevronRight className="h-3 w-3 text-primary/60 shrink-0" />
                     {/* Próxima etapa */}
                     <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
-                      <span className="text-[11px] text-primary font-semibold truncate w-full text-center">{nextCol?.colTitle}</span>
+                      <span className="text-[12px] text-primary font-semibold truncate w-full text-center">{nextCol?.colTitle}</span>
                       <span className="block h-[2px] w-full rounded-full bg-primary" />
                     </div>
                     {/* Etapas restantes */}
                     {stepsLeft > 1 && (
                       <>
-                        <span className="text-[10px] text-muted-foreground/30 shrink-0">→ ···</span>
+                        <span className="text-[12px] text-muted-foreground/30 shrink-0">→ ···</span>
                         <div className="flex flex-col items-center gap-1 min-w-0 flex-1">
-                          <span className="text-[11px] text-muted-foreground/30 truncate w-full text-center">{finalCol?.colTitle}</span>
+                          <span className="text-[12px] text-muted-foreground/30 truncate w-full text-center">{finalCol?.colTitle}</span>
                           <span className="block h-[2px] w-full rounded-full bg-transparent" />
                         </div>
                       </>
                     )}
                     {/* Contador */}
                     {totalMoves > 1 && (
-                      <span className="ml-auto text-[10px] text-muted-foreground/40 shrink-0 whitespace-nowrap">
+                      <span className="ml-auto text-[12px] text-muted-foreground/40 shrink-0 whitespace-nowrap">
                         {pa.currentStep + 1}/{totalMoves}
                       </span>
                     )}
@@ -1900,7 +1914,7 @@ export default function PipelinePage() {
                     return;
                   }
                   const id = `col-${Date.now()}`;
-                  addColumn(activePipeline.id, { id, title: name, color: "#AAAAAA", position: activePipeline.columns.length });
+                  addColumn(activePipeline.id, { id, title: name, color: "var(--text-muted)", position: activePipeline.columns.length });
                   toast.success("Coluna criada.");
                   setShowNewColumn(false);
                 }}
@@ -1978,7 +1992,7 @@ export default function PipelinePage() {
                   ) : (
                     teamMembers.map(name => {
                       const avatar = memberAvatars[name];
-                      const color = memberColors[name] ?? "#AAAAAA";
+                      const color = memberColors[name] ?? "var(--neutral-700)";
                       const perms = attendantPerms[name] ?? {};
                       const hasActivePerms = Object.values(perms).some(Boolean);
                       const isSelected = selectedPermAttendant === name;
@@ -1993,7 +2007,7 @@ export default function PipelinePage() {
                           {avatar ? (
                             <img src={avatar} alt={name} className="rounded-full object-cover shrink-0" style={{ width: 28, height: 28 }} />
                           ) : (
-                            <div className="rounded-full flex items-center justify-center text-white font-semibold shrink-0" style={{ width: 28, height: 28, background: color, fontSize: 11 }}>
+                            <div className="rounded-full flex items-center justify-center font-semibold shrink-0" style={{ width: 28, height: 28, background: color, color: tintaSobre(color), fontSize: 12 }}>
                               {name[0].toUpperCase()}
                             </div>
                           )}

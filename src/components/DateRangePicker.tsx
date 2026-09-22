@@ -99,7 +99,7 @@ export function SeletorDePeriodo({
       <div className="w-[228px]">
         <div className="grid grid-cols-7 mb-1">
           {["dom", "seg", "ter", "qua", "qui", "sex", "sab"].map(d => (
-            <div key={d} className="text-center text-[11px] text-muted-foreground py-1">{d}</div>
+            <div key={d} className="text-center text-[12px] text-muted-foreground py-1">{d}</div>
           ))}
         </div>
         <div className="grid grid-cols-7">

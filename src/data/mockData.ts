@@ -63,6 +63,22 @@ export interface CustomFieldGroup {
   created_at?: string;
 }
 
+/** Um produto dentro de um negócio, com quantidade e preço próprios. */
+export interface ItemDoNegocio {
+  id: string;
+  productId: string;
+  quantidade: number;
+  /**
+   * Preço deste item NESTE negócio.
+   *
+   * Copiado do produto ao adicionar, e editável: é aqui que mora o desconto por
+   * item. Guardado por item, e não lido do produto na hora de exibir, para a
+   * tabela de preços poder mudar sem reescrever o que já foi vendido.
+   */
+  valorUnitario: number;
+  posicao: number;
+}
+
 export interface Lead {
   id: string;
   dealNumber: number;
@@ -74,6 +90,34 @@ export interface Lead {
   email?: string;
   emails?: string[];
   value: number;
+  /**
+   * Os produtos deste negócio.
+   *
+   * Um negócio pode ter vários (decisão do dono em 20/09/2026, a pedido de
+   * clientes). O `productId` acima CONTINUA existindo como espelho do primeiro
+   * item, porque automações, agente de IA e o filtro de disparos ainda leem de
+   * lá -- os dois andam juntos até aquela migração terminar.
+   *
+   * O valor do negócio é a soma de `quantidade × valorUnitario` destes itens,
+   * calculada no banco. A exceção é `valorManual`, abaixo.
+   */
+  itens?: ItemDoNegocio[];
+  /**
+   * O valor do negócio foi digitado à mão e parou de acompanhar os itens.
+   *
+   * É o desconto no total: sem isto, o número digitado sumiria no próximo item
+   * adicionado. Voltar para `false` faz o valor somar os itens de novo.
+   */
+  valorManual?: boolean;
+  /**
+   * Valor congelado no momento em que o negócio foi marcado como ganho.
+   *
+   * `value` é o valor ATUAL e muda quando alguém edita o negócio -- o que
+   * reescrevia a receita de meses passados no dashboard. Este aqui não muda:
+   * é o que foi fechado. Ausente em negócio que nunca foi ganho (e limpo ao
+   * reabrir). Quem soma receita de ganho usa `wonValue ?? value`.
+   */
+  wonValue?: number;
   responsible: string;
   responsibles: string[];
   pipelineId: string;
@@ -191,6 +235,6 @@ export const stageColors = {
   "contato-feito": "#378ADD",
   "proposta-enviada": "#F59E0B",
   "negociacao": "#8B5CF6",
-  "fechado": "#128A68",
+  "fechado": "#008762",
   "perdido": "#E24B4A",
 } as const;
