@@ -189,6 +189,7 @@ export function dbToLead(
     // Ausente = negócio nunca ganho (ou ganho antes de a coluna existir).
     wonValue: row.won_value == null ? undefined : Number(row.won_value),
     valorManual: row.value_is_manual === true,
+    departmentId: (row.department_id as string | null) ?? undefined,
     itens,
     responsible: (row.responsible as string) ?? "",
     responsibles: (() => {
@@ -1234,6 +1235,7 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       if (!("valorManual" in data)) dbData.value_is_manual = true;
     }
     if ("valorManual" in data) dbData.value_is_manual = data.valorManual;
+    if ("departmentId" in data) dbData.department_id = data.departmentId ?? null;
     if ("responsible" in data) dbData.responsible = data.responsible;
     if ("responsibles" in data) {
       dbData.responsibles = data.responsibles ?? [];

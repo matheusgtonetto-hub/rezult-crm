@@ -110,6 +110,14 @@ export interface Lead {
    */
   valorManual?: boolean;
   /**
+   * Departamento dono do negócio.
+   *
+   * Anda junto com o da conversa: transferir no Multiatendimento move os dois,
+   * e é por isso que ele existe aqui e não só em `whatsapp_conversations` -- um
+   * negócio criado no funil, sem conversa, também pertence a um time.
+   */
+  departmentId?: string;
+  /**
    * Valor congelado no momento em que o negócio foi marcado como ganho.
    *
    * `value` é o valor ATUAL e muda quando alguém edita o negócio -- o que
