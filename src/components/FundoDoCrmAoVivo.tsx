@@ -75,7 +75,10 @@ export function FundoDoCrmAoVivo() {
           O preço é o desfoque desbotar nas bordas de cima e da esquerda. É onde
           o véu já cobre, e é bem menos visível que uma barra lateral torta. */}
       <div
-        className="absolute flex"
+        /* Coluna: a barra superior ocupa a largura toda e a lateral fica
+           abaixo dela, como no app. Era `flex` em linha, de quando a superior
+           morava dentro do `main`. */
+        className="absolute flex flex-col"
         style={{
           top: 0,
           left: 0,
@@ -88,7 +91,11 @@ export function FundoDoCrmAoVivo() {
           ["--barra-largura" as string]: larguraDaBarra(barraRecolhida),
         }}
       >
-        {/* Réplica decorativa: o botão de recolher não faz nada aqui. */}
+        {/* A mesma ordem do app: barra superior por cima de tudo, lateral
+            embaixo dela. Réplica decorativa, então a superior vai sem o botão
+            de recolher -- aqui ele não teria o que fazer. */}
+        <BarraSuperior recolhida={barraRecolhida} />
+        <div className="flex-1 min-h-0 flex">
         <AppSidebar recolhida={barraRecolhida} aoAlternar={() => {}} />
         {/* A mesma pilha do `AppLayout`: barra superior no topo, conteúdo
             embaixo. Sem isso a réplica mostraria um CRM que não existe -- a
@@ -101,7 +108,6 @@ export function FundoDoCrmAoVivo() {
           className="flex-1 min-w-0 overflow-hidden flex flex-col"
           style={{ marginLeft: "var(--barra-largura)", background: "var(--surface-card)" }}
         >
-          <BarraSuperior />
           <div
             className="flex-1 min-h-0 overflow-hidden"
             style={{ background: "hsl(var(--background))" }}
@@ -109,6 +115,7 @@ export function FundoDoCrmAoVivo() {
             <InicioPage />
           </div>
         </main>
+        </div>
       </div>
 
       <div className="absolute inset-0" style={{ background: `hsl(${VEU_COR} / ${VEU_FORCA})` }} />

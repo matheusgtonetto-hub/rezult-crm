@@ -171,10 +171,11 @@
        exatamente o da barra superior. */
     --rail-w: 51px;
     --sidebar-w-expanded: 248px;
-    /* O respiro em volta da régua que separa a marca do menu, na barra
-       lateral: acima dela e abaixo dela, igual nos dois estados da barra.
-       Era o que sobrava de um cabeçalho de altura fixa -- 7px recolhida e 21px
-       expandida --, e o dono igualou em 21 em 21/09/2026. */
+    /* Nasceu como o respiro em volta da régua que separava a marca do menu na
+       barra lateral, igualado em 21px pelo dono em 21/09/2026. Essa régua
+       deixou de existir em 22/09, quando a marca foi para a barra superior; o
+       valor sobreviveu como a folga em volta da régua vertical DA superior,
+       que é o único lugar que ainda o lê. */
     --respiro-marca: 21px;
     /* A barra superior é fina: 48px, dois terços da lateral (o dono pediu
        metade em 21/09/2026, viu em 36px e pediu um pouco mais). Ela não carrega

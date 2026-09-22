@@ -246,92 +246,38 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
         aria-label="Navegação principal"
         style={{
           width: "var(--barra-largura)",
-          /* top/bottom 0, e não `height: 100vh`: o 100vh pode passar da área
+          /* Começa ABAIXO da barra superior (dono, 22/09/2026): a régua dela
+             atravessa a tela inteira, e esta barra encosta por baixo. Com
+             `top: 0` a lateral subiria até o topo e cortaria essa linha em
+             duas.
+
+             `top`/`bottom` em vez de `height`: o 100vh pode passar da área
              visível quando a barra do navegador ou o zoom entram na conta, e é
-             o pé -- o avatar da pessoa -- que sai da tela quando isso acontece. */
+             o pé -- Configurações -- que sai da tela quando isso acontece. */
           position: "fixed",
-          top: 0,
+          top: "var(--topbar-h)",
           left: 0,
           bottom: 0,
           /* 30: acima do conteúdo, abaixo da cortina dos diálogos (z-50). */
           zIndex: 30,
           overflow: "hidden",
           background: "var(--surface-card)",
-          /* A régua da direita voltou em 22/09/2026, a pedido do dono: as duas
-             barras deixaram de ser uma peça em L com canto arredondado e
-             passaram a ser separadas, cada uma com a sua borda. Esta divide a
-             barra do conteúdo; a de baixo do cabeçalho da marca emenda na
-             régua da barra superior. */
+          /* A régua da direita divide esta barra do conteúdo. Ela vai do topo
+             DESTA barra até o pé da tela, e não até o alto da janela: o pedido
+             do dono é que a linha vertical pare na régua da barra superior, em
+             vez de cruzá-la. Como a barra começa em `--topbar-h`, a borda já
+             nasce no lugar certo. */
           borderRight: "1px solid var(--border-default)",
           transition: "width var(--dur-normal) var(--ease-out)",
         }}
       >
-        {/* ── A marca, na faixa do topo ───────────────────────────────────────
-            Altura EXATA da barra superior, com a mesma borda embaixo: é assim
-            que a linha horizontal atravessa a tela de ponta a ponta, sem
-            emenda. O dono pediu essa divisão em 22/09/2026, no lugar do canto
-            arredondado que unia as duas barras.
+        {/* A marca e a seta de recolher saíram daqui em 22/09/2026.
+            ────────────────────────────────────────────────────────────────────
+            A barra superior passou a atravessar a tela e esta lateral a começar
+            ABAIXO dela, então o canto superior esquerdo deixou de pertencer a
+            esta barra: o logo mora lá, com o botão que abre e fecha esta.
 
-            Isso substituiu o respiro declarado de 21px acima e abaixo da marca:
-            a altura agora é a da faixa, e a marca fica centrada nela. */}
-        <div
-          className={`flex shrink-0 items-center border-b border-[color:var(--border-default)] ${recolhida ? "justify-center" : "px-4"}`}
-          style={{ height: "var(--topbar-h)" }}
-        >
-          <span className="flex items-center gap-2.5 min-w-0">
-            {/* O MESMO arquivo do favicon, servido de public/: são a mesma
-                marca, e duas cópias significam trocar a arte em dois lugares. */}
-            <img
-              src="/favicon.png?v=4"
-              alt="Rezult"
-              className="shrink-0 block object-cover"
-              style={{ width: 33, height: 33, borderRadius: 8 }}
-            />
-            {!recolhida && (
-              <span className="text-sm font-semibold text-[color:var(--text-heading)] truncate whitespace-nowrap">
-                Rezult CRM
-              </span>
-            )}
-          </span>
-        </div>
-
-        {/* A régua entre a marca e o menu. Voltou a pedido do dono em
-            21/09/2026: sem ela, a marca e o primeiro item do menu leem como um
-        {/*
-          A seta de recolher, pousada SOBRE a linha do topo.
-
-          Ela tinha uma régua só dela, logo abaixo da marca. Essa régua deixou
-          de existir quando o cabeçalho passou a ter a altura da barra superior
-          e a borda embaixo: manter as duas desenharia dois traços paralelos a
-          poucos pixels um do outro.
-
-          Agora o botão é ABSOLUTO em relação à barra, centrado na linha
-          (`--topbar-h` menos metade da altura dele). Assim ele fica no mesmo
-          lugar com a barra aberta ou fechada -- o centro da linha não se mexe
-          --, e o fundo de cartão com borda faz com que ele INTERROMPA o traço
-          em vez de pousar por cima.
-
-          `z-10` porque o menu vem depois no fluxo: sem isso, o primeiro item da
-          lista roubaria o clique da metade de baixo do botão.
-        */}
-        <div
-          className="absolute left-0 right-0 flex justify-center z-10 pointer-events-none"
-          style={{ top: "calc(var(--topbar-h) - 10px)" }}
-        >
-          {dica(
-            recolhida ? "Expandir menu" : "Recolher menu",
-            <button
-              type="button"
-              onClick={aoAlternar}
-              aria-label={recolhida ? "Expandir menu" : "Recolher menu"}
-              aria-expanded={!recolhida}
-              className="pointer-events-auto flex items-center justify-center rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-card)] text-[color:var(--icon-default)] transition-colors hover:border-[color:var(--border-strong)] hover:text-[color:var(--text-heading)] outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]"
-              style={{ width: 20, height: 20 }}
-            >
-              {recolhida ? <ChevronsRight size={12} /> : <ChevronsLeft size={12} />}
-            </button>,
-          )}
-        </div>
+            O que sobrou aqui é só navegação, do topo ao pé. */}
 
         {/* ── Menu: as telas de trabalho. A única parte que rola. ──────────────
             Os itens ficam no TOPO, logo abaixo da marca. Centrá-los na altura

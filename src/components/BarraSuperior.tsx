@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { NavLink as RouterNavLink, useLocation, useNavigate } from "react-router-dom";
 import {
-  Bell, CalendarDays, ChevronRight, ChevronsUpDown, ExternalLink, GraduationCap, LogOut, Plus, UserCircle,
+  Bell, CalendarDays, ChevronRight, ChevronsLeft, ChevronsRight, ChevronsUpDown, ExternalLink, GraduationCap, LogOut, Plus, UserCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -65,7 +65,15 @@ const BOTAO_REPOUSO =
 const BOTAO_ATIVO = "bg-primary border-[color:var(--accent-500)] text-[color:var(--text-on-accent)]";
 const BOTAO_ABERTO = "bg-[color:var(--surface-hover)] border-[color:var(--border-strong)] text-[color:var(--text-heading)]";
 
-export function BarraSuperior() {
+export function BarraSuperior({ recolhida, aoAlternar }: {
+  /** Estado da barra lateral, para a seta apontar o lado certo. */
+  recolhida?: boolean;
+  /**
+   * Abre ou fecha a lateral. Quando ausente (a réplica decorativa da tela de
+   * planos), a marca aparece sem o botão -- lá ele não teria o que fazer.
+   */
+  aoAlternar?: () => void;
+}) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
@@ -162,9 +170,43 @@ export function BarraSuperior() {
         className="flex items-center shrink-0 pl-4 pr-3 bg-[color:var(--surface-card)] border-b border-[color:var(--border-default)]"
         style={{ height: "var(--topbar-h)" }}
       >
-        {/* Nada à esquerda: a barra não carrega texto (decisão do dono em
-            21/09/2026). A saudação que ficava aqui saiu, e o vão empurra os
-            botões para a direita. */}
+        {/*
+          A marca, e o botão que abre a lateral.
+          ──────────────────────────────────────────────────────────────────────
+          O logo morou no topo da barra lateral até 22/09/2026, quando esta
+          barra passou a atravessar a tela inteira e a lateral a começar abaixo
+          dela: no arranjo novo, o canto superior esquerdo é DESTA barra.
+
+          A seta veio junto pelo mesmo motivo. Ela pousava sobre a linha que
+          separava a marca do menu, e essa linha virou a régua desta barra --
+          deixá-la lá embaixo seria pendurar o controle no meio da navegação.
+
+          Sem texto ao lado do logo: a barra não carrega texto desde 21/09, por
+          decisão do dono.
+        */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* O MESMO arquivo do favicon, servido de public/: são a mesma marca,
+              e duas cópias significam trocar a arte em dois lugares. */}
+          <img
+            src="/favicon.png?v=4"
+            alt="Rezult"
+            className="shrink-0 block object-cover"
+            style={{ width: 28, height: 28, borderRadius: 7 }}
+          />
+          {aoAlternar && comDica(
+            recolhida ? "Expandir menu" : "Recolher menu",
+            <button
+              type="button"
+              onClick={aoAlternar}
+              aria-label={recolhida ? "Expandir menu" : "Recolher menu"}
+              aria-expanded={!recolhida}
+              className={`${BOTAO} ${BOTAO_REPOUSO}`}
+              style={{ width: 24, height: 24 }}
+            >
+              {recolhida ? <ChevronsRight size={13} /> : <ChevronsLeft size={13} />}
+            </button>,
+          )}
+        </div>
         <div className="flex-1" />
 
         {/* ── Ferramentas ──────────────────────────────────────────────────── */}
@@ -276,10 +318,10 @@ export function BarraSuperior() {
         </div>
 
         {/* Régua vertical entre as ferramentas e a pessoa, como no material. */}
-        {/* 21px de cada lado, o mesmo `--respiro-marca` da régua que separa a
-            marca do menu na barra lateral: as duas réguas do CRM respiram
-            igual. É margem declarada, e não `gap` do contêiner -- com o gap, o
-            espaço aqui somaria ao dele e sairia 29px. */}
+        {/* 21px de cada lado (`--respiro-marca`). O token nasceu para a régua
+            que separava a marca do menu na lateral, que saiu em 22/09/2026 --
+            esta é a última que o lê. É margem declarada, e não `gap` do
+            contêiner: com o gap, o espaço aqui somaria ao dele e sairia 29px. */}
         <span
           className="w-px h-5 shrink-0 bg-[color:var(--border-default)]"
           style={{ marginLeft: "var(--respiro-marca)", marginRight: "var(--respiro-marca)" }}

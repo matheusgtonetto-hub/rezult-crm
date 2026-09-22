@@ -141,6 +141,19 @@ export default function AppLayout() {
         ["--barra-largura" as string]: larguraDaBarra(barraRecolhida),
       }}
     >
+      {/*
+        A barra superior vem PRIMEIRO e ocupa a tela toda.
+        ────────────────────────────────────────────────────────────────────────
+        Ela morava dentro do `<main>`, à direita da lateral, quando as duas eram
+        uma peça em L. Em 22/09/2026 o dono pediu o contrário: a régua de baixo
+        dela seguindo até a borda esquerda da tela, com a lateral começando
+        abaixo. Para a linha atravessar de verdade, a barra tem que estar FORA
+        do bloco que a lateral empurra -- por isso ela subiu um nível.
+
+        A marca e o botão de recolher moram nela agora, no canto que passou a
+        ser dela.
+      */}
+      <BarraSuperior recolhida={barraRecolhida} aoAlternar={alternarBarra} />
       <AppSidebar recolhida={barraRecolhida} aoAlternar={alternarBarra} />
       {/*
         As barras SEPARADAS, com a linha atravessando a tela.
@@ -160,16 +173,16 @@ export default function AppLayout() {
           marginLeft: "var(--barra-largura)",
           width: "calc(100vw - var(--barra-largura))",
           transition: "margin-left var(--dur-normal) var(--ease-out), width var(--dur-normal) var(--ease-out)",
-          height: "100vh",
+          /* O que sobra da janela depois da barra superior. Com `100vh` o
+             conteúdo passaria da tela pela altura dela, e a última linha sairia
+             por baixo. */
+          height: "var(--altura-util)",
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
           background: "var(--surface-card)",
         }}
       >
-        <BarraSuperior />
-        {/* A rolagem mora AQUI, e não no <main>: no <main> a barra superior
-            rolaria junto com a tela, e o lugar dela é fixo. */}
         <div
           style={{
             flex: 1,
