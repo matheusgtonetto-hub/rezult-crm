@@ -485,6 +485,7 @@ export default function MultiatendimentoPage() {
   // tudo, mesmo com o dado real (read/finished) já salvo no banco.
   const activeIdKey     = (uid?: string, tid?: string | null) => `rz_multi_active_id_${uid ?? "anon"}_${tid ?? "none"}`;
   const activeFilterKey = (uid?: string, tid?: string | null) => `rz_multi_active_filter_${uid ?? "anon"}_${tid ?? "none"}`;
+  const deptFilterKey   = (uid?: string, tid?: string | null) => `rz_multi_dept_filter_${uid ?? "anon"}_${tid ?? "none"}`;
   const [activeId, setActiveId] = useState<string>(() => {
     try { return localStorage.getItem(activeIdKey(user?.id, tenantId)) ?? ""; } catch { return ""; }
   });
@@ -501,6 +502,26 @@ export default function MultiatendimentoPage() {
       return FILTROS_VALIDOS.includes(salvo) ? salvo : "";
     } catch { return ""; }
   });
+  /*
+   * Qual departamento a lista está mostrando.
+   *
+   *   ""      todos
+   *   "none"  as que não estão em departamento nenhum
+   *   <uuid>  aquele departamento
+   *
+   * É um recorte da caixa, não um estado da conversa -- por isso fica ACIMA
+   * dos chips, e não ao lado deles. Guardado por pessoa e por empresa, como o
+   * chip: quem trabalha no Suporte abre a tela no Suporte amanhã de manhã.
+   *
+   * Vale a validação contra a lista carregada (mais abaixo): um departamento
+   * apagado deixaria a pessoa presa numa caixa vazia que ela não consegue
+   * nomear.
+   */
+  const [deptFilter, setDeptFilter] = useState<string>(() => {
+    try { return localStorage.getItem(deptFilterKey(user?.id, tenantId)) ?? ""; } catch { return ""; }
+  });
+  const [deptMenuOpen, setDeptMenuOpen] = useState(false);
+  const [deptAssignOpen, setDeptAssignOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   // Rascunho por conversa — cada conversa é uma janela própria (igual WhatsApp
   // Web/celular), então o texto não digitado ainda não pode vazar de uma
@@ -559,6 +580,7 @@ export default function MultiatendimentoPage() {
   const activeNavTenantRef = useRef(tenantId);
   useEffect(() => { try { localStorage.setItem(activeIdKey(user?.id, tenantId), activeId); } catch { /* localStorage indisponível */ } }, [activeId, tenantId, user?.id]);
   useEffect(() => { try { localStorage.setItem(activeFilterKey(user?.id, tenantId), activeFilter); } catch { /* localStorage indisponível */ } }, [activeFilter, tenantId, user?.id]);
+  useEffect(() => { try { localStorage.setItem(deptFilterKey(user?.id, tenantId), deptFilter); } catch { /* localStorage indisponível */ } }, [deptFilter, tenantId, user?.id]);
   useEffect(() => {
     // Troca de empresa: recarrega o estado salvo daquela empresa (ou limpa,
     // se nunca teve) em vez de manter o da empresa anterior.
@@ -877,7 +899,20 @@ export default function MultiatendimentoPage() {
   const [cfgAssinatura, setCfgAssinatura]   = useState(false);
   const [cfgMantAtend, setCfgMantAtend]     = useState(false);
   const [cfgMantDept, setCfgMantDept]       = useState(false);
-  const [muDepts, setMuDepts]               = useState<{ id: string; name: string }[]>([]);
+  // A cor vem junto do nome: é ela que pinta a etiqueta no card e o ponto do
+  // seletor. Sem a cor, todo departamento vira a mesma etiqueta cinza e a
+  // pessoa tem que LER cada uma para saber de quem é a conversa.
+  const [muDepts, setMuDepts]               = useState<{ id: string; name: string; color?: string | null }[]>([]);
+  // Departamento apagado (ou de outra empresa, depois de trocar de empresa):
+  // volta para "todos". Só roda com a lista já carregada, senão o primeiro
+  // render -- quando muDepts ainda está vazio -- apagaria a escolha salva.
+  //
+  // Mora aqui, junto da declaração, e não lá em cima com os outros efeitos de
+  // persistência: `muDepts` é uma const, e um efeito acima dela não a enxerga.
+  useEffect(() => {
+    if (!muDepts.length || !deptFilter || deptFilter === "none") return;
+    if (!muDepts.some(d => d.id === deptFilter)) setDeptFilter("");
+  }, [muDepts, deptFilter]);
   const [muSchedules, setMuSchedules]       = useState<{ id: string; name: string }[]>([]);
 
   // Carrega listas (departamentos/horários) + configurações persistidas
@@ -886,11 +921,11 @@ export default function MultiatendimentoPage() {
     if (!oid) return;
     (async () => {
       const [d, w, s] = await Promise.all([
-        supabase.from("departments").select("id, name").eq("owner_id", oid).order("position", { ascending: true }),
+        supabase.from("departments").select("id, name, color").eq("owner_id", oid).order("position", { ascending: true }),
         supabase.from("work_schedules").select("id, name").eq("owner_id", oid).order("created_at", { ascending: true }),
         supabase.from("multiatendimento_settings").select("*").eq("owner_id", oid).maybeSingle(),
       ]);
-      if (d.data) setMuDepts(d.data as { id: string; name: string }[]);
+      if (d.data) setMuDepts(d.data as { id: string; name: string; color?: string | null }[]);
       if (w.data) setMuSchedules(w.data as { id: string; name: string }[]);
       const st = s.data as Record<string, unknown> | null;
       if (st) {
@@ -3133,6 +3168,11 @@ export default function MultiatendimentoPage() {
      * número fora do ar não é trabalho que alguém possa fazer agora, mas o
      * histórico do que já foi encerrado continua valendo.
      */
+    // Departamento primeiro: ele decide QUAL caixa a pessoa está olhando, e os
+    // chips contam os estados DENTRO dela.
+    if (deptFilter === "none")     list = list.filter(c => !convStates[c.id]?.departmentId);
+    else if (deptFilter)           list = list.filter(c => convStates[c.id]?.departmentId === deptFilter);
+
     switch (activeFilter) {
       case "unread":  list = list.filter(c => !convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)); break;
       case "pending": list = list.filter(c => !!convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)); break;
@@ -3172,7 +3212,7 @@ export default function MultiatendimentoPage() {
     else if (fltOrder === "name") sorted.sort((a, b) => convName(a).localeCompare(convName(b), "pt-BR"));
     return sorted;
     // leads: convName/convLead resolvem o lead por telefone, então a busca depende deles
-  }, [searchQuery, activeFilter, convStates, visibleConvList, leads, whatsappConnections, fltDepts, fltAgents, fltInstances, fltTags, fltPipeline, fltStages, fltWindow, fltDateFrom, fltDateTo, fltOrder]);
+  }, [searchQuery, activeFilter, deptFilter, convStates, visibleConvList, leads, whatsappConnections, fltDepts, fltAgents, fltInstances, fltTags, fltPipeline, fltStages, fltWindow, fltDateFrom, fltDateTo, fltOrder]);
 
   const activeAdvCount =
     (fltDepts.length ? 1 : 0) + (fltAgents.length ? 1 : 0) + (fltInstances.length ? 1 : 0) +
@@ -3228,6 +3268,21 @@ export default function MultiatendimentoPage() {
       `Atendente atribuído a ${selectedConvs.length} conversa(s).`,
     );
     setBulkAction(null);
+  };
+
+  /**
+   * Transfere a conversa ABERTA de departamento (ou tira dela, com `null`).
+   *
+   * Escreve pelo `updateCs`, que já persiste `department_id` -- e é a mudança
+   * dessa coluna que faz o gatilho "Departamento alterado" do motor de
+   * automações disparar. Nada a mais precisa ser chamado aqui.
+   */
+  const transferirDepartamento = (deptId: string | null) => {
+    setDeptAssignOpen(false);
+    if (!activeId) return;
+    updateCs(activeId, { departmentId: deptId ?? undefined });
+    const nome = muDepts.find(d => d.id === deptId)?.name;
+    toast.success(nome ? `Conversa transferida para ${nome}.` : "Conversa tirada do departamento.");
   };
 
   const bulkAssignDept = (deptId: string) => {
@@ -3335,15 +3390,28 @@ export default function MultiatendimentoPage() {
    * atendendo, e misturava dois eixos na mesma fileira. Continua no painel de
    * filtros avançados, pela etiqueta Agente.
    */
+  /*
+   * As contagens contam DENTRO do departamento escolhido.
+   *
+   * Se contassem a empresa inteira, o atendente do Suporte veria "Não lidas
+   * 12", abriria e acharia 3 -- e o número no chip é justamente o que ele usa
+   * para decidir se tem trabalho.
+   */
+  const convsDoDepartamento = deptFilter === "none"
+    ? visibleConvList.filter(c => !convStates[c.id]?.departmentId)
+    : deptFilter
+      ? visibleConvList.filter(c => convStates[c.id]?.departmentId === deptFilter)
+      : visibleConvList;
+
   const filters = [
-    { id: "",        icon: Inbox,         label: "Todos",       count: visibleConvList.length,                                                                                                        color: "var(--text-heading)", colorBg: "var(--neutral-50)", borderColor: "var(--border-strong)" },
-    { id: "unread",  icon: Clock,         label: "Não lidas",   count: visibleConvList.filter(c => !convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,       color: "var(--warning-fg)", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
-    { id: "pending", icon: MessageCircle, label: "Em aberto",   count: visibleConvList.filter(c => !!convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,      color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
-    { id: "done",    icon: CheckCircle2,  label: "Finalizadas", count: visibleConvList.filter(c => convStates[c.id]?.finished).length,                                                                 color: "var(--accent-700)", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
+    { id: "",        icon: Inbox,         label: "Todos",       count: convsDoDepartamento.length,                                                                                                        color: "var(--text-heading)", colorBg: "var(--neutral-50)", borderColor: "var(--border-strong)" },
+    { id: "unread",  icon: Clock,         label: "Não lidas",   count: convsDoDepartamento.filter(c => !convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,       color: "var(--warning-fg)", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
+    { id: "pending", icon: MessageCircle, label: "Em aberto",   count: convsDoDepartamento.filter(c => !!convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,      color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
+    { id: "done",    icon: CheckCircle2,  label: "Finalizadas", count: convsDoDepartamento.filter(c => convStates[c.id]?.finished).length,                                                                 color: "var(--accent-700)", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
   const activeFilterMeta = filters.find(f => f.id === activeFilter);
   const activeFilterTitle = activeFilterMeta?.label === "Todos" ? "Todas as conversas" : (activeFilterMeta?.label ?? "Todas as conversas");
-  const activeFilterCount = activeFilterMeta?.count ?? visibleConvList.length;
+  const activeFilterCount = activeFilterMeta?.count ?? convsDoDepartamento.length;
 
   // ── grouped messages ────────────────────────────────────────────────
   const groupedMessages = useMemo(() => {
@@ -3355,7 +3423,7 @@ export default function MultiatendimentoPage() {
   return (
     <div
       style={{ display: "flex", height: "var(--altura-util)", width: "100%", background: "hsl(var(--background))" }}
-      onClick={() => { if (instanceOpen) setInstanceOpen(false); if (moreMenuOpen) setMoreMenuOpen(false); if (bulkMenuOpen) setBulkMenuOpen(false); }}
+      onClick={() => { if (instanceOpen) setInstanceOpen(false); if (moreMenuOpen) setMoreMenuOpen(false); if (bulkMenuOpen) setBulkMenuOpen(false); if (deptMenuOpen) setDeptMenuOpen(false); if (deptAssignOpen) setDeptAssignOpen(false); }}
     >
       {/* ── COLUNA 1 — LISTA ─────────────────────────────────────────── */}
       <aside style={{ width: 350, minWidth: 350, maxWidth: 350, height: "var(--altura-util)", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", borderRight: "1px solid var(--border-default)", display: "flex", flexDirection: "column", background: "var(--surface-card)", position: "relative", zIndex: 2, overflow: "hidden" }}>
@@ -3445,6 +3513,64 @@ export default function MultiatendimentoPage() {
               </div>
             </div>
           </div>
+
+          {/*
+            O seletor de departamento.
+            ──────────────────────────────────────────────────────────────────
+            Só aparece com DOIS ou mais departamentos. Com zero ou um não há
+            escolha a fazer, e a linha seria um controle a mais para quem não
+            divide a operação entender e ignorar. Quem cria o segundo vê o
+            seletor nascer, que é o momento em que ele se explica sozinho.
+
+            Fica acima dos chips porque responde outra pergunta: os chips dizem
+            em que ESTADO a conversa está, este diz de QUEM ela é.
+          */}
+          {muDepts.length > 1 && (
+            <div style={{ position: "relative", marginTop: 10 }}>
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setDeptMenuOpen(o => !o); }}
+                style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 8, padding: "7px 10px", cursor: "pointer", outline: "none" }}
+              >
+                <Folder size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, textAlign: "left", fontSize: 12.5, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {deptFilter === "none"
+                    ? "Sem departamento"
+                    : deptFilter
+                      ? (muDepts.find(d => d.id === deptFilter)?.name ?? "Departamento")
+                      : "Todos os departamentos"}
+                </span>
+                <ChevronDown size={12} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+              </button>
+              {deptMenuOpen && (
+                <div
+                  onClick={e => e.stopPropagation()}
+                  style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.12)", padding: 4, zIndex: 20, maxHeight: 280, overflowY: "auto" }}
+                >
+                  {[
+                    { v: "", l: "Todos os departamentos", cor: null as string | null },
+                    ...muDepts.map(d => ({ v: d.id, l: d.name, cor: d.color ?? null })),
+                    // "Sem departamento" por último e sempre presente: é onde
+                    // fica tudo o que entrou antes de a empresa se dividir, e
+                    // sem esta linha essas conversas sumiriam da tela de quem
+                    // escolhesse qualquer departamento.
+                    { v: "none", l: "Sem departamento", cor: null as string | null },
+                  ].map(o => (
+                    <button
+                      key={o.v || "todos"}
+                      type="button"
+                      onClick={() => { setDeptFilter(o.v); setDeptMenuOpen(false); }}
+                      style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", background: deptFilter === o.v ? "var(--accent-50)" : "transparent", border: "none", borderRadius: 7, padding: "7px 8px", cursor: "pointer", fontSize: 12.5, fontWeight: deptFilter === o.v ? 600 : 500, color: deptFilter === o.v ? "var(--accent-800)" : "var(--text-heading)" }}
+                    >
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: o.cor ?? "var(--neutral-300)" }} />
+                      <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.l}</span>
+                      {deptFilter === o.v && <Check size={13} color="var(--accent-700)" style={{ flexShrink: 0 }} />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
             {filters.map(f => (
@@ -3590,6 +3716,25 @@ export default function MultiatendimentoPage() {
                     {!cState?.answered && !cState?.finished && (
                       <span style={{ fontSize: 12, fontWeight: 600, background: "#FFF7ED", color: "#C2410C", padding: "2px 6px", borderRadius: 6 }}>1º contato</span>
                     )}
+                    {/*
+                      O departamento da conversa, com a cor escolhida no
+                      cadastro. Só com DOIS ou mais departamentos: com um só,
+                      todas as conversas teriam a mesma etiqueta, que é ruído.
+
+                      A cor entra como fundo esmaecido e a tinta vem de
+                      `tintaDeChip`, que decide entre escuro e claro pelo
+                      contraste -- as cores de departamento vão de amarelo a
+                      azul-marinho, e um branco fixo sumiria em metade delas. */}
+                    {muDepts.length > 1 && cState?.departmentId && (() => {
+                      const d = muDepts.find(x => x.id === cState.departmentId);
+                      if (!d) return null;
+                      const cor = d.color ?? "var(--neutral-300)";
+                      return (
+                        <span style={{ fontSize: 12, fontWeight: 600, background: d.color ? `${d.color}22` : "var(--neutral-50)", color: d.color ? tintaDeChip(cor) : "var(--text-muted)", padding: "2px 6px", borderRadius: 6 }}>
+                          {d.name}
+                        </span>
+                      );
+                    })()}
                     {cState?.finished && <span style={{ fontSize: 12, fontWeight: 600, background: "var(--accent-50)", color: "var(--accent-800)", padding: "2px 6px", borderRadius: 6 }}>✓ Finalizada</span>}
                     {!isConvInstanceConnected(c) && <span style={{ fontSize: 12, fontWeight: 600, background: "var(--neutral-50)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: 6 }}>Desconectada</span>}
                   </div>
@@ -3611,8 +3756,13 @@ export default function MultiatendimentoPage() {
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-heading)" }}>{convName(active)}</div>
 
+                  {/* A linha de contexto da conversa: por qual NÚMERO ela
+                      entrou e de qual DEPARTAMENTO ela é. As duas respondem
+                      "onde estou", por isso ficam lado a lado, embaixo do nome
+                      de quem está do outro lado. */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
                   {/* WhatsApp instance selector */}
-                  <div style={{ position: "relative", marginTop: 4 }}>
+                  <div style={{ position: "relative" }}>
                     <button
                       onClick={e => { e.stopPropagation(); setInstanceOpen(o => !o); }}
                       style={{ display: "flex", alignItems: "center", gap: 5, background: instances.length > 0 ? "var(--accent-50)" : "var(--neutral-50)", border: "none", borderRadius: 100, padding: "3px 8px 3px 6px", cursor: "pointer", outline: "none" }}
@@ -3658,6 +3808,71 @@ export default function MultiatendimentoPage() {
                         )}
                       </div>
                     )}
+                  </div>
+
+                  {/*
+                    Transferir de departamento, na conversa aberta.
+                    ────────────────────────────────────────────────────────
+                    Transferir em massa já existia no menu da lista, mas o caso
+                    comum é o de uma conversa só: o atendente lê, percebe que é
+                    assunto de outro time e passa adiante sem sair dali.
+
+                    Só aparece com dois ou mais departamentos, como o seletor da
+                    lista: não há para onde transferir quando só existe um.
+
+                    A escrita é um `updateCs`, que já persiste `department_id`.
+                    O gatilho "Departamento alterado" do motor de automações
+                    dispara sozinho na mudança da coluna, então uma automação de
+                    aviso ao time funciona sem nada a mais aqui.
+                  */}
+                  {muDepts.length > 1 && (() => {
+                    const atual = muDepts.find(d => d.id === cs?.departmentId);
+                    const cor = atual?.color ?? null;
+                    return (
+                      <div style={{ position: "relative" }}>
+                        <button
+                          onClick={e => { e.stopPropagation(); setDeptAssignOpen(o => !o); }}
+                          title="Transferir de departamento"
+                          style={{ display: "flex", alignItems: "center", gap: 5, background: cor ? `${cor}22` : "var(--neutral-50)", border: "none", borderRadius: 100, padding: "3px 8px 3px 6px", cursor: "pointer", outline: "none" }}
+                        >
+                          <Folder size={11} color={cor ? tintaDeChip(cor) : "var(--text-muted)"} style={{ flexShrink: 0 }} />
+                          <span style={{ fontSize: 12, fontWeight: 600, color: cor ? tintaDeChip(cor) : "var(--text-muted)" }}>
+                            {atual?.name ?? "Sem departamento"}
+                          </span>
+                          <ChevronDown size={10} color={cor ? tintaDeChip(cor) : "var(--text-muted)"} />
+                        </button>
+                        {deptAssignOpen && (
+                          <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 220, zIndex: 50, overflow: "hidden", padding: 4 }}>
+                            <div style={{ padding: "6px 8px 4px", fontSize: 12, color: "var(--text-muted)", fontWeight: 700, letterSpacing: 0.5 }}>TRANSFERIR PARA</div>
+                            {muDepts.map(d => (
+                              <button
+                                key={d.id}
+                                onClick={() => transferirDepartamento(d.id)}
+                                disabled={d.id === cs?.departmentId}
+                                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", background: d.id === cs?.departmentId ? "var(--accent-50)" : "transparent", border: "none", borderRadius: 7, padding: "7px 8px", cursor: d.id === cs?.departmentId ? "default" : "pointer", fontSize: 12.5, fontWeight: d.id === cs?.departmentId ? 600 : 500, color: "var(--text-heading)" }}
+                              >
+                                <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: d.color ?? "var(--neutral-300)" }} />
+                                <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
+                                {d.id === cs?.departmentId && <Check size={13} color="var(--accent-700)" style={{ flexShrink: 0 }} />}
+                              </button>
+                            ))}
+                            {/* Tirar o departamento é uma transferência como
+                                outra qualquer, e sem esta linha uma conversa
+                                posta no lugar errado não teria como voltar
+                                para a caixa de quem ainda não triou. */}
+                            {cs?.departmentId && (
+                              <button
+                                onClick={() => transferirDepartamento(null)}
+                                style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", textAlign: "left", background: "transparent", border: "none", borderTop: "1px solid var(--border-default)", marginTop: 4, paddingTop: 8, borderRadius: 0, padding: "8px", cursor: "pointer", fontSize: 12.5, color: "var(--text-muted)" }}
+                              >
+                                Tirar do departamento
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                   </div>
                 </div>
               </div>
