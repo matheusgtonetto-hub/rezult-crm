@@ -2479,7 +2479,34 @@ async function checkCondition(
         // Sem produto nem SKU: a condição vira "tem algum produto".
         return (await itensDoNegocio()).length > 0;
       }
-      case "com_id_externo": {
+      case "conv_departamento": {
+      /*
+       * "A conversa está no departamento X?"
+       *
+       * Outra que a tela oferecia e o motor ignorava -- caía no `default: true`
+       * lá embaixo, ou seja, a condição passava SEMPRE. Um fluxo com dois ramos
+       * seguia pelo ramo verdadeiro independentemente do departamento, e nada
+       * denunciava isso.
+       *
+       * Lê o departamento do NEGÓCIO, que é o mesmo da conversa desde que os
+       * dois andam juntos, e é o que está à mão aqui sem uma consulta a mais.
+       */
+      const depEscolhido = String((cfg.departamento ?? cfg.department) ?? "").trim();
+      const depDoLead = lead.department_id as string | null;
+      // Sem departamento escolhido na condição, a pergunta vira "está em algum
+      // departamento?".
+      if (!depEscolhido) return !!depDoLead;
+      if (!depDoLead) return false;
+      if (depDoLead === depEscolhido) return true;
+
+      // Pelo NOME, como a tela guardou por muito tempo.
+      const { data: porNome } = await supabase
+        .from("departments").select("id").eq("id", depDoLead)
+        .ilike("name", depEscolhido).maybeSingle();
+      return !!porNome;
+    }
+
+    case "com_id_externo": {
         const extId = cfg.id_externo as string;
         if (!extId) return !!lead.external_id;
         return lead.external_id === extId;
@@ -2845,6 +2872,64 @@ async function executeAction(
         responsible: atendente,
         responsibles: [atendente],
       }).eq("id", lead_id);
+      break;
+    }
+
+    case "transf_dep": {
+      /*
+       * Transferir a conversa de departamento.
+       *
+       * A tela de automações oferecia esta ação desde sempre e o motor não
+       * tinha `case` para ela: quem montava o fluxo via a ação cadastrada,
+       * salvava, e nada acontecia -- sem erro, sem log, sem pista.
+       *
+       * Move a conversa E o negócio, que é a regra do produto desde
+       * 22/09/2026: os dois no mesmo departamento, senão ninguém sabe qual
+       * manda. O responsável NÃO é tocado aqui; ele é do negócio, e uma
+       * automação que o apagasse levaria junto o dono da venda no funil.
+       *
+       * As conversas alvo são as daquele lead na empresa. `conversation_id`
+       * entra quando o gatilho veio de uma conversa específica.
+       */
+      const escolhido = String((cfg.departamento ?? cfg.department) ?? "").trim();
+      if (!escolhido) return;
+
+      /*
+       * Aceita o ID ou o NOME.
+       *
+       * A tela guardou por muito tempo o nome digitado à mão ("Suporte"), e as
+       * automações salvas assim continuam valendo. A busca é sempre dentro da
+       * EMPRESA: um id residual de importação ou de cópia de automação mandaria
+       * a conversa para o departamento de outro cliente.
+       */
+      const { data: deps } = await supabase
+        .from("departments").select("id, name").eq("company_id", company_id);
+      const alvo = escolhido.toLowerCase();
+      const dep = ((deps ?? []) as { id: string; name: string }[]).find(
+        (d) => d.id === escolhido || (d.name ?? "").trim().toLowerCase() === alvo,
+      );
+      if (!dep) {
+        console.error("[automacao] transf_dep: departamento não encontrado nesta empresa:", escolhido);
+        return;
+      }
+      const depId = dep.id;
+
+      const convId = payload.context.conversation_id as string | undefined;
+      if (convId) {
+        await supabase.from("whatsapp_conversations").update({ department_id: depId }).eq("id", convId);
+      } else {
+        const { data: lead } = await supabase
+          .from("leads").select("whatsapp").eq("id", lead_id).maybeSingle();
+        const fone = (lead?.whatsapp as string) || "";
+        if (fone) {
+          const ids = await idsDeConversasPorTelefone(supabase, { companyId: company_id, phone: fone });
+          if (ids.length) {
+            await supabase.from("whatsapp_conversations").update({ department_id: depId }).in("id", ids);
+          }
+        }
+      }
+
+      await supabase.from("leads").update({ department_id: depId }).eq("id", lead_id);
       break;
     }
 

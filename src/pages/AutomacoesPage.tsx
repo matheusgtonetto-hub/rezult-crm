@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
 import fixWebmDuration from "fix-webm-duration";
 import { supabase } from "@/lib/supabase";
+import { useDepartamentos } from "@/hooks/useDepartamentos";
 import { PALETA_DO_APP, COR_DE_TAG_PADRAO } from "@/lib/paleta-do-app";
 import { IA_MODELS, IA_PROVIDER_LABELS, IA_COST_LABELS, type IaProvider } from "@/lib/ai-models";
 import { useAuth } from "@/context/AuthContext";
@@ -5411,6 +5412,9 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
   products: ProductType[];
   customFieldGroups: CustomFieldGroup[];
 }) {
+  // Mesmo motivo do painel de ações: a lista vem do hook, sem encanamento de
+  // prop por quatro assinaturas.
+  const departamentosDaEmpresa = useDepartamentos();
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateItem({ [key]: val });
 
@@ -5585,7 +5589,7 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
   if (catId === "conversas") {
     if (id === "conv_finalizada" || id === "auto_chat") return noConfig;
     if (id === "conv_atend") return <>{grp(<>{attendantSel("atendente", "Selecione os atendentes que deseja verificar se são os atendentes responsáveis da conversa. Deixe em branco para considerar qualquer um.")}</>)}</>;
-    if (id === "conv_departamento") return <>{grp(<>{lbl("Selecione os departamentos que deseja verificar se estão atribuídos à conversa. Deixe em branco para considerar qualquer um.")}{textInp("Selecionar", "departamento")}</>)}</>;
+    if (id === "conv_departamento") return <>{grp(<>{lbl("Selecione o departamento que deseja verificar se está atribuído à conversa. Deixe em branco para considerar qualquer um.")}{selInp("departamento", departamentosDaEmpresa.map(d => ({ value: d.id, label: d.name })))}</>)}</>;
     if (id === "janela_aberta") return <>{grp(<>{lbl("Janela de tempo em horas (padrão: 24)")}{numInp("24", "janela_horas", 1)}</>)}</>;
   }
 
@@ -8093,6 +8097,9 @@ function MensagensConfigForm({ item, updateActionItem, teamMembers }: {
   updateActionItem: (itemId: string, config: Record<string, string | boolean | number>) => void;
   teamMembers: string[];
 }) {
+  // A lista vem do hook, e não de prop: este painel está a três componentes de
+  // distância de quem já carrega departamentos.
+  const departamentosDaEmpresa = useDepartamentos();
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
   const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>;
@@ -8114,7 +8121,19 @@ function MensagensConfigForm({ item, updateActionItem, teamMembers }: {
       </>);
 
     case "transf_dep":
-      return grp(<>{lbl("Departamento")}<AcoesFieldInput value={(cfg.departamento as string) ?? ""} onChange={v => set("departamento", v)} placeholder="Nome do departamento..." /></>);
+      /*
+       * Seletor, e não campo de texto.
+       *
+       * Aqui se digitava o nome do departamento à mão. Errar uma letra, ou
+       * renomear o departamento depois, fazia a ação não encontrar destino e
+       * não transferir nada -- sem erro na tela, porque a automação roda no
+       * servidor. O motor ainda aceita o nome, pelas automações salvas assim.
+       */
+      return grp(<>{lbl("Departamento")}
+        <AcoesSelect value={(cfg.departamento as string) ?? ""} onChange={v => set("departamento", v)} placeholder="Selecione o departamento..."
+          options={departamentosDaEmpresa.map(d => ({ value: d.id, label: d.name }))}
+        />
+      </>);
 
     case "iniciar_atend":
     case "finalizar_atend":
