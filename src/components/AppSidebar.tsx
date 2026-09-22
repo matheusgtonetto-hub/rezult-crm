@@ -316,8 +316,17 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
           duas linhas por perto, a da superior rente ao topo e a da direita.
         */}
         <div
-          className="shrink-0 flex items-center justify-center"
-          style={{ height: 20, marginBottom: 12 }}
+          /*
+           * Expandida, a seta fica sob o LOGO, e não no meio da barra (dono,
+           * 22/09/2026). Centrada nos 248px ela flutuava longe da marca, sem
+           * nada por perto a que pertencer.
+           *
+           * O recuo de 21px é o do cabeçalho (16px) mais metade da diferença
+           * entre o logo (30px) e o botão (20px): assim os dois ficam no mesmo
+           * eixo vertical. Recolhida, quem centraliza é a barra, como o logo.
+           */
+          className={`shrink-0 flex items-center ${recolhida ? "justify-center" : "justify-start"}`}
+          style={{ height: 20, marginBottom: 12, paddingLeft: recolhida ? 0 : 21 }}
         >
           {dica(
             recolhida ? "Expandir menu" : "Recolher menu",
