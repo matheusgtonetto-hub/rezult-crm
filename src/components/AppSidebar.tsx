@@ -9,6 +9,7 @@ import {
   Zap,
   Filter,
   BotMessageSquare,
+  Cog,
   ChevronsLeft,
   ChevronsRight,
 } from "lucide-react";
@@ -94,7 +95,14 @@ const ITEM_ABERTO = "bg-[color:var(--surface-hover)] text-[color:var(--text-head
  * da navegação, então a linha começa e termina onde começam e terminam as
  * linhas de menu.
  */
-const REGUA = "shrink-0 h-px mx-3 bg-[color:var(--border-default)]";
+/**
+ * A régua que separa blocos da barra.
+ *
+ * A margem lateral acompanha o estado: recolhida, 12px de cada lado sobre 48px
+ * de barra deixariam 24px de linha -- um traço menor que o botão de 20px que
+ * pousa sobre ela.
+ */
+const REGUA_BASE = "shrink-0 h-px bg-[color:var(--border-default)]";
 
 /** Rótulo de grupo: caixa alta, 11px, peso 500 (o papel overline do material). */
 const OVERLINE =
@@ -326,7 +334,7 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
           {/* `pointer-events-none`: a linha é decorativa e, sendo absoluta,
               é pintada DEPOIS do botão -- ela interceptava o clique e a barra
               não abria nem fechava. Pego ao testar o clique, não ao olhar. */}
-          <div className={`${REGUA} absolute inset-x-0 top-1/2 pointer-events-none`} />
+          <div className={`${REGUA_BASE} ${recolhida ? "mx-1" : "mx-3"} absolute inset-x-0 top-1/2 pointer-events-none`} />
           {dica(
             recolhida ? "Expandir menu" : "Recolher menu",
             <button
@@ -347,13 +355,36 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
             da barra foi testado em 21/09/2026 e o dono voltou atrás: a
             navegação é o primeiro lugar onde o olho procura, e no meio da barra
             ela pendia para longe da marca. */}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-3 pb-3">
+        {/* Recolhida, o recuo cai de 12px para 4px de cada lado: com 48px de
+            barra, os 12px antigos deixavam 24px para o item, e o retângulo do
+            item ativo virava uma faixa vertical mais alta que larga. Com 4px o
+            item fica 40x40, quadrado, do tamanho da própria linha. */}
+        <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-3 ${recolhida ? "px-1" : "px-3"}`}>
           {/* Tinta --text-muted, e não o --text-subtle do material, pela regra 4
               da seção 3.1 (3,44:1 abaixo de 16px). */}
           {!recolhida && <span className={OVERLINE}>Menu</span>}
           <nav className="flex flex-col gap-0.5">
             {navItems.map(item => <Fragment key={item.to}>{renderNav(item)}</Fragment>)}
           </nav>
+        </div>
+
+        {/* ── Configurações, no pé da barra ───────────────────────────────────
+            Veio da barra superior a pedido do dono (22/09/2026).
+
+            Fica FORA da área que rola: o menu acima cresce com o número de
+            telas, e um item de configuração que subisse e descesse junto com a
+            navegação seria procurado sempre num lugar diferente. Aqui ele tem
+            endereço fixo, o canto inferior.
+
+            Usa o mesmo `renderNav` das telas de trabalho, então ganha de graça
+            o realce de ativo, a dica com a barra recolhida e o mesmo tamanho de
+            alvo. É navegação como as outras, só que separada por assunto. */}
+        <div className={`shrink-0 pb-3 ${recolhida ? "px-1" : "px-3"}`}>
+          {/* Sem margem lateral: o recuo do bloco já afasta a linha das
+              bordas, e somar os dois deixaria esta régua mais curta que a de
+              cima, que é sua par visual. */}
+          <div className={`${REGUA_BASE} mb-2`} />
+          {renderNav({ to: "/configuracoes", label: "Configurações", icon: Cog })}
         </div>
 
             </aside>

@@ -158,10 +158,14 @@
     --gap-grid: 16px;
     --pad-page: 24px;
     /* Faixa de navegação. O material propõe 248px com rótulos, colapsável para
-       72px só com ícones (tokens/layout.css do design system). A nossa barra é
-       só de ícones, então ela usa os 72px do estado colapsado. Os 248px ficam
-       declarados para o dia em que a navegação ganhar rótulo. */
-    --rail-w: 72px;
+       72px só com ícones (tokens/layout.css do design system).
+
+       Recolhida, a nossa usa 48px, e não os 72px do material: o dono pediu em
+       22/09/2026 que ela tivesse a MESMA espessura da barra superior, para as
+       duas lerem como uma peça em L de calibre único. É por isso que este
+       token repete o valor de `--topbar-h` -- se um mudar, o outro muda
+       junto. */
+    --rail-w: 48px;
     --sidebar-w-expanded: 248px;
     /* O respiro em volta da régua que separa a marca do menu, na barra
        lateral: acima dela e abaixo dela, igual nos dois estados da barra.

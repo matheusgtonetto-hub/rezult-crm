@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { NavLink as RouterNavLink, useLocation, useNavigate } from "react-router-dom";
 import {
-  Bell, CalendarDays, ChevronRight, ChevronsUpDown, Cog, ExternalLink, GraduationCap, LogOut, Plus, UserCircle,
+  Bell, CalendarDays, ChevronRight, ChevronsUpDown, ExternalLink, GraduationCap, LogOut, Plus, UserCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -19,9 +19,13 @@ import {
  * A barra superior, no desenho do `Topbar.jsx` do design system.
  *
  * Decisão do dono em 19/09/2026, revendo a D7 da matriz ("sem topbar global").
- * Aqui moram as ferramentas do dia (Agenda, Tutoriais, Notificações,
- * Configurações) e o menu da pessoa, que saíram da barra lateral: nos dois
- * lugares seria duplicar, e a lateral passa a ser só a navegação entre telas.
+ * Aqui moram as ferramentas do dia (Agenda, Tutoriais, Notificações) e o menu
+ * da pessoa, que saíram da barra lateral: nos dois lugares seria duplicar, e a
+ * lateral fica com a navegação entre telas.
+ *
+ * Configurações fez o caminho de volta em 22/09/2026, a pedido do dono: é uma
+ * TELA, como Pipelines ou Leads, e não uma ferramenta de apoio -- passou a
+ * morar no pé da barra lateral, separada do menu por uma régua.
  *
  * Do material, fica de fora a BUSCA do centro. O CRM não tem busca global, e um
  * campo que não busca nada seria inventar funcionalidade.
@@ -161,7 +165,7 @@ export function BarraSuperior() {
         <div className="flex-1" />
 
         {/* ── Ferramentas ──────────────────────────────────────────────────── */}
-        {/* 10px entre os botões (dono, 21/09/2026). Eram 6px, e com quatro
+        {/* 10px entre os botões (dono, 21/09/2026). Eram 6px, e com os
             círculos de 30px lado a lado eles liam como um bloco só. */}
         <div className="flex items-center gap-[10px] shrink-0">
           {link("/calendario", "Agenda", CalendarDays)}
@@ -266,7 +270,6 @@ export function BarraSuperior() {
             </PopoverContent>
           </Popover>
 
-          {link("/configuracoes", "Configurações", Cog)}
         </div>
 
         {/* Régua vertical entre as ferramentas e a pessoa, como no material. */}
