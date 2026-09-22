@@ -2583,7 +2583,7 @@ export default function MultiatendimentoPage() {
   // textos ENVIADOS não viravam a "última mensagem" — a lista ficava presa na
   // última mensagem recebida (ex.: mostrava "teste" mesmo após enviar um áudio).
   // Único ponto por onde passam todos os envios (texto/áudio/imagem/arquivo) —
-  // por isso também é aqui que marcamos read:true (chip "Em aberto" = sem
+  // por isso também é aqui que marcamos read:true (chip "Aguardando" = sem
   // mensagem pendente). Não seta answered: sair de "Não iniciadas" é só pelo
   // botão "Iniciar atendimento" (markAsRead) -- responder sozinho não tira a
   // conversa dali, por design.
@@ -3565,13 +3565,23 @@ export default function MultiatendimentoPage() {
    *
    *   Todos        tudo, como já era quando nenhum chip estava aceso
    *   Não lidas    tem mensagem do cliente sem leitura -- a fila de trabalho
-   *   Em aberto    lida, ainda não encerrada
+   *   Aguardando   lida, ainda não encerrada (era "Em aberto", renomeado a
+   *                pedido do dono em 22/09/2026 -- ver nota de colisão abaixo)
    *   Finalizadas  encerrada
    *
    * "Não lidas" é literal: uma conversa que o atendente abriu e não respondeu
-   * está LIDA, e aparece em "Em aberto". O que não se perde é o primeiro
+   * está LIDA, e aparece em "Aguardando". O que não se perde é o primeiro
    * contato, que ganhou a etiqueta "1º contato" no card -- ele é caro demais
    * para depender de um chip próprio, e a etiqueta o mostra em qualquer caixa.
+   *
+   * COLISÃO DE NOME, sinalizada ao dono ao aplicar o pedido: existe um
+   * "aguardando" com sentido OPOSTO no mesmo arquivo --
+   * `atendimentoAtivo.status === "aguardando"` significa "ninguém pegou ainda"
+   * (ver o tooltip "aguardando alguém pegar" no badge do cabeçalho, perto de
+   * `markAsRead`). Este chip significa o contrário: já foi lido, só não foi
+   * encerrado. É a mesma ambiguidade que já existiu aqui uma vez -- este chip
+   * chamava "Aguardando" com o sentido de hoje, e foi renomeado para "Mensagem
+   * nova" por causa dela, antes de os cinco chips virarem quatro.
    *
    * O chip "Agente" saiu: ele não é um estado da conversa, é quem está
    * atendendo, e misturava dois eixos na mesma fileira. Continua no painel de
@@ -3593,7 +3603,7 @@ export default function MultiatendimentoPage() {
   const filters = [
     { id: "",        icon: Inbox,         label: "Todos",       count: convsDoDepartamento.length,                                                                                                        color: "var(--text-heading)", colorBg: "var(--neutral-50)", borderColor: "var(--border-strong)" },
     { id: "unread",  icon: Clock,         label: "Não lidas",   count: convsDoDepartamento.filter(c => !convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,       color: "var(--warning-fg)", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
-    { id: "pending", icon: MessageCircle, label: "Em aberto",   count: convsDoDepartamento.filter(c => !!convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,      color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
+    { id: "pending", icon: MessageCircle, label: "Aguardando",  count: convsDoDepartamento.filter(c => !!convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,      color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
     { id: "done",    icon: CheckCircle2,  label: "Finalizadas", count: convsDoDepartamento.filter(c => convStates[c.id]?.finished).length,                                                                 color: "var(--accent-700)", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
   const activeFilterMeta = filters.find(f => f.id === activeFilter);
