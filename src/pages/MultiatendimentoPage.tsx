@@ -492,7 +492,9 @@ export default function MultiatendimentoPage() {
   // quem estava com o antigo "Follow-up" selecionado tem "alert" no
   // localStorage, e sem esta guarda abriria numa aba que não existe mais, com
   // título "Todas as conversas" e contagem que não bate com nenhum chip aceso.
-  const FILTROS_VALIDOS = ["", "not_started", "waiting", "pending", "agente", "done"];
+  // Quem tinha "not_started", "waiting" ou "agente" salvo do desenho antigo cai
+  // em "" (Todos), que é o que esta guarda já fazia para chip removido.
+  const FILTROS_VALIDOS = ["", "unread", "pending", "done"];
   const [activeFilter, setActiveFilter] = useState<string>(() => {
     try {
       const salvo = localStorage.getItem(activeFilterKey(user?.id, tenantId)) ?? "";
@@ -3119,17 +3121,22 @@ export default function MultiatendimentoPage() {
       const q = searchQuery.toLowerCase();
       list = list.filter(c => convName(c).toLowerCase().includes(q) || (c.phone ?? "").includes(q) || c.preview.toLowerCase().includes(q));
     }
-    // "Não iniciadas" -> "Abertas"/"Aguardando" depende de já ter respondido
-    // (answered, setado em bumpPreview quando o atendente manda a 1ª mensagem
-    // na conversa), não de ter um responsável atribuído (assignedTo depende de
-    // ter negócio vinculado -- boa parte das conversas respondidas nunca
-    // recebeu um negócio, e ficava presa em "Não iniciadas" pra sempre).
+    /*
+     * O corte é por LEITURA, e não por "já respondemos alguma vez".
+     *
+     * `answered` (setado quando o atendente manda a 1ª mensagem) deixou de
+     * separar caixas e virou a etiqueta "1º contato" no card. O que decide onde
+     * a conversa aparece é `read`, que é o que a pessoa vê no card e entende
+     * sem explicação -- o mesmo contrato do WhatsApp.
+     *
+     * `isConvInstanceConnected` fica de fora só de "Finalizadas": conversa de
+     * número fora do ar não é trabalho que alguém possa fazer agora, mas o
+     * histórico do que já foi encerrado continua valendo.
+     */
     switch (activeFilter) {
-      case "not_started": list = list.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished && isConvInstanceConnected(c)); break;
-      case "pending":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)); break;
-      case "waiting":      list = list.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)); break;
-      case "done":         list = list.filter(c => convStates[c.id]?.finished); break;
-      case "agente":       list = list.filter(c => c.tags.includes("Agente")); break;
+      case "unread":  list = list.filter(c => !convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)); break;
+      case "pending": list = list.filter(c => !!convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)); break;
+      case "done":    list = list.filter(c => convStates[c.id]?.finished); break;
     }
 
     // ── filtros avançados do painel ──
@@ -3304,22 +3311,38 @@ export default function MultiatendimentoPage() {
     );
   };
 
-  // Os rótulos falam a mesma língua do ciclo do atendimento (aguardando →
-  // em atendimento → finalizado).
-  //
-  // "Aguardando" foi renomeado porque colidia: aqui significava "em
-  // atendimento, com mensagem não lida", enquanto o status `aguardando` do
-  // atendimento significa "ninguém pegou" -- a mesma palavra com sentidos
-  // opostos nas duas pontas do mesmo produto. O que cada chip FILTRA não mudou.
+  /*
+   * Quatro chips, um conceito cada (dono, 22/09/2026).
+   *
+   * Eram cinco, e três descreviam o MESMO estado -- conversa aberta -- em
+   * momentos diferentes: "Não iniciadas" (ninguém respondeu), "Mensagem nova"
+   * (respondida antes, chegou mensagem) e "Em aberto" (lida). Quem chegava na
+   * tela tinha que aprender a diferença entre os três para achar o que atender.
+   *
+   * Agora a pergunta é uma só: tem mensagem esperando ou não.
+   *
+   *   Todos        tudo, como já era quando nenhum chip estava aceso
+   *   Não lidas    tem mensagem do cliente sem leitura -- a fila de trabalho
+   *   Em aberto    lida, ainda não encerrada
+   *   Finalizadas  encerrada
+   *
+   * "Não lidas" é literal: uma conversa que o atendente abriu e não respondeu
+   * está LIDA, e aparece em "Em aberto". O que não se perde é o primeiro
+   * contato, que ganhou a etiqueta "1º contato" no card -- ele é caro demais
+   * para depender de um chip próprio, e a etiqueta o mostra em qualquer caixa.
+   *
+   * O chip "Agente" saiu: ele não é um estado da conversa, é quem está
+   * atendendo, e misturava dois eixos na mesma fileira. Continua no painel de
+   * filtros avançados, pela etiqueta Agente.
+   */
   const filters = [
-    { id: "not_started", icon: Inbox,         label: "Não iniciadas", count: visibleConvList.filter(c => !convStates[c.id]?.answered && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,                            color: "#EA580C", colorBg: "#FFF7ED", borderColor: "rgba(255, 94, 21, 0.52)" },
-    { id: "waiting",     icon: Clock,         label: "Mensagem nova", count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !convStates[c.id]?.read && isConvInstanceConnected(c)).length,  color: "var(--warning-fg)", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
-    { id: "pending",     icon: MessageCircle, label: "Em aberto",     count: visibleConvList.filter(c => !!convStates[c.id]?.answered && !convStates[c.id]?.finished && !!convStates[c.id]?.read && isConvInstanceConnected(c)).length, color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
-    { id: "agente",      icon: BotMessageSquare, label: "Agente",      count: visibleConvList.filter(c => c.tags.includes("Agente")).length,                                    color: "#6D28D9", colorBg: "#EDE9FE", borderColor: "rgba(109, 40, 217, 0.52)" },
-    { id: "done",        icon: CheckCircle2,  label: "Finalizadas",   count: visibleConvList.filter(c => convStates[c.id]?.finished).length,                                  color: "var(--accent-700)", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
+    { id: "",        icon: Inbox,         label: "Todos",       count: visibleConvList.length,                                                                                                        color: "var(--text-heading)", colorBg: "var(--neutral-50)", borderColor: "var(--border-strong)" },
+    { id: "unread",  icon: Clock,         label: "Não lidas",   count: visibleConvList.filter(c => !convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,       color: "var(--warning-fg)", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
+    { id: "pending", icon: MessageCircle, label: "Em aberto",   count: visibleConvList.filter(c => !!convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,      color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
+    { id: "done",    icon: CheckCircle2,  label: "Finalizadas", count: visibleConvList.filter(c => convStates[c.id]?.finished).length,                                                                 color: "var(--accent-700)", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
   const activeFilterMeta = filters.find(f => f.id === activeFilter);
-  const activeFilterTitle = activeFilterMeta?.label ?? "Todas as conversas";
+  const activeFilterTitle = activeFilterMeta?.label === "Todos" ? "Todas as conversas" : (activeFilterMeta?.label ?? "Todas as conversas");
   const activeFilterCount = activeFilterMeta?.count ?? visibleConvList.length;
 
   // ── grouped messages ────────────────────────────────────────────────
@@ -3425,7 +3448,15 @@ export default function MultiatendimentoPage() {
 
           <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
             {filters.map(f => (
-              <FilterChip key={f.id} Icon={f.icon} count={f.count} label={f.label} color={f.color} colorBg={f.colorBg} borderColor={f.borderColor} iconOnly={f.id === "done"} isActive={activeFilter === f.id} onClick={() => setActiveFilter(activeFilter === f.id ? "" : f.id)} />
+              /*
+               * Seleção única: clicar no chip aceso não apaga mais o filtro.
+               *
+               * Antes o clique alternava, e sair de um filtro caía num estado
+               * sem chip nenhum aceso -- a lista mostrava tudo e nada na tela
+               * dizia por quê. Com "Todos" visível, sair do filtro é clicar
+               * nele, que é o que qualquer pessoa tenta primeiro.
+               */
+              <FilterChip key={f.id || "todos"} Icon={f.icon} count={f.count} label={f.label} color={f.color} colorBg={f.colorBg} borderColor={f.borderColor} isActive={activeFilter === f.id} onClick={() => setActiveFilter(f.id)} />
             ))}
           </div>
         </div>
@@ -3537,10 +3568,28 @@ export default function MultiatendimentoPage() {
                       direita já mostra a lista inteira -- e lá elas são
                       clicáveis, o que aqui nunca foram.
 
-                      Sobram nesta linha os dois estados da CONVERSA, que não
-                      existem em lugar nenhum além dela: se o atendimento foi
-                      encerrado e se a linha que a recebeu está fora do ar. */}
+                      Sobram nesta linha os estados da CONVERSA, que não
+                      existem em lugar nenhum além dela: se ninguém da casa
+                      respondeu ainda, se o atendimento foi encerrado e se a
+                      linha que a recebeu está fora do ar. */}
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    {/*
+                      "1º contato": ninguém da empresa respondeu esta conversa
+                      NENHUMA vez (`answered`).
+
+                      Era o chip "Não iniciadas", que saiu quando os filtros
+                      passaram a perguntar só se há mensagem esperando. Virou
+                      etiqueta porque é uma característica da conversa, não uma
+                      caixa -- e assim aparece em qualquer filtro, inclusive
+                      depois de alguém abrir a conversa sem responder, que é
+                      justamente quando ela sairia do radar.
+
+                      Não aparece em conversa encerrada: lá o primeiro contato
+                      já virou história, e a etiqueta de Finalizada é a que
+                      importa. */}
+                    {!cState?.answered && !cState?.finished && (
+                      <span style={{ fontSize: 12, fontWeight: 600, background: "#FFF7ED", color: "#C2410C", padding: "2px 6px", borderRadius: 6 }}>1º contato</span>
+                    )}
                     {cState?.finished && <span style={{ fontSize: 12, fontWeight: 600, background: "var(--accent-50)", color: "var(--accent-800)", padding: "2px 6px", borderRadius: 6 }}>✓ Finalizada</span>}
                     {!isConvInstanceConnected(c) && <span style={{ fontSize: 12, fontWeight: 600, background: "var(--neutral-50)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: 6 }}>Desconectada</span>}
                   </div>
