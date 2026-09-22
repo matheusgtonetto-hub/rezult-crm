@@ -11,7 +11,16 @@ export interface Department {
   name: string;
   color: string;
   work_hours: string | null;
+  /** Nomes, para exibir. Espelho de `attendant_ids`. */
   attendants: string[];
+  /**
+   * Quem pertence ao departamento, por id de perfil.
+   *
+   * É este o vínculo que vale. O array de nomes ao lado é o que a tela mostra,
+   * e quebra quando alguém se renomeia em Meu Perfil -- já quebrou, num
+   * departamento que aponta para um nome que não existe mais.
+   */
+  attendant_ids: string[];
   created_at: string;
 }
 
@@ -31,7 +40,7 @@ interface Props {
 
 export default function DepartmentsManager({ accent = "#3B82F6", createOpen, setCreateOpen }: Props) {
   const { company } = useCompany();
-  const { teamMembers, memberEmails, memberColors } = useCRM();
+  const { teamMembers, memberEmails, memberColors, memberUserIds } = useCRM();
   const ownerId = company?.owner_id ?? null;
 
   const [depts, setDepts] = useState<Department[]>([]);
@@ -80,9 +89,19 @@ export default function DepartmentsManager({ accent = "#3B82F6", createOpen, set
   async function handleSave(form: { name: string; color: string; work_hours: string; attendants: string[] }) {
     if (!ownerId) return;
     if (!form.name.trim()) { toast.error("Dê um nome ao departamento."); return; }
+    /*
+     * Os dois campos andam juntos: `attendant_ids` é o vínculo, `attendants` é
+     * o que a tela lê hoje. Gravar só o id deixaria a lista em branco em todo
+     * lugar que ainda espera nomes; gravar só o nome é o defeito que estamos
+     * consertando.
+     *
+     * Um nome sem id no mapa (membro que saiu da empresa, por exemplo) segue
+     * no array de nomes e simplesmente não entra no de ids.
+     */
+    const ids = form.attendants.map(n => memberUserIds[n]).filter(Boolean);
     if (editing) {
       const { error } = await supabase.from("departments")
-        .update({ name: form.name.trim(), color: form.color, work_hours: form.work_hours || null, attendants: form.attendants })
+        .update({ name: form.name.trim(), color: form.color, work_hours: form.work_hours || null, attendants: form.attendants, attendant_ids: ids })
         .eq("id", editing.id);
       if (error) { toast.error("Erro ao salvar o departamento."); return; }
       toast.success("Departamento atualizado.");
@@ -90,7 +109,7 @@ export default function DepartmentsManager({ accent = "#3B82F6", createOpen, set
       const { error } = await supabase.from("departments").insert({
         owner_id: ownerId, company_id: company?.id ?? null,
         name: form.name.trim(), color: form.color, work_hours: form.work_hours || null,
-        attendants: form.attendants, position: depts.length,
+        attendants: form.attendants, attendant_ids: ids, position: depts.length,
       });
       if (error) { toast.error("Erro ao criar o departamento."); return; }
       toast.success("Departamento criado.");
@@ -160,6 +179,7 @@ export default function DepartmentsManager({ accent = "#3B82F6", createOpen, set
           editing={editing}
           schedules={schedules}
           teamMembers={teamMembers}
+          memberUserIds={memberUserIds}
           memberEmails={memberEmails}
           memberColors={memberColors}
           onClose={closeModal}
@@ -188,7 +208,7 @@ export default function DepartmentsManager({ accent = "#3B82F6", createOpen, set
 
 /* ── Modal de criação/edição ─────────────────────────────────────────── */
 function DepartmentModal({
-  accent, editing, schedules, teamMembers, memberEmails, memberColors, onClose, onSave,
+  accent, editing, schedules, teamMembers, memberEmails, memberColors, memberUserIds, onClose, onSave,
 }: {
   accent: string;
   editing: Department | null;
@@ -196,6 +216,7 @@ function DepartmentModal({
   teamMembers: string[];
   memberEmails: Record<string, string>;
   memberColors: Record<string, string>;
+  memberUserIds: Record<string, string>;
   onClose: () => void;
   onSave: (form: { name: string; color: string; work_hours: string; attendants: string[] }) => void;
 }) {
@@ -203,7 +224,20 @@ function DepartmentModal({
   const [name, setName] = useState(editing?.name ?? "");
   const [color, setColor] = useState(editing?.color ?? DEPT_COLORS[0]);
   const [workHours, setWorkHours] = useState(editing?.work_hours ?? "");
-  const [attendants, setAttendants] = useState<string[]>(editing?.attendants ?? []);
+  /*
+   * Quem aparece marcado vem do ID, e o nome é a reserva.
+   *
+   * Assim, se a pessoa se renomeou depois de ter sido escolhida, ela continua
+   * marcada -- e salvar de novo grava o nome NOVO, o que conserta o registro
+   * sozinho. Pelos nomes, ela apareceria desmarcada e sairia do departamento
+   * no primeiro save.
+   */
+  const [attendants, setAttendants] = useState<string[]>(() => {
+    const ids = editing?.attendant_ids ?? [];
+    const porId = teamMembers.filter(m => ids.includes(memberUserIds[m]));
+    const porNome = (editing?.attendants ?? []).filter(n => teamMembers.includes(n));
+    return [...new Set([...porId, ...porNome])];
+  });
   const [agentSearch, setAgentSearch] = useState("");
 
   const toggleAttendant = (m: string) =>

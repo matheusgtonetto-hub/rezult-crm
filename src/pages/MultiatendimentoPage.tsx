@@ -903,7 +903,7 @@ export default function MultiatendimentoPage() {
   // A cor vem junto do nome: é ela que pinta a etiqueta no card e o ponto do
   // seletor. Sem a cor, todo departamento vira a mesma etiqueta cinza e a
   // pessoa tem que LER cada uma para saber de quem é a conversa.
-  const [muDepts, setMuDepts]               = useState<{ id: string; name: string; color?: string | null; attendants?: string[] | null }[]>([]);
+  const [muDepts, setMuDepts]               = useState<{ id: string; name: string; color?: string | null; attendants?: string[] | null; attendant_ids?: string[] | null }[]>([]);
   // Departamento apagado (ou de outra empresa, depois de trocar de empresa):
   // volta para "todos". Só roda com a lista já carregada, senão o primeiro
   // render -- quando muDepts ainda está vazio -- apagaria a escolha salva.
@@ -925,11 +925,11 @@ export default function MultiatendimentoPage() {
         // Por empresa, e não por dono: quem tem duas empresas via as duas
         // listas somadas no seletor, com nomes repetidos e sem como
         // distinguir de qual era cada um.
-        supabase.from("departments").select("id, name, color, attendants").eq("company_id", company?.id ?? "").order("position", { ascending: true }),
+        supabase.from("departments").select("id, name, color, attendants, attendant_ids").eq("company_id", company?.id ?? "").order("position", { ascending: true }),
         supabase.from("work_schedules").select("id, name").eq("owner_id", oid).order("created_at", { ascending: true }),
         supabase.from("multiatendimento_settings").select("*").eq("owner_id", oid).maybeSingle(),
       ]);
-      if (d.data) setMuDepts(d.data as { id: string; name: string; color?: string | null; attendants?: string[] | null }[]);
+      if (d.data) setMuDepts(d.data as { id: string; name: string; color?: string | null; attendants?: string[] | null; attendant_ids?: string[] | null }[]);
       if (w.data) setMuSchedules(w.data as { id: string; name: string }[]);
       const st = s.data as Record<string, unknown> | null;
       if (st) {
@@ -3294,15 +3294,25 @@ export default function MultiatendimentoPage() {
   /**
    * Quem está no departamento da conversa aberta.
    *
-   * `departments.attendants` guarda NOMES, e o responsável também é gravado
-   * por nome -- então os dois casam direto. A comparação normaliza caixa e
-   * espaços: "Ana Paula" e "ana paula " são a mesma pessoa para quem digitou.
+   * Compara por ID de perfil. Pelo nome, quem se renomeasse em Meu Perfil
+   * sairia do departamento sem nada avisar -- e isso não é hipótese: o
+   * departamento "Marketing" guarda "Geomar", enquanto o membro hoje se chama
+   * "Geomar Junior".
+   *
+   * O nome continua como reserva, para os registros gravados antes de a coluna
+   * de ids existir e que ainda não foram salvos de novo. Normaliza caixa e
+   * espaços, porque nome digitado vem como vier.
    */
   const doDepartamentoDaConversa = (nome: string) => {
     const dept = muDepts.find(d => d.id === cs?.departmentId);
-    const lista = dept?.attendants ?? [];
+    if (!dept) return false;
+
+    const id = memberUserIds[nome];
+    const ids = dept.attendant_ids ?? [];
+    if (id && ids.length) return ids.includes(id);
+
     const alvo = nome.trim().toLowerCase();
-    return lista.some(n => String(n).trim().toLowerCase() === alvo);
+    return (dept.attendants ?? []).some(n => String(n).trim().toLowerCase() === alvo);
   };
 
   /**
