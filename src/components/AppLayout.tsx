@@ -155,10 +155,10 @@ export default function AppLayout() {
         abaixo. Para a linha atravessar de verdade, a barra tem que estar FORA
         do bloco que a lateral empurra -- por isso ela subiu um nível.
 
-        A marca e o botão de recolher moram nela agora, no canto que passou a
-        ser dela.
+        A marca e o botão de recolher seguem na LATERAL: o dono quis a faixa
+        atravessando a tela, mas com a assinatura na coluna da esquerda.
       */}
-      <BarraSuperior recolhida={barraRecolhida} aoAlternar={alternarBarra} />
+      <BarraSuperior />
       <AppSidebar recolhida={barraRecolhida} aoAlternar={alternarBarra} />
       {/*
         As barras SEPARADAS, com a linha atravessando a tela.

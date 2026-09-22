@@ -96,11 +96,14 @@ const ITEM_ABERTO = "bg-[color:var(--surface-hover)] text-[color:var(--text-head
  * linhas de menu.
  */
 /**
- * A régua que separa blocos da barra.
+ * A régua interna da barra.
  *
- * A margem lateral acompanha o estado: recolhida, 12px de cada lado sobre 48px
- * de barra deixariam 24px de linha -- um traço menor que o botão de 20px que
- * pousa sobre ela.
+ * Sobrou uma só: a que separa o menu de Configurações, no pé. A que ficava
+ * abaixo da marca saiu em 22/09/2026, quando o dono pediu ali só o ícone.
+ *
+ * Sem margem lateral própria -- quem afasta das bordas é o recuo do bloco que
+ * a contém, e somar os dois deixaria as réguas da barra com comprimentos
+ * diferentes.
  */
 const REGUA_BASE = "shrink-0 h-px bg-[color:var(--border-default)]";
 
@@ -271,13 +274,65 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
           transition: "width var(--dur-normal) var(--ease-out)",
         }}
       >
-        {/* A marca e a seta de recolher saíram daqui em 22/09/2026.
-            ────────────────────────────────────────────────────────────────────
-            A barra superior passou a atravessar a tela e esta lateral a começar
-            ABAIXO dela, então o canto superior esquerdo deixou de pertencer a
-            esta barra: o logo mora lá, com o botão que abre e fecha esta.
+        {/* ── A marca ─────────────────────────────────────────────────────────
+            Voltou para cá no mesmo dia em que saiu: o dono quer a marca na
+            coluna da esquerda, e não na faixa do topo.
 
-            O que sobrou aqui é só navegação, do topo ao pé. */}
+            Sem borda embaixo. A linha que separa esta barra do que está acima é
+            a régua da barra superior, que já passa rente ao topo daqui --
+            somar outra a 48px dela desenharia dois traços paralelos.
+
+            A seta de recolher fica ABAIXO da marca, sobre uma régua própria --
+            o arranjo que o dono pediu em 21/09 e confirmou em 22/09. Ao lado do
+            logo ela empurraria a marca para fora do centro nos 51px da barra
+            recolhida; embaixo, o lugar é o mesmo nos dois estados. */}
+        <div
+          className={`flex shrink-0 items-center ${recolhida ? "justify-center" : "px-4"}`}
+          style={{ height: "var(--topbar-h)" }}
+        >
+          <span className="flex items-center gap-2.5 min-w-0">
+            {/* O MESMO arquivo do favicon, servido de public/: são a mesma
+                marca, e duas cópias significam trocar a arte em dois lugares. */}
+            <img
+              src="/favicon.png?v=4"
+              alt="Rezult"
+              className="shrink-0 block object-cover"
+              style={{ width: 30, height: 30, borderRadius: 8 }}
+            />
+            {!recolhida && (
+              <span className="text-sm font-semibold text-[color:var(--text-heading)] truncate whitespace-nowrap">
+                Rezult CRM
+              </span>
+            )}
+          </span>
+        </div>
+
+        {/*
+          A seta de recolher, abaixo da marca. SEM régua (dono, 22/09/2026).
+
+          A linha que ficava aqui foi tirada e devolvida algumas vezes ao longo
+          da semana; agora fica só o botão. A separação entre a assinatura e a
+          navegação passa a ser o espaço, e não um traço -- e a barra já tem
+          duas linhas por perto, a da superior rente ao topo e a da direita.
+        */}
+        <div
+          className="shrink-0 flex items-center justify-center"
+          style={{ height: 20, marginBottom: 12 }}
+        >
+          {dica(
+            recolhida ? "Expandir menu" : "Recolher menu",
+            <button
+              type="button"
+              onClick={aoAlternar}
+              aria-label={recolhida ? "Expandir menu" : "Recolher menu"}
+              aria-expanded={!recolhida}
+              className="flex items-center justify-center rounded-full border border-[color:var(--border-default)] bg-[color:var(--surface-card)] text-[color:var(--icon-default)] transition-colors hover:border-[color:var(--border-strong)] hover:text-[color:var(--text-heading)] outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]"
+              style={{ width: 20, height: 20 }}
+            >
+              {recolhida ? <ChevronsRight size={12} /> : <ChevronsLeft size={12} />}
+            </button>,
+          )}
+        </div>
 
         {/* ── Menu: as telas de trabalho. A única parte que rola. ──────────────
             Os itens ficam no TOPO, logo abaixo da marca. Centrá-los na altura
@@ -288,7 +343,7 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
             barra, os 12px antigos deixavam 24px para o item, e o retângulo do
             item ativo virava uma faixa vertical mais alta que larga. Com 4px o
             item fica 40x40, quadrado, do tamanho da própria linha. */}
-        <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-3 pb-3 ${recolhida ? "px-1" : "px-3"}`}>
+        <div className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-3 ${recolhida ? "px-1" : "px-3"}`}>
           {/* Tinta --text-muted, e não o --text-subtle do material, pela regra 4
               da seção 3.1 (3,44:1 abaixo de 16px). */}
           {!recolhida && <span className={OVERLINE}>Menu</span>}

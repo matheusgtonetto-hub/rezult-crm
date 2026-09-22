@@ -94,7 +94,7 @@ export function FundoDoCrmAoVivo() {
         {/* A mesma ordem do app: barra superior por cima de tudo, lateral
             embaixo dela. Réplica decorativa, então a superior vai sem o botão
             de recolher -- aqui ele não teria o que fazer. */}
-        <BarraSuperior recolhida={barraRecolhida} />
+        <BarraSuperior />
         <div className="flex-1 min-h-0 flex">
         <AppSidebar recolhida={barraRecolhida} aoAlternar={() => {}} />
         {/* A mesma pilha do `AppLayout`: barra superior no topo, conteúdo
