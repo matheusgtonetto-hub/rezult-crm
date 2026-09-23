@@ -109,7 +109,7 @@ function ValorDaBarra({
       textAnchor="middle"
       fontSize={10}
       fontWeight={600}
-      fill={cabeDentro ? "#2D2F33" : "hsl(var(--muted-foreground))"}
+      fill={cabeDentro ? "var(--text-on-accent)" : "hsl(var(--muted-foreground))"}
     >
       {String(value ?? "")}
     </text>

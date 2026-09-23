@@ -200,7 +200,7 @@ export function CreateDealDialog({ lead, contact, onClose }: Props) {
         </div>
         <DialogFooter className="gap-2 mt-4">
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={confirmDeal} disabled={creating || !dealPipeline || !dealStage} className="bg-[color:var(--accent-700)] hover:bg-[color:var(--accent-700)]/90">
+          <Button onClick={confirmDeal} disabled={creating || !dealPipeline || !dealStage} className="bg-[color:var(--surface-accent-strong)] hover:bg-[color:var(--surface-accent-strong)]/90">
             {creating ? "Criando…" : "Criar negócio"}
           </Button>
         </DialogFooter>

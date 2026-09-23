@@ -63,9 +63,48 @@ claro e virava escuro quando a resposta chegava.
 `color-scheme: dark` entra junto: barra de rolagem, autofill e controles nativos
 seguem o tema sem CSS adicional.
 
-## O que falta
+## A passada tela a tela (23/09/2026)
 
-A passada visual tela a tela. O que foi corrigido aqui é o que dava para
-encontrar por medida (classe crua, token que se anula, cálculo com o branco
-cravado). Sobra o ajuste de olho: contraste de um cartão específico, uma sombra
-que some no escuro, um ícone claro demais.
+Feita no navegador, nas duas direções (escuro e claro), com um medidor rodando
+dentro da página em vez de julgamento a olho: para cada elemento visível, o
+contraste real entre a tinta e a superfície que está de fato atrás dela, pela
+fórmula da WCAG. Screenshot não serve para isto, e foi justamente o medidor que
+mostrou que a leitura visual das capturas não era confiável.
+
+O que ele achou, e que estava mesmo quebrado:
+
+| Onde | Medida | Causa |
+|---|---|---|
+| Linha da conversa selecionada, Multiatendimento | 1,29:1 | `--accent-50` é superfície GRANDE, e continuava clara |
+| Etiqueta "Administrador", Usuários | 1,54:1 | fundo `#FFF8E7` cravado com tinta de token |
+| Botão "Automação" do lead | 1,94:1 | roxo `#6B21A8` cravado |
+| Nome do remetente no chat | 2,22:1 | paleta escolhida para fundo claro |
+| Etiqueta do negócio (#1080) | 2,38:1 | `--accent-800` como tinta |
+| Telefone do remetente | 3,05:1 | mesma paleta |
+| Botão "Avançar" | 3,74:1 | `--accent-700` como tinta |
+
+A correção de raiz foi separar os DOIS papéis do verde. O `--accent-700` era
+fundo de botão em 53 lugares e tinta de texto em 103; no claro o mesmo valor
+serve aos dois, no escuro eles querem lados opostos. Os fundos saíram para
+`--surface-accent-strong` e `--border-accent`, que não invertem. O que sobrou em
+700/800 é só tinta, e os tons 50/100/200 são só superfície (medido: zero usos
+como tinta) -- então os dois grupos passaram a inverter, cada um para o seu
+lado. Foi isto que resolveu quatro das sete linhas da tabela de uma vez.
+
+O resto virou token: as dez cores de nome do chat, o roxo da IA, a borda e o
+fundo de aviso/erro/informação, a linha "Negócios" do gráfico (charcoal cravado,
+invisível no escuro; branca agora, a pedido do dono), o canvas da tela de
+negócio e a tela de carregamento do app (folha branca em tela cheia no escuro).
+
+### O que ficou de propósito
+
+Os pastéis do editor de automações (as etiquetas "EM BREVE" e "Atenção", os
+ladrilhos de ícone, as notas adesivas) trazem a própria tinta cravada do mesmo
+matiz. São pares coerentes, legíveis nos dois temas: ali o conjunto é da cor, e
+não do tema.
+
+### Dois defeitos antigos que apareceram e não são do escuro
+
+- Os textos de dica "+ Empresa", "+ E-mail", "+ Documento" usam `--neutral-400`:
+  3,55:1 no escuro e 2,90:1 no claro. Já estava assim.
+- O botão "Perdido" é branco sobre `--danger-400`: 3,18:1 nos dois temas.

@@ -481,7 +481,7 @@ export function ExecutarAutomacaoWizard({
                               {marcadoAqui && <Check size={11} color="#fff" />}
                             </div>
                           )}
-                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0" style={{ background: "var(--accent-700)" }}>
+                          <div className="w-7 h-7 rounded-full flex items-center justify-center text-[12px] font-bold text-white shrink-0" style={{ background: "var(--surface-accent-strong)" }}>
                             {c.nome.trim().charAt(0).toUpperCase() || "?"}
                           </div>
 

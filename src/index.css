@@ -58,8 +58,18 @@
     --accent-400: #01D8A4;   /* A COR DA MARCA */
     --accent-500: #00BA88;   /* press */
     --accent-600: #00A879;   /* série 3 de gráfico, ícone sobre claro */
-    --accent-700: #008762;   /* texto verde sobre cartão branco, 4,52:1 */
-    --accent-800: #00654A;   /* texto verde sobre canvas, 6,62:1 */
+    --accent-700: #008762;   /* TINTA verde sobre cartão, 4,52:1 */
+    --accent-800: #00654A;   /* TINTA verde sobre canvas, 6,62:1 */
+
+    /* ── O verde como SUPERFÍCIE, separado do verde como tinta ──
+       O 700 fazia os dois trabalhos: fundo de botão verde em 53 lugares e
+       tinta de texto em 103. No claro o mesmo valor serve aos dois; no escuro
+       eles querem lados opostos -- a tinta precisa clarear para ser lida sobre
+       o cartão escuro, e o fundo precisa continuar verde fechado para o branco
+       em cima dele continuar legível. Enquanto foi um token só, inverter
+       quebrava metade dos usos, e não inverter quebrava a outra metade. */
+    --surface-accent-strong: #008762;  /* fundo verde sólido, tinta branca em cima */
+    --border-accent:         #008762;  /* borda/realce verde */
 
     /* ── Neutros. Charcoal faz o trabalho do preto; #000 não aparece ── */
     --neutral-0:   #FFFFFF;
@@ -83,9 +93,22 @@
     --danger-fg:  #B02424;   /* texto de erro: 6,72:1 sobre branco */
     --danger-bg:  #FFECEC;
     --warning-400: #F7B32B;
+    /* Borda dos avisos e dos erros, e o par tinta/fundo da informação. Sem
+       estes, cada tela cravava o seu (#FDE68A, #FCA5A5, #EFF6FF) ao lado de uma
+       tinta que é token -- e no escuro a tinta virava clara enquanto o fundo
+       cravado continuava claro: 1,54:1 na etiqueta "Administrador". */
+    --warning-border: #FDE68A;
+    --danger-border:  #FCA5A5;
+    --info-fg:        #2563EB;
+    --info-bg:        #EFF6FF;
     --warning-fg:  #8A5B00;
     --warning-bg:  #FFF4DA;
     --muted-dead:  #A8BDB4;  /* cancelado, expirado: "morto", não "errado" */
+    /* Roxo da automação e da IA, quando ele é TINTA sobre a superfície (botão
+       "Automação" do lead, ícone do agente no chat). O #8B5CF6 dos ícones de
+       bloco no canvas é outra coisa: lá ele é marca de categoria sobre um
+       cartão, e funciona nos dois temas. */
+    --roxo-ia: #6B21A8;
 
     /* ── 2. Papéis semânticos. É ISTO que o código deve pedir ── */
     --bg-app:           var(--neutral-50);
@@ -115,6 +138,19 @@
     --ring-focus-color: rgba(1, 216, 164, .45);
     --icon-default:   var(--neutral-600);
     --icon-strong:    var(--neutral-900);
+
+    /* ── Nome do remetente no chat (ver src/lib/nomeColorido.ts) ──
+       Frios para quem escreve de fora, quentes para quem atende. Medidos
+       sobre a área clara do chat. */
+    --nome-cliente-1: #1D4ED8;   /* azul */
+    --nome-cliente-2: #6D28D9;   /* roxo */
+    --nome-cliente-3: #0369A1;   /* azul petróleo */
+    --nome-cliente-4: #0F766E;   /* teal */
+    --nome-cliente-5: #4338CA;   /* índigo */
+    --nome-atendente-2: #B45309; /* âmbar escuro */
+    --nome-atendente-3: #BE185D; /* rosa escuro */
+    --nome-atendente-4: #C2410C; /* laranja queimado */
+    --nome-atendente-5: #9F1239; /* vinho */
 
     /* ── Séries de gráfico, em ordem fixa. Vermelho nunca é categoria ── */
     --chart-1: var(--accent-400);
@@ -283,6 +319,24 @@
     --neutral-900: #F4F6F7;   /* título no escuro */
     --neutral-950: #0F1113;   /* canvas no escuro */
 
+    /* ── O verde, nos dois papéis ──
+       Os tons 50/100/200 são SUPERFÍCIE em 100% dos usos (medido: zero usos
+       como tinta), e os 700/800 são TINTA em tudo que sobrou depois que
+       --surface-accent-strong levou os fundos embora. Por isso os dois grupos
+       invertem, cada um para o seu lado, sem que nenhum uso fique ao contrário.
+
+       Era o defeito mais visível do tema: a linha da conversa selecionada no
+       Multiatendimento é --accent-50, e com ela clara o texto do sistema em
+       cima dava 1,29:1. */
+    --accent-50:  #10312A;
+    --accent-100: #143A30;
+    --accent-200: #1B5040;
+    --accent-700: #5FE7BE;   /* tinta verde sobre cartão escuro, 8,6:1 */
+    --accent-800: #8BF0D3;   /* tinta verde sobre canvas escuro, 11,4:1 */
+    /* A superfície verde sólida NÃO inverte: ela é a mesma nos dois temas, e o
+       branco em cima dela continua a 4,5:1. */
+    --border-accent: #00BA88;
+
     --bg-app: var(--neutral-950);
     --text-on-accent: #0C231D;
     /* A superfície "inversa" (tooltip, botão escuro do KPI) precisa continuar
@@ -293,12 +347,29 @@
     --text-inverse:    #16181B;
     /* Tinta de erro e de aviso: no claro são tons fechados, feitos para fundo
        branco. Sobre o --danger-bg escuro dariam 1,6:1. */
+    --roxo-ia: #C6A0F0;
     --danger-fg:  #FF9C9C;
     --warning-fg: #F2C55C;
+    --warning-border: #5A4A1E;
+    --danger-border:  #5C2B2B;
+    --info-fg:        #7FA7FF;
+    --info-bg:        #16233A;
     /* No escuro o verde de texto sobe para o tom 300: o 700 daria 3,8:1 ali. */
     --text-link: var(--accent-300);
     --danger-bg: #2A1618;
     --warning-bg: #2A2116;
+
+    /* Os mesmos dez slots de nome, agora medidos sobre a área ESCURA do chat.
+       Mesmo matiz, mesma divisão frio/quente: o que muda é a claridade. */
+    --nome-cliente-1: #7FA7FF;
+    --nome-cliente-2: #B79CFF;
+    --nome-cliente-3: #6FC3F0;
+    --nome-cliente-4: #5FD9CE;
+    --nome-cliente-5: #A5B4FC;
+    --nome-atendente-2: #F5C168;
+    --nome-atendente-3: #F78FB3;
+    --nome-atendente-4: #FDA47A;
+    --nome-atendente-5: #EC9AA6;
 
     --shadow-elevated-1: 0 1px 2px rgba(0,0,0,.5), 0 4px 16px rgba(0,0,0,.42);
     --shadow-elevated-2: 0 2px 4px rgba(0,0,0,.5), 0 10px 28px rgba(0,0,0,.5);

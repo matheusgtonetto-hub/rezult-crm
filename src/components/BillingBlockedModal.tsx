@@ -115,7 +115,7 @@ export function BillingBlockedModal({ onClose, motivo = "cobranca" }: Props) {
               fontSize: 13,
               fontWeight: 600,
               color: "#fff",
-              background: "var(--accent-700)",
+              background: "var(--surface-accent-strong)",
               border: "none",
               cursor: "pointer",
             }}

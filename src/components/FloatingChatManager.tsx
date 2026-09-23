@@ -51,7 +51,7 @@ export function FloatingChatManager() {
               >
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-semibold text-white relative shrink-0"
-                  style={{ background: "var(--accent-700)" }}
+                  style={{ background: "var(--surface-accent-strong)" }}
                 >
                   {getInitials(lead.name)}
                   {w.unread && (

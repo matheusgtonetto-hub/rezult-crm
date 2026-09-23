@@ -2437,7 +2437,7 @@ export default function AutomacoesPage() {
                 {filteredAutomations.map(auto => (
                   <div key={auto.id} style={{ background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column", minHeight: 200 }}>
                     {/* Mini-mapa do fluxo */}
-                    <div style={{ height: 120, background: "#F8FAFC", borderBottom: "1px solid var(--border-default)", position: "relative", overflow: "hidden" }}>
+                    <div style={{ height: 120, background: "var(--neutral-25)", borderBottom: "1px solid var(--border-default)", position: "relative", overflow: "hidden" }}>
                       <FlowPreview flow={auto.flow} />
                       {auto.active && (
                         <div style={{ position: "absolute", top: 8, right: 8, background: "var(--accent-50)", color: "var(--accent-800)", fontSize: 12, fontWeight: 600, padding: "2px 6px", borderRadius: 6 }}>
@@ -2928,7 +2928,7 @@ export default function AutomacoesPage() {
                   >
                     <button
                       onClick={e => { e.stopPropagation(); disconnectNode(selectedConn.nodeId, selectedConn.type, selectedConn.fromId); }}
-                      style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--surface-card)", border: "1px solid #FCA5A5", boxShadow: "0 2px 8px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                      style={{ width: 32, height: 32, borderRadius: "50%", background: "var(--surface-card)", border: "1px solid var(--danger-border)", boxShadow: "0 2px 8px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
                       title="Desconectar"
                     >
                       <Trash2 size={13} color="var(--danger-fg)" />
@@ -4680,7 +4680,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                 const actData = catData?.actions.find(a => a.id === item.actionId);
                 const AIcon = actData?.icon ?? Zap;
                 return (
-                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 6, fontSize: 12, color: "var(--text-heading)" }}>
+                  <div key={item.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 8px", background: "var(--warning-bg)", border: "0.5px solid var(--warning-border)", borderRadius: 6, fontSize: 12, color: "var(--text-heading)" }}>
                     <AIcon size={12} color="#F97316" />
                     <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</span>
                     {removeActionItem && (
@@ -4781,7 +4781,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                 const CondIcon = condData?.icon ?? Filter;
                 return (
                   <div key={item.id}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: 5, padding: "5px 8px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 6, fontSize: 12, color: "var(--text-heading)" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 5, padding: "5px 8px", background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", border: "0.5px solid color-mix(in srgb, var(--roxo-ia) 35%, transparent)", borderRadius: 6, fontSize: 12, color: "var(--text-heading)" }}>
                       <CondIcon size={10} color="#8B5CF6" style={{ flexShrink: 0, marginTop: 2 }} />
                       <div style={{ flex: 1, overflow: "hidden" }}>
                         <div style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? item.label}</div>
@@ -5412,7 +5412,7 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
             <ArrowLeft size={16} /> Condições
           </button>
           <div style={{ display: "flex", gap: 2 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
+            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "var(--danger-bg)" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -5914,7 +5914,7 @@ function IaPanel({ node, onClose, onDelete, onDuplicate, updateAction, removeAct
             <ArrowLeft size={16} style={{ flexShrink: 0 }} /> <span>Inteligência Artificial</span>
           </button>
           <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
+            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "var(--danger-bg)" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
                 <Icon size={13} />
@@ -6030,7 +6030,7 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
             <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{currentItem ? currentItem.label : "Espera"}</span>
           </button>
           <div style={{ display: "flex", gap: 2, flexShrink: 0 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
+            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "var(--danger-bg)" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -6343,7 +6343,7 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
             <ArrowLeft size={16} /> Randomizador
           </button>
           <div style={{ display: "flex", gap: 2 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
+            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "var(--danger-bg)" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -7001,7 +7001,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
             <ArrowLeft size={16} /> API
           </button>
           <div style={{ display: "flex", gap: 2 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
+            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "var(--danger-bg)" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)} onMouseLeave={e => (e.currentTarget.style.background = "transparent")}><Icon size={13} /></button>
             ))}
@@ -7406,7 +7406,7 @@ function CamposPanel({ node, onClose, onDelete, onDuplicate, addFieldOp, removeF
           <ArrowLeft size={16} /> {title}
         </button>
         <div style={{ display: "flex", gap: 2 }}>
-          {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
+          {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "var(--danger-bg)" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
             <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
               onMouseEnter={e => (e.currentTarget.style.background = hover)}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -8268,7 +8268,7 @@ function MetaEventConfigForm({ item, updateActionItem }: {
       {grp(<>
         {lbl("Pixel do Meta Ads")}
         {pixels.length === 0 ? (
-          <div style={{ fontSize: 12, color: "var(--danger-fg)", padding: "8px 10px", border: "1px solid #FCA5A5", borderRadius: 6, background: "var(--danger-bg)" }}>
+          <div style={{ fontSize: 12, color: "var(--danger-fg)", padding: "8px 10px", border: "1px solid var(--danger-border)", borderRadius: 6, background: "var(--danger-bg)" }}>
             Nenhum pixel cadastrado. Vá em <strong>Configurações → Chaves de API</strong> para adicionar.
           </div>
         ) : (
@@ -8441,7 +8441,7 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
             <ArrowLeft size={16} /> Ações
           </button>
           <div style={{ display: "flex", gap: 2 }}>
-            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
+            {([{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "var(--danger-bg)" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }] as const).map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
@@ -8838,7 +8838,7 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
             <ArrowLeft size={16} /> Mensagens
           </button>
           <div style={{ display: "flex", gap: 2 }}>
-            {[{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "#FEE2E2" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }, { Icon: Download, action: () => {}, color: "var(--text-muted)", hover: "var(--neutral-50)" }].map(({ Icon, action, color, hover }, i) => (
+            {[{ Icon: Trash2, action: onDelete, color: "var(--danger-fg)", hover: "var(--danger-bg)" }, { Icon: Copy, action: onDuplicate, color: "var(--text-muted)", hover: "var(--neutral-50)" }, { Icon: Download, action: () => {}, color: "var(--text-muted)", hover: "var(--neutral-50)" }].map(({ Icon, action, color, hover }, i) => (
               <button key={i} onClick={action} style={{ width: 28, height: 28, borderRadius: 6, background: "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color }}
                 onMouseEnter={e => (e.currentTarget.style.background = hover)}
                 onMouseLeave={e => (e.currentTarget.style.background = "transparent")}

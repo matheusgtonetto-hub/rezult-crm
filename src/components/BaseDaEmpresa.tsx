@@ -185,7 +185,7 @@ export function BaseDaEmpresa({ companyId, userId }: { companyId?: string; userI
           {!carregando && (
             <div className="flex items-center gap-3 mt-2">
               <div className="h-1.5 w-40 rounded-full bg-[color:var(--neutral-100)] overflow-hidden" aria-hidden>
-                <div className="h-full bg-[color:var(--accent-700)] transition-[width] duration-300" style={{ width: `${(preenchidas / total) * 100}%` }} />
+                <div className="h-full bg-[color:var(--surface-accent-strong)] transition-[width] duration-300" style={{ width: `${(preenchidas / total) * 100}%` }} />
               </div>
               <span className="text-[12px] font-semibold text-[color:var(--text-body)] tabular-nums">
                 {preenchidas} de {total} respostas · {documentos.length} arquivo{documentos.length === 1 ? "" : "s"}

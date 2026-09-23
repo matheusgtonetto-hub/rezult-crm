@@ -18,24 +18,31 @@
 // mantém variedade suficiente para diferenciar pessoas entre si num grupo ou
 // num time.
 //
-// Tons escolhidos para contraste sobre fundo claro: o nome fica acima da
-// bolha, na área clara. Os frios ficam com quem escreve de fora (cliente) e os
-// quentes com quem atende, o que dá uma leitura de lado mesmo antes de ler o
-// nome.
+// Os frios ficam com quem escreve de fora (cliente) e os quentes com quem
+// atende, o que dá uma leitura de lado mesmo antes de ler o nome.
+//
+// ─── Por que são tokens, e não hex ──────────────────────────────────────────
+//
+// Os tons foram escolhidos para contraste sobre fundo CLARO, porque o nome fica
+// acima da bolha, na área clara. No tema escuro essa área é escura, e os mesmos
+// tons davam 2,22:1 (o roxo) e 3,05:1 (o laranja) -- medido na tela em
+// 23/09/2026. Cada slot virou um token com valor próprio em cada tema, e o
+// `.dark` no index.css troca os dez de uma vez. A função continua pura: ela
+// escolhe o SLOT, e o CSS resolve a cor do tema em vigor.
 const CORES_CLIENTE = [
-  "#1D4ED8", // azul
-  "#6D28D9", // roxo
-  "#0369A1", // azul petróleo
-  "#0F766E", // teal
-  "#4338CA", // índigo
+  "var(--nome-cliente-1)", // azul
+  "var(--nome-cliente-2)", // roxo
+  "var(--nome-cliente-3)", // azul petróleo
+  "var(--nome-cliente-4)", // teal
+  "var(--nome-cliente-5)", // índigo
 ];
 
 const CORES_ATENDENTE = [
-  "var(--accent-800)", // verde da marca. O 700 daria 4,33:1 sobre o fundo do chat (#FAFAFA); o 800 dá 6,3:1
-  "#B45309", // âmbar escuro
-  "#BE185D", // rosa escuro
-  "#C2410C", // laranja queimado
-  "#9F1239", // vinho
+  "var(--accent-800)",       // verde da marca, que já inverte com o tema
+  "var(--nome-atendente-2)", // âmbar
+  "var(--nome-atendente-3)", // rosa
+  "var(--nome-atendente-4)", // laranja
+  "var(--nome-atendente-5)", // vinho
 ];
 
 // djb2: barato, determinístico e espalha bem nomes curtos e parecidos

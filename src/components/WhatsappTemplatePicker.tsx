@@ -207,7 +207,7 @@ export function WhatsappTemplatePicker({
         disabled={faltaPreencher || enviando}
         style={{
           display: "inline-flex", alignItems: "center", gap: 6,
-          background: faltaPreencher || enviando ? "var(--neutral-200)" : "var(--accent-700)",
+          background: faltaPreencher || enviando ? "var(--neutral-200)" : "var(--surface-accent-strong)",
           color: faltaPreencher || enviando ? "var(--text-muted)" : "#FFF",
           border: "none", borderRadius: 8, padding: "7px 14px",
           fontSize: 13, fontWeight: 600, cursor: faltaPreencher || enviando ? "default" : "pointer",

@@ -1524,7 +1524,7 @@ export default function PipelinePage() {
                                                         ))}
                                                         <Button
                                                           size="sm"
-                                                          className="w-full bg-[color:var(--accent-700)] hover:bg-[color:var(--accent-700)]/90 h-7 text-xs mt-1"
+                                                          className="w-full bg-[color:var(--surface-accent-strong)] hover:bg-[color:var(--surface-accent-strong)]/90 h-7 text-xs mt-1"
                                                           onClick={e => {
                                                             e.stopPropagation();
                                                             openChat(leadId);

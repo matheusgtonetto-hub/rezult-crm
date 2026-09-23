@@ -330,7 +330,7 @@ function MuInlineField({ label, value, onSave, type = "text", options }: {
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
-            style={{ width: "100%", border: "1px solid var(--accent-700)", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "var(--surface-card)", color: "var(--text-heading)" }}
+            style={{ width: "100%", border: "1px solid var(--border-accent)", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "var(--surface-card)", color: "var(--text-heading)" }}
           >
             {options.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
@@ -342,7 +342,7 @@ function MuInlineField({ label, value, onSave, type = "text", options }: {
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
-            style={{ width: "100%", border: "1px solid var(--accent-700)", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none" }}
+            style={{ width: "100%", border: "1px solid var(--border-accent)", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none" }}
           />
         )
       ) : (
@@ -486,7 +486,7 @@ function ChatHeaderBtn({ icon: Icon, label, onClick }: { icon: LucideIcon; label
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 100, border: `1px solid ${hover ? "var(--accent-700)" : "var(--border-default)"}`, background: "transparent", color: hover ? "var(--accent-700)" : "var(--text-heading)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
+      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 100, border: `1px solid ${hover ? "var(--border-accent)" : "var(--border-default)"}`, background: "transparent", color: hover ? "var(--accent-700)" : "var(--text-heading)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
     >
       <Icon size={12} /> {label}
     </button>
@@ -3559,7 +3559,7 @@ export default function MultiatendimentoPage() {
               const on = selected.includes(o.value);
               return (
                 <button key={o.value} onClick={() => toggleInArray(setter, o.value)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: "7px 8px", borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
-                  <div style={{ width: 16, height: 16, borderRadius: 6, border: "2px solid " + (on ? "var(--accent-700)" : "var(--border-strong)"), background: on ? "var(--accent-700)" : "var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
+                  <div style={{ width: 16, height: 16, borderRadius: 6, border: "2px solid " + (on ? "var(--border-accent)" : "var(--border-strong)"), background: on ? "var(--surface-accent-strong)" : "var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
                   {o.color && <span style={{ width: 8, height: 8, borderRadius: "50%", background: o.color, flexShrink: 0 }} />}
                   <span style={{ fontSize: 13, color: "var(--text-body)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.label}</span>
                 </button>
@@ -3621,9 +3621,9 @@ export default function MultiatendimentoPage() {
 
   const filters = [
     { id: "",        icon: Inbox,         label: "Todos",       count: convsDoDepartamento.filter(c => !convStates[c.id]?.finished).length,                                                                                                        color: "var(--text-heading)", colorBg: "var(--neutral-50)", borderColor: "var(--border-strong)" },
-    { id: "unread",  icon: Clock,         label: "Não lidas",   count: convsDoDepartamento.filter(c => !convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,       color: "var(--warning-fg)", colorBg: "#FFFBEB", borderColor: "rgba(246, 176, 54, 0.52)" },
-    { id: "pending", icon: MessageCircle, label: "Aguardando",  count: convsDoDepartamento.filter(c => !!convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,      color: "#2563EB", colorBg: "#EFF6FF", borderColor: "rgba(65, 121, 219, 0.52)" },
-    { id: "done",    icon: CheckCircle2,  label: "Finalizadas", count: convsDoDepartamento.filter(c => convStates[c.id]?.finished).length,                                                                 color: "var(--accent-700)", colorBg: "#EAFBF4", borderColor: "rgba(34, 197, 94, 0.6)" },
+    { id: "unread",  icon: Clock,         label: "Não lidas",   count: convsDoDepartamento.filter(c => !convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,       color: "var(--warning-fg)", colorBg: "var(--warning-bg)", borderColor: "rgba(246, 176, 54, 0.52)" },
+    { id: "pending", icon: MessageCircle, label: "Aguardando",  count: convsDoDepartamento.filter(c => !!convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,      color: "var(--info-fg)", colorBg: "var(--info-bg)", borderColor: "rgba(65, 121, 219, 0.52)" },
+    { id: "done",    icon: CheckCircle2,  label: "Finalizadas", count: convsDoDepartamento.filter(c => convStates[c.id]?.finished).length,                                                                 color: "var(--accent-700)", colorBg: "var(--accent-50)", borderColor: "rgba(34, 197, 94, 0.6)" },
   ];
   const activeFilterMeta = filters.find(f => f.id === activeFilter);
   /*
@@ -3671,7 +3671,7 @@ export default function MultiatendimentoPage() {
             <button
               onClick={() => setNewConvOpen(true)}
               title="Nova conversa"
-              style={{ background: "var(--accent-700)", border: "none", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+              style={{ background: "var(--surface-accent-strong)", border: "none", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
             >
               <UserPlus size={14} color="#FFF" />
             </button>
@@ -3701,7 +3701,7 @@ export default function MultiatendimentoPage() {
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <button
                 onClick={() => setFilterPanelOpen(true)}
-                style={{ display: "flex", alignItems: "center", gap: 5, background: activeAdvCount ? "var(--accent-50)" : "transparent", border: "1px solid " + (activeAdvCount ? "var(--accent-700)" : "var(--border-default)"), borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 600, color: activeAdvCount ? "var(--accent-800)" : "var(--text-muted)", cursor: "pointer" }}
+                style={{ display: "flex", alignItems: "center", gap: 5, background: activeAdvCount ? "var(--accent-50)" : "transparent", border: "1px solid " + (activeAdvCount ? "var(--border-accent)" : "var(--border-default)"), borderRadius: 8, padding: "5px 10px", fontSize: 12, fontWeight: 600, color: activeAdvCount ? "var(--accent-800)" : "var(--text-muted)", cursor: "pointer" }}
               >
                 <Filter size={13} /> Filtros
                 {activeAdvCount > 0 && <span style={{ background: "var(--surface-accent)", color: "var(--text-on-accent)", borderRadius: 999, fontSize: 12, fontWeight: 700, padding: "0 5px", minWidth: 16, textAlign: "center" }}>{activeAdvCount}</span>}
@@ -3827,7 +3827,7 @@ export default function MultiatendimentoPage() {
         {selectionMode && (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 16px", background: "var(--neutral-50)", borderBottom: "1px solid var(--border-default)", flexShrink: 0 }}>
             <button onClick={toggleSelectAll} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "var(--accent-800)" }}>
-              <div style={{ width: 16, height: 16, borderRadius: 6, border: "2px solid " + (allVisibleSelected ? "var(--accent-700)" : "var(--border-strong)"), background: allVisibleSelected ? "var(--accent-700)" : "var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <div style={{ width: 16, height: 16, borderRadius: 6, border: "2px solid " + (allVisibleSelected ? "var(--border-accent)" : "var(--border-strong)"), background: allVisibleSelected ? "var(--surface-accent-strong)" : "var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 {allVisibleSelected && <Check size={11} color="#FFF" />}
               </div>
               {allVisibleSelected ? "Desmarcar todas" : "Selecionar todas"}
@@ -3904,12 +3904,12 @@ export default function MultiatendimentoPage() {
               <div
                 key={c.id}
                 onClick={() => { if (selectionMode) { toggleConvSelected(c.id); return; } setActiveId(c.id); updateCs(c.id, { read: true }); }}
-                style={{ padding: "12px 16px", borderBottom: "1px solid var(--neutral-100)", background: (selectionMode && selected) ? "#E8F5F0" : isActive ? "var(--accent-50)" : "transparent", borderLeft: isActive ? "3px solid var(--accent-700)" : "3px solid transparent", cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }}
+                style={{ padding: "12px 16px", borderBottom: "1px solid var(--neutral-100)", background: (selectionMode && selected) ? "#E8F5F0" : isActive ? "var(--accent-50)" : "transparent", borderLeft: isActive ? "3px solid var(--border-accent)" : "3px solid transparent", cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }}
                 onMouseEnter={e => { if (!isActive && !(selectionMode && selected)) e.currentTarget.style.background = "var(--surface-hover)"; }}
                 onMouseLeave={e => { if (!isActive && !(selectionMode && selected)) e.currentTarget.style.background = "transparent"; }}
               >
                 {selectionMode && (
-                  <div style={{ width: 18, height: 18, borderRadius: 6, border: "2px solid " + (selected ? "var(--accent-700)" : "var(--border-strong)"), background: selected ? "var(--accent-700)" : "var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ width: 18, height: 18, borderRadius: 6, border: "2px solid " + (selected ? "var(--border-accent)" : "var(--border-strong)"), background: selected ? "var(--surface-accent-strong)" : "var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {selected && <Check size={12} color="#FFF" />}
                   </div>
                 )}
@@ -3922,7 +3922,7 @@ export default function MultiatendimentoPage() {
                     <span style={{ fontSize: 13, fontWeight: unread ? 700 : 600, color: isActive ? "var(--accent-800)" : "var(--text-heading)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{convName(c)}</span>
                     <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                       <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{c.time}</span>
-                      {unread && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-700)" }} />}
+                      {unread && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--surface-accent-strong)" }} />}
                     </div>
                   </div>
                   <p style={{ fontSize: 12, color: unread ? "var(--text-body)" : "var(--text-muted)", fontWeight: unread ? 500 : 400, margin: "2px 0 6px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{previewText(c)}</p>
@@ -4076,7 +4076,7 @@ export default function MultiatendimentoPage() {
                           finalizado: "finalizado" }[atendimentoAtivo.status] ?? atendimentoAtivo.status
                       }`
                     : "Atendimento ainda não aberto"}
-                  style={{ fontSize: 12, color: "var(--accent-800)", border: "1px solid var(--accent-700)", borderRadius: 100, padding: "4px 10px", fontWeight: 600 }}
+                  style={{ fontSize: 12, color: "var(--accent-800)", border: "1px solid var(--border-accent)", borderRadius: 100, padding: "4px 10px", fontWeight: 600 }}
                 >
                   {atendimentoAtivo ? `#${atendimentoAtivo.numero}` : `#${active.id.slice(0, 4).toUpperCase()}`}
                 </span>
@@ -4221,7 +4221,7 @@ export default function MultiatendimentoPage() {
                             // faria o texto reflowar embaixo do cursor, e balão
                             // que muda de forma quando você chega perto é pior
                             // que balão um pouco mais largo.
-                            padding: m.kind === "image" ? 4 : "10px 30px 10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "var(--accent-700)" : "var(--surface-card)", color: isAgent ? "#FFF" : "var(--text-heading)", border: isAgent ? "none" : "1px solid var(--border-default)", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "flex-end", gap: 8, minWidth: 0, position: "relative" }}>
+                            padding: m.kind === "image" ? 4 : "10px 30px 10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: isAgent ? "var(--surface-accent-strong)" : "var(--surface-card)", color: isAgent ? "#FFF" : "var(--text-heading)", border: isAgent ? "none" : "1px solid var(--border-default)", boxShadow: isAgent ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "flex-end", gap: 8, minWidth: 0, position: "relative" }}>
                             {/* Ação da mensagem, dentro do balão. Ficava do lado
                                 de fora e sumia no caminho do mouse: o vão entre
                                 o balão e o botão já é área sem hover, então o
@@ -4391,7 +4391,7 @@ export default function MultiatendimentoPage() {
                         {isAgent && (
                           m.porAgente ? (
                             <div title={m.agent ?? "Agente"} style={{ width: 28, height: 28, borderRadius: "50%", background: "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 8 }}>
-                              <BotMessageSquare size={15} color="#6D28D9" />
+                              <BotMessageSquare size={15} color="var(--roxo-ia)" />
                             </div>
                           ) : (
                             <ConvAvatar name={m.agent ?? ""} avatarUrl={m.agent === nomeAtendente ? (profile?.avatar_url ?? undefined) : undefined} size={28} fontSize={10} style={{ marginLeft: 8 }} />
@@ -4416,7 +4416,7 @@ export default function MultiatendimentoPage() {
                 <div style={{
                   display: "flex", alignItems: "flex-start", gap: 8,
                   margin: "0 16px 8px", padding: "8px 10px",
-                  background: "var(--neutral-50)", borderLeft: "3px solid var(--accent-700)", borderRadius: 8,
+                  background: "var(--neutral-50)", borderLeft: "3px solid var(--border-accent)", borderRadius: 8,
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)", marginBottom: 2 }}>
@@ -4682,7 +4682,7 @@ export default function MultiatendimentoPage() {
                   <button
                     onClick={() => { sendMessage(); setShowEmoji(false); }}
                     disabled={!inputValue.trim() || cs.finished || janelaModeloFechada}
-                    style={{ background: inputValue.trim() && !cs.finished && !janelaModeloFechada ? "var(--accent-700)" : "var(--neutral-200)", border: "none", borderRadius: 8, padding: "6px 10px", cursor: inputValue.trim() && !cs.finished && !janelaModeloFechada ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}
+                    style={{ background: inputValue.trim() && !cs.finished && !janelaModeloFechada ? "var(--surface-accent-strong)" : "var(--neutral-200)", border: "none", borderRadius: 8, padding: "6px 10px", cursor: inputValue.trim() && !cs.finished && !janelaModeloFechada ? "pointer" : "default", display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}
                   >
                     <Send size={16} color={inputValue.trim() && !cs.finished && !janelaModeloFechada ? "#FFF" : "var(--text-muted)"} />
                   </button>
@@ -4891,7 +4891,7 @@ export default function MultiatendimentoPage() {
                         <span
                           key={lst.id}
                           onClick={() => toggleConvList(lst.id)}
-                          style={{ background: "var(--accent-50)", color: "var(--accent-800)", border: "1px solid var(--accent-700)20", borderRadius: 100, padding: "2px 7px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}
+                          style={{ background: "var(--accent-50)", color: "var(--accent-800)", border: "1px solid color-mix(in srgb, var(--border-accent) 20%, transparent)", borderRadius: 100, padding: "2px 7px", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3, whiteSpace: "nowrap" }}
                         >
                           <List size={9} />{lst.name}
                         </span>
@@ -5232,7 +5232,7 @@ export default function MultiatendimentoPage() {
                       <button
                         key={oc.id}
                         onClick={() => { setActiveId(oc.id); updateCs(oc.id, { read: true }); }}
-                        style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", textAlign: "left", background: "#F9FBFA", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}
+                        style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", width: "100%", textAlign: "left", background: "var(--neutral-25)", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 10px", cursor: "pointer" }}
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", width: "100%", gap: 8 }}>
                           <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -5304,7 +5304,7 @@ export default function MultiatendimentoPage() {
                     }
                   }}
                   disabled={activeStageIdx === activeStages.length - 1}
-                  style={{ flex: 1, height: 25, background: "var(--surface-card)", border: "1px solid var(--accent-700)", borderRadius: 8, padding: "0 8px", color: "var(--accent-700)", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === activeStages.length - 1 ? "not-allowed" : "pointer", opacity: activeStageIdx === activeStages.length - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, height: 25, background: "var(--surface-card)", border: "1px solid var(--border-accent)", borderRadius: 8, padding: "0 8px", color: "var(--accent-700)", fontSize: 12, fontWeight: 600, cursor: activeStageIdx === activeStages.length - 1 ? "not-allowed" : "pointer", opacity: activeStageIdx === activeStages.length - 1 ? 0.4 : 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                   onMouseEnter={e => { if (activeStageIdx !== activeStages.length - 1) e.currentTarget.style.background = "var(--accent-50)"; }}
                   onMouseLeave={e => (e.currentTarget.style.background = "var(--surface-card)")}
                 >Avançar <ArrowRight size={12} /></button>
@@ -5322,7 +5322,7 @@ export default function MultiatendimentoPage() {
               return (
                 <Section title="Atividades" defaultOpen>
                   {nextAct ? (
-                    <div style={{ background: "#F9FBFA", border: "1px solid var(--border-default)", borderRadius: 10, padding: 12 }}>
+                    <div style={{ background: "var(--neutral-25)", border: "1px solid var(--border-default)", borderRadius: 10, padding: 12 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                         <CalendarIcon size={14} color="var(--accent-700)" />
                         <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>
@@ -5443,7 +5443,7 @@ export default function MultiatendimentoPage() {
             </div>
 
             <Section title="Anotações" defaultOpen>
-              <div style={{ border: `1px solid ${notesActive ? "var(--accent-700)" : "var(--border-default)"}`, borderRadius: 10, background: "var(--neutral-25)", padding: 10, transition: "border-color 0.15s" }}>
+              <div style={{ border: `1px solid ${notesActive ? "var(--border-accent)" : "var(--border-default)"}`, borderRadius: 10, background: "var(--neutral-25)", padding: 10, transition: "border-color 0.15s" }}>
                 <div
                   ref={notesDivRef}
                   contentEditable={!!effectiveLead}
@@ -5514,7 +5514,7 @@ export default function MultiatendimentoPage() {
                       <button
                         onClick={addNote}
                         disabled={!notesTemTexto}
-                        style={{ fontSize: 12, fontWeight: 600, color: "#FFF", background: notesTemTexto ? "var(--accent-700)" : "#BDBDBD", border: "none", borderRadius: 6, padding: "4px 10px", cursor: notesTemTexto ? "pointer" : "not-allowed", transition: "background 0.15s" }}
+                        style={{ fontSize: 12, fontWeight: 600, color: "#FFF", background: notesTemTexto ? "var(--surface-accent-strong)" : "#BDBDBD", border: "none", borderRadius: 6, padding: "4px 10px", cursor: notesTemTexto ? "pointer" : "not-allowed", transition: "background 0.15s" }}
                       >Salvar</button>
                     </div>
                   </div>
@@ -5608,7 +5608,7 @@ export default function MultiatendimentoPage() {
                   >
                     <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>{linkedPipeline?.name || "—"}</div>
                     <div style={{ height: 4, background: "var(--neutral-100)", borderRadius: 6, overflow: "hidden", marginBottom: 6 }}>
-                      <div style={{ width: `${((activeStageIdx + 1) / Math.max(activeStages.length, 1)) * 100}%`, height: "100%", background: "var(--accent-700)" }} />
+                      <div style={{ width: `${((activeStageIdx + 1) / Math.max(activeStages.length, 1)) * 100}%`, height: "100%", background: "var(--surface-accent-strong)" }} />
                     </div>
                     <div style={{ fontSize: 12, color: "var(--accent-800)", fontWeight: 600 }}>{effectiveLead?.dealNumber ? `#${effectiveLead.dealNumber}` : "—"}</div>
                   </div>
@@ -5772,7 +5772,7 @@ export default function MultiatendimentoPage() {
               ]).map(({ tab, label }) => {
                 const active2 = settingsTab === tab;
                 return (
-                  <button key={tab} onClick={() => setSettingsTab(tab)} style={{ background: active2 ? "#E8F5F0" : "transparent", border: "none", cursor: "pointer", padding: "11px 16px", textAlign: "left", fontSize: 13, fontWeight: active2 ? 600 : 400, color: active2 ? "var(--accent-700)" : "#444", borderLeft: active2 ? "3px solid var(--accent-700)" : "3px solid transparent", transition: "all 0.15s" }}>
+                  <button key={tab} onClick={() => setSettingsTab(tab)} style={{ background: active2 ? "#E8F5F0" : "transparent", border: "none", cursor: "pointer", padding: "11px 16px", textAlign: "left", fontSize: 13, fontWeight: active2 ? 600 : 400, color: active2 ? "var(--accent-700)" : "#444", borderLeft: active2 ? "3px solid var(--border-accent)" : "3px solid transparent", transition: "all 0.15s" }}>
                     {label}
                   </button>
                 );
@@ -5888,7 +5888,7 @@ export default function MultiatendimentoPage() {
                         <input placeholder="Pesquisar..." value={agentSearch} onChange={e => setAgentSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "var(--text-heading)", flex: 1, minWidth: 0 }} />
                       </div>
                       {teamMembers.filter(m => !agentSearch || m.toLowerCase().includes(agentSearch.toLowerCase())).map(m => (
-                        <button key={m} onClick={() => setSelectedAgent(m)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, border: "none", cursor: "pointer", textAlign: "left", background: selectedAgent === m ? "#E8F5F0" : "#F9F9F9", borderLeft: selectedAgent === m ? "3px solid var(--accent-700)" : "3px solid transparent", flexShrink: 0 }}>
+                        <button key={m} onClick={() => setSelectedAgent(m)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, border: "none", cursor: "pointer", textAlign: "left", background: selectedAgent === m ? "#E8F5F0" : "#F9F9F9", borderLeft: selectedAgent === m ? "3px solid var(--border-accent)" : "3px solid transparent", flexShrink: 0 }}>
                           <div style={{ width: 28, height: 28, borderRadius: "50%", background: corDoTexto(m), color: tintaSobre(corDoTexto(m)), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{iniciais(m)}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m}</div>
@@ -6059,7 +6059,7 @@ export default function MultiatendimentoPage() {
                         const on = fltStages.includes(col.id);
                         return (
                           <button key={col.id} onClick={() => toggleInArray(setFltStages, col.id)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: "7px 8px", borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
-                            <div style={{ width: 16, height: 16, borderRadius: 6, border: "2px solid " + (on ? "var(--accent-700)" : "var(--border-strong)"), background: on ? "var(--accent-700)" : "var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
+                            <div style={{ width: 16, height: 16, borderRadius: 6, border: "2px solid " + (on ? "var(--border-accent)" : "var(--border-strong)"), background: on ? "var(--surface-accent-strong)" : "var(--surface-card)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <Check size={11} color="#FFF" />}</div>
                             <span style={{ fontSize: 13, color: "var(--text-body)" }}>{col.title}</span>
                           </button>
                         );
@@ -6077,7 +6077,7 @@ export default function MultiatendimentoPage() {
                     const on = fltWindow === v;
                     return (
                       <button key={v} onClick={() => setFltWindow(v)} style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", padding: "7px 8px", borderRadius: 8, cursor: "pointer", textAlign: "left" }}>
-                        <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid " + (on ? "var(--accent-700)" : "var(--border-strong)"), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--accent-700)" }} />}</div>
+                        <div style={{ width: 16, height: 16, borderRadius: "50%", border: "2px solid " + (on ? "var(--border-accent)" : "var(--border-strong)"), display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{on && <div style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--surface-accent-strong)" }} />}</div>
                         <span style={{ fontSize: 13, color: "var(--text-body)" }}>{l}</span>
                       </button>
                     );
@@ -6225,7 +6225,7 @@ function MuToggle({ checked, onChange }: { checked: boolean; onChange: () => voi
   return (
     <button
       onClick={onChange}
-      style={{ width: 42, height: 22, borderRadius: 10, background: checked ? "var(--accent-700)" : "var(--neutral-300)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}
+      style={{ width: 42, height: 22, borderRadius: 10, background: checked ? "var(--surface-accent-strong)" : "var(--neutral-300)", border: "none", cursor: "pointer", position: "relative", transition: "background 0.2s", flexShrink: 0 }}
     >
       <div style={{ width: 16, height: 16, borderRadius: "50%", background: "var(--surface-card)", position: "absolute", top: 3, left: checked ? 23 : 3, transition: "left 0.2s", boxShadow: "0 1px 3px rgba(0,0,0,0.2)" }} />
     </button>
@@ -6333,7 +6333,7 @@ function TransferDialog({
                   {email && <div style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{email}</div>}
                 </div>
 
-                <div style={{ width: 18, height: 18, borderRadius: 6, border: isSelected ? "none" : "1.5px solid var(--border-strong)", background: isSelected ? "var(--accent-700)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <div style={{ width: 18, height: 18, borderRadius: 6, border: isSelected ? "none" : "1.5px solid var(--border-strong)", background: isSelected ? "var(--surface-accent-strong)" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   {isSelected && <Check size={12} color="#FFF" strokeWidth={3} />}
                 </div>
               </button>

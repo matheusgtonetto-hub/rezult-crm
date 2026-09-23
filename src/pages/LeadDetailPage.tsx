@@ -256,7 +256,7 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
             if (e.key === "Escape") { setQuery(value ?? ""); setEditing(false); setRect(null); }
           }}
           placeholder="Digite o nome da cidade…"
-          style={{ width: "100%", border: "1px solid var(--accent-700)", borderRadius: 8, padding: "6px 10px", fontSize: 13, outline: "none", color: "var(--text-heading)", background: "var(--surface-card)" }}
+          style={{ width: "100%", border: "1px solid var(--border-accent)", borderRadius: 8, padding: "6px 10px", fontSize: 13, outline: "none", color: "var(--text-heading)", background: "var(--surface-card)" }}
         />
       ) : hasValue ? (
         <div
@@ -837,7 +837,7 @@ export default function LeadDetailPage() {
 
   if (!lead) {
     return (
-      <div className="flex flex-col items-center justify-center h-[var(--altura-util)] gap-3" style={{ background: "#F4F6F8" }}>
+      <div className="flex flex-col items-center justify-center h-[var(--altura-util)] gap-3" style={{ background: "var(--bg-app)" }}>
         <p className="text-sm text-muted-foreground">Lead não encontrado.</p>
         <Button onClick={() => navigate("/pipeline")} variant="outline" className="rounded-lg">
           <ArrowLeft size={14} className="mr-1.5" /> Voltar ao pipeline
@@ -1072,7 +1072,7 @@ export default function LeadDetailPage() {
 
   return (
     <>
-    <div style={{ background: "#F4F6F8", height: "var(--altura-util)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div style={{ background: "var(--bg-app)", height: "var(--altura-util)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* TOPBAR — altura fixa; a página inteira não rola mais, então não
           precisa mais ser sticky (ver CONTENT logo abaixo). */}
       <div
@@ -1334,7 +1334,7 @@ export default function LeadDetailPage() {
               <button
                 onClick={() => toggleSection(key)}
                 className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[#F0FAF6] transition-colors rounded-t-[10px]"
-                style={{ borderLeft: "3px solid var(--accent-700)", paddingLeft: 8 }}
+                style={{ borderLeft: "3px solid var(--border-accent)", paddingLeft: 8 }}
               >
                 <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-700)", letterSpacing: 0.4, textTransform: "uppercase" }}>
                   {SECTION_TITLES[key]}
@@ -1608,7 +1608,7 @@ export default function LeadDetailPage() {
                               variant="outline"
                               size="sm"
                               className="rounded-md h-8 text-xs"
-                              style={{ borderColor: "var(--accent-700)", color: "var(--accent-700)" }}
+                              style={{ borderColor: "var(--border-accent)", color: "var(--accent-700)" }}
                             >
                               <Plus size={12} className="mr-1" /> Tag
                             </Button>
@@ -1660,7 +1660,7 @@ export default function LeadDetailPage() {
               <button
                 onClick={() => toggleSection(g.id)}
                 className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[#F0FAF6] transition-colors rounded-t-[10px]"
-                style={{ borderLeft: "3px solid var(--accent-700)", paddingLeft: 8 }}
+                style={{ borderLeft: "3px solid var(--border-accent)", paddingLeft: 8 }}
               >
                 <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-700)", letterSpacing: 0.4, textTransform: "uppercase" }}>
                   {g.name}
@@ -1751,7 +1751,7 @@ export default function LeadDetailPage() {
                   style={{
                     color: active ? "var(--accent-700)" : "var(--text-body)",
                     fontWeight: active ? 600 : 400,
-                    borderBottom: active ? "2px solid var(--accent-700)" : "2px solid transparent",
+                    borderBottom: active ? "2px solid var(--border-accent)" : "2px solid transparent",
                     marginBottom: -1,
                   }}
                 >
@@ -1860,7 +1860,7 @@ export default function LeadDetailPage() {
                     return (
                       <div key={n.id} className="flex gap-3 pb-3">
                         <div className="flex flex-col items-center flex-shrink-0" style={{ width: 22 }}>
-                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: "#F5F5F4", border: "1px solid var(--border-default)" }}>
+                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: "var(--neutral-50)", border: "1px solid var(--border-default)" }}>
                             <StickyNote size={10} color="var(--text-subtle)" />
                           </div>
                           {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "var(--neutral-200)", minHeight: 12 }} />}
@@ -2018,7 +2018,7 @@ export default function LeadDetailPage() {
                     return (
                       <div key={item.id} className="flex gap-3 pb-3">
                         <div className="flex flex-col items-center flex-shrink-0" style={{ width: 22 }}>
-                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: isCompleted ? "var(--accent-50)" : isNoShow ? "var(--warning-bg)" : isOverdue ? "var(--danger-bg)" : "var(--accent-50)", border: `1px solid ${isCompleted ? "var(--accent-700)" : isNoShow ? "var(--warning-400)" : isOverdue ? "var(--danger-400)" : "rgba(18,138,104,0.4)"}` }}>
+                          <div className="w-[22px] h-[22px] rounded-full flex items-center justify-center mt-1.5 flex-shrink-0" style={{ background: isCompleted ? "var(--accent-50)" : isNoShow ? "var(--warning-bg)" : isOverdue ? "var(--danger-bg)" : "var(--accent-50)", border: `1px solid ${isCompleted ? "var(--border-accent)" : isNoShow ? "var(--warning-400)" : isOverdue ? "var(--danger-400)" : "rgba(18,138,104,0.4)"}` }}>
                             <TypeIcon size={10} color={isCompleted ? "var(--accent-700)" : isNoShow ? "var(--warning-fg)" : isOverdue ? "var(--danger-fg)" : "var(--accent-700)"} />
                           </div>
                           {!isLast && <div className="w-px flex-1 mt-1.5" style={{ background: "var(--neutral-200)", minHeight: 12 }} />}
@@ -2110,8 +2110,8 @@ export default function LeadDetailPage() {
                                 className="flex-shrink-0 mt-0.5 transition-all"
                                 style={{
                                   width: 18, height: 18, borderRadius: "50%",
-                                  border: `2px solid ${isCompleted ? "var(--accent-700)" : isNoShow ? "var(--warning-400)" : isOverdue ? "var(--danger-400)" : "#AAAAAA"}`,
-                                  background: isCompleted ? "var(--accent-700)" : isNoShow ? "var(--warning-bg)" : "transparent",
+                                  border: `2px solid ${isCompleted ? "var(--border-accent)" : isNoShow ? "var(--warning-400)" : isOverdue ? "var(--danger-400)" : "#AAAAAA"}`,
+                                  background: isCompleted ? "var(--surface-accent-strong)" : isNoShow ? "var(--warning-bg)" : "transparent",
                                   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
                                 }}
                               >
@@ -2435,8 +2435,8 @@ export default function LeadDetailPage() {
                                 className="flex-shrink-0 mt-0.5 transition-all"
                                 style={{
                                   width: 18, height: 18, borderRadius: "50%",
-                                  border: `2px solid ${isCompleted ? "var(--accent-700)" : isNoShow ? "var(--warning-400)" : isOverdue ? "var(--danger-400)" : "#AAAAAA"}`,
-                                  background: isCompleted ? "var(--accent-700)" : isNoShow ? "var(--warning-400)" : "transparent",
+                                  border: `2px solid ${isCompleted ? "var(--border-accent)" : isNoShow ? "var(--warning-400)" : isOverdue ? "var(--danger-400)" : "#AAAAAA"}`,
+                                  background: isCompleted ? "var(--surface-accent-strong)" : isNoShow ? "var(--warning-400)" : "transparent",
                                   display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer",
                                 }}
                               >
@@ -2627,7 +2627,7 @@ export default function LeadDetailPage() {
                 <input ref={fileUploadRef} type="file" className="hidden" onChange={handleFileUpload} accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt,.zip" />
                 <div
                   className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:bg-muted/30 transition-colors"
-                  style={{ borderColor: uploading ? "var(--accent-700)" : "var(--border-default)" }}
+                  style={{ borderColor: uploading ? "var(--border-accent)" : "var(--border-default)" }}
                   onClick={() => !uploading && fileUploadRef.current?.click()}
                 >
                   <Upload size={24} className="mx-auto mb-2" style={{ color: uploading ? "var(--accent-700)" : "var(--text-muted)" }} />

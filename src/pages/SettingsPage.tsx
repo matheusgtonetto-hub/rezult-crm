@@ -858,7 +858,7 @@ function EmpresaSection() {
 
       {/* Zona de perigo — Excluir empresa (somente admin master / dono) */}
       {isOwner && (
-        <Card className="!border-[#FCA5A5]">
+        <Card className="!border-[color:var(--danger-border)]">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <h3 className="text-base font-bold text-foreground">Excluir empresa</h3>
@@ -1452,7 +1452,7 @@ function EquipeSection() {
                         </td>
                         <td className="px-4 py-3">
                           {ehAdmin ? (
-                            <span className="inline-flex items-center gap-1 bg-[#FFF8E7] text-[color:var(--warning-fg)] border border-[#FDE68A] rounded-full px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap">
+                            <span className="inline-flex items-center gap-1 bg-[color:var(--warning-bg)] text-[color:var(--warning-fg)] border border-[color:var(--warning-border)] rounded-full px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap">
                               <Crown size={10} /> Administrador
                             </span>
                           ) : (
@@ -1568,7 +1568,7 @@ function EquipeSection() {
                       Convidado em {new Date(inv.created_at).toLocaleDateString("pt-BR")}
                     </p>
                   </div>
-                  <span className="inline-flex items-center bg-[#FFF8E7] text-[color:var(--warning-fg)] border border-[#FDE68A] rounded-full px-2.5 py-0.5 text-[12px] font-semibold shrink-0">
+                  <span className="inline-flex items-center bg-[color:var(--warning-bg)] text-[color:var(--warning-fg)] border border-[color:var(--warning-border)] rounded-full px-2.5 py-0.5 text-[12px] font-semibold shrink-0">
                     Aguardando
                   </span>
                   <button
@@ -4550,7 +4550,7 @@ function ConexoesSection() {
                 {(["auth", "intervals", "config"] as const).map((tab, i) => {
                   const labels = ["Autenticação", "Intervalos", "Configurações"];
                   return (
-                    <button key={tab} onClick={() => setManageTab(tab)} style={{ fontSize: 13, fontWeight: 500, padding: "8px 16px", color: manageTab === tab ? "var(--accent-700)" : "var(--text-muted)", borderBottom: manageTab === tab ? "2px solid var(--accent-700)" : "2px solid transparent", background: "transparent", border: "none", borderRadius: 0, cursor: "pointer", marginBottom: -1 }}>
+                    <button key={tab} onClick={() => setManageTab(tab)} style={{ fontSize: 13, fontWeight: 500, padding: "8px 16px", color: manageTab === tab ? "var(--accent-700)" : "var(--text-muted)", borderBottom: manageTab === tab ? "2px solid var(--border-accent)" : "2px solid transparent", background: "transparent", border: "none", borderRadius: 0, cursor: "pointer", marginBottom: -1 }}>
                       {labels[i]}
                     </button>
                   );
@@ -4779,8 +4779,8 @@ function ConexoesSection() {
             <>
               {/* Barra de progresso */}
               <div style={{ display: "flex", gap: 4, marginBottom: 16, marginTop: -4 }}>
-                <div style={{ height: 3, flex: 1, borderRadius: 99, background: "var(--accent-700)" }} />
-                <div style={{ height: 3, flex: 1, borderRadius: 99, background: tutStep >= 1 ? "var(--accent-700)" : "var(--neutral-100)", transition: "background 0.2s" }} />
+                <div style={{ height: 3, flex: 1, borderRadius: 99, background: "var(--surface-accent-strong)" }} />
+                <div style={{ height: 3, flex: 1, borderRadius: 99, background: tutStep >= 1 ? "var(--surface-accent-strong)" : "var(--neutral-100)", transition: "background 0.2s" }} />
               </div>
 
               {/* ── Slide 1: ID da Instância e Token ── */}
@@ -4824,10 +4824,10 @@ function ConexoesSection() {
                       <div style={{ marginBottom: 10 }}>
                         <p style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>ID da Instância</p>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ flex: 1, background: "var(--accent-50)", border: "1.5px solid var(--accent-700)", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", color: "var(--accent-700)", fontWeight: 700 }}>
+                          <div style={{ flex: 1, background: "var(--accent-50)", border: "1.5px solid var(--border-accent)", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", color: "var(--accent-700)", fontWeight: 700 }}>
                             3C1B2A3D4E5F6G7H8I9J...
                           </div>
-                          <div style={{ background: "var(--accent-700)", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
+                          <div style={{ background: "var(--surface-accent-strong)", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
                         </div>
                         <p style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor</p>
                       </div>
@@ -4836,10 +4836,10 @@ function ConexoesSection() {
                       <div>
                         <p style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Token</p>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ flex: 1, background: "var(--accent-50)", border: "1.5px solid var(--accent-700)", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", color: "var(--accent-700)", fontWeight: 700 }}>
+                          <div style={{ flex: 1, background: "var(--accent-50)", border: "1.5px solid var(--border-accent)", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", color: "var(--accent-700)", fontWeight: 700 }}>
                             F9G8H7I6J5K4L3M2N1O0...
                           </div>
-                          <div style={{ background: "var(--accent-700)", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
+                          <div style={{ background: "var(--surface-accent-strong)", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
                         </div>
                         <p style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor também</p>
                       </div>
@@ -4884,16 +4884,16 @@ function ConexoesSection() {
                       <div style={{ marginBottom: 12 }}>
                         <p style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 }}>Client-Token</p>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          <div style={{ flex: 1, background: "var(--accent-50)", border: "1.5px solid var(--accent-700)", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", color: "var(--accent-700)", fontWeight: 700 }}>
+                          <div style={{ flex: 1, background: "var(--accent-50)", border: "1.5px solid var(--border-accent)", borderRadius: 8, padding: "6px 10px", fontSize: 12, fontFamily: "monospace", color: "var(--accent-700)", fontWeight: 700 }}>
                             Bearer A1B2C3D4E5F6G7H8...
                           </div>
-                          <div style={{ background: "var(--accent-700)", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
+                          <div style={{ background: "var(--surface-accent-strong)", borderRadius: 6, padding: "5px 10px", fontSize: 12, color: "#FFF", fontWeight: 600, flexShrink: 0 }}>Copiar</div>
                         </div>
                         <p style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600, marginTop: 3 }}>👆 Copie este valor</p>
                       </div>
 
                       {/* Botão Configurar */}
-                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--accent-700)", borderRadius: 8, padding: "6px 14px" }}>
+                      <div style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "var(--surface-accent-strong)", borderRadius: 8, padding: "6px 14px" }}>
                         <span style={{ fontSize: 12, color: "#FFF", fontWeight: 600 }}>⚙ Configurar Agora</span>
                       </div>
                       <p style={{ fontSize: 12, color: "var(--danger-fg)", fontWeight: 600, marginTop: 6 }}>👆 Se ainda não ativou, clique aqui primeiro</p>

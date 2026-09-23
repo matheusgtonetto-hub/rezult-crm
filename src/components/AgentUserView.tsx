@@ -190,7 +190,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
                     {role}
                   </span>
                   <span className="flex items-center gap-1 text-[12px] text-[color:var(--text-link)]">
-                    <span className="w-2 h-2 rounded-full bg-[color:var(--accent-700)] inline-block" />
+                    <span className="w-2 h-2 rounded-full bg-[color:var(--surface-accent-strong)] inline-block" />
                     Ativo
                   </span>
                 </div>

@@ -17,7 +17,7 @@ function Waveform({ light, progress = 0 }: { light: boolean; progress?: number }
     <div style={{ display: "flex", alignItems: "center", gap: 2, height: 18 }}>
       {heights.map((h, i) => {
         const played = (i + 1) / heights.length <= progress;
-        return <div key={i} style={{ width: 2, height: h, background: light ? "var(--surface-card)" : "var(--accent-700)", opacity: progress > 0 ? (played ? 1 : 0.35) : (light ? 1 : 0.4), borderRadius: 6, transition: "opacity 0.1s" }} />;
+        return <div key={i} style={{ width: 2, height: h, background: light ? "var(--surface-card)" : "var(--surface-accent-strong)", opacity: progress > 0 ? (played ? 1 : 0.35) : (light ? 1 : 0.4), borderRadius: 6, transition: "opacity 0.1s" }} />;
       })}
     </div>
   );

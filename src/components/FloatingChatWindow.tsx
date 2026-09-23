@@ -1131,7 +1131,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               style={{
                 width: 32,
                 height: 32,
-                background: "var(--accent-700)",
+                background: "var(--surface-accent-strong)",
                 opacity: 0.6,
               }}
               title={l.name}
@@ -1146,7 +1146,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             style={{
               width: 32,
               height: 32,
-              border: "2px solid var(--accent-700)",
+              border: "2px solid var(--border-accent)",
             }}
             title={lead.name}
           >
@@ -1291,7 +1291,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                     return (
                       <div key={i} className="flex justify-center">
                         <span style={{
-                          fontSize: 12, color: "var(--text-muted)", background: "#EFEFEF",
+                          fontSize: 12, color: "var(--text-muted)", background: "var(--neutral-100)",
                           borderRadius: 10, padding: "4px 10px", textAlign: "center",
                           maxWidth: "90%", overflowWrap: "anywhere",
                         }}>
@@ -1313,7 +1313,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                         <span
                           title="As mensagens abaixo passaram por esta linha"
                           style={{
-                            fontSize: 12, color: "var(--text-muted)", background: "#EFEFEF",
+                            fontSize: 12, color: "var(--text-muted)", background: "var(--neutral-100)",
                             borderRadius: 10, padding: "3px 10px", maxWidth: "90%",
                             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                           }}
@@ -1414,7 +1414,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                           {/* Citação: o que esta mensagem responde. */}
                           {m.citacao && !m.apagadaEm && (
                             <div style={{
-                              borderLeft: `3px solid ${isLead ? "var(--accent-700)" : "rgba(255,255,255,0.55)"}`,
+                              borderLeft: `3px solid ${isLead ? "var(--border-accent)" : "rgba(255,255,255,0.55)"}`,
                               background: isLead ? "var(--neutral-50)" : "rgba(255,255,255,0.14)",
                               borderRadius: 6, padding: "4px 8px", marginBottom: 4, fontSize: 12,
                               color: isLead ? "var(--text-muted)" : "rgba(255,255,255,0.9)",
@@ -1506,7 +1506,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
                         // atendentes (a foto de outro atendente não está aqui).
                         m.porAgente ? (
                           <div title={quemFalou} style={{ width: 24, height: 24, borderRadius: "50%", background: "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginLeft: 6 }}>
-                            <BotMessageSquare size={13} color="#6D28D9" />
+                            <BotMessageSquare size={13} color="var(--roxo-ia)" />
                           </div>
                         ) : (
                           <ConvAvatar name={quemFalou} avatarUrl={quemFalou === nomeAtendente ? (profile?.avatar_url ?? undefined) : undefined} size={24} fontSize={9} style={{ marginLeft: 6 }} />
@@ -1528,7 +1528,7 @@ export function FloatingChatWindow({ leadId, index }: Props) {
           <div style={{
             display: "flex", alignItems: "flex-start", gap: 6,
             margin: "0 10px 6px", padding: "6px 8px",
-            background: "var(--neutral-50)", borderLeft: "3px solid var(--accent-700)", borderRadius: 6,
+            background: "var(--neutral-50)", borderLeft: "3px solid var(--border-accent)", borderRadius: 6,
           }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)" }}>

@@ -168,7 +168,7 @@ export function AgentTestChat({ agentId }: { agentId: string }) {
               <div
                 className={`px-3 py-2 rounded-2xl text-[13px] whitespace-pre-wrap break-words ${
                   m.de === "lead"
-                    ? "bg-[color:var(--accent-700)] text-white rounded-br-sm"
+                    ? "bg-[color:var(--surface-accent-strong)] text-white rounded-br-sm"
                     : "bg-[color:var(--neutral-50)] text-[color:var(--text-heading)] rounded-bl-sm"
                 }`}
               >

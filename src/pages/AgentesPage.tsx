@@ -304,7 +304,7 @@ function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; 
   return (
     <div className="bg-card rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow border border-[color:var(--accent-500)]/40">
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-[color:var(--accent-700)] flex items-center justify-center text-white shrink-0">
+        <div className="w-10 h-10 rounded-full bg-[color:var(--surface-accent-strong)] flex items-center justify-center text-white shrink-0">
           <Zap size={18} />
         </div>
         <div className="min-w-0 flex-1">
@@ -2108,7 +2108,7 @@ export default function AgentesPage() {
               ) : (
                 <div key={a.id} className={`bg-card rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow ${a.draft ? "border border-dashed border-[color:var(--border-strong)]" : "border border-[color:var(--border-default)]"}`}>
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-[color:var(--accent-700)] flex items-center justify-center text-white shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-[color:var(--surface-accent-strong)] flex items-center justify-center text-white shrink-0">
                       <AgentAvatarIcon avatar={a.avatar} size={18} />
                     </div>
                     <div className="min-w-0 flex-1">
@@ -2179,7 +2179,7 @@ export default function AgentesPage() {
                           <span
                             key={o.id}
                             title={o.description}
-                            className="inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium bg-[color:var(--accent-700)]/10 text-[color:var(--text-link)]"
+                            className="inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium bg-[color:var(--surface-accent-strong)]/10 text-[color:var(--text-link)]"
                           >
                             {o.label}
                           </span>
@@ -2315,7 +2315,7 @@ export default function AgentesPage() {
                     passam. */}
                 <div className="w-[260px] shrink-0 border-r border-[color:var(--border-default)] flex flex-col min-h-0">
                   <div className="px-4 py-4 border-b border-[color:var(--border-default)] flex items-center gap-3 shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-[color:var(--accent-700)] flex items-center justify-center text-white shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-[color:var(--surface-accent-strong)] flex items-center justify-center text-white shrink-0">
                       <AgentAvatarIcon avatar={selected.avatar} size={20} />
                     </div>
                     <div className="min-w-0">
@@ -2341,7 +2341,7 @@ export default function AgentesPage() {
                               className="w-5 h-5 rounded-full flex items-center justify-center text-[12px] font-semibold shrink-0"
                               style={
                                 idx === wizardStepIndex
-                                  ? { background: "var(--accent-700)", color: "#FFFFFF" }
+                                  ? { background: "var(--surface-accent-strong)", color: "#FFFFFF" }
                                   : locked
                                   ? { background: "var(--neutral-50)", color: "var(--text-muted)" }
                                   : { background: "var(--accent-50)", color: "var(--accent-700)" }
@@ -2382,7 +2382,7 @@ export default function AgentesPage() {
                              do produto, e a que fecha o contraste: branco sobre
                              este verde dá 4,9:1, contra os 3,4:1 do #111111 que
                              estava aqui. */
-                          className="justify-start text-[color:var(--text-muted)] data-[state=active]:bg-[color:var(--accent-700)] data-[state=active]:text-white data-[state=active]:shadow-none rounded-md text-[13px] px-2 py-2 flex items-center gap-2"
+                          className="justify-start text-[color:var(--text-muted)] data-[state=active]:bg-[color:var(--surface-accent-strong)] data-[state=active]:text-white data-[state=active]:shadow-none rounded-md text-[13px] px-2 py-2 flex items-center gap-2"
                         >
                           {/* Ícone e seta acompanham o texto. A seta era var(--accent-700),
                               a MESMA cor que o fundo virou: ficaria invisível, e
@@ -2591,7 +2591,7 @@ export default function AgentesPage() {
                                       {/* Sem este aviso, ligar o toggle e deixar os dois campos zerados
                                           resulta em nenhum lembrete, sem nada na tela indicando isso. */}
                                       {!(Number(behaviorDraft.lembrete_1_valor) > 0) && !(Number(behaviorDraft.lembrete_2_valor) > 0) && (
-                                        <p className="text-[12px] text-[color:var(--danger-fg)] bg-[color:var(--danger-bg)] border border-[#FCA5A5] rounded px-2 py-1.5">
+                                        <p className="text-[12px] text-[color:var(--danger-fg)] bg-[color:var(--danger-bg)] border border-[color:var(--danger-border)] rounded px-2 py-1.5">
                                           Preencha ao menos um dos lembretes, senão nenhum aviso será enviado.
                                         </p>
                                       )}
@@ -3099,8 +3099,8 @@ export default function AgentesPage() {
                             {checked && connected && (
                               <span className="inline-flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--text-link)] bg-[color:var(--accent-100)] px-1.5 py-0.5 rounded-full shrink-0">
                                 <span className="relative flex h-2 w-2 shrink-0">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[color:var(--accent-700)] opacity-75" />
-                                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[color:var(--accent-700)]" />
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[color:var(--surface-accent-strong)] opacity-75" />
+                                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[color:var(--surface-accent-strong)]" />
                                 </span>
                                 Google Calendar conectado
                               </span>
@@ -3305,8 +3305,8 @@ export default function AgentesPage() {
                             <p className="text-[12px] text-[color:var(--text-muted)]">Escolha em quais conexões já existentes na empresa esse agente atua.</p>
                           </div>
                           {emUso > 0 && (
-                            <span className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--text-link)] bg-[color:var(--accent-700)]/10 px-2.5 py-1 rounded-full">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--accent-700)]" />
+                            <span className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--text-link)] bg-[color:var(--surface-accent-strong)]/10 px-2.5 py-1 rounded-full">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--surface-accent-strong)]" />
                               {emUso} em uso
                             </span>
                           )}
@@ -3322,7 +3322,7 @@ export default function AgentesPage() {
                                 onClick={() => setCatIntegracao(cat)}
                                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors cursor-pointer border ${
                                   ativo
-                                    ? "bg-[color:var(--accent-700)] border-[color:var(--accent-500)] text-white"
+                                    ? "bg-[color:var(--surface-accent-strong)] border-[color:var(--accent-500)] text-white"
                                     : "bg-card border-[color:var(--border-default)] text-[color:var(--text-heading)] hover:border-[color:var(--border-strong)]"
                                 }`}
                               >
@@ -3359,7 +3359,7 @@ export default function AgentesPage() {
                               <div key={c.chave} className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-md transition-shadow">
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-1.5">
-                                    <span className={`w-2 h-2 rounded-full ${c.conectado ? "bg-[color:var(--accent-700)]" : "bg-[var(--text-muted)]/40"}`} />
+                                    <span className={`w-2 h-2 rounded-full ${c.conectado ? "bg-[color:var(--surface-accent-strong)]" : "bg-[var(--text-muted)]/40"}`} />
                                     <span className={`text-[12px] font-medium ${c.conectado ? "text-[color:var(--text-link)]" : "text-[color:var(--text-muted)]"}`}>
                                       {c.conectado ? "Conectado" : "Desconectado"}
                                     </span>
@@ -3481,7 +3481,7 @@ export default function AgentesPage() {
                                     updateBehaviorConfig({ horario_atendimento_dias: next });
                                   }}
                                   className={`text-[12px] px-2.5 py-1 rounded-full border transition-colors ${
-                                    active ? "bg-[color:var(--accent-700)] border-[color:var(--accent-500)] text-white" : "bg-card border-[color:var(--border-default)] text-[color:var(--text-muted)] hover:bg-[color:var(--neutral-50)]"
+                                    active ? "bg-[color:var(--surface-accent-strong)] border-[color:var(--accent-500)] text-white" : "bg-card border-[color:var(--border-default)] text-[color:var(--text-muted)] hover:bg-[color:var(--neutral-50)]"
                                   }`}
                                 >
                                   {day.slice(0, 3)}
@@ -3789,7 +3789,7 @@ export default function AgentesPage() {
                               Ver todas as ferramentas do CRM ({demais.length})
                             </span>
                             {marcadasNasDemais > 0 && (
-                              <span className="text-[12px] font-medium text-[color:var(--text-link)] bg-[color:var(--accent-700)]/10 px-2 py-0.5 rounded-full">
+                              <span className="text-[12px] font-medium text-[color:var(--text-link)] bg-[color:var(--surface-accent-strong)]/10 px-2 py-0.5 rounded-full">
                                 {marcadasNasDemais} marcada{marcadasNasDemais > 1 ? "s" : ""}
                               </span>
                             )}
@@ -3908,7 +3908,7 @@ export default function AgentesPage() {
             <Button
               variant="outline"
               onClick={async () => { setSairAberto(false); await abandonDraftAgent(); }}
-              className="border-[#FCA5A5] text-[color:var(--danger-fg)] hover:bg-[#DC2626] hover:text-white hover:border-[#DC2626]"
+              className="border-[color:var(--danger-border)] text-[color:var(--danger-fg)] hover:bg-[#DC2626] hover:text-white hover:border-[#DC2626]"
             >
               Descartar agente
             </Button>
@@ -3994,7 +3994,7 @@ export default function AgentesPage() {
                     onClick={() => setDraftAvatar(key)}
                     className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
                       draftAvatar === key
-                        ? "bg-[color:var(--accent-700)] text-white"
+                        ? "bg-[color:var(--surface-accent-strong)] text-white"
                         : "bg-[color:var(--neutral-50)] text-[color:var(--text-muted)] hover:bg-[color:var(--neutral-100)]"
                     }`}
                   >

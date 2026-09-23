@@ -53,7 +53,7 @@ const AREAS_NEGOCIOS = [
   // "Negócios", e não "Novos": os três nomes aparecem juntos na legenda e no
   // tooltip, e "Novos" sozinho não dizia novos O QUÊ. Os outros dois já são
   // situações do negócio, então nomear a entrada pelo objeto fecha a frase.
-  { chave: "novos",    chaveValor: "novosValor",    nome: "Negócios", cor: "#2D2F33", id: "area-novos" },
+  { chave: "novos",    chaveValor: "novosValor",    nome: "Negócios", cor: "var(--neutral-900)", id: "area-novos" },
   { chave: "ganhos",   chaveValor: "ganhosValor",   nome: "Ganhos",   cor: "#01D8A4", id: "area-ganhos" },
   { chave: "perdidos", chaveValor: "perdidosValor", nome: "Perdidos", cor: "#FD5555", id: "area-perdidos" },
 ] as const;
@@ -1233,7 +1233,7 @@ export default function DashboardPage() {
                       /* Miolo branco com aro da série, como o material: sobre a
                          linha cheia um ponto sólido some, e o furo branco é o
                          que o faz aparecer. */
-                      activeDot={{ r: 5, strokeWidth: 2.5, stroke: a.cor, fill: "#FFFFFF" }}
+                      activeDot={{ r: 5, strokeWidth: 2.5, stroke: a.cor, fill: "var(--surface-card)" }}
                       animationEasing="ease-out"
                       animationDuration={800}
                     />
@@ -1481,7 +1481,7 @@ export default function DashboardPage() {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       dot={false}
-                      activeDot={{ r: 5, strokeWidth: 2.5, stroke: a.cor, fill: "#FFFFFF" }}
+                      activeDot={{ r: 5, strokeWidth: 2.5, stroke: a.cor, fill: "var(--surface-card)" }}
                       animationEasing="ease-out"
                       animationDuration={800}
                     />

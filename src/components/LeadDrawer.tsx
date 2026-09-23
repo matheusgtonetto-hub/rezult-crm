@@ -63,7 +63,7 @@ function InlineField({
             value={draft}
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
-            style={{ width: "100%", border: "1px solid var(--accent-700)", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "var(--surface-card)", color: "var(--text-heading)" }}
+            style={{ width: "100%", border: "1px solid var(--border-accent)", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "var(--surface-card)", color: "var(--text-heading)" }}
           >
             {options.map(o => <option key={o} value={o}>{o}</option>)}
           </select>
@@ -75,7 +75,7 @@ function InlineField({
             onChange={e => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={e => { if (e.key === "Enter") commit(); if (e.key === "Escape") { setDraft(value ?? ""); setEditing(false); } }}
-            style={{ width: "100%", border: "1px solid var(--accent-700)", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "var(--surface-card)", color: "var(--text-heading)" }}
+            style={{ width: "100%", border: "1px solid var(--border-accent)", borderRadius: 6, padding: "5px 8px", fontSize: 12, outline: "none", background: "var(--surface-card)", color: "var(--text-heading)" }}
           />
         )
       ) : (
@@ -353,7 +353,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     color: active ? "var(--accent-700)" : "var(--text-muted)",
     padding: "10px 12px",
     background: "none" as const, border: "none" as const, cursor: "pointer" as const,
-    borderBottom: active ? "2px solid var(--accent-700)" : "2px solid transparent",
+    borderBottom: active ? "2px solid var(--border-accent)" : "2px solid transparent",
     transition: "color 0.15s",
   });
 
@@ -362,7 +362,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     color: active ? "var(--accent-700)" : "var(--text-muted)",
     padding: "0 0 12px",
     background: "none" as const, border: "none" as const, cursor: "pointer" as const,
-    borderBottom: active ? "2px solid var(--accent-700)" : "2px solid transparent",
+    borderBottom: active ? "2px solid var(--border-accent)" : "2px solid transparent",
   });
 
   const ORIGINS: LeadOrigin[] = ["Instagram","Facebook Ads","Meta Ads","Google Ads","TikTok Ads","LinkedIn Ads","YouTube Ads","Email Marketing","Orgânico","WhatsApp","Evento","Indicação","Site","Outro"];
@@ -426,13 +426,13 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
               <div style={{ display: "flex", gap: 6, marginTop: 14 }}>
                 <button
                   onClick={() => { onClose(); navigate(`/pipeline/lead/${leadId}`); }}
-                  style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "var(--accent-700)", border: "1px solid var(--accent-700)30", borderRadius: 8, padding: "7px 0", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "var(--accent-700)", border: "1px solid color-mix(in srgb, var(--border-accent) 30%, transparent)", borderRadius: 8, padding: "7px 0", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                 >
                   <ExternalLink size={11} /> Ver completo
                 </button>
                 <button
                   onClick={openManualAuto}
-                  style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "#6B21A8", border: "1px solid #6B21A830", borderRadius: 8, padding: "7px 0", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
+                  style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "var(--roxo-ia)", border: "1px solid color-mix(in srgb, var(--roxo-ia) 30%, transparent)", borderRadius: 8, padding: "7px 0", background: "transparent", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 4 }}
                 >
                   <Zap size={11} /> Automação
                 </button>
@@ -464,7 +464,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                         onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
                         onMouseLeave={e => (e.currentTarget.style.background = "none")}
                       >
-                        <Zap size={11} color="#6B21A8" /> {a.name}
+                        <Zap size={11} color="var(--roxo-ia)" /> {a.name}
                       </button>
                     ))
                   )}
@@ -589,7 +589,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                     <button
                       onClick={saveNote}
                       disabled={!newNote.trim()}
-                      style={{ fontSize: 12, fontWeight: 600, color: "#FFF", background: newNote.trim() ? "var(--accent-700)" : "var(--neutral-300)", border: "none", borderRadius: 8, padding: "9px 18px", cursor: newNote.trim() ? "pointer" : "default", transition: "background 0.15s" }}
+                      style={{ fontSize: 12, fontWeight: 600, color: "#FFF", background: newNote.trim() ? "var(--surface-accent-strong)" : "var(--neutral-300)", border: "none", borderRadius: 8, padding: "9px 18px", cursor: newNote.trim() ? "pointer" : "default", transition: "background 0.15s" }}
                     >
                       Salvar
                     </button>
@@ -679,7 +679,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                             setNewDealStage(first?.columns[0]?.id ?? "");
                             setShowNewDeal(v => !v);
                           }}
-                          style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: showNewDeal ? "var(--text-muted)" : "var(--accent-700)", border: `1px solid ${showNewDeal ? "var(--border-default)" : "var(--accent-700)30"}`, borderRadius: 8, padding: "6px 14px", background: "transparent", cursor: "pointer" }}
+                          style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, color: showNewDeal ? "var(--text-muted)" : "var(--accent-700)", border: `1px solid ${showNewDeal ? "var(--border-default)" : "color-mix(in srgb, var(--border-accent) 30%, transparent)"}`, borderRadius: 8, padding: "6px 14px", background: "transparent", cursor: "pointer" }}
                         >
                           <PlusCircle size={13} />
                           {showNewDeal ? "Cancelar" : "Novo negócio"}
@@ -690,7 +690,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
 
                   {/* Formulário inline de novo negócio */}
                   {showNewDeal && (
-                    <div style={{ border: "1px solid var(--accent-700)30", borderRadius: 12, padding: "16px", marginBottom: 16, background: "#F9FFF9" }}>
+                    <div style={{ border: "1px solid color-mix(in srgb, var(--border-accent) 30%, transparent)", borderRadius: 12, padding: "16px", marginBottom: 16, background: "var(--neutral-25)" }}>
                       <p style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)", marginBottom: 12 }}>Criar negócio para <span style={{ color: "var(--accent-700)" }}>{lead.name}</span></p>
 
                       <div style={{ marginBottom: 10 }}>
@@ -724,7 +724,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                       <button
                         onClick={createDeal}
                         disabled={!newDealPipeline || !newDealStage || newDealCreating}
-                        style={{ width: "100%", padding: "9px", background: (!newDealPipeline || !newDealStage || newDealCreating) ? "var(--neutral-300)" : "var(--accent-700)", color: "#FFF", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: (!newDealPipeline || !newDealStage || newDealCreating) ? "default" : "pointer", transition: "background 0.15s" }}
+                        style={{ width: "100%", padding: "9px", background: (!newDealPipeline || !newDealStage || newDealCreating) ? "var(--neutral-300)" : "var(--surface-accent-strong)", color: "#FFF", border: "none", borderRadius: 8, fontSize: 13, fontWeight: 700, cursor: (!newDealPipeline || !newDealStage || newDealCreating) ? "default" : "pointer", transition: "background 0.15s" }}
                       >
                         {newDealCreating ? "Criando…" : "✓ Criar negócio"}
                       </button>
@@ -747,7 +747,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                     return (
                       <div
                         key={l.id}
-                        style={{ position: "relative", border: "1px solid var(--neutral-100)", borderRadius: 12, padding: "14px 16px", marginBottom: 10, background: l.id === leadId ? "#F9FFF9" : "var(--neutral-25)", borderLeft: l.id === leadId ? "3px solid var(--accent-700)" : "1px solid var(--neutral-100)" }}
+                        style={{ position: "relative", border: "1px solid var(--neutral-100)", borderRadius: 12, padding: "14px 16px", marginBottom: 10, background: l.id === leadId ? "#F9FFF9" : "var(--neutral-25)", borderLeft: l.id === leadId ? "3px solid var(--border-accent)" : "1px solid var(--neutral-100)" }}
                         onClick={() => { if (dealMenuId === l.id || moveDealId === l.id || actDealId === l.id || prodDealId === l.id || confirmDelDealId === l.id) return; onClose(); navigate(`/pipeline/lead/${l.id}`); }}
                       >
                         {/* Header */}
@@ -965,7 +965,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                     </div>
                     <button
                       onClick={() => { onClose(); navigate("/multiatendimento"); }}
-                      style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-700)", border: "1px solid var(--accent-700)30", borderRadius: 8, padding: "5px 12px", background: "transparent", cursor: "pointer" }}
+                      style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-700)", border: "1px solid color-mix(in srgb, var(--border-accent) 30%, transparent)", borderRadius: 8, padding: "5px 12px", background: "transparent", cursor: "pointer" }}
                     >
                       Abrir chat
                     </button>
