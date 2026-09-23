@@ -28,7 +28,7 @@ import {
   ArrowLeft, User, Tag, Package, ShoppingCart, SquareX, X, XCircle, List, FormInput, Building2, GripVertical, Type, DollarSign, Hash,
   Clock, Activity, Plug, Link2, KeyRound, Server, HardDrive,
   CheckCircle2, Trash2, Pencil, Plus, Upload, Copy, Eye, EyeOff,
-  Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown,
+  Phone, Mail, Calendar, MessageSquare, MapPin, Lock, Users, Crown, Folder,
   UserPlus, UserMinus, FileText, CreditCard, Check, Zap, Webhook, Globe, ChevronDown, ChevronRight, ChevronsRight,
   Search, ExternalLink, Settings, Settings2, CalendarDays, Loader2,
   Filter, Network, CircleCheck, TriangleAlert, CircleAlert, KanbanSquare,
@@ -1599,53 +1599,6 @@ function EquipeSection() {
                 />
               </div>
 
-              {/*
-                Os departamentos, junto de quem entra.
-                ──────────────────────────────────────────────────────────────
-                Aqui, e não só na tela de Departamentos, porque o caminho antigo
-                dependia de alguém LEMBRAR de voltar lá depois. Quem esquecia
-                deixava a pessoa sem ver conversa nenhuma no Multiatendimento,
-                sem nada na tela explicando por quê.
-
-                Só aparece se a empresa tem departamento cadastrado: numa conta
-                que nunca abriu o Multiatendimento, seria um campo a mais para
-                entender e ignorar.
-              */}
-              {departamentos.length > 0 && (
-                <div className="px-6 pb-4 shrink-0 space-y-1.5 border-b border-gray-100">
-                  <label className="text-xs font-medium text-muted-foreground">Departamentos</label>
-                  <div className="space-y-[6px]">
-                    {departamentos.map(d => {
-                      const marcado = inviteDepts.includes(d.id);
-                      return (
-                        <label
-                          key={d.id}
-                          className={`flex items-center gap-2.5 px-3 py-2 rounded-[8px] border cursor-pointer transition-colors ${
-                            marcado ? "border-primary bg-primary/10" : "border-card-border bg-white hover:bg-gray-50"
-                          }`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={marcado}
-                            onChange={() => setInviteDepts(atual => marcado
-                              ? atual.filter(x => x !== d.id)
-                              : [...atual, d.id])}
-                            className="accent-primary w-4 h-4 shrink-0"
-                          />
-                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color ?? "var(--neutral-300)" }} />
-                          <span className={`text-[12px] truncate ${marcado ? "text-primary font-semibold" : "text-foreground"}`}>{d.name}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[12px] text-muted-foreground leading-snug pt-1">
-                    {inviteDepts.length === 0
-                      ? "Sem departamento, a pessoa só enxerga as conversas dos departamentos que ainda não têm time definido."
-                      : "No Multiatendimento, a pessoa enxerga as conversas destes departamentos."}
-                  </p>
-                </div>
-              )}
-
               {/* A lista de acessos. Só ela rola, para o e-mail continuar à
                   vista enquanto a pessoa percorre as permissões. */}
               <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-4">
@@ -1699,12 +1652,94 @@ function EquipeSection() {
                     </button>
                   );
                 })}
+
+                {/*
+                  Departamentos, na mesma lista dos acessos.
+                  ────────────────────────────────────────────────────────────
+                  Entrou como bloco fixo embaixo do e-mail e o dono pediu no
+                  formato dos vizinhos: é uma escolha da mesma natureza das
+                  outras -- o que a pessoa vai enxergar -- e um arranjo
+                  diferente a fazia parecer de outra família.
+
+                  Fica por ÚLTIMO e continua clicável para administrador, ao
+                  contrário dos grupos de permissão: admin enxerga todas as
+                  abas, mas o departamento decide QUAIS CONVERSAS ele vê no
+                  Multiatendimento, e isso vale para ele também.
+
+                  Só aparece se a empresa tem departamento cadastrado: numa
+                  conta que nunca abriu o Multiatendimento, seria uma linha a
+                  mais para entender e ignorar.
+                */}
+                {departamentos.length > 0 && (() => {
+                  const ativo = grupoAberto === "departamentos";
+                  const temEscolha = inviteDepts.length > 0;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setGrupoAberto("departamentos")}
+                      className={`w-full flex items-center gap-2 px-3 py-[9px] rounded-[6px] text-left transition-colors ${
+                        ativo ? "bg-primary/10" : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <Folder size={14} className={`shrink-0 ${ativo || temEscolha ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className={`flex-1 text-[13px] truncate ${ativo || temEscolha ? "text-primary font-semibold" : "text-foreground"}`}>
+                        Departamentos
+                      </span>
+                      {temEscolha && <span className="w-[6px] h-[6px] rounded-full bg-primary shrink-0" />}
+                    </button>
+                  );
+                })()}
               </div>
             </div>
 
             {/* Coluna da direita: o detalhe do que estiver aberto na esquerda. */}
             <div className="flex-1 min-w-0 overflow-y-auto p-6">
-              {grupoAberto === "admin" ? (
+              {grupoAberto === "departamentos" ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Folder size={16} className="text-foreground shrink-0" />
+                    <h3 className="text-[14px] font-semibold text-foreground">Departamentos</h3>
+                  </div>
+                  <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
+                    De quais times esta pessoa faz parte. É o que decide quais conversas ela enxerga
+                    no Multiatendimento.
+                  </p>
+
+                  <div className="mt-4 space-y-[6px]">
+                    {departamentos.map(d => {
+                      const marcado = inviteDepts.includes(d.id);
+                      return (
+                        <label
+                          key={d.id}
+                          className={`flex items-center gap-3 px-4 py-3 rounded-[8px] border cursor-pointer transition-colors ${
+                            marcado ? "border-primary bg-primary/10" : "border-card-border bg-white hover:bg-gray-50"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={marcado}
+                            onChange={() => setInviteDepts(atual => marcado
+                              ? atual.filter(x => x !== d.id)
+                              : [...atual, d.id])}
+                            className="accent-primary w-4 h-4 shrink-0"
+                          />
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color ?? "var(--neutral-300)" }} />
+                          <span className={`text-[12px] font-semibold ${marcado ? "text-primary" : "text-foreground"}`}>{d.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+
+                  {/* Nenhum marcado é escolha válida, e não esquecimento. Sem
+                      dizer o que acontece, o admin salva achando que deu acesso
+                      a tudo -- e a pessoa abre o Multiatendimento vazio. */}
+                  <p className="text-[12px] text-muted-foreground mt-3 leading-snug">
+                    {inviteDepts.length === 0
+                      ? "Sem departamento marcado, a pessoa só enxerga as conversas dos departamentos que ainda não têm time definido."
+                      : "A pessoa enxerga as conversas destes departamentos, mais as dos departamentos que ainda não têm time definido."}
+                  </p>
+                </>
+              ) : grupoAberto === "admin" ? (
                 <>
                   <div className="flex items-center gap-2">
                     <Crown size={16} className="text-[color:var(--warning-fg)] shrink-0" />
