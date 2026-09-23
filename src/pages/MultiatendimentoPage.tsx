@@ -4933,6 +4933,18 @@ export default function MultiatendimentoPage() {
                 Follow up), que são AÇÕES avulsas: aqui é o estado de quem cuida
                 da conversa.
               */}
+              {/*
+                Sangria de 16px para cada lado.
+
+                Esta seção nasce DENTRO do bloco de detalhes, que já recua 16px,
+                enquanto Atividades e as outras são filhas diretas do painel.
+                Sem a sangria, a Atribuição fica 16px mais para dentro que as
+                vizinhas -- e a régua dela, mais curta que as delas.
+
+                O recuo do conteúdo volta pelo próprio `Section`, que já aplica
+                16px por dentro: o que se desfaz aqui é só o do bloco de fora.
+              */}
+              <div style={{ margin: "0 -16px" }}>
               <Section title="Atribuição" defaultOpen bordaNoTopo>
 
               {/* Responsável -- propriedade do negócio, não da conversa. Sem
@@ -5190,6 +5202,7 @@ export default function MultiatendimentoPage() {
               })()}
 
               </Section>
+              </div>
 
               {/* Outras conversas deste contato (ex: número antigo x novo) */}
               {active.contactId && otherContactConvs.length > 0 && (
