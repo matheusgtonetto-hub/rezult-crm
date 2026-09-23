@@ -6,6 +6,15 @@ export interface DepartamentoLite {
   id: string;
   name: string;
   color: string | null;
+  /**
+   * Quem pertence ao departamento, por id de perfil.
+   *
+   * Vem junto porque a tabela de membros mostra os departamentos de cada
+   * pessoa, e o vínculo mora deste lado: não há coluna no membro apontando
+   * para o departamento. Sem isto, montar aquela coluna exigiria uma segunda
+   * consulta com o mesmo dado.
+   */
+  attendant_ids: string[];
 }
 
 /**
@@ -20,7 +29,14 @@ export interface DepartamentoLite {
  * empresas veria as duas listas somadas e poderia mandar uma conversa para o
  * departamento da outra empresa. Já houve um caso desses na base.
  */
-export function useDepartamentos(): DepartamentoLite[] {
+/**
+ * @param gatilhoDeRecarga  Muda de valor para forçar uma releitura. A tela de
+ *   equipe precisa disso: adicionar um membro altera `attendant_ids` pelo
+ *   BANCO, dentro de `add_member_to_company`, e sem um empurrão a coluna de
+ *   departamentos da tabela mostraria o estado anterior até alguém recarregar
+ *   a página.
+ */
+export function useDepartamentos(gatilhoDeRecarga?: unknown): DepartamentoLite[] {
   const { company } = useCompany();
   const [departamentos, setDepartamentos] = useState<DepartamentoLite[]>([]);
 
@@ -34,17 +50,19 @@ export function useDepartamentos(): DepartamentoLite[] {
     let vivo = true;
     supabase
       .from("departments")
-      .select("id, name, color")
+      .select("id, name, color, attendant_ids")
       .eq("company_id", id)
       .order("position", { ascending: true })
       .then(({ data, error }) => {
         if (!vivo) return;
         if (error) { console.error("useDepartamentos:", error.message); return; }
-        setDepartamentos((data ?? []) as DepartamentoLite[]);
+        // `attendant_ids` nunca é nulo no banco (default '{}'), mas linhas
+        // antigas lidas de cache podem vir sem ele.
+        setDepartamentos(((data ?? []) as DepartamentoLite[]).map(d => ({ ...d, attendant_ids: d.attendant_ids ?? [] })));
       });
 
     return () => { vivo = false; };
-  }, [company?.id]);
+  }, [company?.id, gatilhoDeRecarga]);
 
   return departamentos;
 }

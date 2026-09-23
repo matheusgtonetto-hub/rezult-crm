@@ -49,6 +49,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import IntegracoesPage from "./IntegracoesPage";
 import DepartmentsManager from "@/components/DepartmentsManager";
 import { useDepartamentos } from "@/hooks/useDepartamentos";
+import { tintaDeChip } from "@/lib/contraste";
 import WorkSchedulesManager from "@/components/WorkSchedulesManager";
 
 type SectionId =
@@ -1196,7 +1197,10 @@ function EquipeSection() {
    * conversa nenhuma.
    */
   const [inviteDepts, setInviteDepts] = useState<string[]>([]);
-  const departamentos = useDepartamentos();
+  // Sobe a cada membro adicionado: quem grava os departamentos é o banco, e
+  // sem o empurrão a coluna da tabela ficaria no estado anterior.
+  const [versaoDepartamentos, setVersaoDepartamentos] = useState(0);
+  const departamentos = useDepartamentos(versaoDepartamentos);
   /**
    * Qual grupo de permissões está aberto no painel da direita.
    *
@@ -1294,6 +1298,7 @@ function EquipeSection() {
 
     if (data === "ok") {
       toast.success("Membro adicionado com sucesso!");
+      setVersaoDepartamentos(v => v + 1);
       await Promise.all([loadMembers(), loadPendingInvites()]);
     } else if (data === "invited") {
       toast.success("Convite registrado! O acesso será liberado ao criar conta com este e-mail.");
@@ -1415,6 +1420,11 @@ function EquipeSection() {
                     <th className="text-left font-medium px-4 py-2.5">Nome</th>
                     <th className="text-left font-medium px-4 py-2.5">Email</th>
                     <th className="text-left font-medium px-4 py-2.5">Acesso</th>
+                    {/* Só com departamento cadastrado: numa conta que não usa
+                        o Multiatendimento, seria uma coluna de traços. */}
+                    {departamentos.length > 0 && (
+                      <th className="text-left font-medium px-4 py-2.5">Departamento</th>
+                    )}
                     <th className="text-left font-medium px-4 py-2.5 whitespace-nowrap">Último acesso</th>
                     {/* Coluna das ações sem título: o cabeçalho nomeia o dado da
                         coluna, e aqui não há dado nenhum. */}
@@ -1458,6 +1468,44 @@ function EquipeSection() {
                             </span>
                           )}
                         </td>
+                        {/*
+                          Os departamentos da pessoa.
+                          ──────────────────────────────────────────────────────
+                          O vínculo mora no DEPARTAMENTO (`attendant_ids`), não
+                          no membro, então a leitura é invertida: percorre os
+                          departamentos procurando quem está dentro.
+
+                          Sem nenhum, um traço. Quem lê a tabela precisa
+                          distinguir "está no Comercial" de "não foi colocado em
+                          lugar nenhum" -- o segundo é o caso que faz a pessoa
+                          abrir o Multiatendimento sem ver conversa.
+                        */}
+                        {departamentos.length > 0 && (() => {
+                          const meus = departamentos.filter(d => d.attendant_ids.includes(m.id));
+                          return (
+                            <td className="px-4 py-3">
+                              {meus.length === 0 ? (
+                                <span className="text-muted-foreground">—</span>
+                              ) : (
+                                <div className="flex flex-wrap items-center gap-1">
+                                  {meus.map(d => (
+                                    <span
+                                      key={d.id}
+                                      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12px] font-semibold whitespace-nowrap"
+                                      style={{
+                                        background: d.color ? `${d.color}22` : "var(--neutral-50)",
+                                        color: d.color ? tintaDeChip(d.color) : "var(--text-muted)",
+                                      }}
+                                    >
+                                      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: d.color ?? "var(--neutral-300)" }} />
+                                      {d.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </td>
+                          );
+                        })()}
                         {/* `tabular-nums` porque a coluna alterna datas e frases
                             curtas; com dígitos de larguras diferentes, as datas
                             de linhas vizinhas não alinhavam entre si. */}
