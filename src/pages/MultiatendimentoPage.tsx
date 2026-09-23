@@ -356,10 +356,23 @@ function MuInlineField({ label, value, onSave, type = "text", options }: {
   );
 }
 
-function Section({ title, children, defaultOpen = false, action }: { title: string; children: React.ReactNode; defaultOpen?: boolean; action?: React.ReactNode }) {
+/**
+ * @param bordaNoTopo  Troca a régua de baixo por uma de cima.
+ *
+ *   As seções empilhadas fecham cada uma com a sua linha, e isso funciona
+ *   enquanto há outra logo abaixo. Quando o que vem depois NÃO é uma seção, a
+ *   linha fica sobrando no meio do painel, sem nada para separar. É o caso da
+ *   Atribuição, que precisa da divisão em relação aos botões acima dela e não
+ *   em relação ao que vem depois.
+ */
+function Section({ title, children, defaultOpen = false, action, bordaNoTopo = false }: { title: string; children: React.ReactNode; defaultOpen?: boolean; action?: React.ReactNode; bordaNoTopo?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ borderBottom: "1px solid var(--neutral-100)" }}>
+    <div style={bordaNoTopo
+      // O respiro acima da régua: sem ele a linha encosta no que vier antes --
+      // no caso da Atribuição, na fileira de botões logo acima.
+      ? { borderTop: "1px solid var(--neutral-100)", marginTop: 14 }
+      : { borderBottom: "1px solid var(--neutral-100)" }}>
       <button
         onClick={() => setOpen(!open)}
         style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", background: "transparent", border: "none", cursor: "pointer" }}
@@ -4920,7 +4933,7 @@ export default function MultiatendimentoPage() {
                 Follow up), que são AÇÕES avulsas: aqui é o estado de quem cuida
                 da conversa.
               */}
-              <Section title="Atribuição" defaultOpen>
+              <Section title="Atribuição" defaultOpen bordaNoTopo>
 
               {/* Responsável -- propriedade do negócio, não da conversa. Sem
                   negócio vinculado ainda, não dá pra atribuir (a conversa
@@ -4942,24 +4955,35 @@ export default function MultiatendimentoPage() {
                   <button
                     onClick={e => { e.stopPropagation(); setRespMenuOpen(o => !o); }}
                     title="Trocar o responsável"
-                    style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 6, background: "transparent", border: "none", borderRadius: 6, padding: "2px 4px", cursor: "pointer", textAlign: "left" }}
-                    onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-hover)")}
-                    onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
+                    /*
+                     * A pílula do seletor de número, no cabeçalho da conversa
+                     * (dono, 23/09/2026): mesmo raio, mesmo fundo, mesma tinta e
+                     * a mesma seta de 10px. São dois seletores do mesmo produto,
+                     * e dois desenhos para o mesmo gesto fazem a tela parecer
+                     * montada por duas pessoas.
+                     *
+                     * Largura pelo CONTEÚDO, não `flex: 1`: esticado até a borda
+                     * ele lia como um campo de formulário vazio à direita do
+                     * nome.
+                     */
+                    style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 5, background: "var(--accent-50)", border: "none", borderRadius: 100, padding: "3px 8px 3px 6px", cursor: "pointer", outline: "none", textAlign: "left" }}
                   >
                     {(effectiveLead?.responsibles?.length ?? 0) > 0 ? (
                       <>
                         <div style={{ display: "flex", flexShrink: 0 }}>
+                          {/* 16px, e não 20: dentro da pílula de 22px de altura
+                              o avatar antigo encostava nas duas bordas. */}
                           {(effectiveLead?.responsibles ?? []).slice(0, 3).map((name, i) =>
                             memberAvatars[name] ? (
-                              <img key={name} src={memberAvatars[name]} alt={name} style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", border: "2px solid var(--neutral-100)", marginLeft: i > 0 ? -6 : 0 }} />
+                              <img key={name} src={memberAvatars[name]} alt={name} style={{ width: 16, height: 16, borderRadius: "50%", objectFit: "cover", marginLeft: i > 0 ? -5 : 0 }} />
                             ) : (
-                              <div key={name} style={{ width: 20, height: 20, borderRadius: "50%", background: memberColors[name] ?? corDoTexto(name), color: tintaSobre(memberColors[name] ?? corDoTexto(name)), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, border: "2px solid var(--neutral-100)", marginLeft: i > 0 ? -6 : 0 }}>
+                              <div key={name} style={{ width: 16, height: 16, borderRadius: "50%", background: memberColors[name] ?? corDoTexto(name), color: tintaSobre(memberColors[name] ?? corDoTexto(name)), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, marginLeft: i > 0 ? -5 : 0 }}>
                                 {iniciais(name)}
                               </div>
                             )
                           )}
                         </div>
-                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(effectiveLead?.responsibles ?? []).join(", ")}</span>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{(effectiveLead?.responsibles ?? []).join(", ")}</span>
                         {/* Ponto âmbar quando quem responde não é do
                             departamento da conversa. Transferir de time NÃO
                             mexe no responsável, porque ele é do NEGÓCIO e
@@ -4975,9 +4999,9 @@ export default function MultiatendimentoPage() {
                         })()}
                       </>
                     ) : (
-                      <span style={{ fontSize: 12, color: "var(--text-muted)", flex: 1, minWidth: 0, textAlign: "left" }}>Sem responsável</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", minWidth: 0, textAlign: "left" }}>Sem responsável</span>
                     )}
-                    <ChevronDown size={13} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                    <ChevronDown size={10} color="var(--accent-700)" style={{ flexShrink: 0 }} />
                   </button>
                 )}
 
@@ -5070,20 +5094,22 @@ export default function MultiatendimentoPage() {
                         repete a palavra -- diz QUAL departamento, pela cor que
                         a etiqueta usa no card e no seletor da lista. */}
                     <span style={{ fontSize: 12, color: "var(--text-muted)", flexShrink: 0 }}>Departamento:</span>
-                    {atual && <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: cor ?? "var(--neutral-300)" }} />}
-                    <span style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: cor ? tintaDeChip(cor) : "var(--text-muted)" }}>
-                      {atual?.name ?? "Sem departamento"}
-                    </span>
-                    {/* Dropdown, e não "Transferir": o mesmo tratamento do
-                        responsável, para as duas linhas da seção abrirem do
-                        mesmo jeito. */}
+                    {/* A mesma pílula do responsável e do seletor de número:
+                        o nome é o gatilho, a seta só diz que abre. */}
                     <button
                       onClick={e => { e.stopPropagation(); setDeptAssignOpen(o => !o); }}
                       title="Transferir de departamento"
-                      style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 3, background: "transparent", border: "none", borderRadius: 6, padding: "3px 4px", cursor: "pointer", color: "var(--text-muted)" }}
-                      onMouseEnter={e => (e.currentTarget.style.background = "var(--surface-hover)")}
-                      onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
-                    ><ChevronDown size={13} /></button>
+                      style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 5, background: "var(--accent-50)", border: "none", borderRadius: 100, padding: "3px 8px 3px 6px", cursor: "pointer", outline: "none", textAlign: "left" }}
+                    >
+                      {/* O ponto com a cor DO departamento: é o que diz qual é
+                          sem obrigar a ler, e repete a cor que a etiqueta usa no
+                          card e no seletor da lista. */}
+                      <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: cor ?? "var(--neutral-300)" }} />
+                      <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontSize: 12, fontWeight: 600, color: atual ? "var(--accent-800)" : "var(--text-muted)" }}>
+                        {atual?.name ?? "Sem departamento"}
+                      </span>
+                      <ChevronDown size={10} color="var(--accent-700)" style={{ flexShrink: 0 }} />
+                    </button>
 
                     {deptAssignOpen && (
                       <div onClick={e => e.stopPropagation()} style={{ position: "absolute", top: "calc(100% + 2px)", right: 0, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 10, boxShadow: "0 4px 16px rgba(0,0,0,0.1)", minWidth: 240, zIndex: 50, overflow: "hidden", padding: 4, maxHeight: 340, overflowY: "auto" }}>
