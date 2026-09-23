@@ -13,6 +13,7 @@ import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import { ItensDoNegocio } from "@/components/ItensDoNegocio";
+import { TagPill } from "@/components/TagPill";
 import { conversaVisivelPara, departamentosQueAlcanco } from "@/lib/visibilidadeDeConversa";
 import { useProfile } from "@/context/ProfileContext";
 import { useNomeAtendente } from "@/hooks/useNomeAtendente";
@@ -4790,7 +4791,7 @@ export default function MultiatendimentoPage() {
                     {convTags.slice(0, 4).map(tagName => {
                       const tag = crmTags.find(t => t.name === tagName);
                       return (
-                        <span
+                        <TagPill
                           key={tagName}
                           onClick={() => toggleConvTag(tagName)}
                           /* Mesma medida das tags da lista de conversas, à
@@ -4806,10 +4807,10 @@ export default function MultiatendimentoPage() {
                              saiu do arquivo junto com as tags de lá, e este é
                              agora o único lugar que mostra tag no
                              multiatendimento. */
-                          style={{ background: tag?.color ? `${tag.color}20` : "var(--neutral-50)", color: tag?.color ? tintaDeChip(tag.color, 0.125) : "var(--text-muted)", border: `1px solid ${tag?.color || "var(--border-default)"}`, borderRadius: 6, padding: "2px 6px", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+                          cor={tag?.color}
                         >
                           {tagName}
-                        </span>
+                        </TagPill>
                       );
                     })}
                     {convTags.length > 4 && (

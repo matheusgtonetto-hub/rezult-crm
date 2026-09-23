@@ -28,6 +28,7 @@ import { ImportLeadsModal } from "@/components/ImportLeadsModal";
 import { LeadDrawer } from "@/components/LeadDrawer";
 import { toast } from "sonner";
 import { tintaSobre } from "@/lib/contraste";
+import { TagPill } from "@/components/TagPill";
 
 export default function LeadsPage() {
   const { leads, contacts, columns, pipelines, teamMembers, memberColors, memberAvatars, deleteLead, deleteLeadAndContact, deleteContact, crmTags, crmLists } = useCRM();
@@ -511,9 +512,9 @@ export default function LeadsPage() {
                         : (row.contact.tags ?? []).map(tagName => {
                             const t = crmTags.find(x => x.name === tagName);
                             return (
-                              <span key={tagName} className="text-[12px] px-2 rounded-full font-medium" style={{ paddingTop: 1, paddingBottom: 1, background: t?.color || "var(--neutral-100)", color: tintaSobre(t?.color) }}>
+                              <TagPill key={tagName} cor={t?.color}>
                                 {tagName}
-                              </span>
+                              </TagPill>
                             );
                           })
                       }
@@ -651,9 +652,9 @@ export default function LeadsPage() {
                         : (row.lead.tags ?? []).map(tagName => {
                             const t = crmTags.find(x => x.name === tagName);
                             return (
-                              <span key={tagName} className="text-[12px] px-2 rounded-full font-medium" style={{ paddingTop: 1, paddingBottom: 1, background: t?.color || "var(--neutral-100)", color: tintaSobre(t?.color) }}>
+                              <TagPill key={tagName} cor={t?.color}>
                                 {tagName}
-                              </span>
+                              </TagPill>
                             );
                           })
                       }

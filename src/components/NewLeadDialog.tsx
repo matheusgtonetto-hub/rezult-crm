@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { ChevronDown, Check } from "lucide-react";
 import type { Priority, LeadOrigin } from "@/data/mockData";
+import { TagPill } from "@/components/TagPill";
 
 interface Props {
   open: boolean;
@@ -144,13 +145,9 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
                   {selectedTags.map(tagName => {
                     const tag = crmTags.find(t => t.name === tagName);
                     return (
-                      <span
-                        key={tagName}
-                        className="text-xs px-1.5 py-0.5 rounded-full font-medium"
-                        style={{ backgroundColor: (tag?.color ?? "#6366f1") + "22", color: tag?.color ?? "#6366f1" }}
-                      >
+                      <TagPill key={tagName} cor={tag?.color}>
                         {tagName}
-                      </span>
+                      </TagPill>
                     );
                   })}
                 </div>

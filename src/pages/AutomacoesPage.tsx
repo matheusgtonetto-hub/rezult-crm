@@ -28,6 +28,7 @@ import { emitPlanLimit } from "@/lib/planLimitEvent";
 import fixWebmDuration from "fix-webm-duration";
 import { supabase } from "@/lib/supabase";
 import { useDepartamentos } from "@/hooks/useDepartamentos";
+import { TagPill } from "@/components/TagPill";
 import { PALETA_DO_APP, COR_DE_TAG_PADRAO } from "@/lib/paleta-do-app";
 import { IA_MODELS, IA_PROVIDER_LABELS, IA_COST_LABELS, type IaProvider } from "@/lib/ai-models";
 import { useAuth } from "@/context/AuthContext";
@@ -7773,12 +7774,15 @@ function TagMultiSelect({ selectedIds, onChange, crmTags, addTag }: {
             const tag = crmTags.find(t => t.id === id);
             if (!tag) return null;
             return (
-              <span key={id} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: tag.color ? tag.color + "28" : "var(--neutral-200)", color: tag.color || "var(--text-heading)", border: `1px solid ${tag.color || "var(--border-strong)"}44`, borderRadius: 12, padding: "2px 8px", fontSize: 12, fontWeight: 500 }}>
+              /* Tinta era a cor CRUA sobre o fundo dela a 28%: em amarelo
+                 e ciano a palavra sumia. Agora é o `TagPill` das outras
+                 telas, que escurece a tinta até passar o contraste. */
+              <TagPill key={id} cor={tag.color} style={{ paddingRight: 4 }}>
                 {tag.name}
                 <button onClick={() => onChange(selectedIds.filter(i => i !== id))} style={{ background: "none", border: "none", cursor: "pointer", padding: 0, display: "flex", alignItems: "center", color: "inherit", opacity: 0.7 }}>
                   <X size={10} />
                 </button>
-              </span>
+              </TagPill>
             );
           })}
         </div>
@@ -7803,9 +7807,9 @@ function TagMultiSelect({ selectedIds, onChange, crmTags, addTag }: {
                 return (
                   <div key={tag.id} onClick={() => onChange(checked ? selectedIds.filter(i => i !== tag.id) : [...selectedIds, tag.id])}
                     style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 12px", cursor: "pointer", background: checked ? "#EFF6FF" : "transparent" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", background: tag.color ? tag.color + "28" : "var(--neutral-200)", color: tag.color || "var(--text-heading)", border: `1px solid ${tag.color || "var(--border-strong)"}44`, borderRadius: 12, padding: "2px 10px", fontSize: 12, fontWeight: 500 }}>
+                    <TagPill cor={tag.color}>
                       {tag.name}
-                    </span>
+                    </TagPill>
                     {checked && <CheckCircle2 size={12} style={{ color: "#3B82F6" }} />}
                   </div>
                 );

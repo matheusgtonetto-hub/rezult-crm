@@ -98,6 +98,7 @@ import { toast } from "sonner";
 import type { ActivityType } from "@/data/mockData";
 import { variantesDeTelefone } from "@/lib/telefone";
 import { tintaSobre } from "@/lib/contraste";
+import { TagPill } from "@/components/TagPill";
 
 type TabKey = "anotacoes" | "atividades" | "email" | "arquivos";
 
@@ -1574,22 +1575,27 @@ export default function LeadDetailPage() {
                           {(lead.tags || []).map(tagName => {
                             const t = crmTags.find(x => x.name === tagName);
                             return (
-                              <span
+                              /* Era cor cheia com texto branco; agora é o
+                                 mesmo `TagPill` das outras telas. O "×" continua
+                                 dentro da etiqueta, então ela recebe o recuo
+                                 direito menor para o botão não encostar na
+                                 borda. */
+                              <TagPill
                                 key={tagName}
-                                className="text-[12px] pl-2 pr-1 py-0.5 rounded-full text-white font-medium inline-flex items-center gap-1"
-                                style={{ background: t?.color || "#888" }}
+                                cor={t?.color}
+                                style={{ paddingRight: 3 }}
                               >
                                 {tagName}
                                 <button
                                   type="button"
                                   onClick={() => updateField("tags", (lead.tags || []).filter(x => x !== tagName))}
-                                  className="inline-flex items-center justify-center rounded-full transition-colors hover:bg-white/25"
+                                  className="inline-flex items-center justify-center rounded-full transition-colors hover:bg-black/10"
                                   style={{ width: 13, height: 13 }}
                                   aria-label={`Remover tag ${tagName}`}
                                 >
                                   <X size={9} />
                                 </button>
-                              </span>
+                              </TagPill>
                             );
                           })}
                           {(!lead.tags || lead.tags.length === 0) && (

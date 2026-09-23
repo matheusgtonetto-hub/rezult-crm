@@ -11,6 +11,7 @@ import { normalizarTelefoneBr, telefonesIguais } from "@/lib/telefone";
 import { tintaSobre } from "@/lib/contraste";
 import { Upload, FileSpreadsheet, CheckCircle2, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
+import { tintaDeChip } from "@/lib/contraste";
 
 interface Props {
   open: boolean;
@@ -443,11 +444,17 @@ export function ImportLeadsModal({ open, onClose }: Props) {
                           key={tag.id}
                           type="button"
                           onClick={() => toggleTag(tag.name)}
+                          /* Continua um SELETOR, e não uma etiqueta: precisa
+                             do estado apagado (transparente com borda) para
+                             dizer que dá para marcar, então não usa o
+                             `TagPill`. O que veio do padrão é a tinta: era a
+                             cor crua sobre o fundo dela a 22%, o que em
+                             amarelo ou ciano some. */
                           className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all"
                           style={{
                             background:   active ? tag.color + "22" : "transparent",
                             borderColor:  active ? tag.color : "var(--neutral-300)",
-                            color:        active ? tag.color : "var(--text-muted)",
+                            color:        active ? tintaDeChip(tag.color) : "var(--text-muted)",
                           }}
                         >
                           {active && <X size={10} />}

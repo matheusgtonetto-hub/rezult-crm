@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { X, Loader2, Plus, ChevronDown, Check } from "lucide-react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { TagPill } from "@/components/TagPill";
 
 const DDI_OPTIONS = [
   { code: "+55", flag: "🇧🇷" },
@@ -387,9 +388,13 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                       {form.tags.map(tagName => {
                         const tag = crmTags.find(t => t.name === tagName);
                         return (
-                          <span key={tagName} className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: (tag?.color ?? "#6366f1") + "22", color: tag?.color ?? "#6366f1" }}>
+                          /* A tinta era a cor CRUA da tag sobre o fundo dela
+                             esmaecido: em amarelo ou ciano isso dava 2:1 e a
+                             palavra desaparecia. O `TagPill` escurece só o
+                             necessário. */
+                          <TagPill key={tagName} cor={tag?.color}>
                             {tagName}
-                          </span>
+                          </TagPill>
                         );
                       })}
                     </div>

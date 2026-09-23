@@ -9,6 +9,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { usePipelinePermissions } from "@/hooks/usePipelinePermissions";
 import { useColunasDoKanban } from "@/hooks/useColunasDoKanban";
 import { LeadDrawer } from "@/components/LeadDrawer";
+import { TagPill } from "@/components/TagPill";
 import { PipelineSidebar } from "@/components/PipelineSidebar";
 import { PipelineFilterPanel, type StatusFilter } from "@/components/PipelineFilterPanel";
 import { leadMatchesFilter, filterLeads, isFilterEmpty, executarAutomacaoNoLead, type LeadFilter } from "@/data/disparos";
@@ -1551,18 +1552,12 @@ export default function PipelinePage() {
                                                     const t = crmTags.find(x => x.name === tagName);
                                                     if (!t) return null;
                                                     return (
-                                                      <span
+                                                      <TagPill
                                                         key={tagName}
-                                                        /* 10px (dono, 21/09/2026): o card do funil é estreito, e
-                                                           duas ou três tags em 12px empurravam o nome do negócio.
-                                                           Abaixo do piso de 12px da matriz, registrado lá como
-                                                           exceção. A tinta continua saindo de `tintaSobre`, que
-                                                           garante o contraste sobre a cor da tag. */
-                                                        className="text-[10px] px-1.5 rounded-full font-medium whitespace-nowrap"
-                                                        style={{ paddingTop: 2, paddingBottom: 2, background: t.color || "var(--neutral-100)", color: tintaSobre(t.color) }}
+                                                        cor={t.color}
                                                       >
                                                         {tagName}
-                                                      </span>
+                                                      </TagPill>
                                                     );
                                                   })}
                                                 </div>

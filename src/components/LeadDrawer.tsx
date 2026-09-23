@@ -20,6 +20,7 @@ import type { ActivityType, LeadOrigin } from "@/data/mockData";
 import { ACT_META } from "@/lib/atividades";
 import { colorFromString } from "@/lib/iniciais";
 import { tintaSobre } from "@/lib/contraste";
+import { TagPill } from "@/components/TagPill";
 
 interface Props {
   leadId: string | null;
@@ -125,6 +126,9 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
     markLeadWon,
     customFieldGroups,
     addLead, nextDealNumber, deleteLead, deleteLeadAndContact, products,
+    // Para a etiqueta de tag sair na cor que o cliente escolheu: o lead guarda
+    // só o NOME da tag, e a cor mora no cadastro dela.
+    crmTags,
   } = useCRM();
   const { user } = useAuth();
   const { company, billingBlocked } = useCompany();
@@ -387,7 +391,11 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
               {lead.tags && lead.tags.length > 0 && (
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 4, justifyContent: "center", marginTop: 10 }}>
                   {lead.tags.map(t => (
-                    <span key={t} style={{ background: "var(--accent-700)18", color: "var(--accent-700)", fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 100 }}>{t}</span>
+                    /* Aqui o fundo era `var(--accent-700)18`, que não é cor
+                       válida em CSS -- o navegador descartava a regra e a
+                       etiqueta ficava sem fundo. E pintava todas com o verde
+                       da marca, ignorando a cor que o cliente escolheu. */
+                    <TagPill key={t} cor={crmTags.find(x => x.name === t)?.color}>{t}</TagPill>
                   ))}
                 </div>
               )}
