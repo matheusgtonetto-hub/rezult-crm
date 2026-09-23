@@ -1,6 +1,7 @@
 import { Fragment, type ComponentType, type ReactNode } from "react";
 import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useMensagensNaoLidas } from "@/hooks/useMensagensNaoLidas";
 import {
   ContactRound,
   ChartPie,
@@ -24,6 +25,14 @@ type NavItem = {
   icon: ComponentType<{ size?: string | number; strokeWidth?: string | number; className?: string }>;
   locked?: boolean;
   badge?: "IA" | "Em breve";
+  /**
+   * Quantidade pendente nesta tela, em bolinha vermelha.
+   *
+   * Hoje só o Multiatendimento usa: é o número de conversas não lidas que a
+   * pessoa pode abrir. Zero não desenha nada -- uma bolinha com "0" é ruído
+   * que ensina a ignorar a bolinha.
+   */
+  contador?: number;
 };
 
 /*
@@ -114,6 +123,15 @@ const OVERLINE =
 export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAlternar: () => void }) {
   const { pathname } = useLocation();
   const { canAny } = usePermissions();
+  /*
+   * As não lidas do Multiatendimento.
+   *
+   * A conta mora aqui, na barra, e não na tela do Multiatendimento: o ponto do
+   * contador é avisar quem está em OUTRA tela. E respeita a mesma visibilidade
+   * da lista de conversas -- avisar de mensagem que a pessoa não pode abrir
+   * seria mandá-la procurar o que não existe para ela.
+   */
+  const naoLidas = useMensagensNaoLidas();
   // A ordem daqui é a ordem na tela. Cada entrada carrega a própria permissão,
   // então mover uma linha muda só a posição do ícone: quem não tem acesso
   // continua sem ver, e os itens ausentes fecham o vão sozinhos.
@@ -143,7 +161,7 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
     // Último da lista a pedido do dono (22/09/2026). Estava logo depois de
     // Leads, no meio das telas do funil.
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
-      ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: CrmWhatsAppIcon }] : []),
+      ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: CrmWhatsAppIcon, contador: naoLidas }] : []),
   ];
 
   /** A dica com o nome de uma tela, só com a barra recolhida. */
@@ -232,6 +250,37 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
             style={{ width: 15, height: 15, fontSize: 11, background: "var(--accent-100)", color: "var(--accent-800)" }}
           >
             IA
+          </span>
+        )}
+        {/*
+          O contador de não lidas.
+          ──────────────────────────────────────────────────────────────────────
+          Vermelho de verdade, e não o accent da marca: é o único lugar da barra
+          que pede reação imediata, e na cor da casa ele se perderia entre os
+          outros realces.
+
+          Aberta, vai no fim da linha, onde a etiqueta "IA" também fica.
+          Recolhida, sobe para o canto do ícone: não há linha onde caber.
+
+          Acima de 99 vira "99+". O número é um aviso, não um relatório, e três
+          dígitos dentro de 15px viram borrão.
+        */}
+        {!!item.contador && item.contador > 0 && (
+          <span
+            aria-label={`${item.contador} ${item.contador === 1 ? "conversa não lida" : "conversas não lidas"}`}
+            className={recolhida
+              ? "absolute top-0.5 right-1 rounded-full flex items-center justify-center font-bold leading-none"
+              : "rounded-full flex items-center justify-center font-bold leading-none shrink-0"}
+            style={{
+              minWidth: recolhida ? 15 : 18,
+              height: recolhida ? 15 : 18,
+              padding: "0 4px",
+              fontSize: recolhida ? 10 : 11,
+              background: "#DC2626",
+              color: "#FFFFFF",
+            }}
+          >
+            {item.contador > 99 ? "99+" : item.contador}
           </span>
         )}
       </RouterNavLink>,

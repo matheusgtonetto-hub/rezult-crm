@@ -13,6 +13,7 @@ import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import { ItensDoNegocio } from "@/components/ItensDoNegocio";
+import { conversaVisivelPara, departamentosQueAlcanco } from "@/lib/visibilidadeDeConversa";
 import { useProfile } from "@/context/ProfileContext";
 import { useNomeAtendente } from "@/hooks/useNomeAtendente";
 import { corDoNome } from "@/lib/nomeColorido";
@@ -1215,52 +1216,30 @@ export default function MultiatendimentoPage() {
   /**
    * Os departamentos que EU alcanço.
    *
-   * Um departamento sem ninguém definido é de todos: array vazio quer dizer
-   * "ninguém montou o time ainda", e não "ninguém entra". Hoje 39 dos 40
-   * departamentos da base estão assim, então tratar vazio como proibição
-   * deixaria quase todo atendente sem ver conversa nenhuma no dia da mudança.
-   *
-   * A comparação é por id de perfil, com o nome como reserva -- é o vínculo que
-   * sobrevive a alguém se renomear em Meu Perfil.
+   * A regra vive em `visibilidadeDeConversa.ts` porque o contador de não lidas
+   * na barra lateral precisa da MESMA resposta -- um badge que somasse conversa
+   * que a pessoa não pode abrir mandaria ela procurar o que não existe para
+   * ela.
    */
-  const meusDepartamentos = useMemo(() => {
-    const meuId = user?.id;
-    const meuNome = currentUserName.trim().toLowerCase();
-    return muDepts
-      .filter(d => {
-        const ids = d.attendant_ids ?? [];
-        const nomes = d.attendants ?? [];
-        if (!ids.length && !nomes.length) return true;
-        if (meuId && ids.length) return ids.includes(meuId);
-        return nomes.some(n => String(n).trim().toLowerCase() === meuNome);
-      })
-      .map(d => d.id);
-  }, [muDepts, user?.id, currentUserName]);
+  const meusDepartamentos = useMemo(
+    () => departamentosQueAlcanco(muDepts, user?.id, currentUserName),
+    [muDepts, user?.id, currentUserName],
+  );
 
   const isConvVisibleToMe = (c: Conversation): boolean => {
-    if (isMuAdmin) return true;
-
     const negocio = resolveLeadForConv(c);
-    const assignedTo = convStates[c.id]?.assignedTo;
-    const mine = (!!negocio?.pipelineId && (negocio.responsibles ?? []).includes(currentUserName))
-      || (!!assignedTo && assignedTo === currentUserName);
-    // Conversa MINHA eu vejo sempre, mesmo que ela esteja num departamento que
-    // não é meu: foi a mim que a atribuíram, e sumir com ela deixaria um
-    // trabalho meu invisível para mim.
-    if (mine) return true;
-
-    /*
-     * O departamento filtra ANTES do resto (decisão do dono, 22/09/2026).
-     *
-     * Só aperta quando a empresa tem mais de um departamento: com um só, este
-     * filtro não separa nada e ainda arriscaria esconder tudo de alguém.
-     */
-    const dept = convStates[c.id]?.departmentId;
-    if (muDepts.length > 1 && dept && !meusDepartamentos.includes(dept)) return false;
-
-    const mySettings = user ? attendantSettings[user.id] : undefined;
-    if (assignedTo) return !!mySettings?.allowSeeOthers;
-    return !mySettings?.hideUnassigned;
+    return conversaVisivelPara(
+      { departmentId: convStates[c.id]?.departmentId, assignedTo: convStates[c.id]?.assignedTo },
+      {
+        isAdmin: isMuAdmin,
+        currentUserName,
+        meusDepartamentos,
+        totalDeDepartamentos: muDepts.length,
+        allowSeeOthers: user ? attendantSettings[user.id]?.allowSeeOthers : undefined,
+        hideUnassigned: user ? attendantSettings[user.id]?.hideUnassigned : undefined,
+      },
+      !!negocio?.pipelineId && (negocio.responsibles ?? []).includes(currentUserName),
+    );
   };
 
   const effectiveLead  = resolveLeadForConv(active);
