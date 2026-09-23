@@ -442,13 +442,22 @@ function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, bor
       )}
       <button
         onClick={onClick}
+        /*
+         * 11px, e não os 12 do piso do design system.
+         *
+         * É exceção nomeada, como a trilha de etapas (10px) e as tags do card
+         * (10px): com os quatro nomes em 12px a fileira estourava os 350px da
+         * coluna e o chip compacto caía sozinho para uma segunda linha. O
+         * recuo lateral e o vão entre eles apertaram junto -- só a fonte não
+         * devolvia os ~47px que faltavam.
+         */
         style={{
-          display: "flex", alignItems: "center", gap: 5,
+          display: "flex", alignItems: "center", gap: 4,
           justifyContent: iconOnly ? "flex-start" : "space-between",
           width: iconOnly ? undefined : "100%",
           background: "var(--surface-card)", border, borderRadius: 6,
-          padding: iconOnly ? "4px 8px 4px 4px" : "4px 8px",
-          fontSize: 12, cursor: "pointer", minWidth: 0,
+          padding: iconOnly ? "4px 6px 4px 4px" : "4px 6px",
+          fontSize: 11, cursor: "pointer", minWidth: 0,
         }}
       >
         {/* O ícone sobrou só no compacto: é o que identifica o chip quando não
@@ -3796,7 +3805,10 @@ export default function MultiatendimentoPage() {
             );
           })()}
 
-          <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
+          {/* `gap` de 4px e sem quebra de linha: os quatro chips têm que caber
+              nos 350px da coluna, e com `wrap` o compacto caía sozinho para
+              baixo em vez de apertar junto com os outros. */}
+          <div style={{ display: "flex", gap: 4, marginTop: 10 }}>
             {filters.map(f => (
               /*
                * Seleção única: clicar no chip aceso não apaga mais o filtro.
