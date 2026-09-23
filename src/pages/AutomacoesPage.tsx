@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { emitPlanLimit } from "@/lib/planLimitEvent";
 import fixWebmDuration from "fix-webm-duration";
 import { supabase } from "@/lib/supabase";
+import { useTema } from "@/context/ProfileContext";
 import { useDepartamentos } from "@/hooks/useDepartamentos";
 import { TagPill } from "@/components/TagPill";
 import { PALETA_DO_APP, COR_DE_TAG_PADRAO } from "@/lib/paleta-do-app";
@@ -489,7 +490,27 @@ const MENSAGEM_CATEGORIES: { id: string; label: string; icon: React.ElementType;
   ]},
 ];
 
-const NOTE_COLORS = [
+/**
+ * As cores da nota adesiva, uma paleta por tema.
+ *
+ * ─── Por que são hex, e não tokens ──────────────────────────────────────────
+ *
+ * Porque o código concatena opacidade nelas: `${c.border}99` para o hover do
+ * botão e `${c.borderSel}44` para a sombra. Isso só funciona com hex -- com
+ * token viraria `var(--x)99`, que não é cor válida em CSS e faz o navegador
+ * descartar a regra inteira (o mesmo defeito que já apareceu no painel do lead
+ * e em cinco bordas do app). Então a troca de tema acontece em JavaScript, pela
+ * `paletaDeNotas`, e não no CSS.
+ *
+ * O índice da cor é o que fica gravado no fluxo, e ele é o MESMO nos dois
+ * temas: quem escolheu a nota amarela continua com a amarela ao trocar de tema.
+ *
+ * No escuro a nota deixa de imitar papel: uma folha clara de 800x1000px no meio
+ * de um canvas escuro é a coisa mais brilhante da tela e come a atenção do
+ * fluxo, que é o que importa ali (dono, 23/09/2026). Ela vira um painel fundo
+ * da mesma cor, com a tinta clara -- continua "a nota amarela", sem ofuscar.
+ */
+const NOTE_COLORS_CLARO = [
   { bg: "#FEFCE8", header: "#FEF08A", border: "#FDE047", borderSel: "#EAB308", text: "#713F12", headerText: "#854D0E" },
   { bg: "#EFF6FF", header: "#BFDBFE", border: "#93C5FD", borderSel: "#3B82F6", text: "#1E40AF", headerText: "#1D4ED8" },
   { bg: "#F0FDF4", header: "#BBF7D0", border: "#86EFAC", borderSel: "#22C55E", text: "#14532D", headerText: "#166534" },
@@ -497,6 +518,19 @@ const NOTE_COLORS = [
   { bg: "#FFF7ED", header: "#FED7AA", border: "#FDBA74", borderSel: "#F97316", text: "#7C2D12", headerText: "#9A3412" },
   { bg: "#FAF5FF", header: "#DDD6FE", border: "#C4B5FD", borderSel: "#8B5CF6", text: "#4C1D95", headerText: "#5B21B6" },
 ];
+
+const NOTE_COLORS_ESCURO = [
+  { bg: "#2A2410", header: "#463B13", border: "#5C4E18", borderSel: "#C8A227", text: "#F2E3B0", headerText: "#EBD48C" },
+  { bg: "#10203A", header: "#1B3A66", border: "#24487A", borderSel: "#4C8DF6", text: "#C5DCFB", headerText: "#A8C8F7" },
+  { bg: "#0F2A1C", header: "#17452F", border: "#1E5A3C", borderSel: "#35C776", text: "#BFE9CF", headerText: "#9EDCB8" },
+  { bg: "#2C0F22", header: "#4C1B3A", border: "#5F2248", borderSel: "#EE5CA0", text: "#F7C9DF", headerText: "#F2AECC" },
+  { bg: "#2C1A0E", header: "#4C2C14", border: "#603619", borderSel: "#F98B3B", text: "#F7D6B8", headerText: "#F3BE93" },
+  { bg: "#1E1435", header: "#33225B", border: "#402B73", borderSel: "#9B7BF0", text: "#DACCF9", headerText: "#C7B2F5" },
+];
+
+function paletaDeNotas(tema: string) {
+  return tema === "dark" ? NOTE_COLORS_ESCURO : NOTE_COLORS_CLARO;
+}
 
 const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "Início", triggers: [], trigger: null };
 
@@ -918,6 +952,7 @@ function previewBodyLines(n: CanvasNode): { icon?: React.ElementType; text: stri
 // conexões ortogonais (mesma buildOrthPath do editor), num SVG que escala via
 // viewBox para caber no card. foreignObject permite reusar o HTML/ícones reais.
 function FlowPreview({ flow }: { flow: AutomationFlow | null }) {
+  const tema = useTema();
   const all = flow?.nodes ?? [];
   if (all.length === 0) {
     return (
@@ -965,7 +1000,7 @@ function FlowPreview({ flow }: { flow: AutomationFlow | null }) {
     <svg viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`} preserveAspectRatio="xMidYMid meet" style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}>
       {/* Notas (atrás das conexões, como no editor) */}
       {notes.map(n => {
-        const c = NOTE_COLORS[n.noteColorIndex ?? 0];
+        const c = paletaDeNotas(tema)[n.noteColorIndex ?? 0];
         return (
           <foreignObject key={n.id} x={n.x} y={n.y} width={W(n)} height={H(n)}>
             <div style={{ width: "100%", height: "100%", boxSizing: "border-box", background: c.bg, border: `1px solid ${c.border}`, borderRadius: 10, padding: 12, fontSize: 14, lineHeight: 1.4, color: c.text, overflow: "hidden" }}>
@@ -2662,7 +2697,7 @@ export default function AutomacoesPage() {
               conta), então ajustar o tom virava tentativa e erro. #E8E8E8 fica
               13 tons abaixo do fundo -- a grade se percebe sem competir com os
               blocos do fluxo. */}
-          <section style={{ flex: 1, position: "relative", overflow: "hidden", background: "hsl(var(--background))", backgroundImage: "radial-gradient(circle, #E8E8E8 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
+          <section style={{ flex: 1, position: "relative", overflow: "hidden", background: "hsl(var(--background))", backgroundImage: "radial-gradient(circle, var(--neutral-200) 1px, transparent 1px)", backgroundSize: "20px 20px" }}>
 
           {/* Toolbar */}
           <div style={{ position: "absolute", top: 16, left: "50%", transform: "translateX(-50%)", background: "var(--surface-card)", borderRadius: 12, boxShadow: "0 2px 12px rgba(0,0,0,0.08)", padding: "8px 12px", display: "flex", alignItems: "center", gap: 4, zIndex: 20 }}>
@@ -4452,7 +4487,8 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const w = node.width ?? 220;
   const h = node.height ?? 140;
-  const c = NOTE_COLORS[node.noteColorIndex ?? 0];
+  const tema = useTema();
+  const c = paletaDeNotas(tema)[node.noteColorIndex ?? 0];
 
   return (
     <div
@@ -4494,7 +4530,7 @@ function NoteNode({ node, selected, onDragStart, onResizeStart, onDelete, onUpda
                 onMouseDown={e => e.stopPropagation()}
                 style={{ position: "absolute", top: 22, right: 0, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 8, padding: 6, display: "flex", gap: 4, boxShadow: "0 4px 12px rgba(0,0,0,0.12)", zIndex: 50 }}
               >
-                {NOTE_COLORS.map((col, i) => (
+                {paletaDeNotas(tema).map((col, i) => (
                   <button
                     key={i}
                     data-action

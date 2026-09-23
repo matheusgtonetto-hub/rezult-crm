@@ -96,12 +96,27 @@ fundo de aviso/erro/informação, a linha "Negócios" do gráfico (charcoal crav
 invisível no escuro; branca agora, a pedido do dono), o canvas da tela de
 negócio e a tela de carregamento do app (folha branca em tela cheia no escuro).
 
-### O que ficou de propósito
+### O canvas de automações (correção do dono)
 
-Os pastéis do editor de automações (as etiquetas "EM BREVE" e "Atenção", os
-ladrilhos de ícone, as notas adesivas) trazem a própria tinta cravada do mesmo
-matiz. São pares coerentes, legíveis nos dois temas: ali o conjunto é da cor, e
-não do tema.
+Eu tinha deixado as notas adesivas de fora, tratando-as como "par coerente":
+fundo pastel com tinta escura do mesmo matiz, legível nos dois temas. Estava
+errado, e o dono apontou. Legível não é suficiente: naquela automação as três
+notas somam mais de 800px de largura, e uma folha clara desse tamanho no meio de
+um canvas escuro é a coisa mais brilhante da tela. Ela come a atenção do fluxo,
+que é o que importa ali.
+
+No escuro a nota deixa de imitar papel e vira um painel fundo da mesma cor, com
+tinta clara: continua sendo "a nota amarela", a 12:1, sem ofuscar. São duas
+paletas de seis cores, trocadas em JavaScript (`paletaDeNotas`) e não por token,
+porque o código concatena opacidade nas cores (`${c.border}99`), e isso só
+funciona com hex. O índice da cor é o que fica gravado, e é o mesmo nos dois
+temas.
+
+As bolinhas do canvas tinham `#E8E8E8` cravado: no escuro viravam confete branco
+sobre o fundo. Agora saem de `--neutral-200`, que no escuro é #2E3338.
+
+Os outros pastéis do editor (as etiquetas "EM BREVE" e "Atenção", os ladrilhos
+de ícone) ficaram: são pequenos, e ali o conjunto é da cor, não do tema.
 
 ### Dois defeitos antigos que apareceram e não são do escuro
 
