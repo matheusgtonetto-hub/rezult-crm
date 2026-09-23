@@ -48,6 +48,7 @@ import { PALETA_DO_APP, COR_DE_TAG_PADRAO } from "@/lib/paleta-do-app";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import IntegracoesPage from "./IntegracoesPage";
 import DepartmentsManager from "@/components/DepartmentsManager";
+import { useDepartamentos } from "@/hooks/useDepartamentos";
 import WorkSchedulesManager from "@/components/WorkSchedulesManager";
 
 type SectionId =
@@ -1185,6 +1186,17 @@ function EquipeSection() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [invitePerms, setInvitePerms] = useState<string[]>([]);
   const [isAdminInvite, setIsAdminInvite] = useState(false);
+  /*
+   * Departamentos do membro novo.
+   *
+   * Vazio é uma escolha válida, e não um esquecimento: quem não está em
+   * departamento nenhum enxerga os departamentos que ainda não têm dono
+   * definido. O aviso embaixo do seletor diz isso, porque a consequência de
+   * escolher errado aqui é a pessoa abrir o Multiatendimento e não ver
+   * conversa nenhuma.
+   */
+  const [inviteDepts, setInviteDepts] = useState<string[]>([]);
+  const departamentos = useDepartamentos();
   /**
    * Qual grupo de permissões está aberto no painel da direita.
    *
@@ -1268,6 +1280,9 @@ function EquipeSection() {
       member_email: inviteEmail.trim().toLowerCase(),
       member_permissions: permsToSend,
       p_company_id: company!.id,
+      // Quem já tem conta entra nos departamentos na hora; quem foi convidado
+      // leva a escolha guardada no convite, e ela vira vínculo no aceite.
+      p_department_ids: inviteDepts,
     });
     setInviting(false);
 
@@ -1293,6 +1308,7 @@ function EquipeSection() {
     setInviteEmail("");
     setInvitePerms([]);
     setIsAdminInvite(false);
+    setInviteDepts([]);
     setAddOpen(false);
   };
 
@@ -1548,7 +1564,7 @@ function EquipeSection() {
       </Dialog>
 
       {/* Dialog: Adicionar membro */}
-      <Dialog open={addOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setInviteEmail(""); setInvitePerms([]); setIsAdminInvite(false); } }}>
+      <Dialog open={addOpen} onOpenChange={v => { if (!v) { setAddOpen(false); setInviteEmail(""); setInvitePerms([]); setIsAdminInvite(false); setInviteDepts([]); } }}>
         {/**
           * Duas colunas em vez de uma pilha.
           *
@@ -1582,6 +1598,53 @@ function EquipeSection() {
                   autoFocus
                 />
               </div>
+
+              {/*
+                Os departamentos, junto de quem entra.
+                ──────────────────────────────────────────────────────────────
+                Aqui, e não só na tela de Departamentos, porque o caminho antigo
+                dependia de alguém LEMBRAR de voltar lá depois. Quem esquecia
+                deixava a pessoa sem ver conversa nenhuma no Multiatendimento,
+                sem nada na tela explicando por quê.
+
+                Só aparece se a empresa tem departamento cadastrado: numa conta
+                que nunca abriu o Multiatendimento, seria um campo a mais para
+                entender e ignorar.
+              */}
+              {departamentos.length > 0 && (
+                <div className="px-6 pb-4 shrink-0 space-y-1.5 border-b border-gray-100">
+                  <label className="text-xs font-medium text-muted-foreground">Departamentos</label>
+                  <div className="space-y-[6px]">
+                    {departamentos.map(d => {
+                      const marcado = inviteDepts.includes(d.id);
+                      return (
+                        <label
+                          key={d.id}
+                          className={`flex items-center gap-2.5 px-3 py-2 rounded-[8px] border cursor-pointer transition-colors ${
+                            marcado ? "border-primary bg-primary/10" : "border-card-border bg-white hover:bg-gray-50"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={marcado}
+                            onChange={() => setInviteDepts(atual => marcado
+                              ? atual.filter(x => x !== d.id)
+                              : [...atual, d.id])}
+                            className="accent-primary w-4 h-4 shrink-0"
+                          />
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color ?? "var(--neutral-300)" }} />
+                          <span className={`text-[12px] truncate ${marcado ? "text-primary font-semibold" : "text-foreground"}`}>{d.name}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[12px] text-muted-foreground leading-snug pt-1">
+                    {inviteDepts.length === 0
+                      ? "Sem departamento, a pessoa só enxerga as conversas dos departamentos que ainda não têm time definido."
+                      : "No Multiatendimento, a pessoa enxerga as conversas destes departamentos."}
+                  </p>
+                </div>
+              )}
 
               {/* A lista de acessos. Só ela rola, para o e-mail continuar à
                   vista enquanto a pessoa percorre as permissões. */}
