@@ -385,7 +385,13 @@ function Section({ title, children, defaultOpen = false, action, bordaNoTopo = f
         </div>
         {action}
       </button>
-      {open && <div style={{ padding: "0 16px 12px" }}>{children}</div>}
+      {/*
+        O recuo de baixo existe para afastar o conteúdo da RÉGUA da seção. Quem
+        tem a régua no topo não tem régua embaixo, e ali os 12px viram espaço
+        solto -- somam com a margem do bloco seguinte e abrem um vão maior que
+        o de todas as outras seções.
+      */}
+      {open && <div style={{ padding: bordaNoTopo ? "0 16px 2px" : "0 16px 12px" }}>{children}</div>}
     </div>
   );
 }
