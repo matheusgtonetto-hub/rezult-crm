@@ -512,11 +512,11 @@ const MENSAGEM_CATEGORIES: { id: string; label: string; icon: React.ElementType;
  */
 const NOTE_COLORS_CLARO = [
   { bg: "#FEFCE8", header: "#FEF08A", border: "#FDE047", borderSel: "#EAB308", text: "#713F12", headerText: "#854D0E" },
-  { bg: "#EFF6FF", header: "#BFDBFE", border: "#93C5FD", borderSel: "#3B82F6", text: "#1E40AF", headerText: "#1D4ED8" },
+  { bg: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", header: "color-mix(in srgb, var(--azul-api) 40%, transparent)", border: "color-mix(in srgb, var(--azul-api) 40%, transparent)", borderSel: "#3B82F6", text: "var(--azul-api)", headerText: "var(--azul-api)" },
   { bg: "#F0FDF4", header: "#BBF7D0", border: "#86EFAC", borderSel: "#22C55E", text: "#14532D", headerText: "#166534" },
   { bg: "#FDF2F8", header: "#F9A8D4", border: "#F472B6", borderSel: "#EC4899", text: "#831843", headerText: "#9D174D" },
-  { bg: "#FFF7ED", header: "#FED7AA", border: "#FDBA74", borderSel: "#F97316", text: "#7C2D12", headerText: "#9A3412" },
-  { bg: "#FAF5FF", header: "#DDD6FE", border: "#C4B5FD", borderSel: "#8B5CF6", text: "#4C1D95", headerText: "#5B21B6" },
+  { bg: "color-mix(in srgb, var(--laranja-acao) 12%, var(--surface-card))", header: "color-mix(in srgb, var(--laranja-acao) 40%, transparent)", border: "color-mix(in srgb, var(--laranja-acao) 40%, transparent)", borderSel: "#F97316", text: "var(--laranja-acao)", headerText: "var(--laranja-acao)" },
+  { bg: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", header: "color-mix(in srgb, var(--roxo-ia) 40%, transparent)", border: "color-mix(in srgb, var(--roxo-ia) 40%, transparent)", borderSel: "#8B5CF6", text: "var(--roxo-ia)", headerText: "var(--roxo-ia)" },
 ];
 
 const NOTE_COLORS_ESCURO = [
@@ -2563,7 +2563,7 @@ export default function AutomacoesPage() {
                       </div>
                       <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)" }}>{at.label}</span>
                       {isComingSoon && (
-                        <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 6, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--roxo-ia)", background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", border: "1px solid color-mix(in srgb, var(--roxo-ia) 40%, transparent)", borderRadius: 6, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
                       )}
                     </button>
                   );
@@ -3073,7 +3073,7 @@ export default function AutomacoesPage() {
                         <Icon size={16} color={at.color} />
                         <span style={{ flex: 1 }}>{at.label}</span>
                         {isComingSoon && (
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 6, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--roxo-ia)", background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", border: "1px solid color-mix(in srgb, var(--roxo-ia) 40%, transparent)", borderRadius: 6, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
                         )}
                       </button>
                     );
@@ -3131,9 +3131,9 @@ export default function AutomacoesPage() {
 
               {/* Banner: lead com caminho ativo no canvas */}
               {logsPanelSelectedEntry && (
-                <div style={{ padding: "7px 12px", background: "#EFF6FF", borderBottom: "0.5px solid #BFDBFE", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                <div style={{ padding: "7px 12px", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", borderBottom: "0.5px solid color-mix(in srgb, var(--azul-api) 40%, transparent)", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                   <User size={12} color="#3B82F6" style={{ flexShrink: 0 }} />
-                  <span style={{ fontSize: 12, color: "#1D4ED8", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <span style={{ fontSize: 12, color: "var(--azul-api)", fontWeight: 500, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {logsPanelSelectedEntry.leadName}
                   </span>
                   <button onClick={() => { setLogsPanelSelectedEntry(null); setLogsPanelPath([]); }}
@@ -3196,7 +3196,7 @@ export default function AutomacoesPage() {
                     : (entry.status === "success" ? "Concluído com sucesso" : entry.error_message || (entry.status === "alert" ? "Alerta no bloco" : "Erro no bloco"));
                   return (
                     <button key={entry.id} onClick={() => loadEntryPath(entry.lead_id, entry.lead_name)}
-                      style={{ width: "100%", padding: "11px 14px", background: isActive ? "#EFF6FF" : "transparent", border: "none", borderBottom: "0.5px solid var(--neutral-100)", borderLeft: isActive ? "2px solid #3B82F6" : "2px solid transparent", textAlign: "left", cursor: "pointer", display: "flex", gap: 10, alignItems: "flex-start" }}
+                      style={{ width: "100%", padding: "11px 14px", background: isActive ? "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))" : "transparent", border: "none", borderBottom: "0.5px solid var(--neutral-100)", borderLeft: isActive ? "2px solid #3B82F6" : "2px solid transparent", textAlign: "left", cursor: "pointer", display: "flex", gap: 10, alignItems: "flex-start" }}
                       onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = "var(--neutral-50)"; }}
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = "transparent"; }}
                     >
@@ -3384,7 +3384,7 @@ export default function AutomacoesPage() {
                               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                                 <div style={{ fontSize: 12, fontWeight: 600, color: isComingSoon ? "var(--text-muted)" : "var(--text-heading)" }}>{t.label}</div>
                                 {isComingSoon && (
-                                  <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 6, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--roxo-ia)", background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", border: "1px solid color-mix(in srgb, var(--roxo-ia) 40%, transparent)", borderRadius: 6, padding: "1px 5px", letterSpacing: "0.03em" }}>EM BREVE</span>
                                 )}
                               </div>
                               <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.4 }}>{t.description}</div>
@@ -3427,7 +3427,7 @@ export default function AutomacoesPage() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)", display: "flex", alignItems: "center", gap: 6 }}>
                           {t.label}
-                          {t.soon && <span style={{ fontSize: 12, fontWeight: 700, color: "#7C3AED", background: "#EDE9FE", border: "1px solid #DDD6FE", borderRadius: 6, padding: "1px 5px" }}>EM BREVE</span>}
+                          {t.soon && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--roxo-ia)", background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", border: "1px solid color-mix(in srgb, var(--roxo-ia) 40%, transparent)", borderRadius: 6, padding: "1px 5px" }}>EM BREVE</span>}
                         </div>
                         <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.4 }}>{t.desc}</div>
                       </div>
@@ -3451,7 +3451,7 @@ export default function AutomacoesPage() {
                 const sel = selectedActionPickerCat === cat.id;
                 return (
                   <button key={cat.id} onClick={() => setSelectedActionPickerCat(cat.id)}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#FFF7ED" : "transparent", border: "none", borderLeft: sel ? "2px solid #F97316" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#F97316" : "var(--text-heading)", fontWeight: sel ? 600 : 400, textAlign: "left" }}
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "color-mix(in srgb, var(--laranja-acao) 12%, var(--surface-card))" : "transparent", border: "none", borderLeft: sel ? "2px solid #F97316" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#F97316" : "var(--text-heading)", fontWeight: sel ? 600 : 400, textAlign: "left" }}
                   >
                     <Icon size={14} />{cat.label}
                   </button>
@@ -3472,10 +3472,10 @@ export default function AutomacoesPage() {
                           <button key={action.id}
                             onClick={() => { if (nodePanel) addActionItem(nodePanel, { categoryId: cat.id, actionId: action.id, label: action.label, description: action.description }); setAcoesPickerOpen(false); }}
                             style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid var(--border-default)", borderRadius: 8, background: "var(--surface-card)", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = "#F97316"; e.currentTarget.style.background = "#FFF7ED"; }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = "#F97316"; e.currentTarget.style.background = "color-mix(in srgb, var(--laranja-acao) 12%, var(--surface-card))"; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.background = "var(--surface-card)"; }}
                           >
-                            <div style={{ width: 28, height: 28, borderRadius: 8, background: "#FFF7ED", border: "0.5px solid #FED7AA", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: 8, background: "color-mix(in srgb, var(--laranja-acao) 12%, var(--surface-card))", border: "0.5px solid color-mix(in srgb, var(--laranja-acao) 40%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                               <AIcon size={14} color="#F97316" />
                             </div>
                             <div>
@@ -3509,7 +3509,7 @@ export default function AutomacoesPage() {
                 const sel = selectedCondPickerCat === cat.id;
                 return (
                   <button key={cat.id} onClick={() => setSelectedCondPickerCat(cat.id)}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#F3F4FF" : "transparent", border: "none", borderLeft: sel ? "2px solid #6366F1" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#6366F1" : "var(--text-heading)", fontWeight: sel ? 600 : 400, textAlign: "left" }}>
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))" : "transparent", border: "none", borderLeft: sel ? "2px solid #6366F1" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#6366F1" : "var(--text-heading)", fontWeight: sel ? 600 : 400, textAlign: "left" }}>
                     <Icon size={14} />{cat.label}
                   </button>
                 );
@@ -3532,16 +3532,16 @@ export default function AutomacoesPage() {
                               setCondicoesPickerOpen(false);
                             }}
                             style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid var(--border-default)", borderRadius: 8, background: "var(--surface-card)", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = "#6366F1"; e.currentTarget.style.background = "#F3F4FF"; }}
+                            onMouseEnter={e => { e.currentTarget.style.borderColor = "#6366F1"; e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))"; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.background = "var(--surface-card)"; }}
                           >
-                            <div style={{ width: 28, height: 28, borderRadius: 8, background: "#F3F4FF", border: "0.5px solid #C7D2FE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                            <div style={{ width: 28, height: 28, borderRadius: 8, background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", border: "0.5px solid color-mix(in srgb, var(--roxo-ia) 40%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                               <CondIcon size={14} color="#6366F1" />
                             </div>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "flex", alignItems: "center", gap: 6 }}>
                                 {cond.label}
-                                {cond.warning && <span style={{ fontSize: 12, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 6, padding: "1px 6px" }}>Atenção</span>}
+                                {cond.warning && <span style={{ fontSize: 12, fontWeight: 700, color: "var(--warning-fg)", background: "var(--warning-border)", borderRadius: 6, padding: "1px 6px" }}>Atenção</span>}
                               </div>
                               <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2, lineHeight: 1.4 }}>{cond.description}</div>
                             </div>
@@ -3567,7 +3567,7 @@ export default function AutomacoesPage() {
                 const sel = selectedEspePickerCat === cat.id;
                 return (
                   <button key={cat.id} onClick={() => setSelectedEspePickerCat(cat.id)}
-                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "#EFF6FF" : "transparent", border: "none", borderLeft: sel ? "2px solid #3B82F6" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#3B82F6" : "var(--text-heading)", fontWeight: sel ? 600 : 400, textAlign: "left" }}>
+                    style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: sel ? "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))" : "transparent", border: "none", borderLeft: sel ? "2px solid #3B82F6" : "2px solid transparent", cursor: "pointer", fontSize: 12, color: sel ? "#3B82F6" : "var(--text-heading)", fontWeight: sel ? 600 : 400, textAlign: "left" }}>
                     <Icon size={14} />{cat.label}
                   </button>
                 );
@@ -3597,10 +3597,10 @@ export default function AutomacoesPage() {
                             setEspePickerOpen(false);
                           }}
                           style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "10px 12px", border: "1px solid var(--border-default)", borderRadius: 8, background: "var(--surface-card)", cursor: "pointer", textAlign: "left", transition: "all 0.1s" }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = "#3B82F6"; e.currentTarget.style.background = "#EFF6FF"; }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = "#3B82F6"; e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))"; }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.background = "var(--surface-card)"; }}
                         >
-                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "#EFF6FF", border: "0.5px solid #BFDBFE", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
+                          <div style={{ width: 28, height: 28, borderRadius: 8, background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", border: "0.5px solid color-mix(in srgb, var(--azul-api) 40%, transparent)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 1 }}>
                             {item.id === "usuario_parou" ? <MessageCircle size={14} color="#3B82F6" /> : <Clock size={14} color="#3B82F6" />}
                           </div>
                           <div>
@@ -3705,7 +3705,7 @@ const tcpInputStyle: React.CSSProperties = {
 };
 
 const tcpWarning = (text: string) => (
-  <div style={{ background: "#FFFBEB", border: "0.5px solid #FCD34D", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
+  <div style={{ background: "var(--warning-bg)", border: "0.5px solid var(--warning-border)", borderRadius: 8, padding: "10px 12px", fontSize: 12, color: "var(--warning-fg)", lineHeight: 1.5 }}>
     <span style={{ fontWeight: 700 }}>⚠ </span>{text}
   </div>
 );
@@ -4271,7 +4271,7 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
         const outrasAutos = (automations ?? []).filter(a => a.id !== automationId);
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 8, padding: "10px 12px" }}>
+            <div style={{ background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", border: "1px solid color-mix(in srgb, var(--azul-api) 40%, transparent)", borderRadius: 8, padding: "10px 12px" }}>
               <div style={{ fontSize: 12, color: "#0369A1", fontWeight: 600, marginBottom: 4 }}>Como funciona</div>
               <div style={{ fontSize: 12, color: "#0C4A6E", lineHeight: 1.5 }}>
                 Esta automação é iniciada quando outra automação usa a ação <strong>"Iniciar Automação"</strong> apontando para ela.
@@ -4298,14 +4298,14 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
       case "mcp_tool":
         return (
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "24px 16px", textAlign: "center" }}>
-            <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#EDE9FE", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: 44, height: 44, borderRadius: "50%", background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: 20 }}>🔌</span>
             </div>
             <div>
               <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)", marginBottom: 4 }}>MCP Server Tool</div>
               <div style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
                 Este gatilho permite que agentes de IA chamem automações via protocolo MCP.<br />
-                <span style={{ color: "#7C3AED", fontWeight: 600 }}>Disponível em breve.</span>
+                <span style={{ color: "var(--roxo-ia)", fontWeight: 600 }}>Disponível em breve.</span>
               </div>
             </div>
           </div>
@@ -4743,9 +4743,9 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             data-action
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onOpenAcoesPicker?.(); }}
-            style={{ width: "100%", border: "1px dashed #FED7AA", background: "#FFF7ED", color: "#92400E", fontSize: 12, padding: "7px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            style={{ width: "100%", border: "1px dashed color-mix(in srgb, var(--laranja-acao) 40%, transparent)", background: "color-mix(in srgb, var(--laranja-acao) 12%, var(--surface-card))", color: "var(--laranja-acao)", fontSize: 12, padding: "7px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
             onMouseEnter={e => { e.currentTarget.style.background = "#FFEDD5"; e.currentTarget.style.borderColor = "#F97316"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#FFF7ED"; e.currentTarget.style.borderColor = "#FED7AA"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--laranja-acao) 12%, var(--surface-card))"; e.currentTarget.style.borderColor = "color-mix(in srgb, var(--laranja-acao) 40%, transparent)"; }}
           >
             <Plus size={13} /> Adicionar ação
           </button>
@@ -4848,8 +4848,8 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             data-action
             onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onSelect(); onOpenCondicoesPicker?.(); }}
-            style={{ width: "100%", marginTop: 8, padding: "7px 0", background: "transparent", border: "1px dashed #DDD6FE", borderRadius: 6, fontSize: 12, color: "#7C3AED", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#F5F3FF")}
+            style={{ width: "100%", marginTop: 8, padding: "7px 0", background: "transparent", border: "1px dashed color-mix(in srgb, var(--roxo-ia) 40%, transparent)", borderRadius: 6, fontSize: 12, color: "var(--roxo-ia)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 5 }}
+            onMouseEnter={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))")}
             onMouseLeave={e => (e.currentTarget.style.background = "transparent")}
           >
             <Plus size={12} /> Adicionar condição
@@ -4909,10 +4909,10 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             if (!item) return null;
             const ItemIcon = espera.type === "usuario_parou" ? MessageCircle : Clock;
             return (
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 8px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 10 }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "7px 8px", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", border: "0.5px solid color-mix(in srgb, var(--azul-api) 40%, transparent)", borderRadius: 10 }}>
                 <ItemIcon size={13} color="#3B82F6" style={{ flexShrink: 0, marginTop: 1 }} />
                 <div style={{ flex: 1, overflow: "hidden" }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#1D4ED8", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "var(--azul-api)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.label}</div>
                   <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.description}</div>
                 </div>
               </div>
@@ -5018,7 +5018,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                 const AIcon = IA_ACTION_TYPES.find(t => t.id === a.type)?.icon ?? Bot;
                 return (
                   <div key={a.id}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 8 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", border: "0.5px solid color-mix(in srgb, var(--roxo-ia) 40%, transparent)", borderRadius: 8 }}>
                       <AIcon size={13} color={PURPLE} style={{ flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{IA_ACTION_LABEL[a.type]}</div>
@@ -5063,7 +5063,7 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
                     {a.type === "extrator_params" && (a.parametros ?? []).length > 0 && (
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginTop: 4, paddingLeft: 2 }}>
                         {(a.parametros ?? []).map(p => (
-                          <span key={p.id} style={{ fontSize: 12, fontWeight: 600, color: "#7C3AED", background: "#EDE9FE", border: "0.5px solid #DDD6FE", borderRadius: 6, padding: "1px 6px" }}>{p.nome || "param"}</span>
+                          <span key={p.id} style={{ fontSize: 12, fontWeight: 600, color: "var(--roxo-ia)", background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", border: "0.5px solid color-mix(in srgb, var(--roxo-ia) 40%, transparent)", borderRadius: 6, padding: "1px 6px" }}>{p.nome || "param"}</span>
                         ))}
                       </div>
                     )}
@@ -5073,8 +5073,8 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
             </div>
           )}
           <button data-action onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); onOpenIaPicker?.(); }}
-            style={{ width: "100%", border: "1px dashed #DDD6FE", background: "#F5F3FF", color: PURPLE, fontSize: 12, padding: "7px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
+            style={{ width: "100%", border: "1px dashed color-mix(in srgb, var(--roxo-ia) 40%, transparent)", background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", color: "var(--roxo-ia)", fontSize: 12, padding: "7px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            onMouseEnter={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))")} onMouseLeave={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))")}>
             <Plus size={13} /> Adicionar ação com IA
           </button>
           <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
@@ -5122,13 +5122,13 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           {apiRequests.length > 0 && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 8 }}>
               {apiRequests.map(req => (
-                <div key={req.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 6, fontSize: 12 }}>
+                <div key={req.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", border: "0.5px solid color-mix(in srgb, var(--azul-api) 40%, transparent)", borderRadius: 6, fontSize: 12 }}>
                   {req.type === "json" ? <Braces size={12} color="#3B82F6" /> : <FileDown size={12} color="#3B82F6" />}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{req.type === "json" ? "Requisição HTTP via JSON" : "Requisição de arquivo HTTP"}</div>
-                    <div style={{ color: "#1D4ED8", fontSize: 12 }}>{req.method} {req.url ? `· ${req.url.substring(0, 20)}${req.url.length > 20 ? "…" : ""}` : ""}</div>
+                    <div style={{ color: "var(--azul-api)", fontSize: 12 }}>{req.method} {req.url ? `· ${req.url.substring(0, 20)}${req.url.length > 20 ? "…" : ""}` : ""}</div>
                   </div>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: "#1D4ED8", background: "#DBEAFE", borderRadius: 6, padding: "1px 5px", flexShrink: 0 }}>{req.name}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: "var(--azul-api)", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", borderRadius: 6, padding: "1px 5px", flexShrink: 0 }}>{req.name}</span>
                   <button
                     data-action
                     onMouseDown={e => e.stopPropagation()}
@@ -5145,9 +5145,9 @@ function ActionNode({ node, selected, onSelect, onPortDragStart, onErrorPortDrag
           <button
             data-action onMouseDown={e => e.stopPropagation()}
             onClick={e => { e.stopPropagation(); onSelect(); onOpenApiPicker?.(); }}
-            style={{ width: "100%", border: "1px dashed #BFDBFE", background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, padding: "7px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-            onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; }}
+            style={{ width: "100%", border: "1px dashed color-mix(in srgb, var(--azul-api) 40%, transparent)", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", color: "var(--azul-api)", fontSize: 12, padding: "7px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+            onMouseEnter={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))"; }}
           ><Plus size={13} /> Adicionar API</button>
           <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 6, paddingRight: 8 }}>
@@ -5418,7 +5418,7 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
             <ArrowLeft size={15} />
             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{condData?.label ?? selectedItem.label}</span>
             {condData?.warning && (
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 6, padding: "2px 8px", flexShrink: 0 }}>Atenção</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--warning-fg)", background: "var(--warning-border)", borderRadius: 6, padding: "2px 8px", flexShrink: 0 }}>Atenção</span>
             )}
           </button>
           {condData?.description && (
@@ -5469,10 +5469,10 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
               const Icon = condData?.icon ?? Filter;
               return (
                 <div key={item.id}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#F5F3FF", border: "0.5px solid #DDD6FE", borderRadius: 8, cursor: "pointer" }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", border: "0.5px solid color-mix(in srgb, var(--roxo-ia) 40%, transparent)", borderRadius: 8, cursor: "pointer" }}
                   onClick={() => setSelectedItemId(item.id)}
-                  onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}
+                  onMouseEnter={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))")}
                 >
                   <Icon size={13} color="#8B5CF6" style={{ flexShrink: 0 }} />
                   <div style={{ flex: 1, overflow: "hidden" }}>
@@ -5494,9 +5494,9 @@ function CondicoesPanel({ node, onClose, onDelete, onDuplicate, removeConditionI
       </div>
       <div style={{ borderTop: "1px solid var(--border-default)", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={onOpenPicker}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #C7D2FE", borderRadius: 8, background: "#F3F4FF", color: "#4338CA", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-          onMouseEnter={e => { e.currentTarget.style.background = "#E0E7FF"; e.currentTarget.style.borderColor = "#6366F1"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "#F3F4FF"; e.currentTarget.style.borderColor = "#C7D2FE"; }}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed color-mix(in srgb, var(--roxo-ia) 40%, transparent)", borderRadius: 8, background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", color: "#4338CA", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 22%, var(--surface-card))"; e.currentTarget.style.borderColor = "var(--roxo-ia)"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))"; e.currentTarget.style.borderColor = "color-mix(in srgb, var(--roxo-ia) 40%, transparent)"; }}
         >
           <Plus size={13} /> Adicionar condição
         </button>
@@ -5523,7 +5523,7 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
   const set = (key: string, val: string | boolean | number) => updateItem({ [key]: val });
 
   const lbl = (text: string) => (
-    <label style={{ fontSize: 12, fontWeight: 600, color: "#7C3AED", display: "block", marginBottom: 4, lineHeight: 1.4 }}>{text}</label>
+    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--roxo-ia)", display: "block", marginBottom: 4, lineHeight: 1.4 }}>{text}</label>
   );
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 16 }}>{children}</div>;
 
@@ -5551,7 +5551,7 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
   const noConfig = <div style={{ fontSize: 12, color: "var(--text-muted)", padding: "8px 0" }}>Esta condição não requer configuração.</div>;
 
   const warningBox = (text: string) => (
-    <div style={{ padding: "10px 12px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, fontSize: 12, color: "#92400E", marginBottom: 16, display: "flex", gap: 8, alignItems: "flex-start" }}>
+    <div style={{ padding: "10px 12px", background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: 8, fontSize: 12, color: "var(--warning-fg)", marginBottom: 16, display: "flex", gap: 8, alignItems: "flex-start" }}>
       <Info size={14} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} /><span style={{ lineHeight: 1.5 }}>{text}</span>
     </div>
   );
@@ -5754,7 +5754,7 @@ const DAYS_OF_WEEK = [
 
 // ─── Editores das ações de IA com ramificação/extração (Fase 2/3) ──────────────
 
-const IA_ADD_BTN: React.CSSProperties = { width: "100%", border: "1px dashed #DDD6FE", background: "#F5F3FF", color: "#7C3AED", fontSize: 12, fontWeight: 600, padding: "7px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8 };
+const IA_ADD_BTN: React.CSSProperties = { width: "100%", border: "1px dashed color-mix(in srgb, var(--roxo-ia) 40%, transparent)", background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", color: "var(--roxo-ia)", fontSize: 12, fontWeight: 600, padding: "7px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, marginTop: 8 };
 const IA_ITEM_BOX: React.CSSProperties = { border: "1px solid var(--border-default)", borderRadius: 8, padding: 10, display: "flex", flexDirection: "column", gap: 8, background: "var(--surface-card)" };
 
 function IaItemHeader({ index, color, onRemove }: { index: number; color: string; onRemove: () => void }) {
@@ -5787,7 +5787,7 @@ function IaVarTextarea({ value, onChange, rows = 5, placeholder }: { value: stri
       <textarea ref={taRef} value={value} onChange={e => onChange(e.target.value)} rows={rows} placeholder={placeholder}
         style={{ width: "100%", padding: "8px 34px 8px 10px", border: "1px solid var(--border-default)", borderRadius: 8, fontSize: 13, color: "var(--text-heading)", outline: "none", boxSizing: "border-box", background: "var(--surface-card)", resize: "vertical", fontFamily: "inherit" }} />
       <button type="button" onClick={() => setVarOpen(o => !o)} title="Inserir variável"
-        style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 6, border: "1px solid #DDD6FE", background: "#F5F3FF", color: "#7C3AED", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, lineHeight: 1 }}>
+        style={{ position: "absolute", top: 6, right: 6, width: 22, height: 22, borderRadius: 6, border: "1px solid color-mix(in srgb, var(--roxo-ia) 40%, transparent)", background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", color: "var(--roxo-ia)", fontSize: 13, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 2, lineHeight: 1 }}>
         <Braces size={13} />
       </button>
       {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
@@ -5823,7 +5823,7 @@ function IaIntencaoEditor({ a, updateAction, inputStyle, labelStyle }: { a: IaAc
         ))}
       </div>
       <button onClick={() => set([...items, { id: `int${Date.now()}`, nome: "", detalhes: "", exemplos: "" }])} style={IA_ADD_BTN}
-        onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
+        onMouseEnter={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))")} onMouseLeave={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))")}>
         <Plus size={13} /> Adicionar intenção
       </button>
       <IaExtraInstructions a={a} updateAction={updateAction} labelStyle={labelStyle} />
@@ -5849,7 +5849,7 @@ function IaSentimentoEditor({ a, updateAction, inputStyle, labelStyle }: { a: Ia
         ))}
       </div>
       <button onClick={() => set([...items, { id: `sen${Date.now()}`, nome: "", detalhes: "" }])} style={IA_ADD_BTN}
-        onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
+        onMouseEnter={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))")} onMouseLeave={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))")}>
         <Plus size={13} /> Adicionar sentimento
       </button>
       <IaExtraInstructions a={a} updateAction={updateAction} labelStyle={labelStyle} />
@@ -5889,7 +5889,7 @@ function IaParamsEditor({ a, updateAction, inputStyle, labelStyle }: { a: IaActi
         ))}
       </div>
       <button onClick={() => set([...items, { id: `prm${Date.now()}`, nome: "", tipo: "texto", info: "" }])} style={IA_ADD_BTN}
-        onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
+        onMouseEnter={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))")} onMouseLeave={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))")}>
         <Plus size={13} /> Adicionar parâmetro
       </button>
       <IaExtraInstructions a={a} updateAction={updateAction} labelStyle={labelStyle} />
@@ -5969,7 +5969,7 @@ function IaPanel({ node, onClose, onDelete, onDuplicate, updateAction, removeAct
           const Icon = IA_ACTION_TYPES.find(t => t.id === a.type)?.icon ?? Bot;
           const isText = a.type === "assistente_chat" || a.type === "gerar_texto";
           return (
-            <div key={a.id} style={{ border: "1px solid #EDE9FE", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 12, background: "#FCFAFF" }}>
+            <div key={a.id} style={{ border: "1px solid #EDE9FE", borderRadius: 10, padding: 12, display: "flex", flexDirection: "column", gap: 12, background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                 <Icon size={15} color="#8B5CF6" />
                 <span style={{ flex: 1, fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>{IA_ACTION_LABEL[a.type]}</span>
@@ -6015,8 +6015,8 @@ function IaPanel({ node, onClose, onDelete, onDuplicate, updateAction, removeAct
           );
         })}
         <button onClick={onAddAction}
-          style={{ width: "100%", border: "1px dashed #DDD6FE", background: "#F5F3FF", color: "#7C3AED", fontSize: 13, fontWeight: 600, padding: "10px 0", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-          onMouseEnter={e => (e.currentTarget.style.background = "#EDE9FE")} onMouseLeave={e => (e.currentTarget.style.background = "#F5F3FF")}>
+          style={{ width: "100%", border: "1px dashed color-mix(in srgb, var(--roxo-ia) 40%, transparent)", background: "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))", color: "var(--roxo-ia)", fontSize: 13, fontWeight: 600, padding: "10px 0", borderRadius: 8, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+          onMouseEnter={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))")} onMouseLeave={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--roxo-ia) 12%, var(--surface-card))")}>
           <Plus size={14} /> Adicionar ação com IA
         </button>
       </div>
@@ -6081,9 +6081,9 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
         {/* No type selected — show picker trigger */}
         {!espera && (
           <button onClick={onOpenPicker}
-            style={{ width: "100%", padding: "40px 0", border: "1.5px dashed #BFDBFE", borderRadius: 8, background: "#F0F9FF", color: "#1D4ED8", fontSize: 13, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "background 0.1s" }}
-            onMouseEnter={e => (e.currentTarget.style.background = "#DBEAFE")}
-            onMouseLeave={e => (e.currentTarget.style.background = "#F0F9FF")}
+            style={{ width: "100%", padding: "40px 0", border: "1.5px dashed color-mix(in srgb, var(--azul-api) 40%, transparent)", borderRadius: 8, background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", color: "var(--azul-api)", fontSize: 13, cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: 8, transition: "background 0.1s" }}
+            onMouseEnter={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))")}
+            onMouseLeave={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))")}
           >
             <Plus size={20} />
             <span>Adicionar tipo de espera</span>
@@ -6121,7 +6121,7 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
                     style={{ width: 110, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none" }} />
                 </div>
               </div>
-              <p style={{ fontSize: 12, color: "#1D4ED8", marginTop: 6, lineHeight: 1.4 }}>Será considerado um horário aleatório entre o horário de início e fim</p>
+              <p style={{ fontSize: 12, color: "var(--azul-api)", marginTop: 6, lineHeight: 1.4 }}>Será considerado um horário aleatório entre o horário de início e fim</p>
             </div>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 6 }}>Fuso horário</label>
@@ -6195,11 +6195,11 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
                     style={{ width: 22, height: 22, border: "1px solid var(--border-default)", borderRadius: 6, background: "var(--neutral-50)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><Copy size={11} /></button>
                   <button type="button" title="Inserir campo variável"
                     onClick={() => setDataVarOpen(o => !o)}
-                    style={{ width: 22, height: 22, border: "0.5px solid #3B82F6", borderRadius: 6, background: "#EFF6FF", color: "#1D4ED8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}><Braces size={12} /></button>
+                    style={{ width: 22, height: 22, border: "0.5px solid #3B82F6", borderRadius: 6, background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", color: "var(--azul-api)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700 }}><Braces size={12} /></button>
                 </div>
                 {dataVarOpen && <VarPicker onInsert={inserirVarData} onClose={() => setDataVarOpen(false)} />}
               </div>
-              <p style={{ fontSize: 12, color: "#1D4ED8", marginTop: 6, lineHeight: 1.4 }}>Utilize campos adicionais de data, textos no formato ISO 8601 ou textos nos formatos YYYY-MM-DD ou DD/MM/YYYY</p>
+              <p style={{ fontSize: 12, color: "var(--azul-api)", marginTop: 6, lineHeight: 1.4 }}>Utilize campos adicionais de data, textos no formato ISO 8601 ou textos nos formatos YYYY-MM-DD ou DD/MM/YYYY</p>
             </div>
             <div>
               <div style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
@@ -6214,7 +6214,7 @@ function EsperaPanel({ node, onClose, onDelete, onDuplicate, updateEspera, onOpe
                     style={{ width: 110, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none" }} />
                 </div>
               </div>
-              <p style={{ fontSize: 12, color: "#1D4ED8", marginTop: 6, lineHeight: 1.4 }}>Será considerado um horário aleatório entre o horário de início e fim</p>
+              <p style={{ fontSize: 12, color: "var(--azul-api)", marginTop: 6, lineHeight: 1.4 }}>Será considerado um horário aleatório entre o horário de início e fim</p>
             </div>
             <div>
               <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", marginBottom: 6 }}>Fuso horário</label>
@@ -6391,7 +6391,7 @@ function RandomizadorPanel({ node, onClose, onDelete, onDuplicate, addBranch, re
       </div>
       <div style={{ flex: 1, overflowY: "auto", padding: "10px 16px" }}>
         {total !== 100 && (
-          <div style={{ padding: "8px 10px", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, fontSize: 12, color: "#92400E", marginBottom: 10 }}>
+          <div style={{ padding: "8px 10px", background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: 8, fontSize: 12, color: "var(--warning-fg)", marginBottom: 10 }}>
             Total: {total}% (deve somar 100%)
           </div>
         )}
@@ -6739,7 +6739,7 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
           <div style={{ flex: 1, overflowY: "auto" }}>
             {categories.map(c => (
               <button key={c.id} onClick={() => { setCat(c.id); setSearch(""); }}
-                style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "#EFF6FF" : "transparent", color: cat === c.id ? "#3B82F6" : "var(--text-heading)", fontWeight: cat === c.id ? 600 : 400 }}>
+                style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))" : "transparent", color: cat === c.id ? "#3B82F6" : "var(--text-heading)", fontWeight: cat === c.id ? 600 : 400 }}>
                 {c.label}
               </button>
             ))}
@@ -6758,7 +6758,7 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
                   fontSize: f.icon.length > 1 ? 12 : 10,
                   fontWeight: 700,
                   color: f.icon === "#" ? "#F97316" : f.icon === "{}" ? "#3B82F6" : "var(--text-muted)",
-                  background: f.icon === "#" ? "#FFF7ED" : f.icon === "{}" ? "#EFF6FF" : "var(--neutral-50)",
+                  background: f.icon === "#" ? "color-mix(in srgb, var(--laranja-acao) 12%, var(--surface-card))" : f.icon === "{}" ? "#EFF6FF" : "var(--neutral-50)",
                   borderRadius: 10, padding: "1px 5px", flexShrink: 0,
                 }}>{f.icon}</span>
                 {f.label}
@@ -6769,7 +6769,7 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
             <div style={{ padding: "8px 14px", borderTop: "1px solid var(--border-default)", textAlign: "right", flexShrink: 0 }}>
               <button
                 onClick={() => { onClose(); window.location.hash = "/configuracoes"; toast.info("Acesse Configurações → Campos adicionais para criar campos"); }}
-                style={{ fontSize: 12, fontWeight: 600, color: "#1D4ED8", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
+                style={{ fontSize: 12, fontWeight: 600, color: "var(--azul-api)", background: "none", border: "none", cursor: "pointer", padding: 0 }}>
                 Criar campo
               </button>
             </div>
@@ -6789,7 +6789,7 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
             </div>
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ fontSize: 12, background: "#EFF6FF", color: "#1D4ED8", border: "1px solid #BFDBFE", borderRadius: 6, padding: "1px 6px", fontWeight: 700 }}>{"{}"}</span>
+                <span style={{ fontSize: 12, background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", color: "var(--azul-api)", border: "1px solid color-mix(in srgb, var(--azul-api) 40%, transparent)", borderRadius: 6, padding: "1px 6px", fontWeight: 700 }}>{"{}"}</span>
                 Valor selecionado
               </div>
               <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>Escreva ou selecione um valor do json</div>
@@ -6824,9 +6824,9 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
                       <button key={f.key}
                         onClick={() => { onInsert(`{{${(activeFieldOp as FieldOpAnaliseTel).datasourceName}.${f.key}}}`); onClose(); }}
                         style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "7px 12px", background: "transparent", border: "none", borderBottom: i < ANALISE_TEL_FIELDS.length - 1 ? "1px solid var(--neutral-100)" : "none", cursor: "pointer", textAlign: "left", fontSize: 12 }}
-                        onMouseEnter={e => (e.currentTarget.style.background = "#EFF6FF")}
+                        onMouseEnter={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))")}
                         onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-                        <span style={{ fontWeight: 600, color: "#1D4ED8", minWidth: 140, flexShrink: 0 }}>{f.key}</span>
+                        <span style={{ fontWeight: 600, color: "var(--azul-api)", minWidth: 140, flexShrink: 0 }}>{f.key}</span>
                         <span style={{ color: "var(--text-muted)", fontFamily: "monospace", fontSize: 12 }}>{f.desc}</span>
                       </button>
                     ))}
@@ -6840,7 +6840,7 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
                 webhookPayload && typeof webhookPayload === "object" && webhookPayload !== null
                   ? <WebhookTree data={webhookPayload} onSelect={path => setApiPath(path)} selectedPath={apiPath} />
                   : (
-                  <div style={{ background: "#F0F9FF", border: "1px solid #BAE6FD", borderRadius: 6, padding: "10px 14px", fontSize: 12, color: "#0369A1" }}>
+                  <div style={{ background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", border: "1px solid color-mix(in srgb, var(--azul-api) 40%, transparent)", borderRadius: 6, padding: "10px 14px", fontSize: 12, color: "#0369A1" }}>
                     Nenhum dado recebido ainda — envie um webhook para ver os campos disponíveis.
                   </div>
                 )
@@ -6871,7 +6871,7 @@ function MethodDropdown({ value, onChange }: { value: string; onChange: (v: stri
   const methods = ["POST", "GET", "PUT", "PATCH", "DELETE"].filter(m => m.includes(search.toUpperCase()));
   return (
     <div style={{ position: "relative" }}>
-      <button onClick={() => setOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, fontWeight: 600, color: "#1D4ED8", background: "var(--surface-card)", cursor: "pointer", minWidth: 90 }}>
+      <button onClick={() => setOpen(o => !o)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "7px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, fontWeight: 600, color: "var(--azul-api)", background: "var(--surface-card)", cursor: "pointer", minWidth: 90 }}>
         {value} <ChevronDown size={12} />
       </button>
       {open && (
@@ -6884,7 +6884,7 @@ function MethodDropdown({ value, onChange }: { value: string; onChange: (v: stri
               style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: "transparent", color: m === value ? "#3B82F6" : "var(--text-heading)", fontWeight: m === value ? 600 : 400, textAlign: "left" }}
               onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
               onMouseLeave={e => (e.currentTarget.style.background = "transparent")}>
-              {m === value && <span style={{ color: "#1D4ED8", fontSize: 12 }}>✓</span>}
+              {m === value && <span style={{ color: "var(--azul-api)", fontSize: 12 }}>✓</span>}
               {m !== value && <span style={{ display: "inline-block", width: 14 }} />}
               {m}
             </button>
@@ -6917,7 +6917,7 @@ function BodyEditor({ value, onChange }: { value: string; onChange: (v: string) 
       </div>
       <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 6px", borderTop: "1px solid var(--border-default)", position: "relative" }}>
         <button onClick={() => setVarOpen(o => !o)} title="Inserir variável"
-          style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid #3B82F6", background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          style={{ width: 24, height: 24, borderRadius: 6, border: "1px solid #3B82F6", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", color: "var(--azul-api)", fontSize: 12, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <Braces size={13} />
         </button>
         {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
@@ -6995,7 +6995,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
       <div style={{ flex: 1, overflowY: "auto", padding: "14px 16px" }}>
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 4 }}>Fonte de dados</div>
-          <span style={{ fontSize: 12, fontWeight: 600, color: "#1D4ED8", background: "#EFF6FF", borderRadius: 6, padding: "3px 10px" }}>{selectedReq.name}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--azul-api)", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", borderRadius: 6, padding: "3px 10px" }}>{selectedReq.name}</span>
         </div>
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 6 }}>Método</div>
@@ -7016,7 +7016,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
               </button>
               <div style={{ position: "relative" }}>
                 <button onClick={() => setUrlVarOpen(o => !o)} title="Inserir variável"
-                  style={{ width: 24, height: 24, border: "1px solid #3B82F6", borderRadius: 6, background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#1D4ED8", fontSize: 12, fontWeight: 700 }}>
+                  style={{ width: 24, height: 24, border: "1px solid #3B82F6", borderRadius: 6, background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--azul-api)", fontSize: 12, fontWeight: 700 }}>
                   <Braces size={13} />
                 </button>
                 {urlVarOpen && <VarPicker onInsert={insertUrlVar} onClose={() => setUrlVarOpen(false)} />}
@@ -7024,7 +7024,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
             </div>
           </div>
         </div>
-        <button onClick={() => setShowAdvanced(true)} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", color: "#1D4ED8", fontSize: 12, fontWeight: 500, padding: 0 }}>
+        <button onClick={() => setShowAdvanced(true)} style={{ display: "flex", alignItems: "center", gap: 4, background: "none", border: "none", cursor: "pointer", color: "var(--azul-api)", fontSize: 12, fontWeight: 500, padding: 0 }}>
           Configurações avançadas <ChevronRight size={14} />
         </button>
       </div>
@@ -7050,16 +7050,16 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 10 }}>
             {requests.map(req => (
               <div key={req.id} onClick={() => { setSelectedReqId(req.id); setShowAdvanced(false); }}
-                style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", border: "1px solid #BFDBFE", borderRadius: 10, cursor: "pointer", background: "#EFF6FF" }}
-                onMouseEnter={e => (e.currentTarget.style.background = "#DBEAFE")} onMouseLeave={e => (e.currentTarget.style.background = "#EFF6FF")}>
+                style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", border: "1px solid color-mix(in srgb, var(--azul-api) 40%, transparent)", borderRadius: 10, cursor: "pointer", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))" }}
+                onMouseEnter={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))")} onMouseLeave={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))")}>
                 {req.type === "json" ? <Braces size={14} color="#3B82F6" /> : <FileDown size={14} color="#3B82F6" />}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                     {req.type === "json" ? "Requisição HTTP com comunicação..." : "Requisição de arquivo HTTP"}
                   </div>
-                  <div style={{ fontSize: 12, color: "#1D4ED8" }}>{req.method}</div>
+                  <div style={{ fontSize: 12, color: "var(--azul-api)" }}>{req.method}</div>
                 </div>
-                <span style={{ fontSize: 12, fontWeight: 700, color: "#1D4ED8", background: "#DBEAFE", borderRadius: 6, padding: "1px 6px", flexShrink: 0 }}>{req.name}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "var(--azul-api)", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", borderRadius: 6, padding: "1px 6px", flexShrink: 0 }}>{req.name}</span>
                 <button onClick={e => { e.stopPropagation(); removeApiRequest(req.id); }}
                   style={{ width: 18, height: 18, border: "none", background: "transparent", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center", justifyContent: "center" }}
                   onMouseEnter={e => (e.currentTarget.style.color = "var(--danger-fg)")} onMouseLeave={e => (e.currentTarget.style.color = "var(--text-muted)")}>
@@ -7070,8 +7070,8 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
           </div>
         )}
         <button onClick={() => setShowTypePicker(true)}
-          style={{ width: "100%", border: "1px dashed #BFDBFE", background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, padding: "8px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
-          onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; }} onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; }}>
+          style={{ width: "100%", border: "1px dashed color-mix(in srgb, var(--azul-api) 40%, transparent)", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", color: "var(--azul-api)", fontSize: 12, padding: "8px 0", borderRadius: 6, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}
+          onMouseEnter={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))"; }} onMouseLeave={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))"; }}>
           <Plus size={13} /> Adicionar API
         </button>
       </div>
@@ -7099,7 +7099,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
           </button>
           <div style={{ position: "relative", flexShrink: 0 }}>
             <button onClick={() => setUrlVarOpen(o => !o)} title="Inserir variável"
-              style={{ width: 28, height: 28, border: "1px solid #3B82F6", borderRadius: 8, background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#1D4ED8", fontSize: 12, fontWeight: 700 }}>
+              style={{ width: 28, height: 28, border: "1px solid #3B82F6", borderRadius: 8, background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--azul-api)", fontSize: 12, fontWeight: 700 }}>
               <Braces size={13} />
             </button>
             {urlVarOpen && <VarPicker onInsert={insertUrlVar} onClose={() => setUrlVarOpen(false)} />}
@@ -7154,7 +7154,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
           <div style={{ display: "flex", height: 280 }}>
             <div style={{ width: 140, borderRight: "1px solid var(--border-default)", padding: "16px 0" }}>
               <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>Adicionar API</div>
-              <button style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: "#EFF6FF", border: "none", borderLeft: "2px solid #3B82F6", cursor: "pointer", fontSize: 12, color: "#1D4ED8", fontWeight: 600 }}>
+              <button style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 12px", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", border: "none", borderLeft: "2px solid #3B82F6", cursor: "pointer", fontSize: 12, color: "var(--azul-api)", fontWeight: 600 }}>
                 <Globe size={14} /> HTTP
               </button>
             </div>
@@ -7163,7 +7163,7 @@ function ApiPanel({ node, onClose, onDelete, onDuplicate, addApiRequest, removeA
                 <button key={t.id} onClick={() => handleAddRequest(t.id)}
                   style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "12px 14px", border: "1px solid var(--border-default)", borderRadius: 8, cursor: "pointer", background: "var(--surface-card)", textAlign: "left" }}
                   onMouseEnter={e => (e.currentTarget.style.borderColor = "#3B82F6")} onMouseLeave={e => (e.currentTarget.style.borderColor = "var(--border-default)")}>
-                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     {t.id === "json" ? <Braces size={15} color="#3B82F6" /> : <FileDown size={15} color="#3B82F6" />}
                   </div>
                   <div>
@@ -7277,7 +7277,7 @@ function CamposValueInput({ value, onChange, placeholder }: {
           <button
             onMouseDown={e => e.preventDefault()}
             onClick={() => { setEditing(true); setVarOpen(o => !o); }}
-            style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#1D4ED8", flexShrink: 0, fontSize: 12, fontWeight: 700 }}
+            style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid color-mix(in srgb, var(--azul-api) 40%, transparent)", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--azul-api)", flexShrink: 0, fontSize: 12, fontWeight: 700 }}
           ><Braces size={13} /></button>
           {varOpen && <VarPicker onInsert={insertVar} onClose={() => { setVarOpen(false); }} />}
         </div>
@@ -7778,7 +7778,7 @@ function AcoesFieldInput({ value, onChange, placeholder }: {
       <div style={{ position: "relative", flexShrink: 0 }}>
         <button
           onClick={() => setVarOpen(o => !o)}
-          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#1D4ED8", flexShrink: 0, fontSize: 12, fontWeight: 700 }}
+          style={{ width: 28, height: 28, borderRadius: 6, border: "1px solid color-mix(in srgb, var(--azul-api) 40%, transparent)", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--azul-api)", flexShrink: 0, fontSize: 12, fontWeight: 700 }}
         ><Braces size={13} /></button>
         {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
       </div>
@@ -7817,7 +7817,7 @@ function AcoesFieldTextarea({ value, onChange, placeholder, rows = 4 }: {
         type="button"
         onClick={() => setVarOpen(o => !o)}
         title="Inserir variável"
-        style={{ position: "absolute", top: 6, right: 6, width: 28, height: 28, borderRadius: 6, border: "1px solid #BFDBFE", background: "#EFF6FF", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", zIndex: 2 }}
+        style={{ position: "absolute", top: 6, right: 6, width: 28, height: 28, borderRadius: 6, border: "1px solid color-mix(in srgb, var(--azul-api) 40%, transparent)", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", color: "#3B82F6", zIndex: 2 }}
       ><Braces size={13} /></button>
       {varOpen && <VarPicker onInsert={insertVar} onClose={() => setVarOpen(false)} />}
     </div>
@@ -7909,7 +7909,7 @@ function TagMultiSelect({ selectedIds, onChange, crmTags, addTag }: {
                 const checked = selectedIds.includes(tag.id);
                 return (
                   <div key={tag.id} onClick={() => onChange(checked ? selectedIds.filter(i => i !== tag.id) : [...selectedIds, tag.id])}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 12px", cursor: "pointer", background: checked ? "#EFF6FF" : "transparent" }}>
+                    style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 12px", cursor: "pointer", background: checked ? "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))" : "transparent" }}>
                     <TagPill cor={tag.color}>
                       {tag.name}
                     </TagPill>
@@ -7943,7 +7943,7 @@ function TagMultiSelect({ selectedIds, onChange, crmTags, addTag }: {
           )}
           {!createMode && (
             <div style={{ padding: "6px 8px", borderTop: "0.5px solid var(--neutral-100)", display: "flex", justifyContent: "flex-end" }}>
-              <button onClick={() => { setCreateMode(true); setSearch(""); setNewName(""); setNewColor("#3B82F6"); }} style={{ fontSize: 12, color: "#1D4ED8", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Criar</button>
+              <button onClick={() => { setCreateMode(true); setSearch(""); setNewName(""); setNewColor("#3B82F6"); }} style={{ fontSize: 12, color: "var(--azul-api)", background: "none", border: "none", cursor: "pointer", fontWeight: 500 }}>Criar</button>
             </div>
           )}
         </div>
@@ -7963,7 +7963,7 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
   const lbl = (text: string) => (
-    <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>
+    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--warning-fg)", display: "block", marginBottom: 4 }}>{text}</label>
   );
   const grp = (children: React.ReactNode) => (
     <div style={{ marginBottom: 14 }}>{children}</div>
@@ -8102,11 +8102,11 @@ function NegociosConfigForm({ item, updateActionItem, pipelines, teamMembers, pr
 
     case "remover_negocio":
       return (
-        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "12px 14px" }}>
+        <div style={{ background: "var(--warning-bg)", border: "1px solid var(--warning-border)", borderRadius: 8, padding: "12px 14px" }}>
           <div style={{ marginBottom: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 6, padding: "2px 8px" }}>Atenção</span>
+            <span style={{ fontSize: 12, fontWeight: 700, color: "var(--warning-fg)", background: "var(--warning-border)", borderRadius: 6, padding: "2px 8px" }}>Atenção</span>
           </div>
-          <p style={{ fontSize: 12, color: "#92400E", margin: 0 }}>Esta ação removerá o negócio permanentemente. Esta operação não pode ser desfeita.</p>
+          <p style={{ fontSize: 12, color: "var(--warning-fg)", margin: 0 }}>Esta ação removerá o negócio permanentemente. Esta operação não pode ser desfeita.</p>
         </div>
       );
 
@@ -8127,7 +8127,7 @@ function LeadsConfigForm({ item, updateActionItem, crmTags, addTag, crmLists, te
 }) {
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
-  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>;
+  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "var(--warning-fg)", display: "block", marginBottom: 4 }}>{text}</label>;
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
   const TAG_COLORS = PALETA_DO_APP;
 
@@ -8209,7 +8209,7 @@ function MensagensConfigForm({ item, updateActionItem, teamMembers }: {
   const departamentosDaEmpresa = useDepartamentos();
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
-  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>;
+  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "var(--warning-fg)", display: "block", marginBottom: 4 }}>{text}</label>;
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
 
   switch (item.actionId) {
@@ -8261,7 +8261,7 @@ function ProdutosConfigForm({ item, updateActionItem }: {
 }) {
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
-  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>;
+  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "var(--warning-fg)", display: "block", marginBottom: 4 }}>{text}</label>;
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
   return (
     <>
@@ -8281,7 +8281,7 @@ function MetaEventConfigForm({ item, updateActionItem }: {
   const { company } = useCompany();
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
-  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>;
+  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "var(--warning-fg)", display: "block", marginBottom: 4 }}>{text}</label>;
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
 
   const [pixels, setPixels] = useState<{ id: string; name: string; pixel_id: string }[]>([]);
@@ -8355,7 +8355,7 @@ function SistemaConfigForm({ item, updateActionItem, automations }: {
 }) {
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
-  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>;
+  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "var(--warning-fg)", display: "block", marginBottom: 4 }}>{text}</label>;
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
 
   switch (item.actionId) {
@@ -8395,7 +8395,7 @@ function AtividadesConfigForm({ item, updateActionItem }: {
 }) {
   const cfg = item.config ?? {};
   const set = (key: string, val: string | boolean | number) => updateActionItem(item.id, { [key]: val });
-  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "#92400E", display: "block", marginBottom: 4 }}>{text}</label>;
+  const lbl = (text: string) => <label style={{ fontSize: 12, fontWeight: 600, color: "var(--warning-fg)", display: "block", marginBottom: 4 }}>{text}</label>;
   const grp = (children: React.ReactNode) => <div style={{ marginBottom: 14 }}>{children}</div>;
   return (
     <>
@@ -8450,7 +8450,7 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
             <ArrowLeft size={15} />
             <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{selectedItem.label}</span>
             {isWarning && (
-              <span style={{ fontSize: 12, fontWeight: 700, color: "#92400E", background: "#FDE68A", borderRadius: 6, padding: "2px 8px", flexShrink: 0 }}>Atenção</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--warning-fg)", background: "var(--warning-border)", borderRadius: 6, padding: "2px 8px", flexShrink: 0 }}>Atenção</span>
             )}
           </button>
         </div>
@@ -8500,9 +8500,9 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
                 <div
                   key={item.id}
                   onClick={() => setSelectedItemId(item.id)}
-                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "#FFF7ED", border: "0.5px solid #FED7AA", borderRadius: 8, cursor: "pointer" }}
+                  style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", background: "color-mix(in srgb, var(--laranja-acao) 12%, var(--surface-card))", border: "0.5px solid color-mix(in srgb, var(--laranja-acao) 40%, transparent)", borderRadius: 8, cursor: "pointer" }}
                   onMouseEnter={e => (e.currentTarget.style.background = "#FFEDD5")}
-                  onMouseLeave={e => (e.currentTarget.style.background = "#FFF7ED")}
+                  onMouseLeave={e => (e.currentTarget.style.background = "color-mix(in srgb, var(--laranja-acao) 12%, var(--surface-card))")}
                 >
                   <AIcon size={13} color="#F97316" />
                   <span style={{ flex: 1, fontSize: 12, color: "var(--text-heading)" }}>{item.label}</span>
@@ -8520,9 +8520,9 @@ function AcoesPanel({ node, onClose, onDelete, onDuplicate, removeActionItem, on
       </div>
       <div style={{ borderTop: "1px solid var(--border-default)", padding: "12px 16px", flexShrink: 0 }}>
         <button onClick={onOpenPicker}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #FED7AA", borderRadius: 8, background: "#FFF7ED", color: "#92400E", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed color-mix(in srgb, var(--laranja-acao) 40%, transparent)", borderRadius: 8, background: "color-mix(in srgb, var(--laranja-acao) 12%, var(--surface-card))", color: "var(--laranja-acao)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
           onMouseEnter={e => { e.currentTarget.style.background = "#FFEDD5"; e.currentTarget.style.borderColor = "#F97316"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "#FFF7ED"; e.currentTarget.style.borderColor = "#FED7AA"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--laranja-acao) 12%, var(--surface-card))"; e.currentTarget.style.borderColor = "color-mix(in srgb, var(--laranja-acao) 40%, transparent)"; }}
         >
           <Plus size={13} /> Adicionar ação
         </button>
@@ -8715,9 +8715,9 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
               </div>
             )}
             <button onClick={addButton}
-              style={{ width: "100%", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 0", border: "1px dashed #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-              onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; e.currentTarget.style.borderColor = "#3B82F6"; }}
-              onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
+              style={{ width: "100%", marginTop: 8, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "8px 0", border: "1px dashed color-mix(in srgb, var(--azul-api) 40%, transparent)", borderRadius: 8, background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", color: "var(--azul-api)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))"; e.currentTarget.style.borderColor = "#3B82F6"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))"; e.currentTarget.style.borderColor = "color-mix(in srgb, var(--azul-api) 40%, transparent)"; }}
             >
               <Plus size={13} /> Adicionar botão
             </button>
@@ -8725,8 +8725,8 @@ function SubBlockCard({ b, removeSubBlock, updateSubBlock }: {
         )}
         {b.type === "entrada_usuario" && (
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "#1D4ED8" }}><HelpCircle size={13} /> Entrada do usuário</div>
-            <div style={{ padding: "8px 12px", background: "#EFF6FF", border: "0.5px solid #BFDBFE", borderRadius: 8, fontSize: 12, color: "#1D4ED8", lineHeight: 1.45 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, fontSize: 12, fontWeight: 600, color: "var(--azul-api)" }}><HelpCircle size={13} /> Entrada do usuário</div>
+            <div style={{ padding: "8px 12px", background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", border: "0.5px solid color-mix(in srgb, var(--azul-api) 40%, transparent)", borderRadius: 8, fontSize: 12, color: "var(--azul-api)", lineHeight: 1.45 }}>
               A automação <strong>pausa e aguarda</strong> a resposta do contato no WhatsApp, e a guarda na variável abaixo.
             </div>
             <label style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", display: "block", margin: "10px 0 4px" }}>Salvar resposta na variável</label>
@@ -8979,9 +8979,9 @@ function MensagemPanel({ node, onClose, onDelete, onDuplicate, removeSubBlock, u
           </>
         )}
         <button onClick={() => setAddMenuOpen(o => !o)}
-          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed #BFDBFE", borderRadius: 8, background: "#EFF6FF", color: "#1D4ED8", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
-          onMouseEnter={e => { e.currentTarget.style.background = "#DBEAFE"; e.currentTarget.style.borderColor = "#3B82F6"; }}
-          onMouseLeave={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#BFDBFE"; }}
+          style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "9px 0", border: "1px dashed color-mix(in srgb, var(--azul-api) 40%, transparent)", borderRadius: 8, background: "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))", color: "var(--azul-api)", fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+          onMouseEnter={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))"; e.currentTarget.style.borderColor = "#3B82F6"; }}
+          onMouseLeave={e => { e.currentTarget.style.background = "color-mix(in srgb, var(--azul-api) 12%, var(--surface-card))"; e.currentTarget.style.borderColor = "color-mix(in srgb, var(--azul-api) 40%, transparent)"; }}
         >
           <Plus size={13} /> Adicionar mensagem
         </button>

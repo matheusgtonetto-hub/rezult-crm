@@ -109,6 +109,11 @@
        bloco no canvas é outra coisa: lá ele é marca de categoria sobre um
        cartão, e funciona nos dois temas. */
     --roxo-ia: #6B21A8;
+    /* O laranja da AÇÃO e o azul da API, como tinta. O fundo e a borda desses
+       blocos saem destes mesmos tokens por color-mix, então o par inteiro
+       acompanha o tema em vez de ser três hex cravados que só fecham no claro. */
+    --laranja-acao: #9A3412;
+    --azul-api:     #1D4ED8;
 
     /* ── 2. Papéis semânticos. É ISTO que o código deve pedir ── */
     --bg-app:           var(--neutral-50);
@@ -348,6 +353,8 @@
     /* Tinta de erro e de aviso: no claro são tons fechados, feitos para fundo
        branco. Sobre o --danger-bg escuro dariam 1,6:1. */
     --roxo-ia: #C6A0F0;
+    --laranja-acao: #F3BE93;
+    --azul-api:     #A8C8F7;
     --danger-fg:  #FF9C9C;
     --warning-fg: #F2C55C;
     --warning-border: #5A4A1E;
