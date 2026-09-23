@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { tintaDeChip } from "@/lib/contraste";
+import { useTema } from "@/context/ProfileContext";
 
 /**
  * A etiqueta de tag do sistema. UMA para todas as telas.
@@ -37,6 +38,12 @@ export function TagPill({
   /** Ajustes pontuais de layout (margem, largura). Cor e raio não se sobrescrevem. */
   style?: CSSProperties;
 }) {
+  // A tinta sai de uma conta contra a SUPERFÍCIE do tema, então esta etiqueta
+  // precisa repintar quando o tema muda. Ler o tema aqui é o que assina essa
+  // mudança; o valor em si não entra no cálculo (quem lê a superfície é o
+  // `tintaDeChip`, direto do documento).
+  useTema();
+
   const base: CSSProperties = {
     display: "inline-flex",
     alignItems: "center",

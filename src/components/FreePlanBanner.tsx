@@ -378,7 +378,7 @@ export function FreePlanBanner() {
           </p>
           <Button
             size="sm"
-            className="h-8 text-xs font-semibold rounded-lg text-black shrink-0"
+            className="h-8 text-xs font-semibold rounded-lg text-foreground shrink-0"
             style={{ background: "#ffffff", animation: "banner-btn-attention 1.2s ease-in-out infinite" }}
             onClick={() => navigate("/configuracoes/planos")}
           >

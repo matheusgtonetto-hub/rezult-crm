@@ -251,11 +251,24 @@
   }
 
   /* ── Tema ESCURO ──
-     Pronto, e fechado: o seletor em Configurações segue "Em breve" até a
-     auditoria das 27 páginas (decisão D5 da matriz).
-     Regra do sistema: a rampa da marca NÃO inverte. O emerald é o mesmo nos
-     dois temas, e a tinta sobre ele continua charcoal. */
+     Aberto ao uso em 23/09/2026, com o botão de alternar no pé da barra
+     lateral. A decisão D5 da matriz previa uma auditoria das 27 páginas antes
+     disso; o que foi feito no lugar dela: as classes cruas que não invertem
+     (bg-white, border-gray-*, text-black) foram trocadas pelos papéis do
+     sistema, e o que restou é ajuste de tela, não de token.
+
+     Regra do sistema, mantida: a rampa da marca NÃO inverte. O emerald é o
+     mesmo nos dois temas e a tinta sobre ele continua charcoal. Isso é o que
+     mantém os dois papéis de cada tom (o 700 é fundo de botão em 22 lugares e
+     tinta em 103) coerentes sem auditar os 500 usos um a um. A consequência
+     visível é que a pílula de fundo --accent-50 continua clara no escuro: ela
+     lê como etiqueta, e a tinta verde escura dentro dela segue legível. */
   .dark {
+    /* Diz ao navegador que o documento é escuro: barra de rolagem, seletor de
+       data, autofill e os controles nativos seguem junto. Sem isto, sobra uma
+       barra de rolagem branca na lateral de toda tela com scroll. */
+    color-scheme: dark;
+
     --neutral-0:   #1A1D21;   /* superfície de cartão no escuro */
     --neutral-25:  #1F2328;
     --neutral-50:  #22262B;
@@ -272,6 +285,16 @@
 
     --bg-app: var(--neutral-950);
     --text-on-accent: #0C231D;
+    /* A superfície "inversa" (tooltip, botão escuro do KPI) precisa continuar
+       sendo o CONTRÁRIO do fundo. Sem estas duas linhas ela herdaria o
+       neutral-950, que no escuro é o próprio canvas: o tooltip sumia, e o
+       texto branco dentro dele ficava branco sobre branco. */
+    --surface-inverse: #F4F6F7;
+    --text-inverse:    #16181B;
+    /* Tinta de erro e de aviso: no claro são tons fechados, feitos para fundo
+       branco. Sobre o --danger-bg escuro dariam 1,6:1. */
+    --danger-fg:  #FF9C9C;
+    --warning-fg: #F2C55C;
     /* No escuro o verde de texto sobe para o tom 300: o 700 daria 3,8:1 ali. */
     --text-link: var(--accent-300);
     --danger-bg: #2A1618;

@@ -164,7 +164,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
         <div className="space-y-4">
 
           {/* Meu Agente card */}
-          <div className="bg-white border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 p-5">
+          <div className="bg-card border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 p-5">
             <div className="flex items-center gap-3">
               <div
                 className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
@@ -228,7 +228,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
             {/* Grid métricas 2x2 */}
             <div className="grid grid-cols-2 gap-2 mt-4">
               {metrics.map(m => (
-                <div key={m.label} className="bg-white rounded-lg p-2.5">
+                <div key={m.label} className="bg-card rounded-lg p-2.5">
                   <div className="text-[20px] font-bold text-[color:var(--text-heading)] leading-none">{m.value}</div>
                   <div className="text-[12px] text-[color:var(--text-muted)] mt-1 leading-tight">{m.label}</div>
                 </div>
@@ -236,7 +236,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
             </div>
 
             {/* Score do dia */}
-            <div className="mt-4 bg-white rounded-lg p-3.5 text-center">
+            <div className="mt-4 bg-card rounded-lg p-3.5 text-center">
               <div className="flex items-baseline justify-center gap-0.5">
                 <span className="text-[32px] font-bold leading-none" style={{ color: "var(--accent-800)" }}>8.2</span>
                 <span className="text-[14px] font-normal" style={{ color: "var(--text-muted)" }}>/10</span>
@@ -250,7 +250,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
         {/* ── RIGHT COLUMN ── */}
         <div>
           <Tabs defaultValue="hoje">
-            <TabsList className="bg-white border border-[color:var(--border-default)] p-1 rounded-lg">
+            <TabsList className="bg-card border border-[color:var(--border-default)] p-1 rounded-lg">
               {[
                 { v: "hoje",      l: "Relatório de Hoje" },
                 { v: "semana",    l: "Esta Semana" },
@@ -305,7 +305,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
               </div>
 
               {/* Timeline de atividades */}
-              <div className="bg-white border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 p-5">
+              <div className="bg-card border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 p-5">
                 <h3 className="text-[13px] font-semibold text-[color:var(--text-heading)] mb-4">
                   Atividades registradas hoje
                 </h3>
@@ -351,7 +351,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
 
             {/* ── ABA SEMANA ── */}
             <TabsContent value="semana" className="mt-4 space-y-4">
-              <div className="bg-white border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 p-5">
+              <div className="bg-card border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 p-5">
                 <h3 className="text-[13px] font-semibold text-[color:var(--text-heading)] mb-4">Score por dia</h3>
 
                 {/* Gráfico de barras */}
@@ -414,7 +414,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
                 ].map(c => (
                   <div
                     key={c.label}
-                    className="bg-white border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 p-4"
+                    className="bg-card border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 p-4"
                   >
                     <div className="text-[12px] text-[color:var(--text-muted)] uppercase tracking-wide">{c.label}</div>
                     <div className="mt-2 flex items-baseline gap-1">
@@ -429,10 +429,10 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
             {/* ── ABA HISTÓRICO ── */}
             <TabsContent value="historico" className="mt-4 space-y-4">
               {/* Calendário */}
-              <div className="bg-white border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 p-5">
+              <div className="bg-card border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-[13px] font-semibold text-[color:var(--text-heading)]">Calendário de produtividade</h3>
-                  <select className="text-[12px] border border-[color:var(--border-default)] rounded-md px-2 py-1 bg-white text-[color:var(--text-body)] focus:outline-none focus:border-[color:var(--accent-500)]">
+                  <select className="text-[12px] border border-[color:var(--border-default)] rounded-md px-2 py-1 bg-card text-[color:var(--text-body)] focus:outline-none focus:border-[color:var(--accent-500)]">
                     <option>Abril 2026</option>
                     <option>Março 2026</option>
                     <option>Fevereiro 2026</option>
@@ -486,7 +486,7 @@ export default function AgentUserView({ role = "SDR", userName = "Carlos Andrade
               </div>
 
               {/* Lista últimos relatórios */}
-              <div className="bg-white border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 p-5">
+              <div className="bg-card border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 p-5">
                 <h3 className="text-[13px] font-semibold text-[color:var(--text-heading)] mb-3">Últimos relatórios</h3>
                 <div className="space-y-0">
                   {mockReports.map((r, i) => (

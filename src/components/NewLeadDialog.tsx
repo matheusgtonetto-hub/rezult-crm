@@ -17,8 +17,8 @@ interface Props {
   defaultStage: string;
 }
 
-const FIELD_CLS = "bg-card border-gray-400 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary";
-const SELECT_TRIGGER_CLS = "bg-card border-gray-400 rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary";
+const FIELD_CLS = "bg-card border-input rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary";
+const SELECT_TRIGGER_CLS = "bg-card border-input rounded-lg focus:ring-0 focus:ring-offset-0 focus:border-primary";
 
 export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
   const { addLead, columns, activePipelineId, nextDealNumber, crmTags, teamMembers } = useCRM();
@@ -98,7 +98,7 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
               type="button"
               onClick={() => { setShowResponsiblePicker(v => !v); setShowTagPicker(false); }}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm bg-card transition-colors h-9 ${
-                showResponsiblePicker ? "border-primary ring-1 ring-primary/20" : "border-gray-400 hover:border-foreground/30"
+                showResponsiblePicker ? "border-primary ring-1 ring-primary/20" : "border-input hover:border-foreground/30"
               }`}
             >
               <span className={responsible ? "text-foreground" : "text-muted-foreground"}>
@@ -135,7 +135,7 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
               type="button"
               onClick={() => { setShowTagPicker(v => !v); setShowResponsiblePicker(false); }}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm bg-card transition-colors min-h-9 ${
-                showTagPicker ? "border-primary ring-1 ring-primary/20" : "border-gray-400 hover:border-foreground/30"
+                showTagPicker ? "border-primary ring-1 ring-primary/20" : "border-input hover:border-foreground/30"
               }`}
             >
               {selectedTags.length === 0 ? (

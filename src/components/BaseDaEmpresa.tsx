@@ -173,7 +173,7 @@ export function BaseDaEmpresa({ companyId, userId }: { companyId?: string; userI
 
   return (
     <>
-      <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 mb-4 flex flex-col sm:flex-row sm:items-center gap-4">
         <div className="w-10 h-10 rounded-full bg-[color:var(--accent-100)] flex items-center justify-center text-[color:var(--text-link)] shrink-0">
           <BookOpen size={18} />
         </div>

@@ -190,7 +190,7 @@ export function AgentActivationTagPicker({ value, onChange, ocupadas = {}, agent
         type="button"
         onClick={() => setAberto((v) => !v)}
         className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm bg-card transition-colors min-h-9 ${
-          aberto ? "border-primary ring-1 ring-primary/20" : "border-gray-400 hover:border-foreground/30"
+          aberto ? "border-primary ring-1 ring-primary/20" : "border-input hover:border-foreground/30"
         }`}
       >
         {value ? (

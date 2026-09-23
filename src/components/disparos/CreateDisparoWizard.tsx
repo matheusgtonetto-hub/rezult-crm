@@ -338,7 +338,7 @@ export function CreateDisparoWizard({
 
                           <div className="flex-1 min-w-0">
                             <div className="text-xs font-semibold truncate leading-none">{l.name}</div>
-                            <span style={{ fontSize: 12, fontWeight: 600 }} className="inline-flex items-center rounded-full bg-gray-100 px-1 py-0.5 text-gray-500">
+                            <span style={{ fontSize: 12, fontWeight: 600 }} className="inline-flex items-center rounded-full bg-muted px-1 py-0.5 text-muted-foreground">
                               Ticket médio <span className="text-[color:var(--accent-700)] ml-1">{fmtBRL(ticket)}</span>
                             </span>
                           </div>

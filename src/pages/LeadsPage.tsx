@@ -345,7 +345,7 @@ export default function LeadsPage() {
           </p>
         </div>
         <div className="flex gap-2 shrink-0">
-          <Button variant="outline" onClick={() => setImportOpen(true)} className="rounded-lg font-semibold bg-white">
+          <Button variant="outline" onClick={() => setImportOpen(true)} className="rounded-lg font-semibold bg-card">
             <Upload size={16} className="mr-1" /> Importar lista
           </Button>
           <Button onClick={openCreate} className="rounded-lg font-semibold">

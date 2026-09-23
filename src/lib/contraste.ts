@@ -134,29 +134,56 @@ function rgbParaHsl(r: number, g: number, b: number): [number, number, number] {
  * texto.
  *
  * O padrão só se sustenta com cor escura. Em ciano claro (`#06B6D4`) dava
- * 2,14:1, e era assim que a etiqueta "Meta ads" aparecia. Aqui a cor é
- * escurecida em passos de 4% de luminosidade, mantendo matiz e saturação, até
- * passar 4,5:1 contra o próprio fundo tingido. O chip continua "da cor da
- * tag", só que legível.
+ * 2,14:1, e era assim que a etiqueta "Meta ads" aparecia. Aqui a cor é movida
+ * em passos de 4% de luminosidade, mantendo matiz e saturação, até passar
+ * 4,5:1 contra o próprio fundo tingido. O chip continua "da cor da tag", só
+ * que legível.
+ *
+ * ─── Por que a superfície entra na conta ────────────────────────────────────
+ *
+ * O fundo do chip não é a cor pura: é a cor a 13% sobre a SUPERFÍCIE de baixo.
+ * Enquanto o app só tinha tema claro, essa superfície era sempre branco, e
+ * estava escrita aqui como 255. No tema escuro o cartão é #1A1D21, e o mesmo
+ * cálculo dava uma tinta escurecida sobre um fundo escuro: a etiqueta sumia.
+ *
+ * Agora a superfície é lida do documento (`--surface-card`, que o `.dark`
+ * redefine) e a busca anda para o lado certo: ESCURECE a tinta sobre fundo
+ * claro, CLAREIA sobre fundo escuro.
  *
  * `fracao` é a opacidade do fundo (0,13 para o `+ "22"` usado no app).
+ * `superficie` existe para teste e para quem pinta sobre algo que não é o
+ * cartão; em branco, vale a superfície do tema em vigor.
  */
-export function tintaDeChip(cor: string | null | undefined, fracao = 0.13): string {
+export function tintaDeChip(cor: string | null | undefined, fracao = 0.13, superficie?: string): string {
   if (!cor) return CHARCOAL;
   const rgb = paraRgb(cor);
   if (!rgb) return CHARCOAL;
+
+  // Sem documento (teste, SSR) não há tema: o branco era o comportamento
+  // anterior e continua sendo o padrão.
+  const base = (superficie ? paraRgb(superficie) : paraRgb("var(--surface-card)")) ?? [255, 255, 255];
+
   const fundo: [number, number, number] = [
-    Math.round(rgb[0] * fracao + 255 * (1 - fracao)),
-    Math.round(rgb[1] * fracao + 255 * (1 - fracao)),
-    Math.round(rgb[2] * fracao + 255 * (1 - fracao)),
+    Math.round(rgb[0] * fracao + base[0] * (1 - fracao)),
+    Math.round(rgb[1] * fracao + base[1] * (1 - fracao)),
+    Math.round(rgb[2] * fracao + base[2] * (1 - fracao)),
   ];
   const lumFundo = 0.2126 * canal(fundo[0]) + 0.7152 * canal(fundo[1]) + 0.0722 * canal(fundo[2]);
+  const fundoEscuro = lumFundo < 0.18;
+
   const [h, sat, lIni] = rgbParaHsl(rgb[0], rgb[1], rgb[2]);
-  for (let l = lIni; l > 0.04; l -= 0.04) {
+  const passo = fundoEscuro ? 0.04 : -0.04;
+  const limite = fundoEscuro ? 0.97 : 0.04;
+
+  for (let l = lIni; fundoEscuro ? l < limite : l > limite; l += passo) {
     const [r, g, b] = hslParaRgb(h, sat, l);
     const lumTinta = 0.2126 * canal(r) + 0.7152 * canal(g) + 0.0722 * canal(b);
-    const razao = (lumFundo + 0.05) / (lumTinta + 0.05);
+    const razao = fundoEscuro
+      ? (lumTinta + 0.05) / (lumFundo + 0.05)
+      : (lumFundo + 0.05) / (lumTinta + 0.05);
     if (razao >= 4.5) return `rgb(${r}, ${g}, ${b})`;
   }
-  return CHARCOAL;
+  // Cor que não chega a 4,5:1 nem no extremo (cinza puro sobre cinza): cai na
+  // tinta do sistema para aquele fundo.
+  return fundoEscuro ? BRANCO : CHARCOAL;
 }

@@ -1,6 +1,7 @@
 import { Fragment, type ComponentType, type ReactNode } from "react";
 import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useProfile } from "@/context/ProfileContext";
 import { useMensagensNaoLidas } from "@/hooks/useMensagensNaoLidas";
 import {
   ContactRound,
@@ -13,6 +14,8 @@ import {
   Cog,
   ChevronsLeft,
   ChevronsRight,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -123,6 +126,7 @@ const OVERLINE =
 export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAlternar: () => void }) {
   const { pathname } = useLocation();
   const { canAny } = usePermissions();
+  const { tema, alternarTema } = useProfile();
   /*
    * As não lidas do Multiatendimento.
    *
@@ -313,6 +317,36 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
     );
   };
 
+  /**
+   * Alternar entre claro e escuro.
+   *
+   * Botão, e não link: não leva a lugar nenhum, age na hora. Por isso nunca
+   * fica em estado "ativo" -- o realce emerald dos vizinhos quer dizer "é aqui
+   * que você está", e aqui não há um "aqui".
+   *
+   * O ícone mostra PARA ONDE se vai, não onde se está: no claro aparece a lua
+   * (clique e escurece), no escuro aparece o sol. É a leitura que todo mundo já
+   * tem de outros aplicativos, e o rótulo da dica diz a mesma coisa por
+   * extenso, para quem lê o ícone ao contrário.
+   */
+  const botaoDeTema = () => {
+    const escuro = tema === "dark";
+    const rotulo = escuro ? "Tema claro" : "Tema escuro";
+    const Icone = escuro ? Sun : Moon;
+    return comDicaSeRecolhida(
+      rotulo,
+      <button
+        type="button"
+        onClick={alternarTema}
+        aria-label={rotulo}
+        className={`${ITEM_BASE} ${disposicao} ${ITEM_REPOUSO} w-full`}
+      >
+        <Icone size={18} strokeWidth={1.75} className="shrink-0" />
+        {!recolhida && <span className="flex-1 min-w-0 truncate text-sm text-left">{rotulo}</span>}
+      </button>,
+    );
+  };
+
   return (
     <TooltipProvider delayDuration={300}>
       <aside
@@ -434,7 +468,12 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
               bordas, e somar os dois deixaria esta régua mais curta que a de
               cima, que é sua par visual. */}
           <div className={`${REGUA_BASE} mb-2`} />
-          {renderNav({ to: "/configuracoes", label: "Configurações", icon: Cog })}
+          {/* Tema acima de Configurações (dono, 23/09/2026): é preferência de
+              aparência, vizinha de assunto, e fica no mesmo canto fixo. */}
+          <div className="flex flex-col gap-0.5">
+            {botaoDeTema()}
+            {renderNav({ to: "/configuracoes", label: "Configurações", icon: Cog })}
+          </div>
         </div>
 
             </aside>

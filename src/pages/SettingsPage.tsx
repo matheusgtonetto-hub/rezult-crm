@@ -206,12 +206,12 @@ export default function SettingsPage() {
 
 /* ---------------- PERFIL ---------------- */
 function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
-  const { profile, updateProfile, uploadAvatar, updateTheme } = useProfile();
+  const { profile, updateProfile, uploadAvatar, updateTheme, tema } = useProfile();
   const { user, signOut } = useAuth();
   const { company, availableCompanies } = useCompany();
   const [name, setName]       = useState(profile?.full_name ?? "");
   const [phone, setPhone]     = useState(maskPhone(profile?.phone ?? ""));
-  const [theme, setTheme]     = useState<"light" | "dark">(profile?.theme ?? "light");
+  const theme = tema;
   const [saving, setSaving]   = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -221,12 +221,10 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
     if (profile) {
       setName(profile.full_name ?? "");
       setPhone(maskPhone(profile.phone ?? ""));
-      setTheme(profile.theme ?? "light");
     }
   }, [profile?.id]);
 
   const handleTheme = async (t: "light" | "dark") => {
-    setTheme(t);
     try {
       await updateTheme(t);
     } catch {
@@ -383,12 +381,7 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="light">Claro</SelectItem>
-                <SelectItem value="dark" disabled>
-                  <span className="flex items-center gap-2">
-                    Escuro
-                    <span className="text-[12px] font-semibold bg-muted text-muted-foreground rounded px-1.5 py-0.5 leading-none">Em breve</span>
-                  </span>
-                </SelectItem>
+                <SelectItem value="dark">Escuro</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -526,7 +519,7 @@ function maskPhone(v: string) {
 
 function PhoneInput({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
-    <div className="flex items-center h-10 border border-card-border rounded-md overflow-hidden bg-white focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
+    <div className="flex items-center h-10 border border-card-border rounded-md overflow-hidden bg-card focus-within:ring-1 focus-within:ring-primary focus-within:border-primary">
       <div className="flex items-center gap-1.5 px-3 h-full bg-muted/50 border-r border-card-border shrink-0 select-none">
         <span className="text-base leading-none">🇧🇷</span>
         <span className="text-sm text-muted-foreground font-medium">+55</span>
@@ -537,7 +530,7 @@ function PhoneInput({ value, onChange }: { value: string; onChange: (v: string) 
         onChange={e => onChange(maskPhone(e.target.value))}
         placeholder="(11) 99999-0000"
         maxLength={15}
-        className="flex-1 px-3 h-full text-sm outline-none bg-white text-foreground placeholder:text-muted-foreground/50"
+        className="flex-1 px-3 h-full text-sm outline-none bg-card text-foreground placeholder:text-muted-foreground/50"
       />
     </div>
   );
@@ -779,7 +772,7 @@ function EmpresaSection() {
                   className={`flex-1 py-2 text-sm rounded-lg border transition-colors font-medium ${
                     docType === t
                       ? "bg-primary text-[color:var(--text-on-accent)] border-primary"
-                      : "bg-white text-muted-foreground border-card-border hover:border-primary"
+                      : "bg-card text-muted-foreground border-card-border hover:border-primary"
                   }`}
                 >
                   {t === "pj" ? "Pessoa Jurídica" : "Pessoa Física"}
@@ -1131,11 +1124,11 @@ function PermissionsEditor({
         const isOpen = openGroups[group.id] ?? true;
         const groupSelected = group.options.some(o => permissions.includes(o.id));
         return (
-          <div key={group.id} className="border border-card-border rounded-[8px] overflow-hidden bg-white">
+          <div key={group.id} className="border border-card-border rounded-[8px] overflow-hidden bg-card">
             <button
               type="button"
               onClick={() => setOpenGroups(prev => ({ ...prev, [group.id]: !isOpen }))}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-white hover:bg-gray-50 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-3 bg-card hover:bg-muted transition-colors"
             >
               <div className="flex-1 text-left">
                 <p className={`text-[12px] font-semibold flex items-center gap-1.5 ${groupSelected ? "text-primary" : "text-foreground"}`}>
@@ -1153,7 +1146,7 @@ function PermissionsEditor({
                   return (
                     <label
                       key={opt.id}
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-primary/10" : "bg-white hover:bg-gray-50"}`}
+                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-primary/10" : "bg-card hover:bg-muted"}`}
                     >
                       <input
                         type="checkbox"
@@ -1597,7 +1590,7 @@ function EquipeSection() {
 
       {/* Dialog: Confirmar remoção de membro */}
       <Dialog open={!!confirmRemove} onOpenChange={v => { if (!v) setConfirmRemove(null); }}>
-        <DialogContent className="max-w-sm bg-white">
+        <DialogContent className="max-w-sm bg-card">
           <DialogHeader>
             <DialogTitle>Remover membro da equipe?</DialogTitle>
           </DialogHeader>
@@ -1625,8 +1618,8 @@ function EquipeSection() {
           * visíveis enquanto as permissões são marcadas. Só a coluna da direita
           * rola, então o rodapé com os botões também nunca sai da tela.
           */}
-        <DialogContent className="max-w-4xl bg-white max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
-          <DialogHeader className="px-6 pt-6 pb-4 border-b border-gray-100">
+        <DialogContent className="max-w-4xl bg-card max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-border">
             <DialogTitle>Adicionar membro à equipe</DialogTitle>
           </DialogHeader>
 
@@ -1634,7 +1627,7 @@ function EquipeSection() {
             {/* Coluna da esquerda: quem entra e o que ele pode acessar, em
                 lista. Largura fixa -- é sempre o mesmo conteúdo, e deixá-la
                 crescer roubaria espaço de quem precisa. */}
-            <div className="w-[300px] shrink-0 border-r border-gray-100 flex flex-col min-h-0">
+            <div className="w-[300px] shrink-0 border-r border-border flex flex-col min-h-0">
               <div className="p-6 pb-4 shrink-0 space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">E-mail do usuário *</label>
                 <Input
@@ -1663,7 +1656,7 @@ function EquipeSection() {
                   type="button"
                   onClick={() => setGrupoAberto("admin")}
                   className={`w-full flex items-center gap-2 px-3 py-[9px] rounded-[6px] text-left transition-colors ${
-                    grupoAberto === "admin" ? "bg-[color:var(--warning-bg)]" : "hover:bg-gray-50"
+                    grupoAberto === "admin" ? "bg-[color:var(--warning-bg)]" : "hover:bg-muted"
                   }`}
                 >
                   <Crown size={14} className={`shrink-0 ${grupoAberto === "admin" || isAdminInvite ? "text-[color:var(--warning-fg)]" : "text-muted-foreground"}`} />
@@ -1687,7 +1680,7 @@ function EquipeSection() {
                       disabled={isAdminInvite}
                       onClick={() => setGrupoAberto(grupo.id)}
                       className={`w-full flex items-center gap-2 px-3 py-[9px] rounded-[6px] text-left transition-colors ${
-                        ativo ? "bg-primary/10" : "enabled:hover:bg-gray-50"
+                        ativo ? "bg-primary/10" : "enabled:hover:bg-muted"
                       } disabled:opacity-40 disabled:cursor-not-allowed`}
                     >
                       <Icon size={14} className={`shrink-0 ${ativo || temEscolha ? "text-primary" : "text-muted-foreground"}`} />
@@ -1726,7 +1719,7 @@ function EquipeSection() {
                       type="button"
                       onClick={() => setGrupoAberto("departamentos")}
                       className={`w-full flex items-center gap-2 px-3 py-[9px] rounded-[6px] text-left transition-colors ${
-                        ativo ? "bg-primary/10" : "hover:bg-gray-50"
+                        ativo ? "bg-primary/10" : "hover:bg-muted"
                       }`}
                     >
                       <Folder size={14} className={`shrink-0 ${ativo || temEscolha ? "text-primary" : "text-muted-foreground"}`} />
@@ -1760,7 +1753,7 @@ function EquipeSection() {
                         <label
                           key={d.id}
                           className={`flex items-center gap-3 px-4 py-3 rounded-[8px] border cursor-pointer transition-colors ${
-                            marcado ? "border-primary bg-primary/10" : "border-card-border bg-white hover:bg-gray-50"
+                            marcado ? "border-primary bg-primary/10" : "border-card-border bg-card hover:bg-muted"
                           }`}
                         >
                           <input
@@ -1798,7 +1791,7 @@ function EquipeSection() {
                   </p>
 
                   <label className={`flex items-start gap-3 px-4 py-3 mt-4 rounded-[8px] border cursor-pointer transition-colors ${
-                    isAdminInvite ? "border-[#D97706] bg-[color:var(--warning-bg)]" : "border-card-border bg-white hover:bg-gray-50"
+                    isAdminInvite ? "border-[#D97706] bg-[color:var(--warning-bg)]" : "border-card-border bg-card hover:bg-muted"
                   }`}>
                     <input
                       type="checkbox"
@@ -1849,7 +1842,7 @@ function EquipeSection() {
                           <label
                             key={opt.id}
                             className={`flex items-start gap-3 px-4 py-3 rounded-[8px] border cursor-pointer transition-colors ${
-                              marcada ? "border-primary bg-primary/10" : "border-card-border bg-white hover:bg-gray-50"
+                              marcada ? "border-primary bg-primary/10" : "border-card-border bg-card hover:bg-muted"
                             }`}
                           >
                             <input
@@ -1872,7 +1865,7 @@ function EquipeSection() {
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 px-6 py-4 border-t border-gray-100">
+          <div className="flex justify-end gap-2 px-6 py-4 border-t border-border">
             <Button variant="outline" onClick={() => setAddOpen(false)} className="border-card-border min-w-[110px]">Cancelar</Button>
             <Button onClick={handleAddMember} disabled={inviting} className="bg-primary hover:bg-primary/90 min-w-[110px]">
               {inviting ? "Processando..." : "Convidar"}
@@ -1883,7 +1876,7 @@ function EquipeSection() {
 
       {/* Dialog: Editar permissões */}
       <Dialog open={!!editMember} onOpenChange={v => !v && setEditMember(null)}>
-        <DialogContent className="max-w-lg bg-white max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg bg-card max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar permissões — {editMember?.full_name || editMember?.email}</DialogTitle>
           </DialogHeader>
@@ -1891,7 +1884,7 @@ function EquipeSection() {
             <p className="text-xs font-semibold text-muted-foreground">Selecione as permissões do usuário</p>
 
             {/* Toggle admin */}
-            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${editPerms.includes("admin") ? "border-[#D97706] bg-[color:var(--warning-bg)]" : "border-card-border bg-white hover:bg-muted/50"}`}>
+            <label className={`flex items-center gap-3 px-3 py-2.5 rounded-[8px] border cursor-pointer transition-colors ${editPerms.includes("admin") ? "border-[#D97706] bg-[color:var(--warning-bg)]" : "border-card-border bg-card hover:bg-muted/50"}`}>
               <div className="flex-1">
                 <p className={`text-[12px] font-semibold ${editPerms.includes("admin") ? "text-[color:var(--warning-fg)]" : "text-foreground"}`}>
                   <Crown size={12} className="inline mr-1" />
@@ -1940,7 +1933,7 @@ function UsageCard({ label, current, limit, icon }: { label: string; current: nu
   const pct = limit === null ? 0 : Math.min(100, Math.round((current / limit) * 100));
   const displayLimit = limit === null ? "Ilimitado" : limit.toLocaleString("pt-BR");
   return (
-    <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-4">
+    <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-4">
       <div className="flex items-center gap-2 mb-3">
         <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
           {icon}
@@ -2363,7 +2356,7 @@ function TagsSection() {
     <>
       <SectionHeader title="Tags" subtitle="Organize suas ideias com tags" onAdd="+ Nova tag" onClick={openNew} />
 
-      <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 overflow-hidden mb-5">
+      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 overflow-hidden mb-5">
         {crmTags.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhuma tag criada ainda.</p>
         ) : (
@@ -2547,7 +2540,7 @@ function ProdutosSection() {
     <>
       <SectionHeader title="Produtos" subtitle="Gerencie seus produtos com facilidade" onAdd="+ Novo produto" onClick={openNew} />
 
-      <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 overflow-hidden mb-5">
+      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 overflow-hidden mb-5">
         {products.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhum produto cadastrado ainda.</p>
         ) : (
@@ -2719,7 +2712,7 @@ function MotivosSection() {
     <>
       <SectionHeader title="Motivos de perda" subtitle="Descubra, organize e gerencie seus motivos de perda" onAdd="+ Novo motivo" onClick={openNew} />
 
-      <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 overflow-hidden mb-5">
+      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 overflow-hidden mb-5">
         {lossReasons.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-10">Nenhum motivo cadastrado.</p>
         ) : (
@@ -2876,7 +2869,7 @@ function ListasSection() {
     <>
       <SectionHeader title="Listas" subtitle="Descubra, organize e gerencie suas listas" onAdd="+ Nova lista" onClick={openCreate} />
 
-      <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 overflow-hidden mb-5">
+      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 overflow-hidden mb-5">
         {crmLists.length === 0 ? (
           <div className="py-10 text-center">
             <List size={32} className="text-muted-foreground/30 mx-auto mb-2" />
@@ -3098,13 +3091,13 @@ function CamposSection() {
 
       <div className="space-y-3 mb-5">
         {customFieldGroups.length === 0 && (
-          <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 px-4 py-10 text-center">
+          <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 px-4 py-10 text-center">
             <p className="text-sm text-muted-foreground">Nenhum campo adicional cadastrado ainda.</p>
           </div>
         )}
 
         {customFieldGroups.map(g => (
-          <div key={g.id} className="bg-white border border-card-border rounded-2xl shadow-elev-1 overflow-hidden">
+          <div key={g.id} className="bg-card border border-card-border rounded-2xl shadow-elev-1 overflow-hidden">
             {/* Header do grupo */}
             <div className="flex items-center gap-3 px-4 py-3">
               <button
@@ -4250,7 +4243,7 @@ function ConexoesSection() {
       {googleLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {whatsappConnections.map(conn => (
-            <div key={conn.id} className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow">
+            <div key={conn.id} className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${conn.connected ? "bg-[color:var(--accent-400)]" : "bg-muted-foreground/40"}`} />
@@ -4331,7 +4324,7 @@ function ConexoesSection() {
               </div>
             </div>
           ))}
-          <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 flex items-center justify-center min-h-[140px]">
+          <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 flex items-center justify-center min-h-[140px]">
             <div className="w-5 h-5 rounded-full border-2 border-[#4285F4] border-t-transparent animate-spin" />
           </div>
         </div>
@@ -4349,7 +4342,7 @@ function ConexoesSection() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {whatsappConnections.map(conn => (
-            <div key={conn.id} className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow">
+            <div key={conn.id} className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${conn.connected ? "bg-[color:var(--accent-400)]" : "bg-muted-foreground/40"}`} />
@@ -4431,7 +4424,7 @@ function ConexoesSection() {
             </div>
           ))}
           {googleConn && (
-            <div className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow">
+            <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-[color:var(--accent-400)]" />
@@ -4469,7 +4462,7 @@ function ConexoesSection() {
             </div>
           )}
           {metaConnections.map(mc => (
-            <div key={mc.id} className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow">
+            <div key={mc.id} className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-[color:var(--accent-400)]" />

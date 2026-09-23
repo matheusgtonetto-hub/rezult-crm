@@ -302,7 +302,7 @@ const MODELOS_DE_AGENTE: Record<"atendente" | "sdr" | "closer", {
 
 function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; temChave: boolean; onToggle: (ligar: boolean) => void }) {
   return (
-    <div className="bg-white rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow border border-[color:var(--accent-500)]/40">
+    <div className="bg-card rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow border border-[color:var(--accent-500)]/40">
       <div className="flex items-center gap-3 mb-3">
         <div className="w-10 h-10 rounded-full bg-[color:var(--accent-700)] flex items-center justify-center text-white shrink-0">
           <Zap size={18} />
@@ -2106,7 +2106,7 @@ export default function AgentesPage() {
                   onToggle={(v) => void toggleActive(a, v)}
                 />
               ) : (
-                <div key={a.id} className={`bg-white rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow ${a.draft ? "border border-dashed border-[color:var(--border-strong)]" : "border border-[color:var(--border-default)]"}`}>
+                <div key={a.id} className={`bg-card rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow ${a.draft ? "border border-dashed border-[color:var(--border-strong)]" : "border border-[color:var(--border-default)]"}`}>
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 rounded-full bg-[color:var(--accent-700)] flex items-center justify-center text-white shrink-0">
                       <AgentAvatarIcon avatar={a.avatar} size={18} />
@@ -2243,7 +2243,7 @@ export default function AgentesPage() {
         </>
       ) : (
           /* Config panel -- tela cheia, sem a coluna de lista ao lado */
-          <div className="bg-white border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 flex-1 min-h-0 flex flex-col">
+          <div className="bg-card border border-[color:var(--border-default)] rounded-2xl shadow-elev-1 flex-1 min-h-0 flex flex-col">
             {!selected ? (
               <div className="flex flex-col items-center justify-center py-24 text-center">
                 <Bot size={64} color="var(--neutral-300)" />
@@ -2287,7 +2287,7 @@ export default function AgentesPage() {
 
                     Posicionado por cima do conteúdo, e não numa faixa própria:
                     uma barra inteira para um ícone custaria ~72px de altura em
-                    todas as etapas. `bg-white` para o X não se misturar ao texto
+                    todas as etapas. `bg-card` para o X não se misturar ao texto
                     quando a etapa rolar por baixo dele.
 
                     O que ele faz muda com o modo, e a diferença é séria: no
@@ -2304,7 +2304,7 @@ export default function AgentesPage() {
                   }}
                   title={wizardMode ? "Descartar o agente em criação" : "Fechar"}
                   aria-label={wizardMode ? "Descartar o agente em criação" : "Fechar"}
-                  className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-md bg-white text-[color:var(--text-muted)] hover:text-[color:var(--text-heading)] hover:bg-[color:var(--neutral-50)] transition-colors"
+                  className="absolute top-3 right-3 z-20 w-8 h-8 flex items-center justify-center rounded-md bg-card text-[color:var(--text-muted)] hover:text-[color:var(--text-heading)] hover:bg-[color:var(--neutral-50)] transition-colors"
                 >
                   <X size={17} />
                 </button>
@@ -2479,7 +2479,7 @@ export default function AgentesPage() {
                     {AGENT_OBJECTIVES.map((o) => {
                       const checked = objectivesDraft.includes(o.id);
                       return (
-                        <div key={o.id} className="bg-white border border-[color:var(--border-default)] rounded-lg">
+                        <div key={o.id} className="bg-card border border-[color:var(--border-default)] rounded-lg">
                           <label className="flex items-start gap-3 p-3 cursor-pointer">
                             <Checkbox
                               className="mt-0.5"
@@ -2520,7 +2520,7 @@ export default function AgentesPage() {
                                       <div key={g.id} className="space-y-1.5">
                                         <div className="text-[12px] font-semibold uppercase tracking-wide text-[color:var(--text-muted)]">{g.name}</div>
                                         {g.items.map((f) => (
-                                          <label key={f.id} className="flex items-center gap-2 p-2 bg-white border border-[color:var(--border-default)] rounded cursor-pointer">
+                                          <label key={f.id} className="flex items-center gap-2 p-2 bg-card border border-[color:var(--border-default)] rounded cursor-pointer">
                                             <Checkbox
                                               checked={behaviorDraft.campos_qualificacao.includes(f.id)}
                                               onCheckedChange={(c) => toggleQualField(f.id, c === true)}
@@ -2552,14 +2552,14 @@ export default function AgentesPage() {
                                   {behaviorDraft.lembrete_reuniao_ativo && (
                                     <div className="mt-2 space-y-2">
                                       {([1, 2] as const).map((n) => (
-                                        <div key={n} className="flex items-center gap-2 p-2 bg-white border border-[color:var(--border-default)] rounded">
+                                        <div key={n} className="flex items-center gap-2 p-2 bg-card border border-[color:var(--border-default)] rounded">
                                           <span className="text-[12px] text-[color:var(--text-muted)] w-[74px] shrink-0">
                                             {n === 1 ? "1º lembrete" : "2º lembrete"}
                                           </span>
                                           <Input
                                             type="number"
                                             min={1}
-                                            className="h-8 w-[72px] bg-white text-[12px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                                            className="h-8 w-[72px] bg-card text-[12px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                                             value={(n === 1 ? behaviorDraft.lembrete_1_valor : behaviorDraft.lembrete_2_valor) ?? ""}
                                             onChange={(e) => updateBehaviorConfig(
                                               n === 1
@@ -2575,7 +2575,7 @@ export default function AgentesPage() {
                                                 : { lembrete_2_unidade: v as "minutos" | "horas" },
                                             )}
                                           >
-                                            <SelectTrigger className="h-8 w-[110px] bg-white text-[12px] focus:ring-0 focus:ring-offset-0"><SelectValue /></SelectTrigger>
+                                            <SelectTrigger className="h-8 w-[110px] bg-card text-[12px] focus:ring-0 focus:ring-offset-0"><SelectValue /></SelectTrigger>
                                             <SelectContent>
                                               <SelectItem value="minutos">minutos</SelectItem>
                                               <SelectItem value="horas">horas</SelectItem>
@@ -2664,7 +2664,7 @@ export default function AgentesPage() {
                           <div
                             key={kb.id}
                             onClick={() => openEditKbModal(kb)}
-                            className="group flex items-center gap-3 p-3 bg-white border border-[color:var(--border-default)] rounded-lg hover:bg-[color:var(--neutral-50)] transition-colors cursor-pointer"
+                            className="group flex items-center gap-3 p-3 bg-card border border-[color:var(--border-default)] rounded-lg hover:bg-[color:var(--neutral-50)] transition-colors cursor-pointer"
                           >
                             <div className="w-9 h-9 rounded-full bg-[color:var(--accent-100)] flex items-center justify-center text-[color:var(--text-link)] shrink-0">
                               <BookOpen size={18} />
@@ -2698,7 +2698,7 @@ export default function AgentesPage() {
                   <div className="border-t border-[color:var(--border-default)] pt-6 first:border-t-0 first:pt-0">
                     <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)] mb-3">Encerramento e transferência</h3>
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                         <div>
                           <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Finalizar conversa</div>
                           <div className="text-[12px] text-[color:var(--text-muted)]">Permite que o agente encerre a conversa automaticamente.</div>
@@ -2708,7 +2708,7 @@ export default function AgentesPage() {
                           onCheckedChange={(v) => updateBehaviorConfig({ finalizar_conversa: v })}
                         />
                       </div>
-                      <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                      <div className="p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                         <div className="flex items-center justify-between">
                           <div>
                             <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Transferir responsável</div>
@@ -2729,7 +2729,7 @@ export default function AgentesPage() {
                               value={behaviorDraft.transferir_responsavel_user_id ?? ""}
                               onValueChange={(v) => updateBehaviorConfig({ transferir_responsavel_user_id: v })}
                             >
-                              <SelectTrigger className="mt-1 bg-white h-9 text-[13px]">
+                              <SelectTrigger className="mt-1 bg-card h-9 text-[13px]">
                                 <SelectValue placeholder="Escolha quem recebe a conversa" />
                               </SelectTrigger>
                               <SelectContent>
@@ -2751,7 +2751,7 @@ export default function AgentesPage() {
                           (inclusive automaticamente, quando um agendamento
                           falha). O que faltava era destinatário -- sem ele a
                           escalação virava só uma nota que ninguém lê. */}
-                      <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                      <div className="p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                         <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Quando o agente não conseguir resolver</div>
                         <div className="text-[12px] text-[color:var(--text-muted)]">
                           O agente escala para uma pessoa quando trava numa dúvida que não sabe responder ou quando um agendamento falha. A conversa vai para a caixa de quem você escolher aqui.
@@ -2761,7 +2761,7 @@ export default function AgentesPage() {
                           value={behaviorDraft.escalar_humano_user_id ?? ""}
                           onValueChange={(v) => updateBehaviorConfig({ escalar_humano_user_id: v })}
                         >
-                          <SelectTrigger className="mt-1 bg-white h-9 text-[13px]">
+                          <SelectTrigger className="mt-1 bg-card h-9 text-[13px]">
                             <SelectValue placeholder="Responsável atual do negócio" />
                           </SelectTrigger>
                           <SelectContent>
@@ -2805,12 +2805,12 @@ export default function AgentesPage() {
                       </Tooltip>
                     </div>
 
-                    <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg space-y-4">
+                    <div className="p-3 bg-card border border-[color:var(--border-default)] rounded-lg space-y-4">
                       <Select
                         value={behaviorDraft.persona_voz ?? "propria"}
                         onValueChange={(v) => updateBehaviorConfig({ persona_voz: v as BehaviorConfig["persona_voz"] })}
                       >
-                        <SelectTrigger className="bg-white focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="bg-card focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="propria">Primeira pessoa</SelectItem>
                           <SelectItem value="equipe">Membro do time</SelectItem>
@@ -2834,7 +2834,7 @@ export default function AgentesPage() {
                               ? "Ex: Você é um atendente na empresa [Nome da empresa], e seu trabalho é qualificar e agendar potenciais clientes para uma demonstração do produto com o time de vendas."
                               : "Ex: Você é [Nome do profissional], da empresa [Nome da empresa], e seu trabalho é qualificar quem procura a empresa e agendar essas pessoas na sua própria agenda."
                           }
-                          className="mt-1 min-h-[110px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                          className="mt-1 min-h-[110px] text-[13px] bg-card focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                         />
                         <div className="flex justify-end mt-1">
                           <span className="text-[12px] text-[color:var(--text-muted)]">
@@ -2854,12 +2854,12 @@ export default function AgentesPage() {
                     <p className="text-[12px] text-[color:var(--text-muted)] mb-3">
                       Define o tom das mensagens e o quanto o agente varia a forma de responder. Formal é o mais previsível e consistente entre conversas; descontraída é o mais criativo.
                     </p>
-                    <div className="mb-2 p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                    <div className="mb-2 p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                       <Select
                         value={behaviorDraft.estilo_comunicacao ?? "normal"}
                         onValueChange={(v) => updateBehaviorConfig({ estilo_comunicacao: v as BehaviorConfig["estilo_comunicacao"] })}
                       >
-                        <SelectTrigger className="bg-white focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="bg-card focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="normal">Normal</SelectItem>
                           <SelectItem value="formal">Formal</SelectItem>
@@ -2868,7 +2868,7 @@ export default function AgentesPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                         <div>
                           <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Usar Emojis</div>
                           <div className="text-[12px] text-[color:var(--text-muted)]">Permitir uso de emojis nas respostas.</div>
@@ -2878,7 +2878,7 @@ export default function AgentesPage() {
                           onCheckedChange={(v) => updateBehaviorConfig({ usar_emojis: v })}
                         />
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                         <div>
                           <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Assinar nome do agente</div>
                           <div className="text-[12px] text-[color:var(--text-muted)]">Assinar nome do agente nas mensagens.</div>
@@ -2888,7 +2888,7 @@ export default function AgentesPage() {
                           onCheckedChange={(v) => updateBehaviorConfig({ assinar_nome: v })}
                         />
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                      <div className="flex items-center justify-between p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                         <div className="flex-1 min-w-0">
                           <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Dividir mensagens longas</div>
                           <div className="text-[12px] text-[color:var(--text-muted)]">Dividir mensagens muito longas automaticamente.</div>
@@ -2914,7 +2914,7 @@ export default function AgentesPage() {
                   </div>
 
                   <div className="border-t border-[color:var(--border-default)] pt-6">
-                    <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg mb-3">
+                    <div className="flex items-center justify-between p-3 bg-card border border-[color:var(--border-default)] rounded-lg mb-3">
                       <div>
                         <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Follow-up automático</div>
                         <div className="text-[12px] text-[color:var(--text-muted)]">Envia mensagem de acompanhamento quando o cliente não responde.</div>
@@ -2957,7 +2957,7 @@ export default function AgentesPage() {
                             </Select>
                           </div>
                         </div>
-                        <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                        <div className="flex items-center justify-between p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                           <div className="text-[13px] font-medium text-[color:var(--text-heading)]">
                             Após as tentativas, transferir lead para uma automação
                           </div>
@@ -2998,19 +2998,19 @@ export default function AgentesPage() {
                       <p className="text-[12px] text-[color:var(--text-muted)]">Regras que valem pra qualquer reunião marcada por esse agente, independente do vendedor.</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                    <div className="grid grid-cols-2 gap-4 p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                       <div>
                         <Label className="text-[12px]">Duração padrão das reuniões (min)</Label>
                         <Input
                           type="number" min={5} step={5}
                           value={behaviorDraft.duracao_reuniao_minutos}
                           onChange={(e) => updateBehaviorConfig({ duracao_reuniao_minutos: Number(e.target.value) || 60 })}
-                          className="mt-1 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                          className="mt-1 bg-card focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                         />
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                       <div>
                         <div className="text-[13px] text-[color:var(--text-heading)]">Intervalo entre reuniões</div>
                         <div className="text-[12px] text-[color:var(--text-muted)]">Garante uma folga antes e depois de cada reunião já marcada, pra não empilhar compromissos do vendedor sem respiro.</div>
@@ -3032,7 +3032,7 @@ export default function AgentesPage() {
                       </div>
                     )}
 
-                    <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg space-y-3">
+                    <div className="p-3 bg-card border border-[color:var(--border-default)] rounded-lg space-y-3">
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="text-[13px] text-[color:var(--text-heading)]">Google Calendar</div>
@@ -3061,7 +3061,7 @@ export default function AgentesPage() {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                    <div className="flex items-center justify-between p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                       <div>
                         <div className="text-[13px] text-[color:var(--text-heading)]">Confirmar antes de criar eventos</div>
                         <div className="text-[12px] text-[color:var(--text-muted)]">O agente pedirá confirmação antes de criar ou modificar eventos.</div>
@@ -3086,7 +3086,7 @@ export default function AgentesPage() {
                       const connected = memberCalendarConnected[m.user_id];
                       const availability = closerAvailability[m.user_id] ?? defaultCloserAvailability();
                       return (
-                        <div key={m.user_id} className="bg-white border border-[color:var(--border-default)] rounded-lg">
+                        <div key={m.user_id} className="bg-card border border-[color:var(--border-default)] rounded-lg">
                           <label className="flex items-center gap-3 p-3 cursor-pointer">
                             <Checkbox
                               checked={checked}
@@ -3323,7 +3323,7 @@ export default function AgentesPage() {
                                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-medium transition-colors cursor-pointer border ${
                                   ativo
                                     ? "bg-[color:var(--accent-700)] border-[color:var(--accent-500)] text-white"
-                                    : "bg-white border-[color:var(--border-default)] text-[color:var(--text-heading)] hover:border-[color:var(--border-strong)]"
+                                    : "bg-card border-[color:var(--border-default)] text-[color:var(--text-heading)] hover:border-[color:var(--border-strong)]"
                                 }`}
                               >
                                 {cat}
@@ -3337,7 +3337,7 @@ export default function AgentesPage() {
                           const v = vazios[catAtiva] ?? vazios["Todos"];
                           return (
                           <div className="flex flex-col items-center justify-center py-16 text-center">
-                            <div className="w-12 h-12 rounded-xl bg-white border border-[color:var(--border-default)] flex items-center justify-center mb-4">
+                            <div className="w-12 h-12 rounded-xl bg-card border border-[color:var(--border-default)] flex items-center justify-center mb-4">
                               <Link2 size={22} className="text-[color:var(--text-muted)]" />
                             </div>
                             <p className="text-[13px] font-semibold text-[color:var(--text-heading)] mb-1">{v.titulo}</p>
@@ -3356,7 +3356,7 @@ export default function AgentesPage() {
                         })() : (
                           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                             {visiveis.map((c) => (
-                              <div key={c.chave} className="bg-white border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-md transition-shadow">
+                              <div key={c.chave} className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-md transition-shadow">
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-1.5">
                                     <span className={`w-2 h-2 rounded-full ${c.conectado ? "bg-[color:var(--accent-700)]" : "bg-[var(--text-muted)]/40"}`} />
@@ -3416,14 +3416,14 @@ export default function AgentesPage() {
                       Fuso horário do agente e, se quiser, a janela e os dias em que ele responde mensagens no dia a dia.
                     </p>
                   </div>
-                  <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg space-y-4">
+                  <div className="p-3 bg-card border border-[color:var(--border-default)] rounded-lg space-y-4">
                     <div className="max-w-[280px]">
                       <Label className="text-[12px]">Fuso horário</Label>
                       <Select
                         value={behaviorDraft.fuso_horario}
                         onValueChange={(v) => updateBehaviorConfig({ fuso_horario: v })}
                       >
-                        <SelectTrigger className="mt-1 bg-white focus:ring-0 focus:ring-offset-0 focus:border-primary">
+                        <SelectTrigger className="mt-1 bg-card focus:ring-0 focus:ring-offset-0 focus:border-primary">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -3452,7 +3452,7 @@ export default function AgentesPage() {
                               type="time"
                               value={behaviorDraft.horario_atendimento_inicio}
                               onChange={(e) => updateBehaviorConfig({ horario_atendimento_inicio: e.target.value })}
-                              className="mt-1 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                              className="mt-1 bg-card focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                             />
                           </div>
                           <div>
@@ -3461,7 +3461,7 @@ export default function AgentesPage() {
                               type="time"
                               value={behaviorDraft.horario_atendimento_fim}
                               onChange={(e) => updateBehaviorConfig({ horario_atendimento_fim: e.target.value })}
-                              className="mt-1 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                              className="mt-1 bg-card focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                             />
                           </div>
                         </div>
@@ -3481,7 +3481,7 @@ export default function AgentesPage() {
                                     updateBehaviorConfig({ horario_atendimento_dias: next });
                                   }}
                                   className={`text-[12px] px-2.5 py-1 rounded-full border transition-colors ${
-                                    active ? "bg-[color:var(--accent-700)] border-[color:var(--accent-500)] text-white" : "bg-white border-[color:var(--border-default)] text-[color:var(--text-muted)] hover:bg-[color:var(--neutral-50)]"
+                                    active ? "bg-[color:var(--accent-700)] border-[color:var(--accent-500)] text-white" : "bg-card border-[color:var(--border-default)] text-[color:var(--text-muted)] hover:bg-[color:var(--neutral-50)]"
                                   }`}
                                 >
                                   {day.slice(0, 3)}
@@ -3494,13 +3494,13 @@ export default function AgentesPage() {
                     )}
                   </div>
 
-                  <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                  <div className="p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                     <Label className="text-[12px]">Delay de Resposta (segundos)</Label>
                     <Input
                       type="number" min={0}
                       value={behaviorDraft.delay_resposta_segundos}
                       onChange={(e) => updateBehaviorConfig({ delay_resposta_segundos: Number(e.target.value) || 0, delay_resposta_minutos: 0 })}
-                      className="mt-1 w-32 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                      className="mt-1 w-32 bg-card focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     <p className="text-[12px] text-[color:var(--text-muted)] mt-1">
                       Espera esse tempo depois da última mensagem do lead antes de começar a responder. Se ele mandar mais mensagens durante a espera, o relógio reinicia e o agente responde uma vez só, considerando todas. 0 = responde na hora.
@@ -3510,26 +3510,26 @@ export default function AgentesPage() {
                     </p>
                   </div>
 
-                  <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                  <div className="p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                     <Label className="text-[12px]">Mensagens consideradas no atendimento</Label>
                     <Input
                       type="number" min={1}
                       value={behaviorDraft.mensagens_consideradas}
                       onChange={(e) => updateBehaviorConfig({ mensagens_consideradas: Number(e.target.value) || 30 })}
-                      className="mt-1 w-32 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                      className="mt-1 w-32 bg-card focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     <p className="text-[12px] text-[color:var(--text-muted)] mt-1">
                       Quantidade de mensagens recentes da conversa que o agente considera para gerar respostas.
                     </p>
                   </div>
 
-                  <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                  <div className="p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                     <Label className="text-[12px]">Limite de interações da IA por atendimento</Label>
                     <Input
                       type="number" min={0}
                       value={behaviorDraft.limite_interacoes}
                       onChange={(e) => updateBehaviorConfig({ limite_interacoes: Number(e.target.value) || 0 })}
-                      className="mt-1 w-32 bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                      className="mt-1 w-32 bg-card focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     <p className="text-[12px] text-[color:var(--text-muted)] mt-1">
                       Número máximo de respostas que a IA pode enviar ao cliente em um mesmo atendimento (a saudação automática não conta).
@@ -3539,7 +3539,7 @@ export default function AgentesPage() {
                     </p>
                   </div>
 
-                  <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                  <div className="flex items-center justify-between p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                     <div>
                       <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Saudação automática</div>
                       <div className="text-[12px] text-[color:var(--text-muted)]">Na primeira mensagem da conversa, o agente se apresenta antes de entrar no objetivo. Continua sendo uma mensagem só, com o tom e as instruções que você configurou. Desligado, ele já vai direto ao ponto.</div>
@@ -3552,7 +3552,7 @@ export default function AgentesPage() {
 
                   <div className="border-t border-[color:var(--border-default)] pt-6">
                     <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)] mb-3">Restrições</h3>
-                    <div className="flex items-center justify-between p-3 bg-white border border-[color:var(--border-default)] rounded-lg mb-3">
+                    <div className="flex items-center justify-between p-3 bg-card border border-[color:var(--border-default)] rounded-lg mb-3">
                       <div>
                         <div className="text-[13px] font-medium text-[color:var(--text-heading)]">Restringir tópicos</div>
                         <div className="text-[12px] text-[color:var(--text-muted)]">Ativar controle de tópicos permitidos/restritos.</div>
@@ -3564,22 +3564,22 @@ export default function AgentesPage() {
                     </div>
                     {behaviorDraft.restringir_topicos && (
                       <div className="space-y-3">
-                        <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                        <div className="p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                           <Label className="text-[12px]">Tópicos Permitidos</Label>
                           <Textarea
                             value={behaviorDraft.topicos_permitidos}
                             onChange={(e) => updateBehaviorConfig({ topicos_permitidos: e.target.value })}
                             placeholder="Ex: preços, agendamento, dúvidas sobre o produto"
-                            className="mt-1 min-h-[80px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                            className="mt-1 min-h-[80px] text-[13px] bg-card focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                           />
                         </div>
-                        <div className="p-3 bg-white border border-[color:var(--border-default)] rounded-lg">
+                        <div className="p-3 bg-card border border-[color:var(--border-default)] rounded-lg">
                           <Label className="text-[12px]">Tópicos Restritos</Label>
                           <Textarea
                             value={behaviorDraft.topicos_restritos}
                             onChange={(e) => updateBehaviorConfig({ topicos_restritos: e.target.value })}
                             placeholder="Ex: concorrentes, assuntos jurídicos, política"
-                            className="mt-1 min-h-[80px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                            className="mt-1 min-h-[80px] text-[13px] bg-card focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                           />
                         </div>
                       </div>
@@ -3615,7 +3615,7 @@ export default function AgentesPage() {
                         <Button
                           variant="outline"
                           onClick={() => changeAgentModel(rec.modelId)}
-                          className="h-8 text-[12px] shrink-0 bg-white"
+                          className="h-8 text-[12px] shrink-0 bg-card"
                         >
                           Usar recomendado
                         </Button>
@@ -3635,7 +3635,7 @@ export default function AgentesPage() {
                       const recommendedModelId = recommendModel(complexitySignals).modelId;
                       return (
                         <Select value={modelDraft} onValueChange={changeAgentModel}>
-                          <SelectTrigger className="bg-white focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
+                          <SelectTrigger className="bg-card focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                           <SelectContent>
                             {/* OpenAI primeiro: é a chave única recomendada (ver recommendModel). */}
                             <SelectGroup>
@@ -3734,7 +3734,7 @@ export default function AgentesPage() {
                       return (
                         <label
                           key={t.id}
-                          className="flex items-start gap-3 p-2.5 border border-[color:var(--border-default)] rounded-lg cursor-pointer bg-white"
+                          className="flex items-start gap-3 p-2.5 border border-[color:var(--border-default)] rounded-lg cursor-pointer bg-card"
                         >
                           <Checkbox
                             className="mt-0.5"
@@ -3782,7 +3782,7 @@ export default function AgentesPage() {
                           <button
                             type="button"
                             onClick={() => setVerTodasFerramentas((v) => !v)}
-                            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-[color:var(--border-default)] bg-white text-[13px] font-medium text-[color:var(--text-heading)] hover:border-[color:var(--border-strong)] transition-colors cursor-pointer"
+                            className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border border-[color:var(--border-default)] bg-card text-[13px] font-medium text-[color:var(--text-heading)] hover:border-[color:var(--border-strong)] transition-colors cursor-pointer"
                           >
                             <span className="flex items-center gap-2">
                               {verTodasFerramentas ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -3837,7 +3837,7 @@ export default function AgentesPage() {
                           key={titulo}
                           type="button"
                           onClick={() => inserirSecaoInstrucao(titulo)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[color:var(--border-default)] bg-white text-[12px] font-medium text-[color:var(--text-heading)] hover:border-[color:var(--border-strong)] transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[color:var(--border-default)] bg-card text-[12px] font-medium text-[color:var(--text-heading)] hover:border-[color:var(--border-strong)] transition-colors cursor-pointer"
                         >
                           {jaTem
                             ? <Check size={12} className="text-[color:var(--text-link)]" />
@@ -3857,7 +3857,7 @@ export default function AgentesPage() {
                       placeholder={PLACEHOLDER_INSTRUCOES}
                       // Alto o bastante para o placeholder inteiro caber: um
                       // exemplo cortado na metade orienta pior que nenhum.
-                      className="min-h-[470px] text-[13px] bg-white focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                      className="min-h-[470px] text-[13px] bg-card focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                     />
                     {/* Peso em tokens visível a partir de um texto já
                         considerável. Instruções entram inteiras no prompt de
@@ -4025,13 +4025,13 @@ export default function AgentesPage() {
 
           <Tabs value={kbModalStep} onValueChange={(v) => setKbModalStep(v as "config" | "arquivos")}>
             <TabsList className="bg-[color:var(--neutral-50)] p-1 h-auto gap-1">
-              <TabsTrigger value="config" className="data-[state=active]:bg-white data-[state=active]:shadow-none rounded-md text-[13px] px-3 py-1.5">
+              <TabsTrigger value="config" className="data-[state=active]:bg-card data-[state=active]:shadow-none rounded-md text-[13px] px-3 py-1.5">
                 Configurações
               </TabsTrigger>
               <TabsTrigger
                 value="arquivos"
                 disabled={!editingKbId}
-                className="data-[state=active]:bg-white data-[state=active]:shadow-none rounded-md text-[13px] px-3 py-1.5"
+                className="data-[state=active]:bg-card data-[state=active]:shadow-none rounded-md text-[13px] px-3 py-1.5"
               >
                 Arquivos {editingKbId ? docs.filter((d) => d.knowledge_base_id === editingKbId).length : 0}
               </TabsTrigger>
@@ -4116,7 +4116,7 @@ export default function AgentesPage() {
                     {kbDocs.map((d) => {
                       const badge = STATUS_BADGE[d.status];
                       return (
-                        <div key={d.id} className="group flex items-center gap-3 p-3 bg-white border border-[color:var(--border-default)] rounded-lg hover:bg-[color:var(--neutral-50)] transition-colors">
+                        <div key={d.id} className="group flex items-center gap-3 p-3 bg-card border border-[color:var(--border-default)] rounded-lg hover:bg-[color:var(--neutral-50)] transition-colors">
                           <Checkbox
                             checked={d.enabled}
                             onCheckedChange={(checked) => toggleDocEnabled(d, checked === true)}
@@ -4248,47 +4248,47 @@ function PerformanceTab({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+        <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
           <div className="flex items-center gap-1.5 text-[11px] uppercase text-[color:var(--text-muted)]"><CheckCircle2 size={12} /> Reuniões agendadas (7 dias)</div>
           <div className="text-[24px] font-bold text-[color:var(--text-heading)] mt-1">{meetingsScheduled}</div>
         </div>
-        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+        <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
           <div className="flex items-center gap-1.5 text-[11px] uppercase text-[color:var(--text-muted)]"><CheckCircle2 size={12} /> Reuniões realizadas (7 dias)</div>
           <div className="text-[24px] font-bold text-[color:var(--text-link)] mt-1">{meetingsHeld}</div>
         </div>
-        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+        <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Taxa de no-show (7 dias)</div>
           <div className="text-[24px] font-bold text-[color:var(--text-heading)] mt-1">{noShowRate === null ? "—" : `${noShowRate.toFixed(0)}%`}</div>
           <div className="text-[12px] text-[color:var(--neutral-400)] mt-0.5">{noShowCount} de {meetingsScheduled} agendadas</div>
         </div>
-        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+        <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Leads qualificados</div>
           <div className="text-[24px] font-bold text-[color:var(--text-link)] mt-1">{qualified}</div>
         </div>
-        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+        <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Não qualificados</div>
           <div className="text-[24px] font-bold text-[color:var(--text-muted)] mt-1">{notQualified}</div>
         </div>
-        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+        <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Número de conversas (7 dias)</div>
           <div className="text-[24px] font-bold text-[color:var(--text-heading)] mt-1">{conversationsCount}</div>
         </div>
-        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+        <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Taxa de sucesso (7 dias)</div>
           <div className="text-[24px] font-bold text-[color:var(--text-link)] mt-1">{successRate === null ? "—" : `${successRate.toFixed(0)}%`}</div>
           <div className="text-[12px] text-[color:var(--neutral-400)] mt-0.5">conversas sem erro do agente</div>
         </div>
-        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+        <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Valor gasto (7 dias)</div>
           <div className="text-[24px] font-bold text-[color:var(--text-heading)] mt-1">${costUsd.toFixed(2)}</div>
           <div className="text-[12px] text-[color:var(--neutral-400)] mt-0.5">custo de tokens de IA</div>
         </div>
-        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+        <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Horas ativas</div>
           <div className="text-[24px] font-bold text-[color:var(--text-heading)] mt-1">{formatActiveHours(activeSecondsTotal, active, activatedAt)}h</div>
           <div className="text-[12px] text-[color:var(--neutral-400)] mt-0.5">desde que foi ativado a 1ª vez</div>
         </div>
-        <div className="bg-white border border-[color:var(--border-default)] rounded-lg p-4">
+        <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Vendas feitas (7 dias)</div>
           <div className="text-[24px] font-bold text-[color:var(--text-link)] mt-1">{salesCount}</div>
           <div className="text-[12px] text-[color:var(--neutral-400)] mt-0.5">R$ {salesValue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} · toda a empresa</div>

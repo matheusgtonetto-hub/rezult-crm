@@ -1783,7 +1783,7 @@ export default function LeadDetailPage() {
                     onMouseUp={handleNewNoteKey}
                     onSelect={handleNewNoteKey}
                     data-placeholder="Escreva uma anotação, @nome..."
-                    className="note-content bg-white border border-card-border rounded-md text-sm px-3 py-2 outline-none focus:ring-1 focus:ring-primary empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
+                    className="note-content bg-card border border-card-border rounded-md text-sm px-3 py-2 outline-none focus:ring-1 focus:ring-primary empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
                     style={{
                       color: "var(--text-heading)",
                       minHeight: newNoteActive ? 80 : 38,
@@ -1934,7 +1934,7 @@ export default function LeadDetailPage() {
                               onKeyUp={handleEditKey}
                               onMouseUp={handleEditKey}
                               onSelect={handleEditKey}
-                              className="note-content bg-white border border-card-border rounded-md text-sm mt-1 px-3 py-2 min-h-[70px] outline-none focus:ring-1 focus:ring-primary"
+                              className="note-content bg-card border border-card-border rounded-md text-sm mt-1 px-3 py-2 min-h-[70px] outline-none focus:ring-1 focus:ring-primary"
                               style={{ color: "var(--text-heading)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}
                             />
                             <div className="flex items-center justify-between pt-2 mt-2 border-t border-card-border">
@@ -2614,7 +2614,7 @@ export default function LeadDetailPage() {
                 <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-[color:var(--warning-bg)] mb-4">
                   <Mail size={26} className="text-[color:var(--warning-400)]" />
                 </div>
-                <p className="text-sm font-semibold text-gray-700 mb-1">Em breve</p>
+                <p className="text-sm font-semibold text-foreground mb-1">Em breve</p>
                 <p className="text-xs text-muted-foreground max-w-xs mx-auto">
                   A integração de e-mail está sendo desenvolvida e será disponibilizada em breve.
                 </p>
@@ -2928,7 +2928,7 @@ export default function LeadDetailPage() {
                   }}
                   onFocus={e => e.target.select()}
                   placeholder="0,00"
-                  className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-400 bg-background text-foreground focus:outline-none focus:border-primary transition-colors"
+                  className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-input bg-background text-foreground focus:outline-none focus:border-primary transition-colors"
                 />
               </div>
               <p className="text-[12px] text-muted-foreground mt-1">

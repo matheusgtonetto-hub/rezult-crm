@@ -30,7 +30,7 @@ export function SeletorDeIdioma({ className }: { className?: string }) {
         <button
           type="button"
           aria-label={t("idioma.rotulo")}
-          className={`inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-card px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted ${className ?? ""}`}
+          className={`inline-flex items-center gap-1.5 rounded-md border border-input bg-card px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted ${className ?? ""}`}
         >
           {(() => { const Bandeira = BANDEIRA[idioma]; return <Bandeira />; })()}
           {NOME_DO_IDIOMA[idioma]}

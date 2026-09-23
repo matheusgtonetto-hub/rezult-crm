@@ -445,7 +445,7 @@ export function UtmAttributionPanel({ periodLeads }: UtmAttributionPanelProps) {
                            diferentes. O alvo de clique continua com os 8px. */
                         className="absolute top-0 right-0 h-full w-2 translate-x-1 cursor-col-resize select-none z-10
                                    before:absolute before:inset-y-0 before:left-1/2 before:-translate-x-1/2 before:w-px
-                                   before:bg-transparent before:transition-colors hover:before:bg-white"
+                                   before:bg-transparent before:transition-colors hover:before:bg-card"
                       />
                     </th>
                   );

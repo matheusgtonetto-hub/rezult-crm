@@ -187,7 +187,7 @@ export function CreateDealDialog({ lead, contact, onClose }: Props) {
                   const selected = dealResponsibles.includes(memberName);
                   return (
                     <button key={memberName} type="button" onClick={() => setDealResponsibles(prev => selected ? prev.filter(r => r !== memberName) : [...prev, memberName])} className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors">
-                      <div className={`w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-primary border-primary" : "border-gray-400"}`}>
+                      <div className={`w-4 h-4 rounded-sm border flex items-center justify-center shrink-0 transition-colors ${selected ? "bg-primary border-primary" : "border-input"}`}>
                         {selected && <Check className="h-3 w-3 text-white" />}
                       </div>
                       <span>{memberName}</span>

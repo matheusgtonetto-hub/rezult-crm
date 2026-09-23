@@ -152,7 +152,7 @@ export function AgentTestChat({ agentId }: { agentId: string }) {
         )}
       </div>
 
-      <div className="flex-1 min-h-[280px] overflow-y-auto rounded-xl border border-[color:var(--border-default)] bg-white p-4 space-y-3">
+      <div className="flex-1 min-h-[280px] overflow-y-auto rounded-xl border border-[color:var(--border-default)] bg-card p-4 space-y-3">
         {mensagens.length === 0 && !enviando && (
           <div className="h-full flex flex-col items-center justify-center text-center py-10">
             <p className="text-[13px] font-medium text-[color:var(--text-heading)] mb-1">Comece como um lead começaria</p>
@@ -207,7 +207,7 @@ export function AgentTestChat({ agentId }: { agentId: string }) {
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void enviar(); } }}
           placeholder="Escreva como se fosse o lead..."
           disabled={enviando}
-          className="flex-1 px-3 py-2 rounded-lg border border-[color:var(--border-default)] bg-white text-[13px] focus:outline-none focus:border-primary disabled:opacity-60"
+          className="flex-1 px-3 py-2 rounded-lg border border-[color:var(--border-default)] bg-card text-[13px] focus:outline-none focus:border-primary disabled:opacity-60"
         />
         <Button onClick={() => void enviar()} disabled={enviando || !entrada.trim()} className="shrink-0">
           <Send size={14} className="mr-1.5" /> Enviar

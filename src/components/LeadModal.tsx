@@ -501,7 +501,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
             <Field label="Telefone">
               <div className="flex gap-2">
                 <Select value={form.phoneDdi} onValueChange={v => set("phoneDdi", v)}>
-                  <SelectTrigger className="h-7 w-[90px] bg-card border-gray-400 text-xs shrink-0 focus:ring-0 focus:ring-offset-0 focus:border-primary">
+                  <SelectTrigger className="h-7 w-[90px] bg-card border-input text-xs shrink-0 focus:ring-0 focus:ring-offset-0 focus:border-primary">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -516,7 +516,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                   value={form.whatsapp}
                   onChange={e => set("whatsapp", e.target.value)}
                   placeholder="(11) 99999-0000"
-                  className="h-7 bg-card border-gray-400 flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  className="h-7 bg-card border-input flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 />
               </div>
             </Field>
@@ -527,7 +527,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                 {form.emails.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {form.emails.map(e => (
-                      <div key={e} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] font-medium bg-muted border border-gray-400">
+                      <div key={e} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[12px] font-medium bg-muted border border-input">
                         <span className="truncate max-w-[200px]">{e}</span>
                         <button
                           type="button"
@@ -550,13 +550,13 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                       if (e.key === "Enter") { e.preventDefault(); addEmail(emailInput); }
                     }}
                     placeholder="email@exemplo.com"
-                    className="h-7 bg-card border-gray-400 flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                    className="h-7 bg-card border-input flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                   />
                   <button
                     type="button"
                     onClick={() => addEmail(emailInput)}
                     disabled={!emailInput.trim()}
-                    className="flex items-center justify-center w-7 h-7 rounded-md border border-gray-400 bg-muted hover:bg-muted/80 disabled:opacity-40 transition-colors shrink-0"
+                    className="flex items-center justify-center w-7 h-7 rounded-md border border-input bg-muted hover:bg-muted/80 disabled:opacity-40 transition-colors shrink-0"
                   >
                     <Plus size={14} />
                   </button>
@@ -596,7 +596,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
 
             <Field label="Origem">
               <Select value={form.origin} onValueChange={v => set("origin", v)}>
-                <SelectTrigger className="h-7 bg-card border-gray-400 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-7 bg-card border-input focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {ORIGINS.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                 </SelectContent>
@@ -631,7 +631,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
                   onChange={e => { set("zipCode", e.target.value); fetchCep(e.target.value); }}
                   placeholder="00000-000"
                   maxLength={9}
-                  className="h-7 bg-card border-gray-400 pr-8 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                  className="h-7 bg-card border-input pr-8 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
                 />
                 {cepLoading && (
                   <Loader2 size={14} className="absolute right-2 top-1/2 -translate-y-1/2 animate-spin text-muted-foreground" />
@@ -666,7 +666,7 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
               </div>
               <Field label="UF">
                 <Select value={form.state} onValueChange={v => set("state", v)}>
-                  <SelectTrigger className="h-7 bg-card border-gray-400 focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue placeholder="UF" /></SelectTrigger>
+                  <SelectTrigger className="h-7 bg-card border-input focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue placeholder="UF" /></SelectTrigger>
                   <SelectContent>
                     {BRASIL_STATES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
@@ -681,13 +681,13 @@ export function LeadModal({ open, onClose, editLead, editContact, prefill, onCre
               value={form.notes}
               onChange={e => set("notes", e.target.value)}
               placeholder="Adicione informações relevantes sobre este lead..."
-              className="bg-card border-gray-400 min-h-[200px] resize-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+              className="bg-card border-input min-h-[200px] resize-none focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
             />
           </TabsContent>
         </Tabs>
 
         <DialogFooter className="px-6 py-4 mt-2 gap-2">
-          <Button variant="outline" onClick={onClose} className="border-gray-400">
+          <Button variant="outline" onClick={onClose} className="border-input">
             Cancelar
           </Button>
           <Button

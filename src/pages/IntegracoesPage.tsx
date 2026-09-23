@@ -487,7 +487,7 @@ export default function IntegracoesPage() {
               {integrations.map(itg => (
                 <div
                   key={itg.id}
-                  className="bg-white border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow"
+                  className="bg-card border border-card-border rounded-xl p-5 flex flex-col hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-1.5">

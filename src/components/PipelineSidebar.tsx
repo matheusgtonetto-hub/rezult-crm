@@ -222,7 +222,7 @@ export function PipelineSidebar() {
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 placeholder="Ex: Pós-venda"
-                className="bg-card border-gray-400 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="bg-card border-input rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
             <div>
@@ -231,7 +231,7 @@ export function PipelineSidebar() {
                 value={newDesc}
                 onChange={e => setNewDesc(e.target.value)}
                 placeholder="Descreva o propósito desta pipeline"
-                className="bg-card border-gray-400 rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="bg-card border-input rounded-lg focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
               />
             </div>
             <div>
@@ -241,7 +241,7 @@ export function PipelineSidebar() {
                 type="button"
                 onClick={() => { setShowGroupPicker(v => !v); setCreatingNewGroup(false); setNewGroupInput(""); }}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm bg-card transition-colors ${
-                  showGroupPicker ? "border-primary ring-1 ring-primary/20" : "border-gray-400 hover:border-foreground/30"
+                  showGroupPicker ? "border-primary ring-1 ring-primary/20" : "border-input hover:border-foreground/30"
                 }`}
               >
                 <span className={newCategory ? "text-foreground" : "text-muted-foreground"}>
