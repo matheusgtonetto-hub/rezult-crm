@@ -38,7 +38,16 @@ import type { Pipeline, Tag as CrmTagType, CustomFieldGroup, Product as ProductT
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type TriggerConfig = { categoryId: string; triggerId: string; label: string; description: string; configData?: Record<string, string | boolean | number> };
+/**
+ * Um gatilho do bloco Início.
+ *
+ * O `id` existe porque a automação passou a aceitar VÁRIOS gatilhos, e dois
+ * deles podem ser do mesmo tipo com configurações diferentes (dois "Negócio
+ * movido", cada um para uma etapa). Sem um id próprio, remover ou configurar
+ * um deles mexeria no outro. Gatilhos gravados antes desta mudança não têm id:
+ * `gatilhosDoFluxo` atribui um na leitura.
+ */
+type TriggerConfig = { id?: string; categoryId: string; triggerId: string; label: string; description: string; configData?: Record<string, string | boolean | number> };
 
 type ActionNodeType = "mensagem" | "acoes" | "condicoes" | "espera" | "randomizador" | "api" | "campos" | "ia" | "javascript";
 
@@ -129,7 +138,8 @@ type CanvasNode = {
   type: "start" | "note" | ActionNodeType;
   x: number; y: number;
   label: string;
-  trigger?: TriggerConfig | null;
+  triggers?: TriggerConfig[] | null; // gatilhos do bloco Início
+  trigger?: TriggerConfig | null;    // legado — primeiro gatilho, para leitores antigos
   parentId?: string | null;        // legado — migrado para parentIds no carregamento
   errorParentId?: string | null;   // legado — migrado para errorParentIds no carregamento
   parentIds?: string[];            // chaves das portas de saída de origem (azul)
@@ -168,20 +178,30 @@ type PathEntry = {
   error_message: string | null;
 };
 
+/**
+ * O fluxo gravado em `automations.flow`.
+ *
+ * `triggers` é a lista verdadeira. `trigger` continua sendo escrito com o
+ * PRIMEIRO da lista porque há leitores antigos que ainda olham só para ele: as
+ * funções de banco e a Edge Function em produção enquanto a nova não sobe. Ler
+ * sempre por `gatilhosDoFluxo`, nunca direto por um dos dois.
+ */
+type AutomationFlow = { nodes: CanvasNode[]; triggers?: TriggerConfig[] | null; trigger?: TriggerConfig | null };
+
 type AutomationRecord = {
   id: string;
   name: string;
   description: string;
   group_name: string;
   active: boolean;
-  flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null };
+  flow: AutomationFlow;
   created_at: string;
   last_webhook_payload?: unknown;
 };
 
 // ─── VarPicker context (nodes + custom fields available to VarPicker anywhere) ─
 
-const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[]; trigger: TriggerConfig | null; webhookPayload: unknown; refreshWebhookPayload: (() => Promise<void>) | null }>({ nodes: [], customFieldGroups: [], trigger: null, webhookPayload: null, refreshWebhookPayload: null });
+const VarPickerCtx = createContext<{ nodes: CanvasNode[]; customFieldGroups: CustomFieldGroup[]; triggers: TriggerConfig[]; webhookPayload: unknown; refreshWebhookPayload: (() => Promise<void>) | null }>({ nodes: [], customFieldGroups: [], triggers: [], webhookPayload: null, refreshWebhookPayload: null });
 
 // ─── Static data ──────────────────────────────────────────────────────────────
 
@@ -478,7 +498,20 @@ const NOTE_COLORS = [
   { bg: "#FAF5FF", header: "#DDD6FE", border: "#C4B5FD", borderSel: "#8B5CF6", text: "#4C1D95", headerText: "#5B21B6" },
 ];
 
-const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "Início", trigger: null };
+const START_NODE: CanvasNode = { id: "n1", type: "start", x: 80, y: 80, label: "Início", triggers: [], trigger: null };
+
+/**
+ * Os gatilhos de um fluxo, venham eles no formato novo (lista) ou no antigo
+ * (um só). É o ÚNICO lugar que sabe da existência das duas formas: todo o resto
+ * da tela trabalha com a lista.
+ *
+ * O id ausente é preenchido de forma determinística, e não com um sorteio, para
+ * que a chave de renderização do React não mude a cada quadro.
+ */
+function gatilhosDoFluxo(flow?: { triggers?: TriggerConfig[] | null; trigger?: TriggerConfig | null } | null): TriggerConfig[] {
+  const crus = flow?.triggers?.length ? flow.triggers : (flow?.trigger ? [flow.trigger] : []);
+  return crus.filter(Boolean).map((t, i) => (t.id ? t : { ...t, id: `tg${i}_${t.triggerId}` }));
+}
 
 // ─── Modelos pré-configurados (opção "Modelo" ao criar automação) ─────────────
 // Usam apenas peças genéricas (gatilho + mensagem + espera), sem IDs específicos
@@ -722,7 +755,7 @@ function migrateNodes(nodes: CanvasNode[]): CanvasNode[] {
   }));
 }
 
-function convertDcFlow(dc: Record<string, unknown>): { nodes: CanvasNode[]; trigger: TriggerConfig | null } | null {
+function convertDcFlow(dc: Record<string, unknown>): AutomationFlow | null {
   if (!Array.isArray(dc.blocks)) return null;
   const blocks = dc.blocks as Record<string, unknown>[];
 
@@ -745,7 +778,7 @@ function convertDcFlow(dc: Record<string, unknown>): { nodes: CanvasNode[]; trig
   }
 
   const nodes: CanvasNode[] = [];
-  let trigger: TriggerConfig | null = null;
+  let triggers: TriggerConfig[] = [];
 
   for (const block of blocks) {
     const id = block.id as string;
@@ -758,13 +791,16 @@ function convertDcFlow(dc: Record<string, unknown>): { nodes: CanvasNode[]; trig
     const errorParentId = par?.isError ? par.parentId : null;
 
     if (block.type === "trigger") {
+      // O .dc sempre trouxe uma LISTA de gatilhos; antes só o primeiro era
+      // aproveitado, e os demais sumiam na importação sem aviso.
       const dcTriggers = Array.isArray(opts.triggers) ? (opts.triggers as Record<string, unknown>[]) : [];
-      const dcT = dcTriggers[0];
-      const mapped = dcT ? DC_TRIGGER_MAP[dcT.name as string] : null;
-      trigger = mapped
-        ? { triggerId: mapped.triggerId, categoryId: mapped.categoryId, label: mapped.label, description: "" }
-        : { triggerId: "http_webhook", categoryId: "http", label: String(dcT?.name ?? "Gatilho"), description: "" };
-      nodes.push({ id, type: "start", x, y, label: "Início", trigger });
+      triggers = (dcTriggers.length ? dcTriggers : [undefined]).map((dcT, i) => {
+        const mapped = dcT ? DC_TRIGGER_MAP[dcT.name as string] : null;
+        return mapped
+          ? { id: `tg${i}_${mapped.triggerId}`, triggerId: mapped.triggerId, categoryId: mapped.categoryId, label: mapped.label, description: "" }
+          : { id: `tg${i}_http_webhook`, triggerId: "http_webhook", categoryId: "http", label: String(dcT?.name ?? "Gatilho"), description: "" };
+      });
+      nodes.push({ id, type: "start", x, y, label: "Início", triggers, trigger: triggers[0] ?? null });
 
     } else if (block.type === "condition") {
       const dcConds = Array.isArray(opts.conditions) ? (opts.conditions as Record<string, unknown>[]) : [];
@@ -799,7 +835,7 @@ function convertDcFlow(dc: Record<string, unknown>): { nodes: CanvasNode[]; trig
     }
   }
 
-  return { nodes, trigger };
+  return { nodes, triggers, trigger: triggers[0] ?? null };
 }
 
 function fmtDate(iso: string) {
@@ -831,7 +867,10 @@ const PREVIEW_HEADER: Record<string, { color: string; title: string; icon: React
 // blocos de mensagem, resumo da espera, etc.
 function previewBodyLines(n: CanvasNode): { icon?: React.ElementType; text: string }[] {
   switch (n.type) {
-    case "start": return [{ text: n.trigger?.label ?? "Sem gatilho" }];
+    case "start": {
+      const gs = gatilhosDoFluxo(n);
+      return gs.length ? gs.map(t => ({ text: t.label })) : [{ text: "Sem gatilho" }];
+    }
     case "acoes": return (n.actionItems ?? []).map(it => {
       const act = ACTION_CATEGORIES.find(c => c.id === it.categoryId)?.actions.find(a => a.id === it.actionId);
       return { icon: act?.icon, text: it.label };
@@ -878,7 +917,7 @@ function previewBodyLines(n: CanvasNode): { icon?: React.ElementType; text: stri
 // Miniatura fiel do canvas: nós (ícone + título + itens), notas coloridas e
 // conexões ortogonais (mesma buildOrthPath do editor), num SVG que escala via
 // viewBox para caber no card. foreignObject permite reusar o HTML/ícones reais.
-function FlowPreview({ flow }: { flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null } | null }) {
+function FlowPreview({ flow }: { flow: AutomationFlow | null }) {
   const all = flow?.nodes ?? [];
   if (all.length === 0) {
     return (
@@ -1134,7 +1173,7 @@ export default function AutomacoesPage() {
 
   // Canvas (editor)
   const [nodes, setNodes]               = useState<CanvasNode[]>([START_NODE]);
-  const [trigger, setTrigger]           = useState<TriggerConfig | null>(null);
+  const [triggers, setTriggers]         = useState<TriggerConfig[]>([]);
   const [zoom, setZoom]                 = useState(1);
   const [pan, setPan]                   = useState({ x: 0, y: 0 });
   const [selectedNode, setSelectedNode] = useState<string | null>(null);
@@ -1154,7 +1193,11 @@ export default function AutomacoesPage() {
   const [espePickerOpen, setEspePickerOpen] = useState(false);
   const [selectedEspePickerCat, setSelectedEspePickerCat] = useState("tempo");
   const [iaPickerNode, setIaPickerNode] = useState<string | null>(null);
-  const [triggerPanel, setTriggerPanel] = useState(false);
+  // Qual gatilho está com o painel de configuração aberto (id) e qual está
+  // sendo TROCADO pelo seletor (id). Antes eram dois booleanos: com um gatilho
+  // só, não havia o que distinguir.
+  const [triggerPanel, setTriggerPanel] = useState<string | null>(null);
+  const [trocaDeGatilho, setTrocaDeGatilho] = useState<string | null>(null);
   const [apiPickerTrigger, setApiPickerTrigger] = useState(0);
   const [logsPanel, setLogsPanel] = useState<{ nodeId: string } | null>(null);
   const [logsPanelTab, setLogsPanelTab] = useState<"entraram" | "success" | "alert" | "error">("entraram");
@@ -1338,11 +1381,11 @@ export default function AutomacoesPage() {
   const openEditor = useCallback((id: string) => {
     const auto = automations.find(a => a.id === id);
     if (!auto) return;
-    const flow = auto.flow ?? { nodes: [START_NODE], trigger: null };
+    const flow = auto.flow ?? { nodes: [START_NODE], triggers: [] };
     const n = migrateNodes(flow.nodes?.length ? flow.nodes : [START_NODE]);
     skipDirtyRef.current = true;
     setNodes(n);
-    setTrigger(flow.trigger ?? null);
+    setTriggers(gatilhosDoFluxo(flow));
     setZoom(1);
     setPan({ x: 0, y: 0 });
     setSelectedNode(null);
@@ -1467,7 +1510,7 @@ export default function AutomacoesPage() {
     setSelectedNode(null);
     setAddNodeMenu(null);
     setNodePanel(null);
-    setTriggerPanel(false);
+    setTriggerPanel(null);
   };
 
   const disconnectNode = (nodeId: string, type: "parent" | "error" | "timeout", fromId: string) => {
@@ -1645,7 +1688,7 @@ export default function AutomacoesPage() {
     }
 
     // Define o flow, o nome e o grupo conforme a forma de começar.
-    let flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null } = { nodes: [START_NODE], trigger: null };
+    let flow: AutomationFlow = { nodes: [START_NODE], triggers: [], trigger: null };
     let name = newName.trim();
     let group = newGroup.trim();
     if (startType === "model") {
@@ -1653,7 +1696,8 @@ export default function AutomacoesPage() {
       if (!tpl) { toast.error("Selecione um modelo"); return; }
       // Clona o flow do modelo para não mutar a constante ao editar depois.
       const cloned = JSON.parse(JSON.stringify(tpl.flow)) as { nodes: CanvasNode[]; trigger: TriggerConfig };
-      flow = { nodes: sanitizeImportedNodes(cloned.nodes), trigger: cloned.trigger };
+      const gatilhosDoModelo = gatilhosDoFluxo(cloned);
+      flow = { nodes: sanitizeImportedNodes(cloned.nodes), triggers: gatilhosDoModelo, trigger: gatilhosDoModelo[0] ?? null };
       if (!name) name = tpl.name;
       if (!group) group = tpl.group;
     }
@@ -1696,7 +1740,7 @@ export default function AutomacoesPage() {
     reader.onload = async (ev) => {
       try {
         const parsed = JSON.parse(ev.target?.result as string);
-        let flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null };
+        let flow: AutomationFlow;
         // DataCrazy .dc format
         if (parsed.blocks && Array.isArray(parsed.blocks)) {
           const converted = convertDcFlow(parsed);
@@ -1748,13 +1792,18 @@ export default function AutomacoesPage() {
     if (!selectedId) return;
     setSaving(true);
     try {
-      const updatedNodes = nodes.map(n => n.id === "n1" ? { ...n, trigger } : n);
+      // `trigger` (singular) continua sendo gravado com o primeiro da lista: as
+      // funções de banco e a Edge Function em produção ainda leem por ele, e uma
+      // automação salva aqui não pode parar de disparar enquanto elas não sobem.
+      const flowSalvo: AutomationFlow = { nodes: [], triggers, trigger: triggers[0] ?? null };
+      const updatedNodes = nodes.map(n => n.id === "n1" ? { ...n, triggers, trigger: triggers[0] ?? null } : n);
+      flowSalvo.nodes = updatedNodes;
       const { error } = await supabase
         .from("automations")
-        .update({ flow: { nodes: updatedNodes, trigger }, updated_at: new Date().toISOString() })
+        .update({ flow: flowSalvo, updated_at: new Date().toISOString() })
         .eq("id", selectedId);
       if (error) throw error;
-      setAutomations(prev => prev.map(a => a.id === selectedId ? { ...a, flow: { nodes: updatedNodes, trigger } } : a));
+      setAutomations(prev => prev.map(a => a.id === selectedId ? { ...a, flow: flowSalvo } : a));
       setIsDirty(false);
       toast.success("Automação salva");
     } catch {
@@ -1828,7 +1877,7 @@ export default function AutomacoesPage() {
     if (skipDirtyRef.current) { skipDirtyRef.current = false; return; }
     if (view === "editor" && selectedId) setIsDirty(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nodes, trigger]);
+  }, [nodes, triggers]);
 
   // Block browser refresh / tab close
   useEffect(() => {
@@ -2018,7 +2067,7 @@ export default function AutomacoesPage() {
     reader.onload = ev => {
       try {
         const parsed = JSON.parse(ev.target?.result as string);
-        let flow: { nodes: CanvasNode[]; trigger: TriggerConfig | null };
+        let flow: AutomationFlow;
         if (parsed.blocks && Array.isArray(parsed.blocks)) {
           const converted = convertDcFlow(parsed);
           if (!converted) { toast.error("Arquivo DataCrazy inválido"); return; }
@@ -2030,7 +2079,7 @@ export default function AutomacoesPage() {
           return;
         }
         setNodes(migrateNodes(sanitizeImportedNodes(flow.nodes ?? [START_NODE])));
-        setTrigger(flow.trigger ?? null);
+        setTriggers(gatilhosDoFluxo(flow));
         toast.success("Fluxo importado — salve para persistir");
       } catch {
         toast.error("Arquivo inválido");
@@ -2043,13 +2092,20 @@ export default function AutomacoesPage() {
   const handleSelectTrigger = (cat: typeof TRIGGER_CATEGORIES[0], t: typeof TRIGGER_CATEGORIES[0]["triggers"][0]) => {
     const configData: Record<string, string | boolean | number> = {};
     if (t.id === "http_webhook") configData.webhookId = selectedId ?? crypto.randomUUID();
-    const cfg: TriggerConfig = { categoryId: cat.id, triggerId: t.id, label: t.label, description: t.description, configData };
-    setTrigger(cfg);
-    setNodes(prev => prev.map(n => n.id === "n1" ? { ...n, trigger: cfg } : n));
+    const cfg: TriggerConfig = { id: `tg${Date.now()}`, categoryId: cat.id, triggerId: t.id, label: t.label, description: t.description, configData };
+    // O seletor serve a dois usos: acrescentar um gatilho à lista ou trocar um
+    // que já está lá (botão "Trocar gatilho" no pé do painel de configuração).
+    setTriggers(prev => trocaDeGatilho ? prev.map(g => g.id === trocaDeGatilho ? cfg : g) : [...prev, cfg]);
+    setTrocaDeGatilho(null);
     setTriggerOpen(false);
-    setTriggerPanel(true);
+    setTriggerPanel(cfg.id!);
     setNodePanel(null);
-    toast.success(`Gatilho "${t.label}" adicionado`);
+    toast.success(trocaDeGatilho ? `Gatilho trocado por "${t.label}"` : `Gatilho "${t.label}" adicionado`);
+  };
+
+  const removerGatilho = (id: string) => {
+    setTriggers(prev => prev.filter(g => g.id !== id));
+    setTriggerPanel(prev => prev === id ? null : prev);
   };
 
   const addActionItem = (nodeId: string, item: Omit<ActionItem, "id">) => {
@@ -2175,8 +2231,8 @@ export default function AutomacoesPage() {
     setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, fieldOps: (n.fieldOps ?? []).map(o => o.id === opId ? { ...o, ...data } as FieldOperation : o) } : n));
   };
 
-  const updateTriggerConfigData = (key: string, value: string | boolean | number) => {
-    setTrigger(prev => prev ? { ...prev, configData: { ...(prev.configData ?? {}), [key]: value } } : prev);
+  const updateTriggerConfigData = (id: string, key: string, value: string | boolean | number) => {
+    setTriggers(prev => prev.map(g => g.id === id ? { ...g, configData: { ...(g.configData ?? {}), [key]: value } } : g));
   };
 
   // ─── SIDEBAR (shared) ────────────────────────────────────────────────────────
@@ -2410,20 +2466,20 @@ export default function AutomacoesPage() {
 
       {/* ── EDITOR VIEW ────────────────────────────────────────────────────── */}
       {view === "editor" && selectedAutomation && (
-        <VarPickerCtx.Provider value={{ nodes, customFieldGroups, trigger, webhookPayload: selectedAutomation?.last_webhook_payload ?? null, refreshWebhookPayload }}>
+        <VarPickerCtx.Provider value={{ nodes, customFieldGroups, triggers, webhookPayload: selectedAutomation?.last_webhook_payload ?? null, refreshWebhookPayload }}>
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
           {/* Painel de configuração — coluna no fluxo normal, NÃO absoluto */}
           {/* Trigger config panel */}
-          {triggerPanel && !nodePanel && trigger && (
+          {triggerPanel && !nodePanel && triggers.some(g => g.id === triggerPanel) && (
             <TriggerConfigPanel
-              trigger={trigger}
+              trigger={triggers.find(g => g.id === triggerPanel)!}
               automationId={selectedId ?? undefined}
               companyId={company?.id}
               automations={automations}
-              onClose={() => setTriggerPanel(false)}
-              onChangeTrigger={() => { setTriggerPanel(false); setTriggerOpen(true); }}
-              updateConfig={updateTriggerConfigData}
+              onClose={() => setTriggerPanel(null)}
+              onChangeTrigger={() => { setTrocaDeGatilho(triggerPanel); setTriggerPanel(null); setTriggerOpen(true); }}
+              updateConfig={(key, value) => updateTriggerConfigData(triggerPanel, key, value)}
               pipelines={pipelines}
               crmTags={crmTags}
               addTag={addTag}
@@ -2886,12 +2942,13 @@ export default function AutomacoesPage() {
                 if (n.type === "start") return (
                   <StartNode
                     key={n.id}
-                    node={{ ...n, trigger: n.id === "n1" ? trigger : n.trigger }}
+                    node={n}
+                    triggers={n.id === "n1" ? triggers : gatilhosDoFluxo(n)}
                     selected={selectedNode === n.id}
                     onSelect={() => setSelectedNode(n.id)}
-                    onAddTrigger={() => setTriggerOpen(true)}
-                    onTriggerClick={() => { setTriggerPanel(true); setNodePanel(null); setSelectedNode(n.id); }}
-                    onRemoveTrigger={() => { setTrigger(null); setTriggerPanel(false); }}
+                    onAddTrigger={() => { setTrocaDeGatilho(null); setTriggerOpen(true); }}
+                    onTriggerClick={(id) => { setTriggerPanel(id); setNodePanel(null); setSelectedNode(n.id); }}
+                    onRemoveTrigger={removerGatilho}
                     onPortDragStart={(e) => startPortDrag(e, n.id)}
                     onDragStart={(e) => onNodeDragStart(e, n.id, () => setSelectedNode(n.id))}
                     stats={nodeStats[n.id]}
@@ -3234,12 +3291,12 @@ export default function AutomacoesPage() {
       </Dialog>
 
       {/* Trigger panel */}
-      <Dialog open={triggerOpen} onOpenChange={setTriggerOpen}>
+      <Dialog open={triggerOpen} onOpenChange={(o) => { setTriggerOpen(o); if (!o) setTrocaDeGatilho(null); }}>
         <DialogContent style={{ maxWidth: 620, padding: 0, overflow: "hidden" }}>
           <div style={{ display: "flex", height: 480 }}>
             {/* Category list */}
             <div style={{ width: 160, borderRight: "1px solid var(--border-default)", padding: "16px 0", overflowY: "auto", flexShrink: 0 }}>
-              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>Adicionar gatilho</div>
+              <div style={{ padding: "0 12px 12px", fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>{trocaDeGatilho ? "Trocar gatilho" : "Adicionar gatilho"}</div>
               {TRIGGER_CATEGORIES_VISIVEIS.map(cat => {
                 const Icon = cat.icon;
                 const sel = selectedTriggerCat === cat.id;
@@ -3263,11 +3320,18 @@ export default function AutomacoesPage() {
                   <>
                     <div style={{ marginBottom: 4, fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{cat.label}</div>
                     <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>{cat.description}</div>
-                    {trigger && trigger.categoryId === cat.id && (
-                      <div style={{ marginBottom: 12, padding: "6px 10px", background: "var(--accent-50)", border: "0.5px solid var(--accent-200)", borderRadius: 8, fontSize: 12, color: "var(--accent-800)", display: "flex", alignItems: "center", gap: 6 }}>
-                        <CheckCircle2 size={12} /> Gatilho atual: {trigger.label}
-                      </div>
-                    )}
+                    {(() => {
+                      // O que esta categoria já colocou no Início. Com vários
+                      // gatilhos, dizer "gatilho atual" no singular escondia os
+                      // outros e convidava a duplicar sem querer.
+                      const jaNoInicio = triggers.filter(g => g.categoryId === cat.id);
+                      if (!jaNoInicio.length) return null;
+                      return (
+                        <div style={{ marginBottom: 12, padding: "6px 10px", background: "var(--accent-50)", border: "0.5px solid var(--accent-200)", borderRadius: 8, fontSize: 12, color: "var(--accent-800)", display: "flex", alignItems: "center", gap: 6 }}>
+                          <CheckCircle2 size={12} /> No Início: {jaNoInicio.map(g => g.label).join(", ")}
+                        </div>
+                      );
+                    })()}
                     <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                       {cat.triggers.map(t => {
                         const isComingSoon = t.id === "mcp_tool";
@@ -4266,20 +4330,22 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
           onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.color = "hsl(var(--primary))"; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-default)"; e.currentTarget.style.color = "var(--text-muted)"; }}
         >
-          Alterar gatilho
+          Trocar gatilho
         </button>
       </div>
     </aside>
   );
 }
 
-function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onRemoveTrigger, onPortDragStart, onDragStart, stats, onStatClick }: {
-  node: CanvasNode & { trigger?: TriggerConfig | null };
+function StartNode({ node, triggers, selected, onSelect, onAddTrigger, onTriggerClick, onRemoveTrigger, onPortDragStart, onDragStart, stats, onStatClick }: {
+  node: CanvasNode;
+  /** Os gatilhos deste Início. Vazio = automação que ninguém aciona ainda. */
+  triggers: TriggerConfig[];
   selected: boolean;
   onSelect: () => void;
   onAddTrigger: () => void;
-  onTriggerClick?: () => void;
-  onRemoveTrigger?: () => void;
+  onTriggerClick?: (id: string) => void;
+  onRemoveTrigger?: (id: string) => void;
   onPortDragStart: (e: React.MouseEvent) => void;
   onDragStart: (e: React.MouseEvent) => void;
   stats?: { s: number; a: number; e: number };
@@ -4303,20 +4369,21 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
         <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Início</span>
       </div>
       <div style={{ padding: "10px 14px 14px" }}>
-        {node.trigger ? (
+        {triggers.length > 0 ? triggers.map(t => (
           <div
+            key={t.id}
             style={{ padding: "8px 10px", background: "var(--accent-50)", border: "0.5px solid var(--accent-200)", borderRadius: 8, marginBottom: 8 }}
           >
             <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 6 }}>
               <div
-                onClick={(e) => { e.stopPropagation(); onTriggerClick?.(); }}
+                onClick={(e) => { e.stopPropagation(); onTriggerClick?.(t.id!); }}
                 style={{ flex: 1, cursor: "pointer" }}
               >
-                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)" }}>{node.trigger.label}</div>
-                <div style={{ fontSize: 12, color: "var(--accent-800)", marginTop: 2 }}>{node.trigger.description}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)" }}>{t.label}</div>
+                <div style={{ fontSize: 12, color: "var(--accent-800)", marginTop: 2 }}>{t.description}</div>
               </div>
               <button
-                onClick={(e) => { e.stopPropagation(); onRemoveTrigger?.(); }}
+                onClick={(e) => { e.stopPropagation(); onRemoveTrigger?.(t.id!); }}
                 title="Remover gatilho"
                 style={{ background: "transparent", border: "none", cursor: "pointer", padding: 2, color: "#86EFAC", borderRadius: 10, flexShrink: 0, display: "flex", alignItems: "center" }}
                 onMouseEnter={e => { e.currentTarget.style.color = "var(--danger-fg)"; e.currentTarget.style.background = "var(--danger-bg)"; }}
@@ -4326,9 +4393,9 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
               </button>
             </div>
           </div>
-        ) : (
+        )) : (
           <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 8, lineHeight: 1.5 }}>
-            O gatilho é responsável por acionar a automação. Clique para adicionar um gatilho:
+            O gatilho é responsável por acionar a automação. Clique para adicionar um ou mais gatilhos:
           </div>
         )}
         <button
@@ -4337,10 +4404,10 @@ function StartNode({ node, selected, onSelect, onAddTrigger, onTriggerClick, onR
           onMouseEnter={e => { e.currentTarget.style.borderColor = "hsl(var(--primary))"; e.currentTarget.style.color = "hsl(var(--primary))"; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = "var(--border-strong)"; e.currentTarget.style.color = "var(--text-muted)"; }}
         >
-          {node.trigger ? "Alterar gatilho" : "+ Adicionar gatilho"}
+          {triggers.length ? "+ Adicionar outro gatilho" : "+ Adicionar gatilho"}
         </button>
         <div style={{ position: "relative", fontSize: 12, color: "var(--text-muted)", marginTop: 10, display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: 8 }}>
-          <span>Quando o evento ocorrer, então</span>
+          <span>{triggers.length > 1 ? "Quando qualquer um dos eventos ocorrer, então" : "Quando o evento ocorrer, então"}</span>
           <div
             data-port
             data-from-node={node.id}
@@ -6445,7 +6512,7 @@ function WebhookTree({ data, onSelect, selectedPath }: { data: unknown; onSelect
 }
 
 function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onClose: () => void }) {
-  const { nodes, customFieldGroups, trigger, webhookPayload, refreshWebhookPayload } = useContext(VarPickerCtx);
+  const { nodes, customFieldGroups, triggers, webhookPayload, refreshWebhookPayload } = useContext(VarPickerCtx);
   const [cat, setCat] = useState("lead");
   const [search, setSearch] = useState("");
   const [apiModal, setApiModal] = useState<{ sourceName: string } | null>(null);
@@ -6503,7 +6570,7 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
         return { ...c, fields: iaOutputFields(nodes) };
       }
       if (c.id === "entrada") {
-        const webhookFields: VarField[] = trigger?.triggerId === "http_webhook"
+        const webhookFields: VarField[] = triggers.some(t => t.triggerId === "http_webhook")
           ? [{ key: "webhook", label: "Api-request-1", icon: "{}", isApiSource: true, sourceName: "webhook" }]
           : [];
         const apiNodes = nodes.filter(n => n.type === "api");
@@ -6536,7 +6603,7 @@ function VarPicker({ onInsert, onClose }: { onInsert: (val: string) => void; onC
       }
       return c;
     });
-  }, [nodes, customFieldGroups, trigger]);
+  }, [nodes, customFieldGroups, triggers]);
 
   const activeCat = categories.find(c => c.id === cat) ?? categories[0];
   const fields = activeCat.fields.filter(f => !search || f.label.toLowerCase().includes(search.toLowerCase()));

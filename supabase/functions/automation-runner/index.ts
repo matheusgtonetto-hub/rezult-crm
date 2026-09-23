@@ -103,6 +103,7 @@ interface TriggerPayload {
 }
 
 interface TriggerConfig {
+  id?: string;
   categoryId: string;
   triggerId: string;
   label: string;
@@ -245,7 +246,21 @@ interface PendingRecord {
 
 interface AutomationFlow {
   nodes: CanvasNode[];
-  trigger: TriggerConfig | null;
+  triggers?: TriggerConfig[] | null; // formato atual: a automação aceita vários
+  trigger?: TriggerConfig | null;    // legado: um só, ainda gravado como espelho do primeiro
+}
+
+/**
+ * Os gatilhos de um fluxo, no formato novo (lista) ou no antigo (um só).
+ *
+ * Existe porque a base tem as duas formas ao mesmo tempo: toda automação criada
+ * antes de 23/09/2026 guarda `trigger`, e a tela agora grava `triggers` e
+ * mantém `trigger` como espelho do primeiro. Ler direto por um dos dois campos
+ * deixaria metade da base sem disparar.
+ */
+function gatilhosDoFluxo(flow?: AutomationFlow | null): TriggerConfig[] {
+  if (flow?.triggers?.length) return flow.triggers;
+  return flow?.trigger ? [flow.trigger] : [];
 }
 
 interface AutomationRecord {
@@ -394,9 +409,20 @@ async function runTrigger(supabase: SupabaseClient, payload: TriggerPayload): Pr
     // Execução manual direcionada: ignora todas exceto a automação escolhida
     if (automation_id && automation.id !== automation_id) continue;
     const flow = automation.flow;
-    const trigger = flow?.trigger;
-    if (!trigger || trigger.triggerId !== trigger_type) continue;
-    if (!await matchesTriggerConfig(supabase, trigger, payload)) continue;
+
+    /*
+     * Vários gatilhos no mesmo Início valem como OU: basta UM casar para o
+     * fluxo rodar, e ele roda UMA vez. Executar por gatilho casado mandaria a
+     * mesma mensagem duas vezes para o cliente quando dois deles descrevessem
+     * o mesmo evento (por exemplo "negócio movido" para duas etapas).
+     */
+    const candidatos = gatilhosDoFluxo(flow).filter(t => t.triggerId === trigger_type);
+    if (!candidatos.length) continue;
+    let casou = false;
+    for (const g of candidatos) {
+      if (await matchesTriggerConfig(supabase, g, payload)) { casou = true; break; }
+    }
+    if (!casou) continue;
 
     try {
       await executeFlow(supabase, flow, payload, automation.id);
@@ -640,12 +666,13 @@ async function handleMcpTrigger(supabase: SupabaseClient, req: Request): Promise
     return Response.json({ error: autoErr.message }, { status: 500, headers: corsHeaders });
   }
 
-  const matching = (automations as AutomationRecord[] ?? []).filter((auto) => {
-    const trigger = auto.flow?.trigger;
-    if (!trigger || trigger.triggerId !== "mcp_tool") return false;
-    const cfgToolName = (trigger.configData?.toolName as string) ?? "";
-    return !cfgToolName || cfgToolName === tool_name;
-  });
+  const matching = (automations as AutomationRecord[] ?? []).filter((auto) =>
+    gatilhosDoFluxo(auto.flow).some((trigger) => {
+      if (trigger.triggerId !== "mcp_tool") return false;
+      const cfgToolName = (trigger.configData?.toolName as string) ?? "";
+      return !cfgToolName || cfgToolName === tool_name;
+    })
+  );
 
   if (!matching.length) {
     return Response.json({ error: `Nenhuma automação ativa encontrada para tool: ${tool_name}` }, { status: 404, headers: corsHeaders });
