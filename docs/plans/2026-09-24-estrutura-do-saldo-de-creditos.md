@@ -34,9 +34,16 @@ create table public.credit_accounts (
 );
 ```
 
-O `check` não é decoração: ele é a última linha de defesa contra o saldo
-negativo se algum caminho de débito escapar da função. Banco recusando é melhor
-do que prejuízo silencioso.
+**Mudei de opinião sobre esse `check` ao implementar, e ele NÃO existe.**
+
+O débito acontece depois da chamada, com o custo real: ele registra um fato
+consumado, dinheiro que já foi gasto no fornecedor. Se o `check` fizesse esse
+insert falhar, o resultado seria consumo sem débito -- o pior dos dois mundos,
+porque o prejuízo acontece e não fica registrado em lugar nenhum.
+
+Saldo negativo é permitido e **visível**. A proteção mora antes: a trava na
+entrada e o teto diário. O negativo possível é de uma chamada, não de uma conta
+inteira.
 
 ### `credit_transactions` -- o extrato, que é a verdade
 
@@ -157,22 +164,19 @@ O `stripe_event_id` único é o que torna o webhook repetível sem crédito dobr
 
 ## 5. As duas decisões de negócio que o desenho não toma
 
-### 5.1 Em que moeda o cliente vê o saldo
+### 5.1 A moeda -- DECIDIDA: dólar (dono, 24/09/2026)
 
-| | Saldo em BRL | Saldo em USD |
-|---|---|---|
-| O cliente entende | sim, é a moeda dele | precisa converter de cabeça |
-| Câmbio | risco seu, ou repassado no débito | risco do cliente |
-| Expõe o custo de origem | não | sim, dá para inferir o fornecedor |
+O saldo é em USD e o câmbio acontece na **venda**, não no débito: o cliente paga
+em real no Stripe e recebe um valor em dólar de crédito.
 
-**Recomendo BRL**, com a conversão acontecendo no momento do DÉBITO pela taxa
-vigente mais o markup. Assim o crédito já vendido não vira prejuízo se o dólar
-subir: rende menos, e a margem se mantém. O `cambio` gravado em cada transação
-é o que permite explicar qualquer linha do extrato depois.
+Isso tira o câmbio do caminho quente. Cada débito é uma subtração simples, sem
+taxa do dia para aplicar nem conversão para explicar em cada linha do extrato --
+e some junto o risco de o crédito já vendido virar prejuízo numa alta do dólar,
+porque a conversão já aconteceu no momento em que o dinheiro entrou.
 
-O contraponto honesto: se o dólar disparar, o cliente percebe que o crédito
-"rendeu menos" e vai perguntar. A resposta precisa estar pronta e escrita no
-extrato, não improvisada no suporte.
+O contraponto, que segue valendo: o cliente vê "US$ 12,40" e precisa converter
+de cabeça para saber o que tem. E o valor em dólar deixa inferir a ordem de
+grandeza do custo de origem.
 
 ### 5.2 O markup
 
@@ -220,7 +224,7 @@ de abrir para a base.
 
 | # | Passo | Entrega |
 |---|---|---|
-| 1 | Tabelas + `debitar_credito` + RLS | saldo existe e é debitável |
+| 1 | ~~Tabelas + `debitar_credito` + RLS~~ **feito em 24/09** | saldo existe, é debitável e está testado |
 | 2 | Débito ligado aos 4 pontos de chamada | consumo já abate, mesmo sem venda |
 | 3 | Extrato na tela de Agentes | dá para auditar antes de cobrar |
 | 4 | Checkout avulso + webhook creditando | passa a vender |
