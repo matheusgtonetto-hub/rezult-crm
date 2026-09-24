@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
-import { lerTemaLocal, aplicarTema } from "./lib/tema";
+import { temaInicial, aplicarTema } from "./lib/tema";
 
 /*
  * O tema entra antes do React desenhar qualquer coisa.
@@ -10,6 +10,6 @@ import { lerTemaLocal, aplicarTema } from "./lib/tema";
  * é um quadro inteiro de tela clara para quem escolheu escuro. Aqui é uma
  * leitura síncrona do localStorage, antes do primeiro pixel.
  */
-aplicarTema(lerTemaLocal());
+aplicarTema(temaInicial(), false);
 
 createRoot(document.getElementById("root")!).render(<App />);

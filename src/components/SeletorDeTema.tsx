@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Sun, Moon } from "lucide-react";
 import { useIdioma } from "@/context/IdiomaContext";
-import { lerTemaLocal, aplicarTema, type Tema } from "@/lib/tema";
+import { temaInicial, aplicarTema, type Tema } from "@/lib/tema";
 
 /**
  * Claro ou escuro, nas telas de antes do login.
@@ -24,11 +24,17 @@ import { lerTemaLocal, aplicarTema, type Tema } from "@/lib/tema";
  */
 export function SeletorDeTema({ className }: { className?: string }) {
   const { t } = useIdioma();
-  const [tema, setTema] = useState<Tema>(lerTemaLocal);
+  const [tema, setTema] = useState<Tema>(temaInicial);
 
   // O `main.tsx` já aplicou o tema antes do primeiro quadro; isto cobre o caso
   // de a escolha ter mudado em outra aba e o React remontar com o valor velho.
-  useEffect(() => { aplicarTema(tema); }, [tema]);
+  const primeira = useRef(true);
+  useEffect(() => {
+    // A primeira passada só repinta (o main já aplicou): gravar aqui faria o
+    // padrão da entrada virar escolha sem ninguém clicar em nada.
+    aplicarTema(tema, !primeira.current);
+    primeira.current = false;
+  }, [tema]);
 
   const opcoes: { valor: Tema; Icone: typeof Sun; rotulo: string }[] = [
     { valor: "light", Icone: Sun,  rotulo: t("tema.claro") },
