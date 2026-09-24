@@ -103,7 +103,20 @@
     --info-bg:        #EFF6FF;
     --warning-fg:  #8A5B00;
     --warning-bg:  #FFF4DA;
-    --muted-dead:  #A8BDB4;  /* cancelado, expirado: "morto", não "errado" */
+    --muted-dead:  #A8BDB4;
+
+    /* ── A luz que gira na borda do cartão de login ──
+       São DOIS tons, e o efeito de "facho girando" vem do contraste entre
+       eles: fechado nas pontas, claro no meio. Ela usava `--accent-700` nas
+       pontas, e quando esse token virou TINTA (e passou a clarear no escuro,
+       em 23/09/2026) o facho perdeu o contorno sem ninguém decidir isso: no
+       escuro as duas cores ficavam a um passo uma da outra.
+
+       Aqui a luz tem tons próprios, que não dependem do token de texto. Eles
+       mudam por tema de propósito: o que desenha um facho sobre branco não é o
+       que desenha um facho sobre preto. */
+    --luz-cartao-borda:  #008762;
+    --luz-cartao-brilho: #4ADE80;  /* cancelado, expirado: "morto", não "errado" */
     /* Roxo da automação e da IA, quando ele é TINTA sobre a superfície (botão
        "Automação" do lead, ícone do agente no chat). O #8B5CF6 dos ícones de
        bloco no canvas é outra coisa: lá ele é marca de categoria sobre um
@@ -352,6 +365,10 @@
     --text-inverse:    #16181B;
     /* Tinta de erro e de aviso: no claro são tons fechados, feitos para fundo
        branco. Sobre o --danger-bg escuro dariam 1,6:1. */
+    /* No escuro o facho sobe de tom inteiro, senão ele some no fundo; o
+       contraste INTERNO entre os dois é o que se mantém. */
+    --luz-cartao-borda:  #00A879;
+    --luz-cartao-brilho: #A5F3D9;
     --roxo-ia: #C6A0F0;
     --laranja-acao: #F3BE93;
     --azul-api:     #A8C8F7;

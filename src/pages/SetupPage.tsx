@@ -681,7 +681,7 @@ export default function SetupPage() {
             <div
               className="absolute inset-[-100%]"
               style={{
-                background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, var(--accent-700) 65%, #4ade80 75%, var(--accent-700) 85%, transparent 95%)",
+                background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, var(--luz-cartao-borda) 65%, var(--luz-cartao-brilho) 75%, var(--luz-cartao-borda) 85%, transparent 95%)",
                 animation: "spin-border 4s linear infinite",
               }}
             />
