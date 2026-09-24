@@ -39,7 +39,7 @@ export function SeletorDeTema({ className }: { className?: string }) {
     <div
       role="group"
       aria-label={t("tema.rotulo")}
-      className={`inline-flex items-center gap-0.5 rounded-full border border-input bg-card p-0.5 ${className ?? ""}`}
+      className={`inline-flex h-[var(--control-h-sm)] items-center gap-0.5 rounded-full border border-input bg-card px-1 ${className ?? ""}`}
     >
       {opcoes.map(({ valor, Icone, rotulo }) => {
         const ativo = tema === valor;
@@ -51,7 +51,7 @@ export function SeletorDeTema({ className }: { className?: string }) {
             aria-pressed={ativo}
             title={rotulo}
             onClick={() => setTema(valor)}
-            className={`flex h-7 w-7 items-center justify-center rounded-full transition-colors ${
+            className={`flex h-[28px] w-[28px] items-center justify-center rounded-full transition-colors ${
               ativo
                 ? "bg-muted text-foreground"
                 : "text-muted-foreground hover:text-foreground"

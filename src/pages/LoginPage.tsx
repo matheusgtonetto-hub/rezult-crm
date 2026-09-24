@@ -79,7 +79,7 @@ export default function LoginPage() {
         <div className="absolute top-5 right-5 z-10 flex items-center gap-2"><SeletorDeIdioma /><SeletorDeTema /></div>
         <div className="flex-1 flex items-center justify-center py-6">
         <div
-          className="w-full max-w-[380px] bg-card rounded-lg p-[30px] text-center border border-input shadow-elev-3"
+          className="w-full max-w-[380px] bg-card rounded-[var(--radius-card)] p-[30px] text-center border border-input shadow-elev-3"
                   >
           <div className="flex justify-center mb-6"><MarcaRezult /></div>
 
@@ -97,7 +97,7 @@ export default function LoginPage() {
                 <br />{t("senha.enviadoInstrucao")}
               </p>
               <Button
-                className="w-full h-auto py-[10px] rounded-[6px] font-semibold mt-8"
+                className="w-full h-[var(--control-h-lg)] font-semibold mt-8"
                 onClick={() => setScreen("login")}
               >
                 {t("senha.voltar")}
@@ -119,19 +119,19 @@ export default function LoginPage() {
                     placeholder={t("login.emailPlaceholder")}
                     value={forgotEmail}
                     onChange={e => setForgotEmail(e.target.value)}
-                    className="h-auto rounded-[6px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                    className="focus-visible:border-primary"
                     autoFocus
                   />
                 </div>
 
-                <Button type="submit" className="w-full h-auto py-[10px] rounded-[6px] font-semibold" disabled={forgotLoading}>
+                <Button type="submit" className="w-full h-[var(--control-h-lg)] font-semibold" disabled={forgotLoading}>
                   {forgotLoading ? t("senha.enviando") : t("senha.enviar")}
                 </Button>
 
                 <Button
                   type="button"
                   variant="outline"
-                  className="w-full h-auto py-[10px] rounded-[6px]"
+                  className="w-full h-[var(--control-h-lg)]"
                   onClick={() => setScreen("login")}
                 >
                   {t("senha.voltar")}
@@ -154,7 +154,7 @@ export default function LoginPage() {
     <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "var(--accent-50)" }}>
       <div className="absolute top-5 right-5 z-10 flex items-center gap-2"><SeletorDeIdioma /><SeletorDeTema /></div>
       <div className="flex-1 flex items-center justify-center py-6">
-      <div className="relative w-full max-w-[380px] rounded-[8px] p-[1px] overflow-hidden shadow-elev-3">
+      <div className="relative w-full max-w-[380px] rounded-[var(--radius-card)] p-[1px] overflow-hidden shadow-elev-3">
         {/* Rotating border lights */}
         <div
           className="absolute inset-[-100%]"
@@ -171,7 +171,7 @@ export default function LoginPage() {
           }}
         />
         <div
-        className="relative w-full bg-card rounded-[8px] p-[30px]"
+        className="relative w-full bg-card rounded-[var(--radius-card)] p-[30px]"
               >
         <div className="flex justify-center items-center mb-[15px]">
           <MarcaRezult />
@@ -201,7 +201,7 @@ export default function LoginPage() {
               placeholder={t("login.emailPlaceholder")}
               value={email}
               onChange={e => setEmail(e.target.value)}
-              className="h-auto rounded-[6px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+              className="focus-visible:border-primary"
               autoComplete="email"
             />
           </div>
@@ -215,7 +215,7 @@ export default function LoginPage() {
                 placeholder={t("login.senhaPlaceholder")}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="h-auto rounded-[6px] pr-10 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                className="pr-10 focus-visible:border-primary"
                 autoComplete="current-password"
               />
               <button
@@ -239,14 +239,14 @@ export default function LoginPage() {
             </button>
           </div>
 
-          <Button type="submit" className="w-full h-auto py-[10px] rounded-[6px] font-semibold" disabled={loading}>
+          <Button type="submit" className="w-full h-[var(--control-h-lg)] font-semibold" disabled={loading}>
             {loading ? t("login.aguarde") : t("login.entrar")}
           </Button>
 
           <Button
             type="button"
             variant="outline"
-            className="w-full h-auto py-[10px] rounded-[6px] font-medium bg-card border border-primary text-primary hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors"
+            className="w-full h-[var(--control-h-lg)] font-medium bg-card border border-primary text-primary hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors"
             onClick={() => navigate("/register")}
           >
             {t("login.criarConta")}

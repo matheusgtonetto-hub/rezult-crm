@@ -147,7 +147,7 @@ export default function Verify2FAPage() {
           </div>
 
           <Button
-            className="w-full h-auto py-[10px] rounded-[6px] font-semibold mt-5"
+            className="w-full h-[var(--control-h-lg)] font-semibold mt-5"
             onClick={handleVerify}
             disabled={loading || !isComplete}
           >
