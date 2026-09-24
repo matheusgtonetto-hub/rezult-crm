@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { FundoDoCrm } from "@/components/FundoDoCrm";
 import { TelaPreparandoConta } from "@/components/TelaPreparandoConta";
+import { MarcaRezult } from "@/components/MarcaRezult";
 import {
   Check,
   ChevronRight,
@@ -531,7 +532,7 @@ export default function CompanyRegisterPage() {
           {/* ── Left sidebar ── */}
           <div className="w-[280px] shrink-0 flex flex-col pl-[35px] pr-[20px] pt-10 pb-10">
             <div className="flex items-center mb-5">
-              <img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-7 w-auto" />
+              <MarcaRezult />
             </div>
 
             <h2 className="text-[14px] font-semibold text-foreground mb-1">Finalize seu cadastro</h2>
@@ -647,7 +648,7 @@ export default function CompanyRegisterPage() {
             {step === 1 && (
               <div className="space-y-[14px]">
                 <div className="space-y-[3px]">
-                  <Label htmlFor="full-name" className="text-[13px] font-normal text-black">Seu nome</Label>
+                  <Label htmlFor="full-name" className="text-[13px] font-normal text-foreground">Seu nome</Label>
                   {/* Chega preenchido do cadastro da conta, mas editável: é a
                       chance de corrigir o que foi digitado às pressas, e é este
                       nome que aparece como responsável nos negócios depois. */}
@@ -664,12 +665,12 @@ export default function CompanyRegisterPage() {
                 </div>
 
                 <div className="space-y-[3px]">
-                  <Label className="text-[13px] font-normal text-black">Telefone</Label>
+                  <Label className="text-[13px] font-normal text-foreground">Telefone</Label>
                   {/* Único telefone do cadastro desde que a etapa de contato
                       virou "Seus objetivos". Vai para `profiles.phone` e também
                       preenche `companies.phone`, que é o que a Stripe usa como
                       dado de cobrança. */}
-                  <div className={cn("flex items-center border border-input rounded-[6px] focus-within:border-primary transition-colors bg-white", bordaDePreenchido(personalPhone))}>
+                  <div className={cn("flex items-center border border-input rounded-[6px] focus-within:border-primary transition-colors bg-card", bordaDePreenchido(personalPhone))}>
                     {/* O gatilho perde borda, fundo e altura próprios para
                         continuar sendo apenas a parte esquerda do campo de
                         telefone, e não uma caixa dentro de outra. A borda que
@@ -706,7 +707,7 @@ export default function CompanyRegisterPage() {
                 </div>
 
                 <div className="space-y-[3px]">
-                  <Label htmlFor="job-title" className="text-[13px] font-normal text-black">
+                  <Label htmlFor="job-title" className="text-[13px] font-normal text-foreground">
                     Qual cargo descreve melhor sua função?
                   </Label>
                   <Select value={jobTitle} onValueChange={setJobTitle}>
@@ -722,7 +723,7 @@ export default function CompanyRegisterPage() {
                 </div>
 
                 <div className="space-y-[3px]">
-                  <Label htmlFor="crm-experience" className="text-[13px] font-normal text-black">
+                  <Label htmlFor="crm-experience" className="text-[13px] font-normal text-foreground">
                     Você já usa um CRM?
                   </Label>
                   {/* Lista suspensa e não caixas lado a lado: as três respostas
@@ -785,7 +786,7 @@ export default function CompanyRegisterPage() {
             {step === 2 && (
               <div className="space-y-[14px]">
                 <div className="space-y-[3px]">
-                  <Label htmlFor="company-name" className="text-[13px] font-normal text-black">Nome da empresa</Label>
+                  <Label htmlFor="company-name" className="text-[13px] font-normal text-foreground">Nome da empresa</Label>
                   <Input
                     id="company-name"
                     type="text"
@@ -799,7 +800,7 @@ export default function CompanyRegisterPage() {
                 </div>
 
                 <div className="space-y-[3px]">
-                  <Label htmlFor="company-niche" className="text-[13px] font-normal text-black">
+                  <Label htmlFor="company-niche" className="text-[13px] font-normal text-foreground">
                     Qual o segmento da sua empresa?
                   </Label>
                   {/* Mesmo desenho do dropdown de País, na última etapa: um
@@ -838,7 +839,7 @@ export default function CompanyRegisterPage() {
                       line-height do bloco em volta, não pelo `leading-none` que
                       ele carrega. Em bloco, a caixa dele mede exatamente os
                       13px da fonte e encosta nas letras. */}
-                  <Label className="block text-[13px] font-semibold text-black">
+                  <Label className="block text-[13px] font-semibold text-foreground">
                     Quantas pessoas na sua empresa usarão o Rezult?
                   </Label>
                   {/* Fica ANTES das opções, e não depois: a dúvida que este
@@ -890,7 +891,7 @@ export default function CompanyRegisterPage() {
                             "bg-card",
                             marcada
                               ? "border-primary text-primary"
-                              : "border-gray-300 text-foreground"
+                              : "border-input text-foreground"
                           )}
                         >
                           <input
@@ -919,7 +920,7 @@ export default function CompanyRegisterPage() {
             {step === 3 && (
               <div className="space-y-[14px]">
                 <div>
-                  <Label className="block text-[13px] font-semibold text-black">
+                  <Label className="block text-[13px] font-semibold text-foreground">
                     Qual seu principal ponto de contato com os leads?
                   </Label>
                   <p className="block text-[12px] leading-none text-muted-foreground mt-1 mb-[14px]">
@@ -941,7 +942,7 @@ export default function CompanyRegisterPage() {
                             "flex items-center gap-2.5 px-3 py-[12px] rounded-[6px] border cursor-pointer transition-all bg-card",
                             "hover:border-primary/60",
                             "focus-within:ring-2 focus-within:ring-primary/30",
-                            marcado ? "border-primary text-primary" : "border-gray-300 text-foreground"
+                            marcado ? "border-primary text-primary" : "border-input text-foreground"
                           )}
                         >
                           <input
@@ -959,7 +960,7 @@ export default function CompanyRegisterPage() {
                           <span
                             className={cn(
                               "w-4 h-4 rounded-[6px] border-[1.5px] flex items-center justify-center shrink-0 transition-colors",
-                              marcado ? "border-primary bg-primary" : "border-gray-300"
+                              marcado ? "border-primary bg-primary" : "border-input"
                             )}
                           >
                             {marcado && <Check size={11} className="text-white" strokeWidth={3} />}
@@ -972,7 +973,7 @@ export default function CompanyRegisterPage() {
                 </div>
 
                 <div className="space-y-[3px]">
-                  <Label htmlFor="monthly-leads" className="text-[13px] font-normal text-black">
+                  <Label htmlFor="monthly-leads" className="text-[13px] font-normal text-foreground">
                     Quantos leads sua empresa gera por mês?
                   </Label>
                   {/* Vizinha do porte de propósito: as duas parecem a mesma
@@ -1008,7 +1009,7 @@ export default function CompanyRegisterPage() {
                       inline a altura da linha dele passa a ser decidida pelo
                       line-height do bloco em volta, não pelo `leading-none` que
                       ele carrega. */}
-                  <Label className="block text-[13px] font-semibold text-black">
+                  <Label className="block text-[13px] font-semibold text-foreground">
                     Quais resultados você busca alcançar com o Rezult?
                   </Label>
                   {/* `leading-none` pelo mesmo motivo da etapa 2: sem ele o
@@ -1042,7 +1043,7 @@ export default function CompanyRegisterPage() {
                             "flex items-center gap-2.5 px-3 py-[15px] rounded-[6px] border cursor-pointer transition-all bg-card",
                             "hover:border-primary/60",
                             "focus-within:ring-2 focus-within:ring-primary/30",
-                            marcado ? "border-primary text-primary" : "border-gray-300 text-foreground"
+                            marcado ? "border-primary text-primary" : "border-input text-foreground"
                           )}
                         >
                           <input
@@ -1066,7 +1067,7 @@ export default function CompanyRegisterPage() {
                           <span
                             className={cn(
                               "w-4 h-4 rounded-[6px] border-[1.5px] flex items-center justify-center shrink-0 transition-colors",
-                              marcado ? "border-primary bg-primary" : "border-gray-300"
+                              marcado ? "border-primary bg-primary" : "border-input"
                             )}
                           >
                             {marcado && <Check size={11} className="text-white" strokeWidth={3} />}

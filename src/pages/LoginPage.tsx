@@ -8,7 +8,9 @@ import { Eye, EyeOff, MailCheck, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useIdioma } from "@/context/IdiomaContext";
 import { SeletorDeIdioma } from "@/components/SeletorDeIdioma";
+import { SeletorDeTema } from "@/components/SeletorDeTema";
 import { RodapeLegal } from "@/components/RodapeLegal";
+import { MarcaRezult } from "@/components/MarcaRezult";
 
 type Screen = "login" | "forgot";
 
@@ -74,12 +76,12 @@ export default function LoginPage() {
         {/* Preso ao canto da tela, fora do cartão: a escolha vale para a página
             inteira, e dentro do cartão ela viraria mais um campo do
             formulário. `absolute` sobre o `relative` do fundo. */}
-        <div className="absolute top-5 right-5 z-10"><SeletorDeIdioma /></div>
+        <div className="absolute top-5 right-5 z-10 flex items-center gap-2"><SeletorDeIdioma /><SeletorDeTema /></div>
         <div className="flex-1 flex items-center justify-center py-6">
         <div
-          className="w-full max-w-[380px] bg-card rounded-lg p-[30px] text-center border border-gray-300 shadow-elev-3"
+          className="w-full max-w-[380px] bg-card rounded-lg p-[30px] text-center border border-input shadow-elev-3"
                   >
-          <div className="flex justify-center mb-6"><img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-10 w-auto" /></div>
+          <div className="flex justify-center mb-6"><MarcaRezult /></div>
 
           <div className="flex justify-center mb-4">
             <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
@@ -110,7 +112,7 @@ export default function LoginPage() {
 
               <form onSubmit={handleForgot} className="space-y-4 mt-8 text-left">
                 <div className="space-y-[3px]">
-                  <Label htmlFor="forgot-email" className="text-[13px] font-normal text-black">{t("login.email")}</Label>
+                  <Label htmlFor="forgot-email" className="text-[13px] font-normal text-foreground">{t("login.email")}</Label>
                   <Input
                     id="forgot-email"
                     type="email"
@@ -150,7 +152,7 @@ export default function LoginPage() {
   // no meio da tela.
   return (
     <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "var(--accent-50)" }}>
-      <div className="absolute top-5 right-5 z-10"><SeletorDeIdioma /></div>
+      <div className="absolute top-5 right-5 z-10 flex items-center gap-2"><SeletorDeIdioma /><SeletorDeTema /></div>
       <div className="flex-1 flex items-center justify-center py-6">
       <div className="relative w-full max-w-[380px] rounded-[8px] p-[1px] overflow-hidden shadow-elev-3">
         {/* Rotating border lights */}
@@ -172,7 +174,7 @@ export default function LoginPage() {
         className="relative w-full bg-card rounded-[8px] p-[30px]"
               >
         <div className="flex justify-center items-center mb-[15px]">
-          <img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-10 w-auto" />
+          <MarcaRezult />
         </div>
 
         {emailConfirmed && (
@@ -186,13 +188,13 @@ export default function LoginPage() {
         )}
 
         <h1 className="text-[24px] text-foreground text-center" style={{ fontFamily: "'Geist Sans', sans-serif", fontWeight: 700, letterSpacing: "-0.2px" }}>{t("login.titulo")}</h1>
-        <p className="text-[14px] text-gray-500 text-center mt-[1px]" style={{ fontWeight: 400 }}>
+        <p className="text-[14px] text-muted-foreground text-center mt-[1px]" style={{ fontWeight: 400 }}>
           {t("login.subtitulo")}
         </p>
 
         <form onSubmit={handleLogin} className="space-y-3 mt-[15px]">
           <div className="space-y-[3px]">
-            <Label htmlFor="email" className="text-[13px] font-normal text-black">{t("login.email")}</Label>
+            <Label htmlFor="email" className="text-[13px] font-normal text-foreground">{t("login.email")}</Label>
             <Input
               id="email"
               type="email"
@@ -205,7 +207,7 @@ export default function LoginPage() {
           </div>
 
           <div className="space-y-[3px]">
-            <Label htmlFor="password" className="text-[13px] font-normal text-black">{t("login.senha")}</Label>
+            <Label htmlFor="password" className="text-[13px] font-normal text-foreground">{t("login.senha")}</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -244,7 +246,7 @@ export default function LoginPage() {
           <Button
             type="button"
             variant="outline"
-            className="w-full h-auto py-[10px] rounded-[6px] font-medium bg-white border border-primary text-primary hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors"
+            className="w-full h-auto py-[10px] rounded-[6px] font-medium bg-card border border-primary text-primary hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors"
             onClick={() => navigate("/register")}
           >
             {t("login.criarConta")}

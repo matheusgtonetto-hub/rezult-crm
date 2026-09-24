@@ -8,10 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { SeletorDeIdioma } from "@/components/SeletorDeIdioma";
+import { SeletorDeTema } from "@/components/SeletorDeTema";
 import { RodapeLegal } from "@/components/RodapeLegal";
 import { useIdioma } from "@/context/IdiomaContext";
 import { pixelTrack } from "@/lib/metaPixel";
 import { capturarAtribuicao } from "@/lib/atribuicao";
+import { MarcaRezult } from "@/components/MarcaRezult";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -87,7 +89,7 @@ export default function RegisterPage() {
       {/* Mesmo canto do login: quem escolheu o idioma lá chega aqui pelo botão
           "Criar uma conta", e o seletor precisa continuar onde a pessoa
           acabou de vê-lo. */}
-      <div className="absolute top-5 right-5 z-10"><SeletorDeIdioma /></div>
+      <div className="absolute top-5 right-5 z-10 flex items-center gap-2"><SeletorDeIdioma /><SeletorDeTema /></div>
       <div className="flex-1 flex items-center justify-center py-6">
       <div className="relative w-full max-w-[380px] rounded-[8px] p-[1px] overflow-hidden shadow-elev-3">
         {/* Rotating border lights */}
@@ -124,17 +126,17 @@ export default function RegisterPage() {
           </button>
 
           <div className="flex justify-center items-center mb-[15px]">
-            <img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-10 w-auto" />
+            <MarcaRezult />
           </div>
 
           <h1 className="text-[24px] text-foreground text-center" style={{ fontFamily: "'Geist Sans', sans-serif", fontWeight: 700, letterSpacing: "-0.2px" }}>{t("cadastro.titulo")}</h1>
-          <p className="text-[14px] text-gray-500 text-center mt-[1px]" style={{ fontWeight: 400 }}>
+          <p className="text-[14px] text-muted-foreground text-center mt-[1px]" style={{ fontWeight: 400 }}>
             {t("cadastro.subtitulo")}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-3 mt-[15px]">
             <div className="space-y-[3px]">
-              <Label htmlFor="fullName" className="text-[13px] font-normal text-black">{t("cadastro.nome")}</Label>
+              <Label htmlFor="fullName" className="text-[13px] font-normal text-foreground">{t("cadastro.nome")}</Label>
               <Input
                 id="fullName"
                 type="text"
@@ -148,7 +150,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-[3px]">
-              <Label htmlFor="reg-email" className="text-[13px] font-normal text-black">{t("login.email")}</Label>
+              <Label htmlFor="reg-email" className="text-[13px] font-normal text-foreground">{t("login.email")}</Label>
               <Input
                 id="reg-email"
                 type="email"
@@ -161,7 +163,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-[3px]">
-              <Label htmlFor="reg-password" className="text-[13px] font-normal text-black">{t("login.senha")}</Label>
+              <Label htmlFor="reg-password" className="text-[13px] font-normal text-foreground">{t("login.senha")}</Label>
               <div className="relative">
                 <Input
                   id="reg-password"
@@ -184,7 +186,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-[3px]">
-              <Label htmlFor="reg-confirm" className="text-[13px] font-normal text-black">{t("cadastro.confirmarSenha")}</Label>
+              <Label htmlFor="reg-confirm" className="text-[13px] font-normal text-foreground">{t("cadastro.confirmarSenha")}</Label>
               <div className="relative">
                 <Input
                   id="reg-confirm"

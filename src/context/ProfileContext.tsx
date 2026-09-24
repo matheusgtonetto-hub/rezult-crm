@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { lerTemaLocal, aplicarTema, type Tema } from "@/lib/tema";
 
 export interface Profile {
   id: string;
@@ -11,8 +12,6 @@ export interface Profile {
   created_at: string;
   theme?: "light" | "dark";
 }
-
-export type Tema = "light" | "dark";
 
 interface ProfileContextType {
   profile: Profile | null;
@@ -25,29 +24,11 @@ interface ProfileContextType {
   alternarTema: () => void;
 }
 
-const CHAVE_TEMA = "rezult:tema";
-
-/**
- * O tema escolhido, lido do navegador.
- *
- * Existe porque o perfil vem do Supabase e demora: sem esta memória local, todo
- * carregamento começava claro e virava escuro quando a resposta chegava, um
- * lampejo branco em tela cheia a cada F5. O banco continua sendo a verdade
- * entre dispositivos; o localStorage é só o que o navegador já sabe antes de
- * perguntar.
+/*
+ * A chave e a forma de aplicar moram em `src/lib/tema.ts`, porque as telas de
+ * antes do login também precisam delas e ficam FORA deste provider (App.tsx).
+ * Duas cópias divergiriam no primeiro ajuste.
  */
-function temaLembrado(): Tema {
-  try {
-    return localStorage.getItem(CHAVE_TEMA) === "dark" ? "dark" : "light";
-  } catch {
-    return "light"; // navegador com armazenamento bloqueado
-  }
-}
-
-function applyTheme(theme?: Tema) {
-  document.documentElement.classList.toggle("dark", theme === "dark");
-  try { localStorage.setItem(CHAVE_TEMA, theme === "dark" ? "dark" : "light"); } catch { /* sem armazenamento */ }
-}
 
 const ProfileContext = createContext<ProfileContextType | null>(null);
 
@@ -70,7 +51,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
-  const [tema, setTema] = useState<Tema>(temaLembrado);
+  const [tema, setTema] = useState<Tema>(lerTemaLocal);
 
   useEffect(() => {
     if (!user) {
@@ -107,7 +88,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
         // O perfil é a verdade entre dispositivos; o que o navegador lembrava
         // valeu só até esta linha.
         setTema(data.theme === "dark" ? "dark" : "light");
-        applyTheme(data.theme);
+        aplicarTema(data.theme);
       } else {
         // No profile row yet — create it using auth metadata
         const name = metaName || authEmail.split("@")[0];
@@ -130,7 +111,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     // falhar, o tema fica valendo nesta sessão e volta no próximo login, que é
     // melhor do que desfazer o clique na cara de quem clicou.
     setTema(theme);
-    applyTheme(theme);
+    aplicarTema(theme);
     if (!user) return;
     const { data: updated } = await supabase
       .from("profiles")

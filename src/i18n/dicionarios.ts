@@ -83,6 +83,10 @@ const pt = {
   "cadastro.emailJaCadastrado": "Este e-mail já tem uma conta. Faça login ou recupere sua senha.",
 
   "idioma.rotulo": "Idioma",
+
+  "tema.rotulo": "Tema",
+  "tema.claro": "Tema claro",
+  "tema.escuro": "Tema escuro",
 } as const;
 
 export type Chave = keyof typeof pt;
@@ -141,6 +145,10 @@ const en: Record<Chave, string> = {
   "cadastro.emailJaCadastrado": "This email already has an account. Sign in or reset your password.",
 
   "idioma.rotulo": "Language",
+
+  "tema.rotulo": "Theme",
+  "tema.claro": "Light theme",
+  "tema.escuro": "Dark theme",
 };
 
 const es: Record<Chave, string> = {
@@ -197,6 +205,10 @@ const es: Record<Chave, string> = {
   "cadastro.emailJaCadastrado": "Este correo ya tiene una cuenta. Inicia sesión o recupera tu contraseña.",
 
   "idioma.rotulo": "Idioma",
+
+  "tema.rotulo": "Tema",
+  "tema.claro": "Tema claro",
+  "tema.escuro": "Tema oscuro",
 };
 
 export const DICIONARIOS: Record<Idioma, Record<Chave, string>> = { pt, en, es };

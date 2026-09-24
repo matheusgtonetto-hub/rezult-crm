@@ -1168,7 +1168,7 @@ export default function SetupPage() {
           Duas janelas separadas fariam uma fechar e outra abrir no meio de uma
           decisão de compra, e cada troca dessas é uma chance de desistir. */}
       <Dialog open={!!confirmPlan} onOpenChange={v => { if (!v) fecharConfirmacao(); }}>
-        <DialogContent className="max-w-[400px] rounded-[8px] bg-white">
+        <DialogContent className="max-w-[400px] rounded-[8px] bg-card">
           {confirmPlan && (() => {
             const plan = PLANS.find(p => p.key === confirmPlan)!;
             // Com desconto, como no cartão: se o diálogo mostrasse o preço
@@ -1244,7 +1244,7 @@ export default function SetupPage() {
                   <DialogTitle className="text-[14px]">Confirmar seleção de plano</DialogTitle>
                 </DialogHeader>
                 <div className="py-2 space-y-3">
-                  <div className="flex items-center justify-between py-3 border-y border-gray-100">
+                  <div className="flex items-center justify-between py-3 border-y border-border">
                     <div>
                       <p className="text-[13px] font-semibold text-foreground">{plan.name} — {periodo}</p>
                       <p className="text-[12px] text-muted-foreground mt-0.5">
@@ -1290,7 +1290,7 @@ export default function SetupPage() {
 
       {/* ── Success dialog ── */}
       <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
-        <DialogContent className="max-w-[400px] rounded-[8px] bg-white text-center">
+        <DialogContent className="max-w-[400px] rounded-[8px] bg-card text-center">
           <div className="flex flex-col items-center py-4 gap-4">
             <div className="w-16 h-16 rounded-full bg-[color:var(--accent-50)] flex items-center justify-center">
               <CircleCheck size={36} className="fill-primary stroke-white" />

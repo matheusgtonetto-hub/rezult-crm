@@ -1,4 +1,5 @@
 import { FundoDoCrm } from "@/components/FundoDoCrm";
+import { MarcaRezult } from "@/components/MarcaRezult";
 
 /**
  * Tela de espera entre "Criar conta" e a escolha do plano.
@@ -28,7 +29,7 @@ export function TelaPreparandoConta({ progresso }: { progresso: number }) {
           entraria embaixo dele e sumiria atrás do véu. */}
       <div className="relative w-full max-w-[420px] text-center">
         <div className="flex justify-center mb-8">
-          <img src="/logo-rezult.png?v=2" alt="Rezult CRM" className="h-10 w-auto" />
+          <MarcaRezult />
         </div>
         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
           <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
