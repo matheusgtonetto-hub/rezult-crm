@@ -4,6 +4,7 @@ import { TOOL_SCHEMAS, executeRegistryTool, type ToolCtx, type ToolResult } from
 import { telefonesIguais, variantesDeTelefone } from "../_shared/telefone.ts";
 import { upsertConversationForMessage, previewLabelFor, idsDeConversasPorTelefone } from "../_shared/upsert-conversation.ts";
 import { empresaBloqueada } from "../_shared/cobranca.ts";
+import { debitarCredito } from "../_shared/credito.ts";
 
 // Agente SDS: qualifica leads no multiatendimento com objetivo FIXO de
 // agendar reunião qualificada pro time de closers. Disparado pelos webhooks
@@ -855,16 +856,24 @@ async function logAgentUsage(
   if (usage.inputTokens === 0 && usage.outputTokens === 0) return;
   const pricing = MODEL_PRICING[model] ?? { inputPer1M: 0, outputPer1M: 0 };
   const costUsd = (usage.inputTokens / 1_000_000) * pricing.inputPer1M + (usage.outputTokens / 1_000_000) * pricing.outputPer1M;
-  await db.from("agent_usage_log").insert({
+  const custo = Number(costUsd.toFixed(4));
+  const { data: registro, error } = await db.from("agent_usage_log").insert({
     agent_id: agentId,
     company_id: companyId,
     model,
     input_tokens: usage.inputTokens,
     output_tokens: usage.outputTokens,
-    cost_usd: Number(costUsd.toFixed(4)),
+    cost_usd: custo,
     lead_id: leadId,
     success,
-  });
+  }).select("id").single();
+
+  if (error || !registro) {
+    console.error("[agent-sds] FALHA AO REGISTRAR USO (consumo sem débito):", error?.message);
+    return;
+  }
+
+  await debitarCredito(db, companyId, registro.id as string, custo, "agent-sds");
 }
 
 // Divide uma mensagem longa em partes de até `maxWords` palavras, quebrando

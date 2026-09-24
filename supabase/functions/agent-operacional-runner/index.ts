@@ -22,6 +22,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { empresaBloqueada } from "../_shared/cobranca.ts";
 import { executeRegistryTool, TOOL_SCHEMAS, type ToolResult, type ToolSchema } from "../_shared/agent-tools.ts";
 import { somenteDigitos } from "../_shared/telefone.ts";
+import { debitarCredito } from "../_shared/credito.ts";
 
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -533,19 +534,39 @@ async function loopAnthropic(
   return { uso, textoFinal, falhou };
 }
 
+/*
+ * O débito do crédito acontece AQUI, junto com o registro do uso.
+ *
+ * É o mesmo lugar de propósito: enquanto o débito for um segundo passo em outro
+ * canto do código, existe o caminho em que a chamada acontece e o saldo não cai
+ * -- que é a única coisa que este sistema não pode deixar acontecer.
+ *
+ * `debitar_credito` devolve null para empresa SEM conta de crédito, que é o
+ * caso de quem usa chave própria: ela paga direto ao fornecedor e não é tocada.
+ * Por isso ligar isto não muda nada para as empresas de hoje.
+ */
 async function registrarUso(db: Db, agentId: string, companyId: string, model: string, uso: Uso, leadId: string | null, sucesso: boolean) {
   if (uso.entrada === 0 && uso.saida === 0) return;
   const preco = MODEL_PRICING[model] ?? { inputPer1M: 0, outputPer1M: 0 };
   const custo = (uso.entrada / 1_000_000) * preco.inputPer1M + (uso.saida / 1_000_000) * preco.outputPer1M;
-  const { error } = await db.from("agent_usage_log").insert({
+  const custoUsd = Number(custo.toFixed(4));
+  const { data: registro, error } = await db.from("agent_usage_log").insert({
     agent_id: agentId,
     company_id: companyId,
     model,
     input_tokens: uso.entrada,
     output_tokens: uso.saida,
-    cost_usd: Number(custo.toFixed(4)),
+    cost_usd: custoUsd,
     lead_id: leadId,
     success: sucesso,
-  });
-  if (error) console.error("[agent-operacional] falha ao registrar uso:", error.message);
+  }).select("id").single();
+
+  if (error || !registro) {
+    // Uso não registrado é consumo que ninguém vai cobrar nem conciliar. Era um
+    // console.error solto; agora grita, porque passou a valer dinheiro.
+    console.error("[agent-operacional] FALHA AO REGISTRAR USO (consumo sem débito):", error?.message);
+    return;
+  }
+
+  await debitarCredito(db, companyId, registro.id as string, custoUsd, "agent-operacional");
 }
