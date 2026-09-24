@@ -85,7 +85,7 @@ export default function RegisterPage() {
   // container ainda rola, porque o formulário é alto -- e nesse caso o rodapé
   // aparece ao terminar de rolar, que é onde se espera encontrá-lo.
   return (
-    <div className="relative h-screen overflow-y-auto flex flex-col px-4" style={{ background: "var(--bg-app)" }}>
+    <div className="relative h-screen overflow-y-auto flex flex-col px-4" style={{ background: "var(--neutral-0)" }}>
       {/* Mesmo canto do login: quem escolheu o idioma lá chega aqui pelo botão
           "Criar uma conta", e o seletor precisa continuar onde a pessoa
           acabou de vê-lo. */}

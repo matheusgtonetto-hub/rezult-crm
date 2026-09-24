@@ -72,7 +72,7 @@ export default function LoginPage() {
 
   if (screen === "forgot") {
     return (
-      <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "var(--bg-app)" }}>
+      <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "var(--neutral-0)" }}>
         {/* Preso ao canto da tela, fora do cartão: a escolha vale para a página
             inteira, e dentro do cartão ela viraria mais um campo do
             formulário. `absolute` sobre o `relative` do fundo. */}
@@ -151,7 +151,7 @@ export default function LoginPage() {
   // para baixo -- centralizar tudo junto deixaria o rodapé grudado no cartão,
   // no meio da tela.
   return (
-    <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "var(--bg-app)" }}>
+    <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "var(--neutral-0)" }}>
       <div className="absolute top-5 right-5 z-10 flex items-center gap-2"><SeletorDeIdioma /><SeletorDeTema /></div>
       <div className="flex-1 flex items-center justify-center py-6">
       <div className="relative w-full max-w-[380px] rounded-[var(--radius-card)] p-[1px] overflow-hidden shadow-elev-3">
