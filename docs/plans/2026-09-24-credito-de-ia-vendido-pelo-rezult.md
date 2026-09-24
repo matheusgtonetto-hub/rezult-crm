@@ -80,13 +80,32 @@ modelo mais barato no operacional (as 44 chamadas por lead não precisam todas
 do modelo grande), menos contexto por chamada, e cache. Vender crédito com o
 custo atual é vender um problema com o nome de conveniência.
 
-### 4.2 Revenda, do ponto de vista do fornecedor
+### 4.2 Revenda: verificado em 24/09/2026
 
-Repassar capacidade da OpenAI com margem, faturando no seu nome, é uma relação
-comercial diferente de consumir a própria cota. Isso **precisa ser verificado
-nos termos vigentes antes de qualquer linha de código** -- não verifiquei, e não
-vou afirmar o que não medi. É a primeira tarefa, porque um "não" aqui derruba o
-desenho inteiro e não adianta descobrir depois de construído.
+O Services Agreement da OpenAI diz que o cliente *"may not resell or lease
+access to their Account or any End User Account"*. **Revender acesso à conta é
+proibido.** Mas a mesma leitura traz a distinção que salva o projeto: os
+OUTPUTS são do cliente, e vender aplicações construídas sobre a API é
+permitido. O que não se pode é repassar acesso ou credenciais.
+
+Isso não impede o modelo. Define como ele se chama e como se vende:
+
+| Não faça | Faça |
+|---|---|
+| Vender "crédito de OpenAI" | Vender **"crédito de uso dos agentes Rezult"** |
+| Prometer "X tokens da OpenAI" | Prometer uso do produto |
+| Expor a chave, o modelo ou o fornecedor | Manter o fornecedor como insumo interno |
+
+É exatamente o que o Kiwiagent faz: o Stripe do print cobra "Kiwiagent
+credits", não "créditos OpenAI". E é o segundo motivo para não informar o
+modelo ao cliente -- além de ser melhor para o produto, é o que mantém a
+relação como "vendo meu software" em vez de "revendo acesso alheio".
+
+**Isto é leitura de termos, não parecer jurídico.** Antes de faturar, vale a
+validação de quem responde por isso.
+
+Fontes: [Services Agreement](https://openai.com/policies/services-agreement/),
+[Business terms](https://openai.com/policies/aug-2023-business-terms/).
 
 ### 4.3 Câmbio e fiscal
 
@@ -104,6 +123,43 @@ Com a chave da Rezult rodando para o cliente, um laço mal configurado numa
 automação consome dinheiro **seu** até alguém perceber. Precisa de teto por
 empresa e por dia, corte automático e alarme. Isso não é opcional: é a
 diferença entre um produto e um prejuízo.
+
+### 4.5 O caixa: como o dinheiro anda de verdade
+
+A pergunta do dono era não precisar comprar saldo antes para deixar disponível.
+A resposta tem duas partes, e a primeira **corrige o que eu havia dito**.
+
+**Não existe estoque por cliente.** O saldo do cliente é um número numa tabela
+nossa. Ele compra, o número sobe; consome, o número desce. Nada é adquirido por
+cliente, em lugar nenhum.
+
+**Mas a conta da OpenAI é PRÉ-PAGA, e não pós-paga como eu afirmei antes.** A
+OpenAI migrou de pós-pago para pré-pago: é preciso ter crédito na conta ANTES
+de consumir. Então existe, sim, um capital inicial. O que se mantém da análise
+anterior é o tamanho dele: um colchão proporcional à queima de alguns dias, e
+não ao total vendido. Vendendo R$ 50.000 em crédito, não é preciso ter R$
+50.000 lá dentro.
+
+O mecanismo que o dono descreveu existe e se chama **auto-recharge**: repõe
+quando o saldo cai abaixo de um limite definido, mínimo de US$ 5 por recarga,
+com teto mensal opcional. É uma torneira agregada, alimentada pelo caixa que os
+clientes já depositaram -- não uma compra por cliente.
+
+Três parâmetros que vieram junto e mudam decisões:
+
+1. **Créditos comprados expiram em 1 ano** e **não são reembolsáveis**.
+   Argumento forte para colchão pequeno e recarga frequente, em vez de um lote
+   grande comprado de uma vez.
+2. **Saldo zero derruba todo mundo junto.** A API passa a devolver erro de cota
+   esgotada, e como a conta é uma só, todos os clientes param ao mesmo tempo --
+   inclusive os que têm saldo comprado. Precisa de alarme com folga de dias, e
+   não aviso no dia.
+3. O float (dinheiro recebido e ainda não consumido) **não é receita**, é
+   obrigação. Gastá-lo é o mecanismo que quebra empresa de gift card. Receita se
+   reconhece conforme o consumo acontece.
+
+Fontes: [prepaid billing](https://help.openai.com/en/articles/8264778-what-is-prepaid-billing),
+[expiração e recarga](https://benchlm.ai/blog/posts/api-credits-explained).
 
 ## 5. Recomendação
 
@@ -146,7 +202,7 @@ alavanca na mão justamente quando estiver vendendo crédito.
 
 | # | Tarefa | Depende de |
 |---|---|---|
-| 0 | Verificar os termos do fornecedor sobre revenda | nada -- **é o primeiro** |
+| 0 | ~~Verificar os termos do fornecedor~~ **feito em 24/09**: pode vender o produto, não pode revender acesso | — |
 | 1 | Baixar o custo por lead (modelo, contexto, cache) | nada -- pode começar junto |
 | 2 | Tabela de saldo + débito no `cost_usd` já calculado | 0 |
 | 3 | Teto por empresa/dia + corte + alarme | 2 |
@@ -154,7 +210,7 @@ alavanca na mão justamente quando estiver vendendo crédito.
 | 5 | Extrato na tela de Agentes | 2 |
 | 6 | Chave da Rezult com fallback para a do cliente | 2, 3 |
 
-Os itens 0 e 1 são os que mandam. Os outros são trabalho conhecido em cima de
+O item 1 é o que manda agora, já que o 0 saiu do caminho. Os outros são trabalho conhecido em cima de
 peças que já existem.
 
 ## 7. Resposta à pergunta "o que você acha?"
