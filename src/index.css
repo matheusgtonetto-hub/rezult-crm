@@ -135,6 +135,21 @@
     /* Uma volta da luz. Era 4s cravado nos dez lugares; o dono pediu mais
        lento em 24/09/2026. */
     --luz-cartao-giro: 8s;
+
+    /* ── A forma do feixe ──
+       As paradas são percentuais da VOLTA, então cada 1% vale 3,6°. O feixe
+       tem um núcleo de cor cheia e um degradê de cada lado, e a proporção
+       entre eles (2:1) é o que dá o formato de cometa em vez de mancha.
+
+       Nasceu com 72° de núcleo e 36° de degradê (144° visíveis, de 55% a 95%).
+       O dono pediu ambos menores, na mesma proporção, em 24/09/2026: agora são
+       36° de núcleo e 18° de degradê, 72° visíveis, centrados no mesmo ponto
+       da volta (75%). Com dois feixes, o escuro entre eles passou de 72° para
+       216°, e é esse escuro que faz o giro ser percebido.
+
+       O gradiente inteiro mora aqui porque estava copiado em dez lugares. */
+    --luz-cartao-feixe-a: conic-gradient(from 0deg,   transparent 0%, transparent 65%, var(--luz-cartao-borda) 70%, var(--luz-cartao-brilho) 75%, var(--luz-cartao-borda) 80%, transparent 85%);
+    --luz-cartao-feixe-b: conic-gradient(from 180deg, transparent 0%, transparent 65%, var(--luz-cartao-borda) 70%, var(--luz-cartao-brilho) 75%, var(--luz-cartao-borda) 80%, transparent 85%);
     --luz-cartao-borda:  #008762;
     --luz-cartao-brilho: #4ADE80;  /* cancelado, expirado: "morto", não "errado" */
     /* Roxo da automação e da IA, quando ele é TINTA sobre a superfície (botão
