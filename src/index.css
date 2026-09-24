@@ -109,12 +109,18 @@
        No claro é o verde-menta da marca, que é como a tela nasceu e para onde
        o dono pediu de volta em 24/09/2026, depois de ver o cinza e o branco.
 
-       Ele é um token próprio, e não o `--accent-50` direto, porque os dois
-       temas seguem caminhos diferentes aqui: no escuro o dono ficou com a
-       superfície neutra, e não com a versão escura do menta. Um token só para
-       este papel deixa as duas escolhas explícitas, em vez de uma delas ser
-       efeito colateral da outra. */
-    --fundo-entrada: var(--accent-50);
+       Ele é um token próprio, e não um tom da rampa, porque os dois temas
+       seguem caminhos diferentes aqui: no escuro o dono ficou com a superfície
+       neutra, e não com uma versão escura do verde. Um token só para este papel
+       deixa as duas escolhas explícitas, em vez de uma ser efeito colateral da
+       outra.
+
+       O valor é o verde ORIGINAL da tela, bem mais lavado que o menta da
+       rampa: ele vinha cravado como #F2F7F5 e virou `--accent-50` sem pedido,
+       no commit 4786643 (barra superior). O dono notou a diferença e pediu o
+       primeiro de volta. Deixar o hex aqui, num token de um papel só, é o que
+       impede que ele seja "arrumado" de novo para um tom da rampa. */
+    --fundo-entrada: #F2F7F5;
 
     /* ── A luz que gira na borda do cartão de login ──
        São DOIS tons, e o efeito de "facho girando" vem do contraste entre
