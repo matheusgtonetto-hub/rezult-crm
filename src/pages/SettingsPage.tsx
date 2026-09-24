@@ -1207,6 +1207,8 @@ function EquipeSection() {
   const [confirmRemove, setConfirmRemove] = useState<Member | null>(null);
   const [canceling, setCanceling] = useState<string | null>(null);
   const [editMember, setEditMember] = useState<Member | null>(null);
+  /** Departamentos marcados no diálogo de edição, partindo do que a pessoa já tem. */
+  const [editDepts, setEditDepts] = useState<string[]>([]);
   const [editPerms, setEditPerms] = useState<string[]>([]);
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -1337,6 +1339,9 @@ function EquipeSection() {
   const openEditPermissions = (m: Member) => {
     setEditMember(m);
     setEditPerms(m.permissions);
+    // O vínculo mora no departamento, então a leitura é invertida: percorre os
+    // departamentos procurando quem está dentro. Mesma conta da coluna da tabela.
+    setEditDepts(departamentos.filter(d => d.attendant_ids.includes(m.id)).map(d => d.id));
   };
 
   const handleSavePermissions = async () => {
@@ -1352,7 +1357,34 @@ function EquipeSection() {
     if (error) { toast.error("Erro ao salvar permissões."); return; }
     if (data === "no_permission") { toast.error("Você não tem permissão para editar membros."); return; }
     if (data === "cannot_edit_owner") { toast.error("As permissões do dono da empresa não podem ser alteradas."); return; }
-    toast.success("Permissões atualizadas!");
+    /*
+     * O departamento vai numa chamada separada, e DEPOIS das permissões.
+     *
+     * São dois destinos diferentes: permissão mora em `company_members`,
+     * departamento mora em `departments.attendant_ids`. Se esta segunda falhar,
+     * a permissão já está salva e a mensagem diz exatamente o que faltou --
+     * melhor do que desfazer a primeira e deixar o admin sem saber qual das
+     * duas coisas valeu.
+     */
+    const antes = departamentos.filter(d => d.attendant_ids.includes(editMember.id)).map(d => d.id);
+    const mudou = antes.length !== editDepts.length || antes.some(id => !editDepts.includes(id));
+    if (mudou) {
+      const { data: rDept, error: eDept } = await supabase.rpc("atualizar_departamentos_do_membro", {
+        p_company_id: company!.id,
+        p_user_id: editMember.id,
+        p_department_ids: editDepts,
+      });
+      if (eDept || (rDept && rDept !== "ok")) {
+        toast.error(rDept === "no_permission"
+          ? "Permissões salvas, mas você não pode alterar departamentos."
+          : "Permissões salvas, mas o departamento não foi alterado.");
+        setEditMember(null);
+        return;
+      }
+      setVersaoDepartamentos(v => v + 1);
+    }
+
+    toast.success(mudou ? "Permissões e departamentos atualizados!" : "Permissões atualizadas!");
     setMembers(prev => prev.map(m => m.id === editMember.id ? { ...m, permissions: editPerms } : m));
     setEditMember(null);
   };
@@ -1903,11 +1935,64 @@ function EquipeSection() {
             {!editPerms.includes("admin") && (
               <PermissionsEditor permissions={editPerms} onChange={setEditPerms} />
             )}
+
+            {/*
+              Departamentos, na MESMA forma do convite.
+
+              Fica fora do `!admin` de propósito, como lá: administrador enxerga
+              todas as telas, mas é o departamento que decide QUAIS CONVERSAS
+              ele vê no Multiatendimento.
+
+              Só aparece se a empresa tem departamento cadastrado; numa conta
+              que nunca abriu o Multiatendimento seria uma linha a mais para
+              entender e ignorar.
+            */}
+            {departamentos.length > 0 && (
+              <div className="pt-1">
+                <div className="flex items-center gap-2">
+                  <Folder size={14} className="text-foreground shrink-0" />
+                  <p className="text-[13px] font-semibold text-foreground">Departamentos</p>
+                </div>
+                <p className="text-[12px] text-muted-foreground mt-1 leading-snug">
+                  De quais times esta pessoa faz parte. É o que decide quais conversas ela enxerga
+                  no Multiatendimento.
+                </p>
+                <div className="mt-3 space-y-[6px]">
+                  {departamentos.map(d => {
+                    const marcado = editDepts.includes(d.id);
+                    return (
+                      <label
+                        key={d.id}
+                        className={`flex items-center gap-3 px-4 py-3 rounded-[8px] border cursor-pointer transition-colors ${
+                          marcado ? "border-primary bg-primary/10" : "border-card-border bg-card hover:bg-muted"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={marcado}
+                          onChange={() => setEditDepts(atual => marcado
+                            ? atual.filter(x => x !== d.id)
+                            : [...atual, d.id])}
+                          className="accent-primary w-4 h-4 shrink-0"
+                        />
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: d.color ?? "var(--neutral-300)" }} />
+                        <span className={`text-[12px] font-semibold ${marcado ? "text-primary" : "text-foreground"}`}>{d.name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                <p className="text-[12px] text-muted-foreground mt-3 leading-snug">
+                  {editDepts.length === 0
+                    ? "Sem departamento marcado, a pessoa só enxerga as conversas dos departamentos que ainda não têm time definido."
+                    : "A pessoa enxerga as conversas destes departamentos, mais as dos departamentos que ainda não têm time definido."}
+                </p>
+              </div>
+            )}
           </div>
           <div className="flex gap-2 w-full pt-2">
             <Button variant="outline" onClick={() => setEditMember(null)} className="flex-1 border-card-border">Cancelar</Button>
             <Button onClick={handleSavePermissions} disabled={savingEdit} className="flex-1 bg-primary hover:bg-primary/90">
-              {savingEdit ? "Salvando..." : "Salvar permissões"}
+              {savingEdit ? "Salvando..." : departamentos.length > 0 ? "Salvar alterações" : "Salvar permissões"}
             </Button>
           </div>
         </DialogContent>
