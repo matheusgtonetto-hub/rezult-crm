@@ -187,7 +187,7 @@ export default function LoginPage() {
           </div>
         )}
 
-        <h1 className="text-[24px] text-foreground text-center" style={{ fontFamily: "'Geist Sans', sans-serif", fontWeight: 700, letterSpacing: "-0.2px" }}>{t("login.titulo")}</h1>
+        <h1 className="text-[24px] font-semibold leading-[1.2] tracking-[-0.015em] text-foreground text-center">{t("login.titulo")}</h1>
         <p className="text-[14px] text-muted-foreground text-center mt-[1px]" style={{ fontWeight: 400 }}>
           {t("login.subtitulo")}
         </p>
