@@ -132,6 +132,9 @@
        Aqui a luz tem tons próprios, que não dependem do token de texto. Eles
        mudam por tema de propósito: o que desenha um facho sobre branco não é o
        que desenha um facho sobre preto. */
+    /* Uma volta da luz. Era 4s cravado nos dez lugares; o dono pediu mais
+       lento em 24/09/2026. */
+    --luz-cartao-giro: 8s;
     --luz-cartao-borda:  #008762;
     --luz-cartao-brilho: #4ADE80;  /* cancelado, expirado: "morto", não "errado" */
     /* Roxo da automação e da IA, quando ele é TINTA sobre a superfície (botão

@@ -106,14 +106,14 @@ export default function Verify2FAPage() {
           className="absolute inset-[-100%]"
           style={{
             background: "conic-gradient(from 0deg, transparent 0%, transparent 55%, var(--luz-cartao-borda) 65%, var(--luz-cartao-brilho) 75%, var(--luz-cartao-borda) 85%, transparent 95%)",
-            animation: "spin-border 4s linear infinite",
+            animation: "spin-border var(--luz-cartao-giro) linear infinite",
           }}
         />
         <div
           className="absolute inset-[-100%]"
           style={{
             background: "conic-gradient(from 180deg, transparent 0%, transparent 55%, var(--luz-cartao-borda) 65%, var(--luz-cartao-brilho) 75%, var(--luz-cartao-borda) 85%, transparent 95%)",
-            animation: "spin-border 4s linear infinite",
+            animation: "spin-border var(--luz-cartao-giro) linear infinite",
           }}
         />
         <div className="relative w-full bg-card rounded-[8px] px-[30px] pt-[30px] pb-[24px] text-center">
