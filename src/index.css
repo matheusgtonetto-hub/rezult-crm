@@ -105,6 +105,17 @@
     --warning-bg:  #FFF4DA;
     --muted-dead:  #A8BDB4;
 
+    /* ── O fundo das telas de entrada (login, cadastro, 2FA) ──
+       No claro é o verde-menta da marca, que é como a tela nasceu e para onde
+       o dono pediu de volta em 24/09/2026, depois de ver o cinza e o branco.
+
+       Ele é um token próprio, e não o `--accent-50` direto, porque os dois
+       temas seguem caminhos diferentes aqui: no escuro o dono ficou com a
+       superfície neutra, e não com a versão escura do menta. Um token só para
+       este papel deixa as duas escolhas explícitas, em vez de uma delas ser
+       efeito colateral da outra. */
+    --fundo-entrada: var(--accent-50);
+
     /* ── A luz que gira na borda do cartão de login ──
        São DOIS tons, e o efeito de "facho girando" vem do contraste entre
        eles: fechado nas pontas, claro no meio. Ela usava `--accent-700` nas
@@ -365,6 +376,10 @@
     --text-inverse:    #16181B;
     /* Tinta de erro e de aviso: no claro são tons fechados, feitos para fundo
        branco. Sobre o --danger-bg escuro dariam 1,6:1. */
+    /* No escuro a tela de entrada fica na superfície neutra, e não no menta
+       escurecido: foi o que o dono aprovou ao ver a tela branca. */
+    --fundo-entrada: var(--neutral-0);
+
     /* No escuro o facho sobe de tom inteiro, senão ele some no fundo; o
        contraste INTERNO entre os dois é o que se mantém. */
     --luz-cartao-borda:  #00A879;
