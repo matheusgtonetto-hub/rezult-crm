@@ -82,6 +82,7 @@ import { useCRM } from "@/context/CRMContext";
 import { AgentActivationTagPicker } from "@/components/AgentActivationTagPicker";
 import { AgentTestChat } from "@/components/AgentTestChat";
 import { BaseDaEmpresa } from "@/components/BaseDaEmpresa";
+import { SaldoDeCreditos } from "@/components/SaldoDeCreditos";
 
 // Objetivo final do agente — múltipla escolha. Substitui o antigo seletor de
 // "Tipo": o que o agente faz é definido por isso + pelas ferramentas
@@ -2080,6 +2081,10 @@ export default function AgentesPage() {
           {/* Base da empresa no topo: é o material que todos os agentes que
               conversam leem, então vem antes deles. */}
           <BaseDaEmpresa companyId={companyId} userId={user?.id} />
+
+          {/* O saldo vem depois da base e antes dos agentes, porque é o que
+              eles consomem. Não desenha nada para quem usa chave própria. */}
+          <SaldoDeCreditos companyId={companyId} />
 
           {/* Rascunho conta como agente na grade: some do "nenhum agente
               ainda", senão a tela dizia que não havia nada enquanto o card do
