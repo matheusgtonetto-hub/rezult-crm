@@ -177,16 +177,18 @@ interface.
 O nome na UI e "creditos" ou "Creditos Rezult", nunca "Rezult Credits": a
 aplicacao e 100% em portugues por regra do projeto.
 
-**As duas constantes:**
+**As duas taxas, e so uma delas e preco:**
 
 ```
-1.000 creditos = US$ 1,00 pago        (o que o cliente compra)
-1.500 creditos = US$ 1,00 de custo    (o que o credito compra, com markup de 50%)
+1.500 creditos = US$ 1,00 de CUSTO   → FIXO para sempre. E a definicao da unidade.
+1.000 creditos = US$ 1,00 PAGO       → e PRECO. Pode mudar. Hoje = markup de 50%.
 ```
 
-A segunda sai da primeira: US$ 1 pago cobre US$ 0,6667 de custo real, e
-1000 / 0,6667 = 1500. Entao `creditos = custo_usd x 1500`, e a resposta de
-agente que custa US$ 0,0232 sai por 35 creditos.
+Esta separacao foi imposta pela regra 4.4 durante a implementacao, e o desenho
+ingenuo (uma taxa so, derivada do markup) nao sobreviveu a ela. Ver 4.5.
+
+`creditos = ceil(custo_usd x 1500)`, entao a resposta de agente que custa
+US$ 0,0232 sai por 35 creditos.
 
 ### 4.2 Por que saldo e consumo compartilham a unidade, e a compra nao
 
@@ -204,34 +206,59 @@ quantidade de creditos por pacote mudaria sozinha a cada oscilacao do cambio
 anunciar, e o risco cambial que a secao 5.1 eliminou voltaria pela porta dos
 fundos.
 
-### 4.3 O que isso muda no banco (migration nova, necessaria)
-
-`credit_accounts.saldo_usd` guarda hoje o custo em dolar. Precisa virar
-**creditos**, e a conversao precisa ser CONGELADA no momento da transacao.
-
-O motivo e a regra de nao mexer em saldo ja vendido. Se o banco guardasse
-custo-dolar e a tela multiplicasse por 1500 na hora de exibir, um reajuste
-futuro do markup (fator 1800, por exemplo) faria o saldo antigo do cliente
-mudar de valor sozinho na tela. Congelando na transacao, o credito comprado vale
-o que valia no dia da compra, para sempre.
+### 4.3 O que mudou no banco -- FEITO (migration 20260925000002)
 
 | Coluna | Antes | Depois |
 |---|---|---|
-| `credit_accounts.saldo_usd` | custo em USD | `saldo_creditos` (numeric) |
+| `credit_accounts.saldo_usd` | custo em USD | `saldo_creditos` numeric(14,2) |
+| `credit_accounts.teto_diario_usd` | USD | `teto_diario_creditos` |
 | `credit_transactions.valor` | USD | creditos |
 | `credit_transactions.saldo_depois` | USD | creditos |
 | `credit_transactions.custo_usd` | custo real | **inalterado** |
+| `credit_transactions.creditos_por_dolar` | -- | **nova**: o fator daquela linha |
+| `credit_transactions.pago_usd` | -- | **nova**: quanto o cliente pagou |
 
-`custo_usd` fica exatamente como esta: e ele que bate contra a fatura do
-fornecedor na conciliacao mensal (secao 6), e ele nao tem markup nenhum. E a
-razao de as duas colunas terem nascido separadas.
+`custo_usd` ficou exatamente como estava: e ele que bate contra a fatura do
+fornecedor na conciliacao mensal (secao 6) e nao tem markup nenhum. E a razao
+de as duas colunas terem nascido separadas.
+
+`debitar_credito` arredonda **para CIMA** (`ceil`). Meio credito nao existe para
+o cliente, e a diferenca precisa cair do lado de quem paga o fornecedor:
+arredondar para baixo faria toda chamada abaixo de meio credito sair de graca --
+e chamada barata em volume e exatamente o perfil de uma automacao em laco.
 
 ### 4.4 A regra que precisa estar nos termos ANTES da primeira venda
 
-**O valor do credito nunca muda para tras.** Qualquer reajuste do markup vale
-so para compras novas. Sem isso escrito, o primeiro reajuste transforma o saldo
-que o cliente ja pagou em menos trabalho do que ele comprou, e isso e
-reclamacao garantida.
+**O valor do credito nunca muda para tras.** Qualquer reajuste vale so para
+compras novas.
+
+### 4.5 Como 4.4 e cumprida sem lote FIFO
+
+O desenho inicial tinha uma taxa so, derivada do markup. Subir o markup de 50%
+para 80% mudaria o fator de debito de 1500 para 1800, e os creditos **ja
+comprados** passariam a comprar menos trabalho: violacao direta de 4.4. Cumprir
+a regra exigiria congelar o fator por compra, com lotes FIFO, saldo em camadas
+e reconciliacao entre eles.
+
+A saida foi separar duas coisas que estavam sendo confundidas:
+
+| | O que e | Muda? |
+|---|---|---|
+| 1.500 creditos por US$ 1 de custo | a **definicao** da unidade de trabalho | nunca |
+| 1.000 creditos por US$ 1 pago | o **preco** dessa unidade | sim, e assim que se reajusta |
+
+Um reajuste para 80% de markup passa a vender 833 creditos por dolar em vez de
+1.000. Quem ja comprou nao e tocado, porque o que ele tem em maos continua
+valendo os mesmos US$ 1/1500 de trabalho por credito.
+
+A taxa de venda **nao mora no banco**: mora no Price do Stripe (secao 4) e em
+`CREDITOS_POR_DOLAR_PAGO` no componente, que existe so para a tela dizer quantos
+creditos o valor digitado compra. O banco recebe a quantidade ja convertida.
+
+Resultado: 4.4 satisfeita com zero complexidade de lote. O credito e uma unidade
+de TRABALHO, fixa; o que varia e quanto ela custa.
+
+
 
 ---
 
@@ -350,9 +377,9 @@ de abrir para a base.
 |---|---|---|---|
 | 1 | Tabelas + `debitar_credito` + RLS | saldo existe e é debitável | feito em 24/09 |
 | 2a | Débito ligado a `agent-operacional-runner` e `agent-sds-qualify` | os dois runners de agente abatem | feito em 24/09 |
-| 2b | **Medir custo em `automation-runner` e `ai-suggest-reply`** | os 4 pontos passam a contar | **pendente, e é o proximo** |
-| 3a | Migration da unidade: saldo em créditos (secao 4.3) | a tela pode falar em créditos | pendente |
-| 3b | Tela: "Compras" cronológico + "Consumo" agregado por agente | dá para auditar antes de cobrar | pendente |
+| 2b | Medir custo nos CINCO pontos (eram 4 na conta anterior) | todo consumo de IA passa a contar | feito em 25/09 |
+| 3a | Migration da unidade + card em créditos | o saldo e o extrato falam em créditos | feito em 25/09 |
+| 3b | Tela: "Compras" cronológico + "Consumo" agregado por agente e origem | dá para auditar antes de cobrar | **pendente, e é o proximo** |
 | 4 | Checkout avulso (price em USD) + webhook creditando | passa a vender | pendente |
 | 5 | Trava, avisos e teto diário | passa a ser seguro | pendente |
 | 6 | Chave da Rezult com fallback para a do cliente | o BYOK vira opcional | pendente |

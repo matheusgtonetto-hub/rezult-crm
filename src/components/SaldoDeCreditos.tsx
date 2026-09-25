@@ -24,7 +24,7 @@ import { Input } from "@/components/ui/input";
  */
 
 interface Conta {
-  saldo_usd: number;
+  saldo_creditos: number;
 }
 
 interface Lancamento {
@@ -35,28 +35,58 @@ interface Lancamento {
   criado_em: string;
 }
 
-const dinheiro = new Intl.NumberFormat("pt-BR", {
+/**
+ * Créditos são inteiros, com separador de milhar.
+ *
+ * ─── Por que um formatador só, onde antes havia dois ────────────────────────
+ *
+ * Enquanto o saldo era em dólar, o extrato precisava de duas escalas: duas
+ * casas para a compra (US$ 25,00) e QUATRO para o consumo (US$ 0,0232), senão
+ * toda linha de uso aparecia como US$ 0,00. Eram duas unidades de leitura na
+ * mesma coluna.
+ *
+ * Com a unidade em créditos (decisão do dono, 25/09/2026), compra e consumo
+ * caem na mesma escala -- 25.000 e 35 -- e o segundo formatador deixou de ter
+ * razão de existir. É o efeito colateral bom da mudança de unidade: o saldo é a
+ * soma do extrato, e agora dá para conferir isso somando a coluna.
+ */
+const creditos = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+
+/** Só no popup de compra, que é o único lugar onde ainda existe dinheiro. */
+const dolar = new Intl.NumberFormat("pt-BR", {
   style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
 });
 
-/**
- * Quatro casas FIXAS para consumo. Com "até quatro" a coluna alternava
- * 0,018 / 0,03 / 0,036 e comparar duas linhas exigia contar dígitos.
- */
-const dinheiroFino = new Intl.NumberFormat("pt-BR", {
-  style: "currency", currency: "USD", minimumFractionDigits: 4, maximumFractionDigits: 4,
-});
-
 const ROTULO: Record<string, string> = {
-  compra: "Compra de crédito",
+  compra: "Compra de créditos",
   consumo: "Uso de agente",
   ajuste: "Ajuste",
   estorno: "Estorno",
   expiracao: "Expiração",
 };
 
-/** Os mesmos degraus do concorrente, em dólar, porque o saldo é em dólar. */
+/**
+ * Os degraus de compra, em dólar.
+ *
+ * O dólar aparece AQUI e em nenhum outro lugar da interface: é o ato do
+ * pagamento, o único momento em que o valor é dinheiro de verdade. O saldo e o
+ * consumo são em créditos (decisão do dono, 25/09/2026).
+ */
 const VALORES_SUGERIDOS = [10, 25, 50, 100];
+
+/**
+ * Quantos créditos cada dólar pago compra.
+ *
+ * Esta é a taxa de VENDA, e ela pode mudar: vender menos créditos por dólar é
+ * como um reajuste de preço acontece, e o saldo de quem já comprou não é
+ * tocado. Hoje 1.000, o que corresponde a 50% de markup.
+ *
+ * NÃO confundir com a outra taxa, a de consumo (1.500 créditos por dólar de
+ * custo real), que vive em `debitar_credito` no banco e é FIXA. Aquela é a
+ * definição da unidade -- mudá-la mudaria o significado de todo saldo já
+ * vendido. Ver o cabeçalho da migration 20260925000002.
+ */
+const CREDITOS_POR_DOLAR_PAGO = 1000;
 
 /**
  * Compra mínima, em dólar.
@@ -82,11 +112,11 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
 
     const { data } = await supabase
       .from("credit_accounts")
-      .select("saldo_usd")
+      .select("saldo_creditos")
       .eq("company_id", companyId)
       .maybeSingle();
 
-    setConta(data ? { saldo_usd: Number(data.saldo_usd) } : null);
+    setConta(data ? { saldo_creditos: Number(data.saldo_creditos) } : null);
 
     if (data) {
       const { data: linhas } = await supabase
@@ -102,7 +132,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
 
   useEffect(() => { void carregar(); }, [carregar]);
 
-  const saldo = conta?.saldo_usd ?? 0;
+  const saldo = conta?.saldo_creditos ?? 0;
   const negativo = saldo < 0;
   const escolhido = Number(valor.replace(",", "."));
   /*
@@ -128,7 +158,15 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           className="text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums mt-1"
           style={{ color: negativo ? "var(--danger-fg)" : "var(--text-heading)" }}
         >
-          {carregando ? "—" : dinheiro.format(saldo)}
+          {carregando ? "—" : creditos.format(saldo)}
+          {/* A unidade fica ao lado do número, e não no rótulo acima, porque
+              "37.206" sozinho não diz nada. Menor e mais clara que o valor
+              para o olho pegar a grandeza primeiro e a unidade depois. */}
+          {!carregando && (
+            <span className="text-[15px] font-medium tracking-normal ml-1.5 text-muted-foreground">
+              {saldo === 1 ? "crédito" : "créditos"}
+            </span>
+          )}
         </p>
 
         {/* O texto vale com ou sem saldo, porque responde a pergunta que vem
@@ -168,7 +206,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           <DialogHeader>
             <DialogTitle>Extrato do crédito</DialogTitle>
             <DialogDescription>
-              Saldo de {dinheiro.format(saldo)} · cada linha é uma compra ou um uso de agente.
+              Saldo de {creditos.format(saldo)} créditos · cada linha é uma compra ou um uso de agente.
             </DialogDescription>
           </DialogHeader>
 
@@ -180,7 +218,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                 <tr className="text-muted-foreground text-left">
                   <th className="font-medium pb-2">Quando</th>
                   <th className="font-medium pb-2">O que</th>
-                  <th className="font-medium pb-2 text-right">Valor</th>
+                  <th className="font-medium pb-2 text-right">Créditos</th>
                 </tr>
               </thead>
               <tbody>
@@ -202,7 +240,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                         className="py-2 text-right tabular-nums whitespace-nowrap font-medium"
                         style={{ color: credito ? "var(--text-link)" : "var(--text-body)" }}
                       >
-                        {credito ? "+" : "−"}{(credito ? dinheiro : dinheiroFino).format(Math.abs(l.valor))}
+                        {credito ? "+" : "−"}{creditos.format(Math.abs(l.valor))}
                       </td>
                     </tr>
                   );
@@ -273,6 +311,24 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
             {abaixoDoMinimo && (
               <p className="text-[12px] leading-snug" style={{ color: "var(--danger-fg)" }}>
                 O menor valor é US$ {COMPRA_MINIMA}.
+              </p>
+            )}
+
+            {/* Quantos créditos o valor digitado compra.
+                É a única ponte entre as duas unidades da tela, e ela precisa
+                existir: o campo está em dólar e o saldo, em créditos. Sem esta
+                linha, a pessoa paga US$ 25 e vê o saldo subir 25.000 sem
+                entender de onde saiu o número.
+
+                Some quando o valor é inválido, porque aí o aviso do mínimo já
+                ocupa este lugar e dois textos empilhados competiriam. */}
+            {!abaixoDoMinimo && escolhido >= COMPRA_MINIMA && (
+              <p className="text-[13px] leading-snug text-muted-foreground">
+                {dolar.format(escolhido)} compram{" "}
+                <span className="font-medium text-foreground tabular-nums">
+                  {creditos.format(Math.floor(escolhido * CREDITOS_POR_DOLAR_PAGO))} créditos
+                </span>
+                .
               </p>
             )}
           </div>
