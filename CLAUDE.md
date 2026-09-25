@@ -16,7 +16,16 @@ npm run dev        # Dev server (http://localhost:8083)
 npm run build      # Build de produção
 npm run lint       # Lint
 npm run preview    # Preview do build
+
+# Verificação de tipos — USE ESTE, não `npx tsc --noEmit`
+npx tsc -b
 ```
+
+> **Armadilha:** `npx tsc --noEmit` na raiz **não verifica nada** e sempre sai com código 0.
+> O `tsconfig.json` da raiz tem `"files": []` e só referências, então aquele comando
+> compila zero arquivos. Descoberto em 25/09/2026 depois de um refactor que quebrou
+> dois arquivos e "passou" na verificação. Use `npx tsc -b` ou
+> `npx tsc -p tsconfig.app.json --noEmit`.
 
 ## Stack
 
