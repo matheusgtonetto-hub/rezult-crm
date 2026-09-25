@@ -236,7 +236,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                 `pointer-events-none` para o clique atravessar até o input, e
                 `pl-11` para o texto digitado começar depois dela. */}
             <div className="relative">
-              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[color:var(--text-subtle)]">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg font-medium text-[color:var(--text-subtle)]">
                 US$
               </span>
               <Input
@@ -245,9 +245,13 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                 /* Maior e mais pesado que o padrão do sistema (14/400): este é o
                    campo que a pessoa veio preencher, e o valor digitado é a
                    única informação da tela que ela precisa conferir antes de
-                   pagar (dono, 25/09/2026). A cifra à esquerda fica no tamanho
-                   normal, de propósito: ela é rótulo, não dado. */
-                className="pl-11 text-lg font-medium"
+                   pagar (dono, 25/09/2026).
+
+                   A cifra usa o MESMO tamanho e peso, e se diferencia só pela
+                   cor (dono, 25/09): os dois formam um valor só, "US$ 25", em
+                   vez de um rótulo pequeno grudado num número grande. O recuo
+                   subiu de 44 para 56px porque a cifra maior ocupa mais. */
+                className="pl-14 text-lg font-medium"
                 value={valor}
                 onChange={e => setValor(e.target.value.replace(/[^\d.,]/g, ""))}
               />
