@@ -25,7 +25,6 @@ import { Input } from "@/components/ui/input";
 
 interface Conta {
   saldo_usd: number;
-  teto_diario_usd: number | null;
 }
 
 interface Lancamento {
@@ -61,7 +60,6 @@ const VALORES_SUGERIDOS = [10, 25, 50, 100];
 
 export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
   const [conta, setConta] = useState<Conta | null>(null);
-  const [consumoHoje, setConsumoHoje] = useState(0);
   const [extrato, setExtrato] = useState<Lancamento[]>([]);
   const [carregando, setCarregando] = useState(true);
 
@@ -74,20 +72,13 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
 
     const { data } = await supabase
       .from("credit_accounts")
-      .select("saldo_usd, teto_diario_usd")
+      .select("saldo_usd")
       .eq("company_id", companyId)
       .maybeSingle();
 
-    setConta(data
-      ? { saldo_usd: Number(data.saldo_usd), teto_diario_usd: data.teto_diario_usd === null ? null : Number(data.teto_diario_usd) }
-      : null);
+    setConta(data ? { saldo_usd: Number(data.saldo_usd) } : null);
 
     if (data) {
-      // O consumo do dia vem da função, e não de uma soma aqui, porque o "dia"
-      // é o de São Paulo e não o do navegador: a conta mora num lugar só.
-      const { data: hoje } = await supabase.rpc("consumo_do_dia", { p_company_id: companyId });
-      setConsumoHoje(Number(hoje ?? 0));
-
       const { data: linhas } = await supabase
         .from("credit_transactions")
         .select("id, tipo, valor, descricao, criado_em")
@@ -111,7 +102,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           diferentes"). Mesmos tokens do vizinho -- superfície, borda, raio de
           painel e elevação 1 -- para os dois lerem como um par, e não como duas
           peças de origens diferentes. */}
-      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 mb-4 flex flex-col h-full">
+      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col h-full">
         <div className="flex items-center gap-2">
           <Wallet size={14} className="text-muted-foreground shrink-0" />
           <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Crédito de IA</p>
@@ -126,13 +117,13 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           {carregando ? "—" : dinheiro.format(saldo)}
         </p>
 
+        {/* O texto vale com ou sem saldo, porque responde a pergunta que vem
+            antes de comprar e continua vindo depois: "quanto isso me custa?".
+            Antes havia "US$ 0,1932 usados hoje · teto de US$ 5,00 por dia" --
+            um número cru mais um teto que eu tinha INVENTADO para a
+            demonstração. Texto do dono, 25/09/2026. */}
         <p className="text-[12px] text-muted-foreground leading-relaxed">
-          {!conta
-            ? "Ligue os agentes sem precisar criar conta em outra plataforma."
-            : <>
-                {dinheiroFino.format(consumoHoje)} usados hoje
-                {conta.teto_diario_usd !== null && ` · teto de ${dinheiro.format(conta.teto_diario_usd)} por dia`}
-              </>}
+          Pague só pelo que usar. O consumo varia com o trabalho pedido e as ferramentas usadas.
         </p>
 
         {negativo && (

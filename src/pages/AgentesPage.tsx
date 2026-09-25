@@ -2084,10 +2084,14 @@ export default function AgentesPage() {
               PAGA. Em tela estreita empilham, porque 340px de saldo mais o
               texto da base não cabem lado a lado num notebook pequeno.
 
-              `items-stretch` (padrão do flex) faz os dois terem a mesma altura,
-              e é por isso que o saldo usa `h-full` e empurra os botões para o
-              pé: sem isso, um cartão ficaria mais curto que o irmão. */}
-          <div className="flex flex-col lg:flex-row gap-4 shrink-0">
+              Os dois cartões têm `h-full` e o container tem `items-stretch`:
+              é o par que os faz terminarem na MESMA linha, em vez de cada um
+              ter a altura do próprio conteúdo (dono, 25/09/2026).
+
+              A margem de baixo mora AQUI, e não dentro de cada cartão. Com ela
+              em cada um, o espaço até a grade de agentes dependia de qual
+              cartão era o mais alto -- e o de crédito ficava encostado. */}
+          <div className="flex flex-col lg:flex-row items-stretch gap-4 mb-6 shrink-0">
             <div className="flex-1 min-w-0">
               <BaseDaEmpresa companyId={companyId} userId={user?.id} />
             </div>
