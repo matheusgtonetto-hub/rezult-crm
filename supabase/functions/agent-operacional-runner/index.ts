@@ -209,7 +209,10 @@ async function processar(db: Db, fila: Fila): Promise<{ processadoAte: string | 
   const veredito = await podeGastar(db, fila.company_id, "agent-operacional");
   if (veredito !== "ok") return pular(veredito);
 
-  const model = (agente.model as string) || "gpt-5.6-terra";
+  // Luna no fallback, alinhado ao padrão da tela (dono, 25/09/2026). Este
+  // caminho só é usado por agente sem modelo gravado, e escolher o degrau mais
+  // caro para um dado ausente é pagar 6,3x por uma omissão.
+  const model = (agente.model as string) || "gpt-5.6-luna";
   const provedor = model.startsWith("gpt-") ? "openai" : "anthropic";
 
   /*

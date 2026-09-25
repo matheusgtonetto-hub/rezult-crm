@@ -555,12 +555,20 @@ function recommendModel(signals: ComplexitySignals): { modelId: string; reason: 
     return { modelId: "gpt-5.6-luna", reason: "Fluxo simples -- um modelo mais rápido e barato já é suficiente." };
   }
 
+  /*
+   * Limiares deslocados em 25/09/2026, junto com a troca do padrão para Luna.
+   *
+   * Eram `>= 5` para Sol e `<= 1` para Luna, o que deixava quase toda
+   * configuração caindo em Terra. Com o Terra custando 6,3x o Luna para o mesmo
+   * trabalho, o degrau do meio passou a ter de ser MERECIDO, e não o destino
+   * de qualquer coisa que não seja trivial.
+   */
   const top = [...factors].sort((a, b) => b.weight - a.weight).slice(0, 2).map((f) => f.label).join("; ");
-  if (score >= 5) {
+  if (score >= 6) {
     return { modelId: "gpt-5.6-sol", reason: `Configuração com bastante complexidade (${top}) -- vale a capacidade extra do Sol.` };
   }
-  if (score <= 1) {
-    return { modelId: "gpt-5.6-luna", reason: "Fluxo simples -- um modelo mais rápido e barato já é suficiente." };
+  if (score <= 3) {
+    return { modelId: "gpt-5.6-luna", reason: "Um modelo mais rápido e barato dá conta desta configuração." };
   }
   return { modelId: "gpt-5.6-terra", reason: `Equilíbrio entre inteligência e custo, considerando ${top}.` };
 }
@@ -1157,7 +1165,19 @@ export default function AgentesPage() {
         activation_tag: draftActivationTag,
         active: false,
         draft: false,
-        model: "gpt-5.6-terra",
+        // Luna, e não Terra (dono, 25/09/2026).
+        //
+        // O padrão anterior custava 6,3x mais para o mesmo trabalho, medido no
+        // consumo real desta base: a razão entrada/saída é de 20 para 1, então
+        // o preço da entrada domina, e o Terra cobra US$ 2,50 contra US$ 0,40
+        // do Luna por 1M de tokens de entrada.
+        //
+        // Não muda a margem, que é repassada ao cliente pelo crédito. Muda
+        // quanto o crédito RENDE: US$ 25 atendem 17 leads no Terra e 110 no
+        // Luna. Ninguém troca um padrão, então o padrão é a decisão.
+        //
+        // Só vale para agentes NOVOS. Os existentes ficam onde estão.
+        model: "gpt-5.6-luna",
         objectives: m.objetivos,
         enabled_tools: m.ferramentas,
         behavior_config: { ...BEHAVIOR_DEFAULTS, ...m.comportamento, modelo: chave },

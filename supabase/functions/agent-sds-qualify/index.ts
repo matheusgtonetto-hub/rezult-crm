@@ -1954,7 +1954,17 @@ async function executarTeste(
   if (!permitido) return json({ error: "forbidden" }, 200);
 
   const behaviorConfig = ((agent.behavior_config as BehaviorConfig | null) ?? {}) as BehaviorConfig;
-  const model = (agent.model as string) || "claude-sonnet-5";
+  /*
+   * Fallback em Luna. Estava em `claude-sonnet-5`, e isso era defeito duplo:
+   *
+   *   1. Claude nao e mais oferecido (dono, 25/09/2026), entao o cliente pode
+   *      nem ter chave da Anthropic -- e a chamada falharia por chave ausente.
+   *   2. Era o modelo MAIS CARO da tabela para o mesmo trabalho: US$ 1,034
+   *      contra US$ 0,132 do Luna, medido no consumo real desta base.
+   *
+   * Um agente sem modelo gravado ia para o pior dos dois mundos.
+   */
+  const model = (agent.model as string) || "gpt-5.6-luna";
   const provider = providerForModel(model);
   const chave = await resolverChaveDeIa(db, companyId, provider, "agent-sds-teste");
   if (!chave) return json({ error: "no_company_api_key", provider }, 200);
@@ -2260,7 +2270,17 @@ Deno.serve(async (req) => {
     }
   }
 
-  const model = (agent.model as string) || "claude-sonnet-5";
+  /*
+   * Fallback em Luna. Estava em `claude-sonnet-5`, e isso era defeito duplo:
+   *
+   *   1. Claude nao e mais oferecido (dono, 25/09/2026), entao o cliente pode
+   *      nem ter chave da Anthropic -- e a chamada falharia por chave ausente.
+   *   2. Era o modelo MAIS CARO da tabela para o mesmo trabalho: US$ 1,034
+   *      contra US$ 0,132 do Luna, medido no consumo real desta base.
+   *
+   * Um agente sem modelo gravado ia para o pior dos dois mundos.
+   */
+  const model = (agent.model as string) || "gpt-5.6-luna";
   const provider = providerForModel(model);
 
   // Chave de IA: exige a chave própria da empresa (BYOK) do provedor do

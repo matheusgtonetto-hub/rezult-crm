@@ -567,6 +567,50 @@ de abrir para a base.
 | 5 | Trava, avisos, teto diário e relatório de cobertura do hedge (6.1) | passa a ser seguro | feito em 25/09 |
 | 6 | Chave da Rezult com fallback para a do cliente | o BYOK vira opcional, e a cobranca dupla e fechada | feito em 25/09 |
 
+### O padrao de modelo virou Luna (dono, 25/09/2026)
+
+Nao mexe na margem -- o custo e repassado pelo credito, e 30% de um numero maior
+segue sendo 30%. Mexe em quanto o credito RENDE, que e argumento de venda:
+
+| Padrao | US$ 25 de credito atendem |
+|---|---|
+| Terra (antes) | **17 leads** |
+| Luna (agora) | **110 leads** |
+
+**Por que a diferenca e tao grande:** a razao entrada/saida medida nesta base e
+de **20 para 1** (275.242 tokens de entrada contra 13.905 de saida no Terra).
+O custo e 83% entrada, e o Terra cobra US$ 2,50 contra US$ 0,40 do Luna por 1M
+de tokens de entrada.
+
+**Por que nao trocar de fornecedora:** aplicando o volume real desta base, o
+Gemini 3.5 Flash Lite sai US$ 0,117 contra US$ 0,132 do Luna -- 11% de
+diferenca, que nao paga uma segunda fornecedora. E os embeddings da Base de
+Conhecimento e a transcricao de audio ficam na OpenAI de qualquer forma, porque
+a coluna e `vector(1536)` amarrada ao `text-embedding-3-large`. Seriam DOIS
+saldos para cobrir no hedge para economizar 11%.
+
+Trocar de DEGRAU vale 6,3x. Trocar de FORNECEDORA vale 11%.
+
+**O risco, e ele nao esta medido.** O agente operacional nao gera texto: e um
+laco agentico com ate 8 rodadas, ~3.868 tokens de metodologia e chamada de
+ferramenta. E ali que modelo barato degrada primeiro -- ele nao escreve pior,
+chama a ferramenta errada.
+
+E a "taxa de sucesso" da aba Performance **nao pega isso**: ela mede falha
+tecnica (API com erro, ferramenta devolvendo `ok: false`). Um agente que chama
+`transferir_responsavel` quando deveria chamar `agendar_reuniao` conta como
+SUCESSO. Se o Luna degradar, o painel continua mostrando 97%.
+
+**Como validar:** a aba "simular" roda um lead falso de ponta a ponta. Rodar o
+mesmo cenario nos dois degraus custa centavos e responde o que a tabela de preco
+nao responde.
+
+**Alcance:** so agentes NOVOS. Os 22 existentes ficam onde estao.
+
+**Defeito corrigido junto:** `agent-sds-qualify` caia em `claude-sonnet-5`
+quando o agente nao tinha modelo gravado -- o mais caro da tabela (US$ 1,034
+contra US$ 0,132) e um provedor que o cliente nao tem mais como cadastrar.
+
 ### O passo 6 nao era "nice to have", era um defeito aberto
 
 Descoberto em 25/09/2026, depois do deploy do passo 5.

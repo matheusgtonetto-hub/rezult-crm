@@ -28,7 +28,15 @@ const json = (body: unknown, status = 200) =>
 
 type InMsg = { from?: string; text?: string };
 
-const MODELO_OPENAI = "gpt-5.6-terra";
+/*
+ * Luna (dono, 25/09/2026).
+ *
+ * Aqui o degrau mais barato e o mais indicado, nao um compromisso: e UMA
+ * chamada, a saida sao 1 a 3 frases, nao ha ferramenta para chamar e o
+ * atendente esta olhando a tela esperando. Rapidez pesa mais que deliberacao,
+ * que e o mesmo motivo de `reasoning_effort: "none"` logo abaixo.
+ */
+const MODELO_OPENAI = "gpt-5.6-luna";
 const MODELO_ANTHROPIC = "claude-sonnet-5";
 
 Deno.serve(async (req) => {

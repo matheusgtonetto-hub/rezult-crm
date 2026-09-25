@@ -2192,7 +2192,7 @@ export default function AutomacoesPage() {
     const node = nodes.find(n => n.id === nodeId);
     const idx = (node?.iaActions?.length ?? 0) + 1;
     const newAction: IaAction = {
-      id: `ia${Date.now()}`, type, provider: "openai", model: MODELO_POR_ESFORCO.medio, outputVar: `AI-${idx}`,
+      id: `ia${Date.now()}`, type, provider: "openai", model: MODELO_POR_ESFORCO.baixo, outputVar: `AI-${idx}`,
       ...(type === "intencao" ? { intencoes: [] } : {}),
       ...(type === "sentimento" ? { sentimentos: [] } : {}),
       ...(type === "extrator_params" ? { parametros: [] } : {}),
