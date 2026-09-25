@@ -5414,20 +5414,32 @@ interface AiProviderKey {
 }
 
 // Provedores de IA suportados (modelo BYOK — o cliente usa a chave da própria conta).
+/**
+ * As fornecedoras que o cliente PODE cadastrar. Uma só, desde 25/09/2026.
+ *
+ * Anthropic e Google saíram junto com a escolha de modelo: o cliente agora
+ * escolhe esforço (baixo, médio, alto) e o modelo por trás é sempre da OpenAI.
+ * Uma segunda chave passou a ser uma pergunta sem resposta útil -- e, quando o
+ * crédito vendido pelo Rezult entrar, o saldo vai ser abastecido por uma conta
+ * só (secao 7 do plano do saldo).
+ */
 const AI_PROVIDERS: { id: string; name: string; placeholder: string; help: string; agentUsage: string }[] = [
   {
-    id: "openai", name: "OpenAI (ChatGPT) · recomendada", placeholder: "sk-...", help: "platform.openai.com/api-keys",
-    agentUsage: "A única chave de que você precisa. Nos Agentes de IA ela responde as conversas (o modelo padrão é GPT) e lê os materiais da Base de Conhecimento. Também atende a sugestão de resposta do Multiatendimento e o Bloco de IA das Automações. O gasto cresce com o volume de conversas atendidas.",
-  },
-  {
-    id: "anthropic", name: "Anthropic (Claude) · opcional", placeholder: "sk-ant-...", help: "console.anthropic.com/settings/keys",
-    agentUsage: "Opcional. Só é usada se você escolher um modelo Claude na aba \"Modelo\" de algum agente, ou se não tiver a chave da OpenAI cadastrada. Mesmo com Claude, a Base de Conhecimento continua precisando da chave da OpenAI.",
-  },
-  {
-    id: "google", name: "Google (Gemini)", placeholder: "AIza...", help: "aistudio.google.com/app/apikey",
-    agentUsage: "Não é usada pelos Agentes de IA hoje — só pelo Bloco de IA das Automações.",
+    id: "openai", name: "OpenAI (ChatGPT)", placeholder: "sk-...", help: "platform.openai.com/api-keys",
+    agentUsage: "A única chave de que você precisa. Ela responde as conversas dos Agentes de IA, lê os materiais da Base de Conhecimento, atende a sugestão de resposta do Multiatendimento e o Bloco de IA das Automações. O gasto cresce com o volume de conversas atendidas.",
   },
 ];
+
+/**
+ * Nomes de fornecedoras que não são mais oferecidas mas ainda têm chave
+ * cadastrada por alguém. Sem este mapa, a chave antiga apareceria na lista como
+ * "anthropic" cru, e o diálogo de remoção perguntaria "Remover a chave do
+ * anthropic?".
+ */
+const NOMES_LEGADO: Record<string, string> = {
+  anthropic: "Anthropic (Claude) · não mais utilizada",
+  google:    "Google (Gemini) · não mais utilizada",
+};
 
 // Cadastro das chaves de IA dos clientes (usadas pelo Bloco de IA das automações).
 // Uma chave por provedor por empresa (upsert por company_id+provider).
@@ -5606,7 +5618,9 @@ function AiProviderKeysCard() {
   const { user } = useAuth();
   const [keys, setKeys] = useState<AiProviderKey[]>([]);
   const [loading, setLoading] = useState(true);
-  const [provider, setProvider] = useState<string>("openai");
+  // Sem setter: com uma fornecedora só, isto deixou de ser estado e virou
+  // constante. O upsert em ai_provider_keys segue esperando a coluna.
+  const provider = "openai";
   const [keyInput, setKeyInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [visible, setVisible] = useState<Set<string>>(new Set());
@@ -5626,7 +5640,8 @@ function AiProviderKeysCard() {
 
   useEffect(() => { load(); }, [load]);
 
-  const providerName = (id: string) => AI_PROVIDERS.find(p => p.id === id)?.name ?? id;
+  const providerName = (id: string) =>
+    AI_PROVIDERS.find(p => p.id === id)?.name ?? NOMES_LEGADO[id] ?? id;
   const current = AI_PROVIDERS.find(p => p.id === provider);
 
   const handleSave = async () => {
@@ -5685,13 +5700,11 @@ function AiProviderKeysCard() {
 
       {/* Formulário: selecionar provedor + colar chave */}
       <div className="flex flex-col sm:flex-row gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-        <select
-          value={provider}
-          onChange={e => setProvider(e.target.value)}
-          className="h-9 rounded-md border border-card-border bg-background px-3 text-sm focus:outline-none focus:border-primary sm:w-52 shrink-0"
-        >
-          {AI_PROVIDERS.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
+        {/* Com uma fornecedora só, um select de uma opção não é escolha, é um
+            clique a mais para chegar no mesmo lugar. Virou rótulo. */}
+        <div className="h-9 flex items-center px-3 text-sm font-medium text-foreground bg-card border border-card-border rounded-md sm:w-52 shrink-0">
+          {AI_PROVIDERS[0].name}
+        </div>
         <Input
           type="password"
           placeholder={`API Key (${current?.placeholder})`}

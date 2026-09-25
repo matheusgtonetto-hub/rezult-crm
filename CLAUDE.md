@@ -120,7 +120,7 @@ Atualizações: optimistic state + upsert no Supabase.
 | `automation_logs` | Logs de execução por nó (`automation_id`, `company_id`, `lead_id`, `node_id`, `status`, `error_message`, `tokens` int — tokens consumidos pelo nó de IA) — escrito pela Edge Function via service role |
 | `automation_runner_config` | Config interna do motor de automações (`supabase_url`, `automation_secret`) — sem acesso via API (RLS total) |
 | `automation_pending` | Execuções pausadas por blocos Espera (`company_id`, `automation_id`, `lead_id`, `node_ids text[]`, `trigger_payload jsonb`, `resume_after timestamptz`) — sem acesso via API (RLS total); pg_cron chama a Edge Function a cada minuto para retomar |
-| `ai_provider_keys` | Chaves de IA dos clientes (BYOK) usadas pelo Bloco de IA (`company_id`, `owner_id`, `provider` openai/anthropic/google, `api_key`, `active`) — uma por provedor por empresa (`unique(company_id, provider)`); RLS: só o dono gerencia. Gerenciada em Configurações → Chaves de API |
+| `ai_provider_keys` | Chaves de IA dos clientes (BYOK) (`company_id`, `owner_id`, `provider`, `api_key`, `active`) — uma por provedor por empresa (`unique(company_id, provider)`); RLS: só o dono gerencia. **Desde 25/09/2026 só `openai` pode ser cadastrada**; linhas `anthropic`/`google` antigas seguem no banco e aparecem marcadas como não utilizadas |
 | `subscriptions` | Assinatura Stripe da empresa (`company_id`, `owner_user_id`, `stripe_customer_id`, `stripe_subscription_id`, `stripe_price_id`, `plan_name`, `billing_period`, `status`, `trial_ends_at`, `current_period_start`, `current_period_end`, `canceled_at`) |
 | `disparos` | Execução em massa de uma automação (gatilho `lead_manual`) sobre leads filtrados (`owner_id`, `company_id`, `title`, `automation_id`, `status` criado/agendado/em_andamento/pausado/concluido/erro, `rhythm` normal/turbo/lento/humano, `filters` jsonb, `scheduled_at`, `confirm_filters`, `total_leads`) |
 | `disparo_itens` | Um lead dentro de um disparo (`disparo_id`, `company_id`, `owner_id`, `lead_id`, `lead_name`, `lead_phone`, `status` nao_iniciado/pendente/em_execucao/concluido/erro, `error_message`) — escrito pela Edge Function `disparo-runner` |
@@ -259,7 +259,11 @@ Usa a chave BYOK da empresa em `ai_provider_keys`. Cada `IaAction` em `iaActions
 | `sentimento` | Classifica sentimento entre opções configuradas |
 | `extrator_params` | Extrai parâmetros estruturados da conversa |
 
-Provedores: `openai`, `anthropic`, `google`. Resultado disponível como `{{outputVar.resposta}}` nos nós seguintes.
+Resultado disponível como `{{outputVar.resposta}}` nos nós seguintes.
+
+**O cliente escolhe ESFORÇO, não modelo** (decisão do dono, 25/09/2026): baixo → `gpt-5.6-luna`, médio → `gpt-5.6-terra`, alto → `gpt-5.6-sol`. Catálogo em `src/lib/ai-models.ts` (`IA_ESFORCOS`, `MODELO_POR_ESFORCO`, `esforcoDoModelo`). O campo `provider` continua no fluxo porque o runner o lê para escolher a API, e o runner ainda sabe executar `anthropic` e `google` para fluxos antigos — o que saiu foi a escolha, não a capacidade.
+
+**Preço de modelo mora em dois lugares e os dois precisam ter todos:** `supabase/functions/_shared/uso.ts` (`MODEL_PRICING`, fonte de verdade da cobrança) e `src/lib/ai-models.ts` (`IA_MODEL_PRICING`, cópia porque Deno não importa de `src/`). Modelo sem preço é registrado com custo ZERO e ninguém é cobrado; desde 25/09/2026 isso grita no log.
 
 ### Bloco Mensagem (`mensagem`)
 

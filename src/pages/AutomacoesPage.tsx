@@ -31,7 +31,7 @@ import { useTema } from "@/context/ProfileContext";
 import { useDepartamentos } from "@/hooks/useDepartamentos";
 import { TagPill } from "@/components/TagPill";
 import { PALETA_DO_APP, COR_DE_TAG_PADRAO } from "@/lib/paleta-do-app";
-import { IA_MODELS, IA_PROVIDER_LABELS, IA_COST_LABELS, type IaProvider } from "@/lib/ai-models";
+import { IA_ESFORCOS, esforcoDoModelo, MODELO_POR_ESFORCO } from "@/lib/ai-models";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
 import { useCRM } from "@/context/CRMContext";
@@ -115,7 +115,13 @@ type IaParametro = { id: string; nome: string; tipo: string; info?: string };
 type IaAction = {
   id: string;
   type: IaActionType;
-  provider: IaProvider;
+  /**
+   * Fica no fluxo porque o runner lê este campo para escolher a API. Desde
+   * 25/09/2026 é sempre "openai": o cliente não escolhe mais fornecedora.
+   * Fluxos antigos podem trazer "anthropic" ou "google", e o runner continua
+   * sabendo executá-los -- o que saiu foi a escolha, não a capacidade.
+   */
+  provider: "openai" | "anthropic" | "google";
   model: string;
   outputVar: string;
   instructions?: string;        // assistente_chat, gerar_texto, transcricao, instruções adicionais do agente
@@ -2186,7 +2192,7 @@ export default function AutomacoesPage() {
     const node = nodes.find(n => n.id === nodeId);
     const idx = (node?.iaActions?.length ?? 0) + 1;
     const newAction: IaAction = {
-      id: `ia${Date.now()}`, type, provider: "openai", model: IA_MODELS.openai[0].id, outputVar: `AI-${idx}`,
+      id: `ia${Date.now()}`, type, provider: "openai", model: MODELO_POR_ESFORCO.medio, outputVar: `AI-${idx}`,
       ...(type === "intencao" ? { intencoes: [] } : {}),
       ...(type === "sentimento" ? { sentimentos: [] } : {}),
       ...(type === "extrator_params" ? { parametros: [] } : {}),
@@ -5979,16 +5985,30 @@ function IaPanel({ node, onClose, onDelete, onDuplicate, updateAction, removeAct
                   <Trash2 size={13} />
                 </button>
               </div>
+              {/* Esforço, e não modelo.
+                  Eram dois selects -- fornecedora e modelo, nove combinações --
+                  pedindo que quem monta uma automação de vendas soubesse a
+                  diferença entre Claude Sonnet 5 e GPT-5.6 Terra. Virou um
+                  select de três degraus (dono, 25/09/2026).
+
+                  Salvar o esforço TAMBÉM reescreve `provider` para "openai":
+                  um fluxo antigo gravado em Anthropic seguia executando por lá
+                  com um modelo da OpenAI no campo ao lado, o que devolveria
+                  erro do provedor no primeiro disparo. */}
               <div>
-                <label style={labelStyle}>Modelo de IA</label>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <select value={a.provider} onChange={e => { const p = e.target.value as IaProvider; updateAction(a.id, { provider: p, model: IA_MODELS[p][0].id }); }} style={{ ...inputStyle, flex: "0 0 38%" }}>
-                    {(Object.keys(IA_MODELS) as IaProvider[]).map(p => <option key={p} value={p}>{IA_PROVIDER_LABELS[p]}</option>)}
-                  </select>
-                  <select value={a.model} onChange={e => updateAction(a.id, { model: e.target.value })} style={{ ...inputStyle, flex: 1, minWidth: 0 }}>
-                    {IA_MODELS[a.provider].map(m => <option key={m.id} value={m.id}>{m.label} — {IA_COST_LABELS[m.cost]}</option>)}
-                  </select>
-                </div>
+                <label style={labelStyle}>Esforço da IA</label>
+                <select
+                  value={esforcoDoModelo(a.model)}
+                  onChange={e => updateAction(a.id, {
+                    provider: "openai",
+                    model: MODELO_POR_ESFORCO[e.target.value as keyof typeof MODELO_POR_ESFORCO],
+                  })}
+                  style={{ ...inputStyle, width: "100%" }}
+                >
+                  {IA_ESFORCOS.map(x => (
+                    <option key={x.esforco} value={x.esforco}>{x.titulo} — {x.descricao}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label style={labelStyle}>Fonte de dados com o resultado</label>

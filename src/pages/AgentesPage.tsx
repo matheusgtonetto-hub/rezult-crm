@@ -62,7 +62,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { IA_MODELS, IA_COST_LABELS, IA_COST_STYLES } from "@/lib/ai-models";
+import { IA_ESFORCOS, IA_ESFORCO_LABELS, IA_ESFORCO_STYLES, esforcoDoModelo, MODELO_POR_ESFORCO } from "@/lib/ai-models";
 import { AGENT_TOOLS, AGENT_TOOL_ENTITIES, AGENT_TOOL_CATEGORY_LABELS, AGENT_TOOL_CATEGORY_STYLES, ferramentasRecomendadas } from "@/lib/agent-tools";
 import {
   Dialog,
@@ -565,12 +565,10 @@ function recommendModel(signals: ComplexitySignals): { modelId: string; reason: 
   return { modelId: "gpt-5.6-terra", reason: `Equilíbrio entre inteligência e custo, considerando ${top}.` };
 }
 
+// O nome do DEGRAU, não do modelo. Desde 25/09/2026 o cliente escolhe esforço,
+// e o modelo por trás não aparece na interface.
 function findModelLabel(modelId: string): string {
-  for (const list of Object.values(IA_MODELS)) {
-    const found = list.find((m) => m.id === modelId);
-    if (found) return found.label;
-  }
-  return modelId;
+  return IA_ESFORCO_LABELS[esforcoDoModelo(modelId)];
 }
 
 type Agent = {
@@ -2121,7 +2119,7 @@ export default function AgentesPage() {
                 <CardAgenteOperacional
                   key={a.id}
                   agente={a}
-                  temChave={(a.model ?? "").startsWith("gpt-") ? hasOpenaiKey : hasAnthropicKey}
+                  temChave={hasOpenaiKey}
                   onToggle={(v) => void toggleActive(a, v)}
                 />
               ) : (
@@ -3653,82 +3651,59 @@ export default function AgentesPage() {
                       };
                       const recommendedModelId = recommendModel(complexitySignals).modelId;
                       return (
-                        <Select value={modelDraft} onValueChange={changeAgentModel}>
+                        <Select
+                          value={esforcoDoModelo(modelDraft)}
+                          onValueChange={(e) => changeAgentModel(MODELO_POR_ESFORCO[e as keyof typeof MODELO_POR_ESFORCO])}
+                        >
                           <SelectTrigger className="bg-card focus:ring-0 focus:ring-offset-0 focus:border-primary"><SelectValue /></SelectTrigger>
                           <SelectContent>
-                            {/* OpenAI primeiro: é a chave única recomendada (ver recommendModel). */}
-                            <SelectGroup>
-                              <SelectLabel>OpenAI (ChatGPT)</SelectLabel>
-                              {IA_MODELS.openai.map((m) => (
-                                <SelectItem key={m.id} value={m.id}>
-                                  <span className="flex items-center gap-2">
-                                    <span>{m.label}</span>
-                                    <span
-                                      className="text-[12px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
-                                      style={{
-                                        background: IA_COST_STYLES[m.cost].bg,
-                                        color: IA_COST_STYLES[m.cost].fg,
-                                        borderColor: IA_COST_STYLES[m.cost].border,
-                                      }}
-                                    >
-                                      {IA_COST_LABELS[m.cost]}
-                                    </span>
-                                    {m.id === recommendedModelId && (
-                                      <span
-                                        className="flex items-center gap-0.5 text-[12px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
-                                        style={{ background: "var(--accent-50)", color: "var(--accent-700)", borderColor: "var(--accent-200)" }}
-                                      >
-                                        <Check size={9} className="shrink-0" />
-                                        Recomendado
-                                      </span>
-                                    )}
+                            {/* Três degraus de esforço, sem grupo por fornecedora.
+                                Antes eram nove modelos em dois grupos, e a
+                                pergunta "Claude Sonnet 5 ou GPT-5.6 Terra?" não
+                                tem como ser respondida por quem veio configurar
+                                um agente de vendas (dono, 25/09/2026). */}
+                            {IA_ESFORCOS.map((e) => (
+                              <SelectItem key={e.esforco} value={e.esforco}>
+                                <span className="flex items-center gap-2">
+                                  <span>{e.titulo}</span>
+                                  <span
+                                    className="text-[12px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
+                                    style={{
+                                      background: IA_ESFORCO_STYLES[e.esforco].bg,
+                                      color: IA_ESFORCO_STYLES[e.esforco].fg,
+                                      borderColor: IA_ESFORCO_STYLES[e.esforco].border,
+                                    }}
+                                  >
+                                    {e.descricao}
                                   </span>
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                            <SelectGroup>
-                              <SelectLabel>Anthropic (Claude)</SelectLabel>
-                              {IA_MODELS.anthropic.map((m) => (
-                                <SelectItem key={m.id} value={m.id}>
-                                  <span className="flex items-center gap-2">
-                                    <span>{m.label}</span>
+                                  {e.esforco === esforcoDoModelo(recommendedModelId) && (
                                     <span
-                                      className="text-[12px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
-                                      style={{
-                                        background: IA_COST_STYLES[m.cost].bg,
-                                        color: IA_COST_STYLES[m.cost].fg,
-                                        borderColor: IA_COST_STYLES[m.cost].border,
-                                      }}
+                                      className="flex items-center gap-0.5 text-[12px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
+                                      style={{ background: "var(--accent-50)", color: "var(--accent-700)", borderColor: "var(--accent-200)" }}
                                     >
-                                      {IA_COST_LABELS[m.cost]}
+                                      <Check size={9} className="shrink-0" />
+                                      Recomendado
                                     </span>
-                                    {m.id === recommendedModelId && (
-                                      <span
-                                        className="flex items-center gap-0.5 text-[12px] leading-none font-semibold px-1.5 py-[3px] rounded-full border shrink-0"
-                                        style={{ background: "var(--accent-50)", color: "var(--accent-700)", borderColor: "var(--accent-200)" }}
-                                      >
-                                        <Check size={9} className="shrink-0" />
-                                        Recomendado
-                                      </span>
-                                    )}
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
+                                  )}
+                                </span>
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       );
                     })()}
                   </div>
                   {(() => {
-                    const modelProvider = modelDraft.startsWith("gpt-") ? "openai" : "anthropic";
-                    const hasKey = modelProvider === "openai" ? hasOpenaiKey : hasAnthropicKey;
-                    if (hasKey) return null;
+                    // Só OpenAI: é a única fornecedora do produto desde
+                    // 25/09/2026. O agente antigo gravado em Claude segue
+                    // rodando, mas a chave que a tela cobra é a da OpenAI,
+                    // porque é para lá que ele vai no próximo salvamento.
+                    if (hasOpenaiKey) return null;
                     return (
                       <div className="flex items-start gap-2.5 p-4 bg-[color:var(--danger-bg)] rounded-lg max-w-[360px]">
                         <AlertTriangle size={16} className="text-[color:var(--danger-fg)] mt-0.5 shrink-0" />
                         <div className="text-[13px] text-[color:var(--danger-fg)]">
-                          Sem chave da {modelProvider === "openai" ? "OpenAI" : "Anthropic"} cadastrada — cadastre em Configurações para o agente conseguir usar esse modelo.
+                          Sem chave da OpenAI cadastrada — cadastre em Configurações para o agente conseguir funcionar.
                         </div>
                       </div>
                     );
