@@ -5,6 +5,7 @@ import { telefonesIguais, variantesDeTelefone } from "../_shared/telefone.ts";
 import { upsertConversationForMessage, previewLabelFor, idsDeConversasPorTelefone } from "../_shared/upsert-conversation.ts";
 import { empresaBloqueada } from "../_shared/cobranca.ts";
 import { registrarUso } from "../_shared/uso.ts";
+import { podeGastar } from "../_shared/credito.ts";
 
 // Agente SDS: qualifica leads no multiatendimento com objetivo FIXO de
 // agendar reunião qualificada pro time de closers. Disparado pelos webhooks
@@ -1938,6 +1939,12 @@ async function executarTeste(
   const apiKey = companyKey?.api_key || "";
   if (!apiKey) return json({ error: "no_company_api_key", provider }, 200);
 
+  // A simulação queima token igual à conversa real, então trava igual. Aqui o
+  // erro VAI para a tela: quem clicou em simular está olhando e precisa saber
+  // por que não rodou.
+  const veredictoTeste = await podeGastar(db, companyId, "agent-sds-teste");
+  if (veredictoTeste !== "ok") return json({ error: veredictoTeste }, 200);
+
   // Lead de mentira, e de propósito VAZIO: sem e-mail e sem nenhum campo
   // preenchido é exatamente o estado de um lead novo chegando pelo WhatsApp.
   // Preencher aqui faria o teste pular a parte que mais importa, que é ver o
@@ -2248,6 +2255,17 @@ Deno.serve(async (req) => {
     .maybeSingle();
   const apiKey = companyKey?.api_key || "";
   if (!apiKey) return json({ skipped: "no_company_api_key" }, 200);
+
+  /*
+   * Trava de saldo. `skipped`, no mesmo formato de "sem chave" logo acima.
+   *
+   * Nada é enviado ao contato do WhatsApp: para ele, o agente simplesmente não
+   * responde e um humano assume, que é o mesmo comportamento de fora do
+   * horário. O cliente final nunca recebe "acabou o crédito" (secao 3 do
+   * plano) -- quem precisa saber é o admin da empresa.
+   */
+  const veredicto = await podeGastar(db, companyId, "agent-sds");
+  if (veredicto !== "ok") return json({ skipped: veredicto }, 200);
 
   // Conversa finalizada = atendimento encerrado, o agente não responde mais.
   // Vale tanto pra tool finalizar_conversa quanto pro botão "Finalizar" do

@@ -8,6 +8,7 @@ import { sendWa, type ZapiCreds, type WaMsg } from "../_shared/whatsapp-send.ts"
 import { upsertContact } from "../_shared/contacts.ts";
 import { empresaBloqueada } from "../_shared/cobranca.ts";
 import { registrarUso, custoDeAudio } from "../_shared/uso.ts";
+import { podeGastar } from "../_shared/credito.ts";
 
 // Deve espelhar o tipo LeadOrigin (src/data/mockData.ts) e a constraint leads_origin_check do banco
 const VALID_LEAD_ORIGINS = ["Instagram", "Facebook Ads", "Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads", "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro"];
@@ -1859,12 +1860,34 @@ async function executeFlow(
 
 // Executa o bloco de IA: lê a chave do provedor (BYOK) da empresa, interpola o
 // prompt com as variáveis do contexto e chama a API do provedor escolhido.
-// Busca a chave ativa do provedor de IA (BYOK) da empresa.
+/**
+ * Busca a chave ativa do provedor de IA (BYOK) da empresa, e trava por saldo.
+ *
+ * ─── Por que a trava mora AQUI ─────────────────────────────────────────────
+ *
+ * Porque os QUATRO caminhos de IA deste runner passam por esta função antes de
+ * chamar qualquer API: texto, intenção/sentimento, extrator de parâmetros e
+ * transcrição de áudio. Uma trava em cada um deles seria quatro lugares para
+ * esquecer; aqui é um, e qualquer ação nova já nasce travada.
+ *
+ * O `throw` é o mecanismo certo neste runner: o laço de ações do nó `ia` já
+ * captura exceção por ação, escreve a mensagem em `automation_logs.error_message`
+ * e segue para a porta de erro do nó. Então saldo insuficiente aparece no log
+ * da automação como qualquer outra falha, em vez de virar silêncio.
+ */
 async function getAiKey(
   supabase: SupabaseClient,
   companyId: string,
   provider: string,
 ): Promise<string> {
+  const veredito = await podeGastar(supabase, companyId, "automation-runner");
+  if (veredito === "sem_saldo") {
+    throw new Error("Sem saldo de crédito para usar IA. Adicione crédito em Agentes.");
+  }
+  if (veredito === "teto_diario") {
+    throw new Error("Teto diário de consumo de IA atingido. O bloco de IA volta a rodar amanhã.");
+  }
+
   const { data } = await supabase
     .from("ai_provider_keys")
     .select("api_key, active")

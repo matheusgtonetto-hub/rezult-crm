@@ -11,6 +11,59 @@
  */
 
 /**
+ * Pode gastar? Consultado ANTES de cada chamada de IA.
+ *
+ * ─── Por que existe, e por que virou urgente ───────────────────────────────
+ *
+ * O debito acontece DEPOIS da chamada, com o custo real (ver `debitarCredito`).
+ * Sozinho, ele registra o prejuizo mas nao o impede: uma automacao em laco
+ * queimaria saldo muito abaixo de zero e so seria descoberta pelo extrato.
+ *
+ * Com o checkout no ar desde o passo 4, ja existe saldo de verdade para
+ * queimar, e 13% de margem nao absorve descoberto.
+ *
+ * ─── O que ela devolve ─────────────────────────────────────────────────────
+ *
+ *   'ok'          → segue
+ *   'sem_saldo'   → nao chama a IA
+ *   'teto_diario' → nao chama a IA, o teto do dia foi atingido
+ *
+ * Empresa SEM conta de credito recebe 'ok': ela usa chave propria e paga o
+ * fornecedor direto. E o caso de todas as empresas de hoje, entao ligar isto
+ * nao muda nada para elas.
+ *
+ * ─── Falha aberta, de proposito ────────────────────────────────────────────
+ *
+ * Se a consulta em si falhar (rede, banco fora), devolve 'ok' e deixa passar.
+ * A alternativa seria parar o atendimento de TODO MUNDO -- inclusive de quem
+ * usa chave propria e nem depende do nosso saldo -- por causa de uma falha
+ * nossa. O custo de errar para o lado permissivo e uma chamada; para o lado
+ * restritivo, e o produto inteiro parado.
+ */
+export type VeredictoDeGasto = "ok" | "sem_saldo" | "teto_diario";
+
+export async function podeGastar(
+  db: any,
+  companyId: string,
+  origem: string,
+): Promise<VeredictoDeGasto> {
+  if (!companyId) return "ok";
+
+  const { data, error } = await db.rpc("pode_gastar", { p_company_id: companyId });
+
+  if (error) {
+    console.error(`[${origem}] pode_gastar falhou, deixando passar:`, error.message, { companyId });
+    return "ok";
+  }
+
+  const v = String(data ?? "ok");
+  if (v !== "ok") {
+    console.log(`[${origem}] empresa ${companyId} BLOQUEADA: ${v}`);
+  }
+  return (v === "sem_saldo" || v === "teto_diario") ? v : "ok";
+}
+
+/**
  * Desconta do saldo da empresa o custo real de uma chamada.
  *
  * ─── O que esta função NÃO faz, de propósito ────────────────────────────────

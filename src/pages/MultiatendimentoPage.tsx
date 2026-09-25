@@ -2365,8 +2365,16 @@ export default function MultiatendimentoPage() {
 
       const result = (data ?? {}) as { suggestion?: string; error?: string };
       if (error || result.error) {
+        // Cada motivo tem a sua frase, e nenhuma delas manda tentar de novo
+        // quando tentar de novo não resolve: saldo esgotado e teto diário não
+        // passam por insistência, e mandar o atendente repetir o clique só
+        // queima o tempo dele.
         if (result.error === "not_configured") {
           toast.error("Cadastre a chave da OpenAI em Configurações → Chaves de API para usar a sugestão com IA.");
+        } else if (result.error === "sem_saldo") {
+          toast.error("Sem saldo de crédito. Adicione crédito em Agentes para usar a sugestão com IA.");
+        } else if (result.error === "teto_diario") {
+          toast.error("Teto diário de consumo de IA atingido. A sugestão volta amanhã.");
         } else {
           toast.error("Não foi possível gerar a sugestão. Tente novamente.");
         }

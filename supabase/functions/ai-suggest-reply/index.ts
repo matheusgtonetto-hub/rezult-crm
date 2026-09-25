@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { empresaBloqueada } from "../_shared/cobranca.ts";
 import { registrarUso } from "../_shared/uso.ts";
+import { podeGastar } from "../_shared/credito.ts";
 
 // Sugestão de resposta com IA para o Multiatendimento.
 // Lê o histórico recente da conversa + contexto do lead e gera a próxima
@@ -51,6 +52,17 @@ Deno.serve(async (req) => {
   if (await empresaBloqueada(db, body.companyId)) {
     return json({ error: "billing_blocked" }, 402);
   }
+
+  /*
+   * Trava de saldo, no mesmo lugar da trava de cobrança: antes de resolver a
+   * chave, para a chamada nem chegar a ser montada.
+   *
+   * Aqui o erro VAI para a tela, diferente dos agentes. Quem clicou em "sugerir
+   * resposta" é o atendente, está olhando e esperando uma resposta: devolver
+   * silêncio faria ele clicar de novo.
+   */
+  const veredicto = await podeGastar(db, body.companyId ?? "", "sugestao");
+  if (veredicto !== "ok") return json({ error: veredicto }, 200);
 
   // Chave da EMPRESA (BYOK), o mesmo padrão do agente. As variáveis de ambiente
   // ficam como último recurso, para ambiente de desenvolvimento.

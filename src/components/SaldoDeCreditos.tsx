@@ -152,6 +152,22 @@ const VALORES_SUGERIDOS = [10, 25, 50, 100];
 const COMPRA_MAXIMA = 2000;
 
 /**
+ * Onde o aviso de saldo baixo acende.
+ *
+ * Em créditos absolutos, e não em porcentagem do saldo.
+ *
+ * A secao 3 do plano falava em 20% e 5%, e isso não funciona num saldo que só
+ * cai: 20% de um saldo que já está em 300 créditos são 60, e avisar ali é
+ * avisar tarde. Porcentagem só faz sentido com um "cheio" de referência, e uma
+ * conta pré-paga não tem.
+ *
+ * Em números absolutos o aviso acende sempre com a mesma folga de trabalho pela
+ * frente, independente do tamanho da última compra. 3.000 créditos são ~US$ 2
+ * de custo, o que dá na ordem de 85 respostas de agente.
+ */
+const AVISO_SALDO_BAIXO = 3000;
+
+/**
  * Compra mínima, em dólar.
  *
  * Não é número escolhido a esmo: é o mesmo piso de recarga que a OpenAI impõe
@@ -405,11 +421,22 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           Pague só pelo que usar.
         </p>
 
-        {negativo && (
+        {/* Três estados, e só um aparece de cada vez.
+            A ordem importa: o mais grave ganha, senão um saldo negativo
+            mostraria "está acabando" em vez de "parou". */}
+        {temConta && saldo <= 0 ? (
           <p className="text-[12px] mt-2 leading-snug" style={{ color: "var(--danger-fg)" }}>
-            Saldo negativo: os agentes param até uma nova compra.
+            {negativo
+              ? "Saldo negativo: os agentes estão parados até uma nova compra."
+              : "Saldo esgotado: os agentes estão parados até uma nova compra."}
           </p>
-        )}
+        ) : temConta && saldo <= AVISO_SALDO_BAIXO ? (
+          /* Avisa ANTES de parar. Quem descobre o fim do saldo pela ausência de
+             resposta do agente já perdeu o lead (secao 3 do plano). */
+          <p className="text-[12px] mt-2 leading-snug" style={{ color: "var(--warning-fg)" }}>
+            Saldo baixo: os agentes param quando chegar a zero.
+          </p>
+        ) : null}
 
         {/* `mt-auto` cola os botões no pé da metade, alinhados com o botão da
             Base do outro lado, em vez de flutuarem sob o texto. */}

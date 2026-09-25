@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.11.0";
 import { registrarUso } from "../_shared/uso.ts";
+import { podeGastar } from "../_shared/credito.ts";
 
 // Processa um documento enviado na aba "Base de Conhecimento" do agente:
 // baixa do Storage, extrai texto, divide em chunks, gera embedding e grava
@@ -197,6 +198,23 @@ Deno.serve(async (req) => {
       .maybeSingle();
     const openaiKey = companyOpenaiKey?.api_key || Deno.env.get("OPENAI_API_KEY") || "";
     if (!openaiKey) throw new Error("OPENAI_API_KEY não configurada (nem por empresa, nem global)");
+
+    /*
+     * Trava de saldo. Um documento grande vira dezenas de chamadas de
+     * embedding, então é justamente onde um saldo esgotado geraria mais
+     * descoberto de uma vez.
+     *
+     * `throw` porque o bloco já marca o documento com o erro: a pessoa que
+     * subiu o arquivo vê o motivo na Base de Conhecimento, em vez de um
+     * documento eternamente "processando".
+     */
+    const veredicto = await podeGastar(db, doc.company_id as string, "base_conhecimento");
+    if (veredicto === "sem_saldo") {
+      throw new Error("Sem saldo de crédito para indexar o documento. Adicione crédito em Agentes.");
+    }
+    if (veredicto === "teto_diario") {
+      throw new Error("Teto diário de consumo de IA atingido. Tente indexar o documento amanhã.");
+    }
 
     const chunks = chunkText(rawText);
     // Documento sem texto extraível (PDF só de imagem, arquivo vazio) não é

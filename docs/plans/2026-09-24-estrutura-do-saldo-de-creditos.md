@@ -120,7 +120,54 @@ levemente negativo -- por isso a checagem de entrada usa uma margem (adiante).
 
 ---
 
-## 3. A trava
+## 3. A trava -- FEITA em 25/09 (migration 20260925000004)
+
+**Diverge do que esta escrito abaixo: bloqueia em ZERO, nao numa margem.**
+
+A margem existia para evitar que uma ultima chamada furasse o `check (saldo >=
+0)` e a transacao falhasse no meio de uma conversa. Esse check NAO EXISTE: foi
+retirado na migration 20260924000003 porque fazia o debito falhar, e o resultado
+era consumo sem debito.
+
+Sem ele, saldo negativo nao quebra nada, so fica registrado. Entao a margem
+perdeu a razao e ganhou um custo: uma margem de 1.000 creditos deixaria o
+cliente olhando 900 creditos com os agentes parados, sem entender por que.
+Bloqueando em zero, o descoberto maximo e UMA chamada (a mais cara conhecida
+custa ~645 creditos) -- limitado, visivel e registrado.
+
+`pode_gastar(company_id)` devolve `ok | sem_saldo | teto_diario`, e `ok` para
+empresa sem conta de credito (BYOK, que e o caso de todas hoje).
+
+**Onde esta ligada, e como cada ponto reage:**
+
+| Ponto | Reacao |
+|---|---|
+| `agent-operacional-runner` | `pular(motivo)`, como "empresa_bloqueada" |
+| `agent-sds-qualify` (real) | `{ skipped: motivo }` |
+| `agent-sds-qualify` (simular) | erro NA TELA -- quem clicou esta olhando |
+| `automation-runner` | `throw` em `getAiKey`, que e o gargalo dos 4 caminhos de IA |
+| `ai-suggest-reply` | erro NA TELA -- o atendente esta esperando |
+| `agent-kb-ingest` | `throw`, e o documento mostra o motivo |
+
+`getAiKey` foi escolhido no automation-runner porque os QUATRO caminhos de IA
+passam por ele: texto, intencao/sentimento, extrator e transcricao. Uma trava em
+cada seriam quatro lugares para esquecer.
+
+**Falha aberta, de proposito:** se a propria consulta falhar (rede, banco fora),
+`podeGastar` devolve `ok` e deixa passar. Parar o atendimento de TODO MUNDO --
+inclusive de quem usa chave propria e nem depende do nosso saldo -- por causa de
+uma falha nossa custa mais que uma chamada a descoberto.
+
+**Os avisos, em numero absoluto e nao em porcentagem.** O plano falava em 20% e
+5%, e isso nao funciona num saldo que so cai: 20% de um saldo que ja esta em 300
+creditos sao 60, e avisar ali e avisar tarde. Porcentagem exige um "cheio" de
+referencia, e conta pre-paga nao tem. O aviso acende em 3.000 creditos (~US$ 2
+de custo, na ordem de 85 respostas de agente), sempre com a mesma folga de
+trabalho pela frente.
+
+---
+
+## 3-original. A trava (texto de desenho, anterior a implementacao)
 
 Antes de cada chamada de IA, nos quatro pontos que hoje leem `ai_provider_keys`
 (`agent-operacional-runner`, `agent-sds-qualify`, `automation-runner`,
@@ -517,8 +564,8 @@ de abrir para a base.
 | 3a | Migration da unidade + card em créditos | o saldo e o extrato falam em créditos | feito em 25/09 |
 | 3b | Abas "Consumo" e "Compras" + cartão da Performance (4.6) | dá para auditar antes de cobrar | feito em 25/09 |
 | 4 | Checkout avulso (price em USD, 1.070 créditos por dólar) + webhook creditando | passa a vender | feito em 25/09 |
-| 5 | Trava, avisos, teto diário e **relatório de cobertura do hedge (6.1)** | passa a ser seguro | **pendente, e é o proximo** |
-| 6 | Chave da Rezult com fallback para a do cliente | o BYOK vira opcional | pendente |
+| 5 | Trava, avisos, teto diário e relatório de cobertura do hedge (6.1) | passa a ser seguro | feito em 25/09 |
+| 6 | Chave da Rezult com fallback para a do cliente | o BYOK vira opcional | **pendente, e é o ultimo** |
 
 ### Por que 2b vem antes de tudo
 

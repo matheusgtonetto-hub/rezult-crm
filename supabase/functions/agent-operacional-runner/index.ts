@@ -23,6 +23,7 @@ import { empresaBloqueada } from "../_shared/cobranca.ts";
 import { executeRegistryTool, TOOL_SCHEMAS, type ToolResult, type ToolSchema } from "../_shared/agent-tools.ts";
 import { somenteDigitos } from "../_shared/telefone.ts";
 import { registrarUso } from "../_shared/uso.ts";
+import { podeGastar } from "../_shared/credito.ts";
 
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -192,6 +193,20 @@ async function processar(db: Db, fila: Fila): Promise<{ processadoAte: string | 
   if (!agente) return pular("agente_desligado");
 
   if (await empresaBloqueada(db, fila.company_id)) return pular("empresa_bloqueada");
+
+  /*
+   * Trava de saldo, no mesmo lugar e no mesmo formato da trava de cobrança
+   * acima: antes de resolver a chave, porque montar a chamada de IA para
+   * descobrir depois que não há saldo é trabalho jogado fora.
+   *
+   * `pular` e não `throw`: saldo esgotado não é defeito, é um estado esperado
+   * da conta. A fila registra o motivo e segue para o próximo item, e o
+   * contato do WhatsApp recebe o mesmo comportamento de fora do horário --
+   * o agente não responde e um humano assume. O cliente final NUNCA vê
+   * "acabou o crédito" (secao 3 do plano).
+   */
+  const veredito = await podeGastar(db, fila.company_id, "agent-operacional");
+  if (veredito !== "ok") return pular(veredito);
 
   const model = (agente.model as string) || "gpt-5.6-terra";
   const provedor = model.startsWith("gpt-") ? "openai" : "anthropic";
