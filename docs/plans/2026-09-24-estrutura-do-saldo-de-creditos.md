@@ -171,23 +171,23 @@ interface.
 | Onde | Unidade |
 |---|---|
 | Botao de compra | **US$ 25** (o Stripe mostra ~R$ 135 ao lado) |
-| Card de saldo | **US$ 25,00** |
-| Linha de consumo | **US$ 0,0233** |
+| Card de saldo | **25.000 creditos** |
+| Linha de consumo | **35 creditos** |
 
-**Emenda de 25/09/2026 (dono): a TELA mostra dolar, nao creditos.**
+**Ida e volta do dolar na tela, em 25/09/2026.**
 
-O credito continua sendo a unidade guardada no banco; o que mudou e o rotulo.
-Com 1.000 creditos por dolar pago, a tela fica 1:1 com o pagamento -- quem paga
-US$ 25 ve US$ 25,00 de saldo -- e o credito vira representacao interna.
+O saldo chegou a aparecer em dolar do que foi pago, e voltou para credito no
+mesmo dia. Fica registrado porque a ideia e tentadora e vai voltar: em dolar, a
+tela fica 1:1 com o pagamento e some uma unidade para explicar ao cliente.
 
-O que isso CUSTA, e precisa ser sabido antes de reajustar: enquanto o saldo
-aparece em dolar pago, a taxa de venda nao pode mudar. Vender 833 creditos por
-dolar (markup de 80%) faria quem paga US$ 1 ver US$ 0,83 entrar. Entao um
-reajuste teria de mexer em quanto cada credito COMPRA, e isso desvaloriza saldo
-ja vendido -- exatamente o que 4.4 proibe. Ver 4.5, que deixa de ter saida
-gratuita: com dolar na tela, ou o markup nunca muda, ou volta o lote FIFO.
+O que ela custa e a liberdade de reajustar, e o custo so aparece quando se tenta
+mexer no preco. Com dolar pago na tela, vender 833 creditos por dolar (markup de
+80%) faria quem paga US$ 1 ver US$ 0,83 entrar -- impossivel de anunciar. O
+reajuste passaria a ter de mexer em quanto cada credito COMPRA, o que
+desvaloriza saldo ja vendido: exatamente o que 4.4 proibe. A saida barata de 4.5
+deixava de existir e o lote FIFO voltava.
 
-Enquanto o markup nao mudar, nada disso acontece.
+Em credito, as duas taxas seguem independentes e 4.5 continua valendo.
 
 O nome na UI e "creditos" ou "Creditos Rezult", nunca "Rezult Credits": a
 aplicacao e 100% em portugues por regra do projeto.
@@ -292,12 +292,11 @@ fornecedor não seja possível, e este cartão a reabre.
 creditos debitados. 294 / 0,1932 = 1521 -- nao 1500, por causa do `ceil` linha a
 linha, mas perto o bastante para entregar a margem.
 
-Com o saldo em dolar (emenda de 4.1) o risco PIOROU: os dois numeros passaram a
-ser dolar, e mesma unidade convida a comparacao direta.
-
-**Corrigido**: o cartao passa a ler `consumo_por_origem` e mostrar o que saiu do
-saldo, em dolar pago, para quem tem conta. Quem usa chave propria segue vendo o
-custo real, que e a fatura dele. Nunca os dois na mesma tela.
+**Corrigido**: o cartao passa a ler `consumo_por_origem` e mostrar os CREDITOS
+descontados, para quem tem conta. Quem usa chave propria segue vendo o custo
+real em dolar, que e a fatura dele. Nunca os dois na mesma tela -- e, em
+creditos, os dois numeros nem sao a mesma unidade, o que ja desencoraja a
+divisao.
 
 O conserto não é esconder o número, é escolher a unidade certa para cada caso:
 

@@ -58,29 +58,37 @@ const JANELAS = [
   { dias: 30, rotulo: "30 dias" },
 ];
 
-/** Contagens inteiras com separador de milhar: hoje só a coluna "Chamadas". */
+/**
+ * Créditos e contagens são inteiros, com separador de milhar.
+ *
+ * ─── Por que um formatador só, onde antes havia dois ────────────────────────
+ *
+ * Enquanto o saldo era em dólar, o extrato precisava de duas escalas: duas
+ * casas para a compra (US$ 25,00) e QUATRO para o consumo (US$ 0,0232), senão
+ * toda linha de uso aparecia como US$ 0,00. Eram duas unidades de leitura na
+ * mesma coluna.
+ *
+ * Em créditos, compra e consumo caem na mesma escala -- 25.000 e 35 -- e o
+ * saldo volta a ser a soma do extrato, conferível somando a coluna.
+ */
 const inteiro = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 
-/**
- * De crédito para o dólar que o cliente PAGOU.
+/*
+ * ─── Ida e volta do dólar na tela (25/09/2026) ──────────────────────────────
  *
- * O saldo aparece em dólar (dono, 25/09/2026), mas continua guardado em
- * créditos no banco. Não é redundância: é o que mantém a regra 4.4 do plano
- * possível de cumprir, porque o crédito é uma unidade de TRABALHO fixa e o
- * dólar aqui é só o rótulo do que foi pago por ela.
+ * O saldo chegou a aparecer em dólar do que foi pago, e voltou para crédito no
+ * mesmo dia. A razão da volta vale ficar escrita, porque a ideia é tentadora:
+ * em dólar, a tela fica 1:1 com o pagamento e some uma unidade para explicar.
  *
- * Com 1.000 créditos por dólar pago, a tela fica 1:1 com o pagamento: quem
- * paga US$ 25 vê US$ 25,00 de saldo.
- *
- * ─── O que isso custa, e que precisa ser sabido antes de reajustar ─────────
- *
- * Enquanto o saldo é mostrado em dólar pago, esta taxa não pode mudar: vender
+ * O que ela custa é a liberdade de reajustar. Com dólar pago na tela, vender
  * 833 créditos por dólar (markup de 80%) faria quem paga US$ 1 ver US$ 0,83
- * entrar. Então um reajuste futuro teria de mexer em quanto cada crédito
- * compra -- e isso desvaloriza saldo já vendido, que é exatamente o que a
- * regra 4.4 proíbe. Enquanto o markup não mudar, nada disso acontece.
+ * entrar -- impossível de anunciar. O reajuste passaria a ter de mexer em
+ * quanto cada crédito COMPRA, o que desvaloriza saldo já vendido e é
+ * exatamente o que a regra 4.4 do plano proíbe.
+ *
+ * Em crédito, as duas taxas voltam a ser independentes: reajustar é vender
+ * menos créditos por dólar, e o saldo de quem já comprou não é tocado.
  */
-const emDolarPago = (creditosDoSaldo: number) => creditosDoSaldo / CREDITOS_POR_DOLAR_PAGO;
 
 /** No popup de compra, que é onde o valor é dinheiro de verdade. */
 const dolar = new Intl.NumberFormat("pt-BR", {
@@ -266,7 +274,15 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           className="text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums mt-1"
           style={{ color: negativo ? "var(--danger-fg)" : "var(--text-heading)" }}
         >
-          {carregando ? "—" : dolar.format(emDolarPago(saldo))}
+          {carregando ? "—" : inteiro.format(saldo)}
+          {/* A unidade fica ao lado do número, e não no rótulo acima, porque
+              "37.206" sozinho não diz nada. Menor e mais clara que o valor
+              para o olho pegar a grandeza primeiro e a unidade depois. */}
+          {!carregando && (
+            <span className="text-[15px] font-medium tracking-normal ml-1.5 text-muted-foreground">
+              {saldo === 1 ? "crédito" : "créditos"}
+            </span>
+          )}
         </p>
 
         {/* O texto vale com ou sem saldo, porque responde a pergunta que vem
@@ -311,7 +327,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           <DialogHeader>
             <DialogTitle>Extrato</DialogTitle>
             <DialogDescription>
-              Saldo de {dolar.format(emDolarPago(saldo))}.
+              Saldo de {inteiro.format(saldo)} {saldo === 1 ? "crédito" : "créditos"}.
             </DialogDescription>
           </DialogHeader>
 
@@ -354,7 +370,9 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                       <tr className="text-muted-foreground text-left">
                         <th className="font-medium pb-2">O que</th>
                         <th className="font-medium pb-2 text-right">Chamadas</th>
-                        <th className="font-medium pb-2 text-right">Valor</th>
+                        <th className="font-medium pb-2 text-right">
+                          {temConta ? "Créditos" : "Custo"}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -364,12 +382,11 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                           <td className="py-2 text-right tabular-nums text-muted-foreground">
                             {inteiro.format(l.chamadas)}
                           </td>
-                          {/* Os dois lados são dólar, mas NÃO o mesmo dólar:
-                              quem tem saldo vê o que descontou do que pagou;
-                              quem usa chave própria vê o custo real, que é a
-                              fatura que o fornecedor vai mandar para ela. */}
+                          {/* A unidade depende de quem paga: quem tem saldo no
+                              Rezult vê créditos, quem usa a própria chave vê o
+                              dólar que o fornecedor vai cobrar dele. */}
                           <td className="py-2 text-right tabular-nums font-medium text-foreground">
-                            {dolarFino.format(temConta ? emDolarPago(l.creditos) : l.custo_usd)}
+                            {temConta ? inteiro.format(l.creditos) : dolarFino.format(l.custo_usd)}
                           </td>
                         </tr>
                       ))}
@@ -379,9 +396,9 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                           {inteiro.format(consumo.reduce((s, l) => s + l.chamadas, 0))}
                         </td>
                         <td className="py-2 text-right tabular-nums font-semibold text-foreground">
-                          {dolarFino.format(temConta
-                            ? emDolarPago(consumo.reduce((s, l) => s + l.creditos, 0))
-                            : consumo.reduce((s, l) => s + l.custo_usd, 0))}
+                          {temConta
+                            ? inteiro.format(consumo.reduce((s, l) => s + l.creditos, 0))
+                            : dolarFino.format(consumo.reduce((s, l) => s + l.custo_usd, 0))}
                         </td>
                       </tr>
                     </tbody>
@@ -401,7 +418,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                       <tr className="text-muted-foreground text-left">
                         <th className="font-medium pb-2">Quando</th>
                         <th className="font-medium pb-2">O que</th>
-                        <th className="font-medium pb-2 text-right">Valor</th>
+                        <th className="font-medium pb-2 text-right">Créditos</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -423,7 +440,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                               className="py-2 text-right tabular-nums whitespace-nowrap font-medium"
                               style={{ color: credito ? "var(--text-link)" : "var(--text-body)" }}
                             >
-                              {credito ? "+" : "−"}{dolar.format(emDolarPago(Math.abs(l.valor)))}
+                              {credito ? "+" : "−"}{inteiro.format(Math.abs(l.valor))}
                             </td>
                           </tr>
                         );
@@ -500,11 +517,23 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
               </p>
             )}
 
-            {/* Não há mais o que explicar aqui.
-                Enquanto o saldo era em créditos, esta linha era a ponte entre
-                as duas unidades da tela ("US$ 25 compram 25.000 créditos").
-                Com o saldo em dólar pago, quem paga US$ 25 vê US$ 25,00 entrar,
-                e a frase viraria uma tautologia. */}
+            {/* Quantos créditos o valor digitado compra.
+                É a única ponte entre as duas unidades da tela, e ela precisa
+                existir: o campo está em dólar e o saldo, em créditos. Sem esta
+                linha, a pessoa paga US$ 25 e vê o saldo subir 25.000 sem
+                entender de onde saiu o número.
+
+                Some quando o valor é inválido, porque aí o aviso do mínimo já
+                ocupa este lugar e dois textos empilhados competiriam. */}
+            {!abaixoDoMinimo && escolhido >= COMPRA_MINIMA && (
+              <p className="text-[13px] leading-snug text-muted-foreground">
+                {dolar.format(escolhido)} compram{" "}
+                <span className="font-medium text-foreground tabular-nums">
+                  {inteiro.format(Math.floor(escolhido * CREDITOS_POR_DOLAR_PAGO))} créditos
+                </span>
+                .
+              </p>
+            )}
           </div>
 
           <DialogFooter className="flex-col items-stretch gap-2 sm:flex-col">

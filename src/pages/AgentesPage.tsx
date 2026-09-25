@@ -4167,7 +4167,7 @@ function PerformanceTab({
   const [notQualified, setNotQualified] = useState(0);
   const [costUsd, setCostUsd] = useState(0);
   /*
-   * Quanto o saldo do Rezult perdeu com este agente, em dólar PAGO.
+   * Quantos créditos este agente consumiu do saldo do Rezult.
    *
    * Null quando a empresa usa chave própria: aí não há saldo, e o número certo
    * é o `costUsd` cru, que é a fatura que o fornecedor vai mandar para ela.
@@ -4247,7 +4247,7 @@ function PerformanceTab({
         const creditos = desteAgente.reduce(
           (s: number, l: Record<string, unknown>) => s + Number(l.creditos ?? 0), 0,
         );
-        setGastoDoSaldo(creditos > 0 ? creditos / 1000 : null);
+        setGastoDoSaldo(creditos > 0 ? creditos : null);
       }
       setSalesCount((wonData ?? []).length);
       setSalesValue((wonData ?? []).reduce((sum, r) => sum + (Number(r.won_value ?? r.value) || 0), 0));
@@ -4311,14 +4311,17 @@ function PerformanceTab({
         </div>
         <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Valor gasto (7 dias)</div>
-          {/* Com saldo no Rezult, mostra o que saiu do saldo. Sem saldo (chave
-              própria), mostra o custo real, que é o que a empresa vai pagar ao
-              fornecedor. Nunca os dois: juntos, entregam a margem. */}
+          {/* Com saldo no Rezult, mostra os créditos que saíram. Sem saldo
+              (chave própria), mostra o custo real em dólar, que é o que a
+              empresa vai pagar ao fornecedor. Nunca os dois: juntos, entregam
+              a margem -- e em créditos a comparação nem é a mesma unidade. */}
           <div className="text-[24px] font-bold text-[color:var(--text-heading)] mt-1">
-            ${(gastoDoSaldo ?? costUsd).toFixed(2)}
+            {gastoDoSaldo !== null
+              ? gastoDoSaldo.toLocaleString("pt-BR", { maximumFractionDigits: 0 })
+              : `$${costUsd.toFixed(2)}`}
           </div>
           <div className="text-[12px] text-[color:var(--neutral-400)] mt-0.5">
-            {gastoDoSaldo !== null ? "descontado do seu saldo" : "custo de tokens de IA"}
+            {gastoDoSaldo !== null ? "créditos descontados do saldo" : "custo de tokens de IA"}
           </div>
         </div>
         <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
