@@ -373,6 +373,83 @@ Deno.serve(async (req) => {
           break;
         }
 
+        /*
+         * ─── Compra de crédito de IA ──────────────────────────────────────────
+         *
+         * Sai antes do caminho de assinatura: uma compra de saldo é `mode:
+         * "payment"` e não tem `session.subscription`, então cairia no
+         * `console.error` logo abaixo e o dinheiro entraria sem virar saldo.
+         */
+        if (session.metadata?.tipo === "credito") {
+          /*
+           * `payment_status` checado explicitamente.
+           *
+           * `checkout.session.completed` dispara quando a sessão COMPLETA, e
+           * isso não é o mesmo que ter sido paga: um método assíncrono (boleto,
+           * por exemplo) completa a sessão com o pagamento ainda pendente.
+           * Creditar ali seria entregar saldo antes de receber.
+           */
+          if (session.payment_status !== "paid") {
+            console.log(`[credito] sessao ${session.id} completou com payment_status=${session.payment_status} — nao credita`);
+            break;
+          }
+
+          /*
+           * Os créditos vêm do metadata, escritos por `create-checkout-session`
+           * a partir do mesmo valor que foi cobrado. NÃO de `amount_total`: com
+           * a conversão automática do Stripe aquele campo pode vir em real, e
+           * creditar "135 x 1070" seria catastrófico.
+           */
+          const creditos = Number(session.metadata?.creditos);
+          const pagoUsd  = Number(session.metadata?.pagoUsd);
+
+          if (!Number.isFinite(creditos) || creditos <= 0) {
+            console.error(`[credito] metadata.creditos invalido (${session.metadata?.creditos}) na sessao ${session.id} — NAO creditado, cliente pagou`);
+            break;
+          }
+
+          /*
+           * `event.id` como chave de idempotência.
+           *
+           * O Stripe reenvia evento por desenho, não por defeito. A restrição
+           * `unique` em `credit_transactions.stripe_event_id` transforma o
+           * reenvio em erro de chave duplicada, que é o resultado correto:
+           * melhor um erro esperado do que crédito dobrado.
+           */
+          const { data: saldo, error } = await db.rpc("creditar_credito", {
+            p_company_id:      companyId,
+            p_creditos:        creditos,
+            p_tipo:            "compra",
+            p_stripe_event_id: event.id,
+            p_descricao:       `Compra de ${creditos.toLocaleString("pt-BR")} créditos`,
+            p_pago_usd:        Number.isFinite(pagoUsd) ? pagoUsd : null,
+          });
+
+          if (error) {
+            const repetido = error.code === "23505" || String(error.message ?? "").includes("duplicate key");
+            if (repetido) {
+              console.log(`[credito] evento ${event.id} ja creditado — reenvio ignorado`);
+            } else {
+              // Cliente pagou e não recebeu saldo. Precisa de olho humano.
+              console.error(`[credito] FALHA AO CREDITAR (cliente pagou US$ ${pagoUsd}, empresa ${companyId}):`, error.message);
+            }
+            break;
+          }
+
+          console.log(`[credito] empresa ${companyId} +${creditos} creditos (US$ ${pagoUsd}) — saldo agora ${saldo}`);
+
+          await sendMetaConversion({
+            eventName: "Purchase",
+            eventId:   session.id,
+            email:     session.customer_details?.email,
+            name:      session.customer_details?.name,
+            value:     pagoUsd,
+            currency:  "USD",
+            planName:  "creditos",
+          });
+          break;
+        }
+
         const subId = session.subscription as string | null;
         if (!subId) {
           console.error("[checkout.session.completed] session.subscription é null — modo não-subscription?");

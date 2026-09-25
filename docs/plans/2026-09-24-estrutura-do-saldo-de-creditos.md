@@ -162,6 +162,45 @@ cliente escolhe valor
 
 O `stripe_event_id` unico e o que torna o webhook repetivel sem credito dobrado.
 
+### 4.7 Como o passo 4 ficou (25/09/2026)
+
+**`create-checkout-session` ganhou um caminho `tipo: "credito"`**, que sai antes
+de toda a logica de assinatura (cupom da primeira contratacao, janela do teste
+gratis, `subscription_data`). Separado de proposito: misturar os dois num fluxo
+so seria pedir para o cupom de 50% um dia cair numa compra de credito.
+
+**Os creditos viajam no `metadata`, calculados no servidor.** O webhook credita
+a partir dali, NUNCA de `amount_total`, por dois motivos:
+
+1. Com a conversao automatica do Stripe, `amount_total` pode vir na moeda de
+   apresentacao (real). Creditar "135 x 1070" seria catastrofico.
+2. O numero nasce do mesmo valor que foi cobrado, entao o cliente nao consegue
+   inflar um sem inflar o outro.
+
+**`payment_status` e checado explicitamente.** `checkout.session.completed`
+dispara quando a sessao COMPLETA, e isso nao e o mesmo que ter sido paga: um
+metodo assincrono completa a sessao com o pagamento pendente. Creditar ali seria
+entregar saldo antes de receber.
+
+**Teto de US$ 2.000 por compra**, nos dois lados. Nao e desconfianca do cliente:
+um zero a mais em "500" vira uma cobranca de US$ 5.000, e desfazer custa
+estorno, taxa e uma conversa ruim.
+
+**Sem `allow_promotion_codes`** na compra de saldo. Cupom daria credito acima do
+que foi pago, e 13,2% de margem nao tem folga para isso.
+
+**A volta do checkout espera o webhook.** O Stripe manda o cliente para
+`/agentes?credito=ok` assim que o pagamento passa, mas quem credita e o webhook,
+que chega instantes depois. O card recarrega a cada 2s, no maximo 8 vezes, e
+para assim que o saldo muda. Sem isso a pessoa paga, ve o saldo ANTIGO e conclui
+que o dinheiro se perdeu.
+
+**Onde a taxa de venda mora agora:** `CREDITOS_POR_DOLAR_PAGO` existe em DOIS
+lugares -- `supabase/functions/create-checkout-session` (a que VALE, porque e a
+que entra no metadata) e `src/components/SaldoDeCreditos.tsx` (so para a tela
+dizer quantos creditos o valor compra). Mudar uma sem a outra faz a tela
+prometer um numero e o checkout entregar outro.
+
 ### 4.1 A unidade -- DECIDIDA: Creditos Rezult (dono, 25/09/2026)
 
 O cliente **paga em dolar** e **recebe creditos**. O dolar aparece uma unica vez,
@@ -477,8 +516,8 @@ de abrir para a base.
 | 2b | Medir custo nos CINCO pontos (eram 4 na conta anterior) | todo consumo de IA passa a contar | feito em 25/09 |
 | 3a | Migration da unidade + card em créditos | o saldo e o extrato falam em créditos | feito em 25/09 |
 | 3b | Abas "Consumo" e "Compras" + cartão da Performance (4.6) | dá para auditar antes de cobrar | feito em 25/09 |
-| 4 | Checkout avulso (price em USD, 1.070 créditos por dólar) + webhook creditando | passa a vender | **destravado, e é o proximo** |
-| 5 | Trava, avisos, teto diário e **relatório de cobertura do hedge (6.1)** | passa a ser seguro | pendente |
+| 4 | Checkout avulso (price em USD, 1.070 créditos por dólar) + webhook creditando | passa a vender | feito em 25/09 |
+| 5 | Trava, avisos, teto diário e **relatório de cobertura do hedge (6.1)** | passa a ser seguro | **pendente, e é o proximo** |
 | 6 | Chave da Rezult com fallback para a do cliente | o BYOK vira opcional | pendente |
 
 ### Por que 2b vem antes de tudo

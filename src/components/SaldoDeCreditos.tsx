@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Receipt } from "lucide-react";
+import { Loader2, Plus, Receipt } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -156,6 +158,16 @@ const VALORES_SUGERIDOS = [10, 25, 50, 100];
 const CREDITOS_POR_DOLAR_PAGO = 1070;
 
 /**
+ * Teto de compra. Espelho de `COMPRA_MAXIMA_USD` em
+ * `supabase/functions/create-checkout-session`, que é quem realmente recusa.
+ *
+ * Não é desconfiança do cliente, é proteção contra dedo errado: um zero a mais
+ * em "500" vira uma cobrança de US$ 5.000, e desfazer isso custa estorno, taxa
+ * e uma conversa ruim.
+ */
+const COMPRA_MAXIMA = 2000;
+
+/**
  * Compra mínima, em dólar.
  *
  * Não é número escolhido a esmo: é o mesmo piso de recarga que a OpenAI impõe
@@ -166,6 +178,7 @@ const CREDITOS_POR_DOLAR_PAGO = 1070;
 const COMPRA_MINIMA = 5;
 
 export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
+  const { user } = useAuth();
   const [conta, setConta] = useState<Conta | null>(null);
   const [extrato, setExtrato] = useState<Lancamento[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -175,6 +188,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
   const [valor, setValor] = useState("");
 
   const [temUso, setTemUso] = useState(false);
+  const [indoPagar, setIndoPagar] = useState(false);
   const [consumo, setConsumo] = useState<LinhaDeConsumo[]>([]);
   const [dias, setDias] = useState(30);
   const [carregandoConsumo, setCarregandoConsumo] = useState(false);
@@ -231,6 +245,56 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
   useEffect(() => { void carregar(); }, [carregar]);
 
   /*
+   * ─── Volta do checkout: espera o webhook ──────────────────────────────────
+   *
+   * O Stripe manda o cliente para `/agentes?credito=ok` assim que o pagamento
+   * passa, mas quem credita é o webhook, que chega alguns instantes depois.
+   * Sem esta espera, a pessoa paga e vê o saldo ANTIGO -- e a conclusão óbvia
+   * dela é que o dinheiro se perdeu.
+   *
+   * Recarrega a cada 2s, no máximo 8 vezes (~16s), e para assim que o saldo
+   * mudar. Limite existe porque webhook pode falhar: continuar tentando para
+   * sempre trocaria uma tela errada por uma tela que nunca assenta.
+   *
+   * O parâmetro sai da URL na primeira passada, senão um F5 reinicia a espera.
+   */
+  useEffect(() => {
+    if (!companyId) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("credito") !== "ok") return;
+
+    url.searchParams.delete("credito");
+    window.history.replaceState({}, "", url);
+    toast.success("Pagamento recebido. O saldo aparece em alguns segundos.");
+
+    const saldoAntes = conta?.saldo_creditos ?? null;
+    let tentativas = 0;
+    const timer = setInterval(() => {
+      tentativas += 1;
+      void supabase
+        .from("credit_accounts")
+        .select("saldo_creditos")
+        .eq("company_id", companyId)
+        .maybeSingle()
+        .then(({ data }) => {
+          const agora = data ? Number(data.saldo_creditos) : null;
+          if (agora !== null && agora !== saldoAntes) {
+            setConta({ saldo_creditos: agora });
+            void carregar();
+            clearInterval(timer);
+          } else if (tentativas >= 8) {
+            clearInterval(timer);
+          }
+        });
+    }, 2000);
+
+    return () => clearInterval(timer);
+    // `conta` de propósito fora das dependências: ele muda a cada recarga e
+    // reiniciaria a espera, criando um laço.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyId, carregar]);
+
+  /*
    * O consumo é buscado só quando o popup abre, e de novo a cada troca de
    * janela. Não entra no carregamento do cartão: a agregação junta três tabelas
    * e ninguém deveria pagar esse custo para ver um saldo.
@@ -274,6 +338,51 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
    * também não serve como valor.
    */
   const abaixoDoMinimo = valor.trim() !== "" && (!Number.isFinite(escolhido) || escolhido < COMPRA_MINIMA);
+  const acimaDoMaximo  = Number.isFinite(escolhido) && escolhido > COMPRA_MAXIMA;
+  const valorValido    = Number.isFinite(escolhido) && escolhido >= COMPRA_MINIMA && escolhido <= COMPRA_MAXIMA;
+
+  /**
+   * Abre o checkout do Stripe numa aba nova.
+   *
+   * Aba nova, e não navegação: quem desiste do pagamento volta para a tela dos
+   * agentes como deixou, sem recarregar a página e perder o que estava vendo.
+   *
+   * O saldo NÃO é atualizado aqui. Quem credita é o webhook, depois que o
+   * Stripe confirma o pagamento, e confiar no retorno do navegador significaria
+   * dar saldo a quem fechou a aba no meio.
+   */
+  const irParaOPagamento = async () => {
+    if (!companyId || !user || !valorValido) return;
+    setIndoPagar(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+
+      const res = await fetch(`${supabaseUrl}/functions/v1/create-checkout-session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
+        body: JSON.stringify({
+          tipo: "credito",
+          valorUsd: escolhido,
+          companyId,
+          userId: user.id,
+          userEmail: user.email ?? "",
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Não foi possível abrir o pagamento.");
+      window.open(data.url, "_blank");
+      setCompraAberta(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Não foi possível abrir o pagamento.");
+    } finally {
+      setIndoPagar(false);
+    }
+  };
 
   return (
     <>
@@ -533,6 +642,12 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
               </p>
             )}
 
+            {acimaDoMaximo && (
+              <p className="text-[12px] leading-snug" style={{ color: "var(--danger-fg)" }}>
+                O maior valor por compra é US$ {inteiro.format(COMPRA_MAXIMA)}.
+              </p>
+            )}
+
             {/* Quantos créditos o valor digitado compra.
                 É a única ponte entre as duas unidades da tela, e ela precisa
                 existir: o campo está em dólar e o saldo, em créditos. Sem esta
@@ -541,7 +656,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
 
                 Some quando o valor é inválido, porque aí o aviso do mínimo já
                 ocupa este lugar e dois textos empilhados competiriam. */}
-            {!abaixoDoMinimo && escolhido >= COMPRA_MINIMA && (
+            {valorValido && (
               <p className="text-[13px] leading-snug text-muted-foreground">
                 {dolar.format(escolhido)} compram{" "}
                 <span className="font-medium text-foreground tabular-nums">
@@ -553,15 +668,15 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           </div>
 
           <DialogFooter className="flex-col items-stretch gap-2 sm:flex-col">
-            {/* Desabilitado de propósito: a cobrança é o passo seguinte, e um
-                botão que abre um checkout inexistente é pior do que um botão
-                que não abre. A nota que explicava isso saiu a pedido do dono
-                (25/09/2026), então o estado desabilitado é a única pista.
-
-                Quando o passo 4 ligar o Stripe, este `disabled` fixo vira
-                `disabled={abaixoDoMinimo || !escolhido}` -- a regra do mínimo
-                já está escrita acima, só não tem o que travar ainda. */}
-            <Button disabled className="w-full">Ir para o pagamento</Button>
+            <Button
+              className="w-full"
+              disabled={!valorValido || indoPagar}
+              onClick={() => void irParaOPagamento()}
+            >
+              {indoPagar
+                ? <><Loader2 size={16} className="animate-spin" /> Abrindo…</>
+                : "Ir para o pagamento"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -27,6 +27,34 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
  */
 const CUPOM_PRIMEIRA_COMPRA = Deno.env.get("STRIPE_COUPON_PRIMEIRA_COMPRA") ?? "";
 
+/**
+ * ─── Compra de crédito de IA (passo 4 do plano do saldo) ────────────────────
+ *
+ * `1.070 créditos por dólar pago` é a taxa de VENDA, com markup de 30% sobre o
+ * custo efetivo (dono, 25/09/2026). Espelho de `CREDITOS_POR_DOLAR_PAGO` em
+ * `src/components/SaldoDeCreditos.tsx`, que existe só para a tela dizer quantos
+ * créditos o valor digitado compra. **Esta é a cópia que vale**, porque é a que
+ * entra no metadata da sessão e chega ao webhook.
+ *
+ * A outra taxa, 1.500 créditos por dólar de CUSTO, vive em `debitar_credito` no
+ * banco e é fixa: ela define a unidade. Ver a migration 20260925000002.
+ */
+const CREDITOS_POR_DOLAR_PAGO = 1070;
+
+/**
+ * Mínimo: o mesmo piso de recarga que a OpenAI impõe na conta que abastece
+ * todo mundo. Aceitar menos criaria venda que o outro lado não consegue repor
+ * na mesma proporção, e a taxa do Stripe comeria boa parte.
+ */
+const COMPRA_MINIMA_USD = 5;
+
+/**
+ * Máximo. Não é desconfiança do cliente, é proteção contra dedo errado: um
+ * zero a mais em "500" vira uma cobrança de US$ 5.000, e desfazer isso custa
+ * estorno, taxa e uma conversa ruim.
+ */
+const COMPRA_MAXIMA_USD = 2000;
+
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -72,11 +100,84 @@ Deno.serve(async (req) => {
     planName: string;
     billingPeriod: string;
     customerId?: string;
+    semOferta?: boolean;
+    /** "credito" entra no caminho de compra de saldo. Ausente = assinatura. */
+    tipo?: string;
+    /** Só em tipo="credito": quanto o cliente quer pôr, em dólar. */
+    valorUsd?: number;
   };
   try {
     body = await req.json();
   } catch {
     return json({ error: "invalid json" }, 400);
+  }
+
+  /*
+   * ─── Compra de crédito: caminho separado, e curto de propósito ────────────
+   *
+   * Sai antes de toda a lógica de assinatura (cupom da primeira contratação,
+   * janela do teste grátis, `subscription_data`) porque nada daquilo se aplica
+   * a um pagamento único de saldo. Misturar os dois num só fluxo seria pedir
+   * para o cupom de 50% um dia cair numa compra de crédito.
+   */
+  if (body.tipo === "credito") {
+    const { companyId, userId, userEmail, valorUsd } = body;
+    if (!companyId || !userId || !userEmail) {
+      return json({ error: "missing required fields" }, 400);
+    }
+
+    const valor = Number(valorUsd);
+    if (!Number.isFinite(valor) || valor < COMPRA_MINIMA_USD || valor > COMPRA_MAXIMA_USD) {
+      return json({ error: "valor_invalido", minimo: COMPRA_MINIMA_USD, maximo: COMPRA_MAXIMA_USD }, 400);
+    }
+
+    // Centavos inteiros: o Stripe recusa fração de centavo, e `Math.round`
+    // evita que 10.005 vire 1000.4999999 por aritmética de ponto flutuante.
+    const centavos  = Math.round(valor * 100);
+    const pagoUsd   = centavos / 100;
+    const creditos  = Math.floor(pagoUsd * CREDITOS_POR_DOLAR_PAGO);
+
+    try {
+      const session = await stripe.checkout.sessions.create({
+        mode: "payment",
+        customer_email: userEmail,
+        line_items: [{
+          quantity: 1,
+          price_data: {
+            // USD, e o Stripe converte para real na tela do cliente (secao 4.1
+            // do plano). Sem tabela de preço em real para manter quando o dólar
+            // mexer, e a taxa de conversão é paga pelo cliente, não por nós.
+            currency: "usd",
+            unit_amount: centavos,
+            product_data: {
+              name: "Créditos Rezult",
+              description: `${creditos.toLocaleString("pt-BR")} créditos para os agentes de IA`,
+            },
+          },
+        }],
+        /*
+         * `creditos` e `pagoUsd` viajam no metadata, calculados AQUI.
+         *
+         * O webhook credita a partir deste número, e não de `amount_total`, por
+         * dois motivos. O primeiro é que com a conversão automática do Stripe o
+         * `amount_total` pode vir na moeda de apresentação (real), e creditar
+         * "135 x 1070" seria catastrófico. O segundo é que este valor nasce do
+         * mesmo `valor` que foi cobrado: o cliente não consegue inflar um sem
+         * inflar o outro.
+         */
+        metadata: { companyId, userId, tipo: "credito", creditos: String(creditos), pagoUsd: String(pagoUsd) },
+        // Sem `allow_promotion_codes`: cupom em compra de saldo daria crédito
+        // acima do que foi pago, e o markup de 30% não tem folga para isso.
+        success_url: "https://app.rezultcrm.com/agentes?credito=ok",
+        cancel_url:  "https://app.rezultcrm.com/agentes",
+      });
+
+      console.log(`[create-checkout-session] credito: empresa=${companyId} US$ ${pagoUsd} -> ${creditos} creditos sessao=${session.id}`);
+      return json({ url: session.url });
+    } catch (err) {
+      console.error("[create-checkout-session] credito falhou:", err);
+      return json({ error: "failed to create checkout session" }, 500);
+    }
   }
 
   const { priceId, companyId, userId, userEmail, planName, billingPeriod, customerId, semOferta } = body;
