@@ -125,6 +125,9 @@ Atualizações: optimistic state + upsert no Supabase.
 | `disparos` | Execução em massa de uma automação (gatilho `lead_manual`) sobre leads filtrados (`owner_id`, `company_id`, `title`, `automation_id`, `status` criado/agendado/em_andamento/pausado/concluido/erro, `rhythm` normal/turbo/lento/humano, `filters` jsonb, `scheduled_at`, `confirm_filters`, `total_leads`) |
 | `disparo_itens` | Um lead dentro de um disparo (`disparo_id`, `company_id`, `owner_id`, `lead_id`, `lead_name`, `lead_phone`, `status` nao_iniciado/pendente/em_execucao/concluido/erro, `error_message`) — escrito pela Edge Function `disparo-runner` |
 
+| `agent_usage_log` | Uma linha por chamada de IA (`agent_id` nullable, `company_id`, `model`, `input_tokens`, `output_tokens`, `cost_usd` numeric(12,6), `lead_id`, `success`, `origem`). `origem` = `agente` \| `automacao` \| `sugestao` \| `base_conhecimento` — é a dimensão que a tela de Consumo agrega. Escrito por `_shared/uso.ts::registrarUso`, que é o ÚNICO caminho: os cinco pontos que chamam IA passam por lá |
+| `credit_accounts` | Saldo de crédito de IA por empresa. Escrito só por `creditar_credito`/`debitar_credito` (service_role); sem policy de insert/update/delete de propósito |
+| `credit_transactions` | Extrato do saldo. `stripe_event_id` e `agent_usage_id` únicos garantem que webhook repetido e retry não dobrem valor. `custo_usd` guarda o custo real sem markup, para a conciliação mensal contra a fatura do fornecedor |
 | `whatsapp_conversations` | Conversas WhatsApp (`owner_id`, `company_id`, `instance_id`, `name`, `phone`, `channel`, `tags`, `preview`, `last_msg_at`, `read`) |
 
 Storage bucket: `avatars` — path `{user_id}/avatar.{ext}`

@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { empresaBloqueada } from "../_shared/cobranca.ts";
+import { registrarUso } from "../_shared/uso.ts";
 
 // Sugestão de resposta com IA para o Multiatendimento.
 // Lê o histórico recente da conversa + contexto do lead e gera a próxima
@@ -104,6 +105,10 @@ Deno.serve(async (req) => {
     `Conversa até agora:\n${transcript}\n\n` +
     "Escreva a próxima mensagem do atendente.";
 
+  let entrada = 0;
+  let saida = 0;
+  let modelo = "";
+
   try {
     let suggestion = "";
 
@@ -130,8 +135,14 @@ Deno.serve(async (req) => {
         console.error("[ai-suggest-reply] OpenAI error:", res.status, detail);
         return json({ error: "ai_request_failed", status: res.status }, 502);
       }
-      const data = await res.json() as { choices?: { message?: { content?: string } }[] };
+      const data = await res.json() as {
+        choices?: { message?: { content?: string } }[];
+        usage?: { prompt_tokens?: number; completion_tokens?: number };
+      };
       suggestion = (data.choices?.[0]?.message?.content ?? "").trim();
+      entrada = data.usage?.prompt_tokens ?? 0;
+      saida   = data.usage?.completion_tokens ?? 0;
+      modelo  = MODELO_OPENAI;
     } else {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -152,13 +163,38 @@ Deno.serve(async (req) => {
         console.error("[ai-suggest-reply] Anthropic error:", res.status, detail);
         return json({ error: "ai_request_failed", status: res.status }, 502);
       }
-      const data = await res.json() as { content?: { type: string; text?: string }[] };
+      const data = await res.json() as {
+        content?: { type: string; text?: string }[];
+        usage?: { input_tokens?: number; output_tokens?: number };
+      };
+      entrada = data.usage?.input_tokens ?? 0;
+      saida   = data.usage?.output_tokens ?? 0;
+      modelo  = MODELO_ANTHROPIC;
       suggestion = (data.content ?? [])
         .filter(b => b.type === "text")
         .map(b => b.text ?? "")
         .join("")
         .trim();
     }
+
+    /*
+     * Registra o uso mesmo quando a sugestao vem vazia.
+     *
+     * A chamada aconteceu e o fornecedor cobrou por ela; se o registro ficasse
+     * depois do `if`, uma resposta vazia viraria consumo invisivel -- e resposta
+     * vazia e justamente o caso em que o modelo gastou tokens sem entregar nada.
+     *
+     * Sem `await`: a sugestao ja esta pronta e o atendente esta esperando ela na
+     * tela. O registro nao pode somar latencia a uma acao sincrona do usuario.
+     */
+    registrarUso(db, {
+      companyId: body.companyId ?? "",
+      model: modelo,
+      entrada,
+      saida,
+      origem: "sugestao",
+      sucesso: !!suggestion,
+    }).catch(e => console.error("[ai-suggest-reply] registrarUso:", e));
 
     if (!suggestion) return json({ error: "empty_suggestion" }, 502);
     return json({ suggestion }, 200);

@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.11.0";
+import { registrarUso } from "../_shared/uso.ts";
 
 // Processa um documento enviado na aba "Base de Conhecimento" do agente:
 // baixa do Storage, extrai texto, divide em chunks, gera embedding e grava
@@ -72,7 +73,10 @@ function chunkText(text: string): string[] {
 // agent-sds-qualify/index.ts::retrieveKbContext.
 const EMBEDDING_DIMS = 1536;
 
-async function embed(text: string, apiKey: string): Promise<number[]> {
+// Devolve os tokens junto com o vetor porque a ingestao e cobrada: embeddings
+// tem preco (US$ 0,13 por 1M de tokens) e ate 25/09/2026 esse consumo nao era
+// medido em lugar nenhum.
+async function embed(text: string, apiKey: string): Promise<{ vetor: number[]; tokens: number }> {
   const res = await fetch("https://api.openai.com/v1/embeddings", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
@@ -84,7 +88,7 @@ async function embed(text: string, apiKey: string): Promise<number[]> {
   if (vetor.length !== EMBEDDING_DIMS) {
     throw new Error(`embedding veio com ${vetor.length} dimensões, esperado ${EMBEDDING_DIMS}`);
   }
-  return vetor;
+  return { vetor, tokens: Number(data?.usage?.prompt_tokens ?? 0) };
 }
 
 Deno.serve(async (req) => {
@@ -202,8 +206,19 @@ Deno.serve(async (req) => {
       throw new Error("nenhum texto extraível encontrado no arquivo (PDF apenas de imagem? arquivo vazio?)");
     }
 
+    /*
+     * Uma linha de uso por DOCUMENTO, nao por chunk.
+     *
+     * Um PDF grande vira dezenas de chunks, e cada um e uma chamada a API. Se
+     * cada chamada virasse uma linha, o extrato do cliente seria uma parede de
+     * lancamentos de centesimo de centavo, e ele nao conseguiria ler nada. O
+     * que ele quer saber e "quanto custou subir este documento".
+     */
+    let tokensDeEmbedding = 0;
+
     for (const content of chunks) {
-      const embedding = await embed(content, openaiKey);
+      const { vetor: embedding, tokens } = await embed(content, openaiKey);
+      tokensDeEmbedding += tokens;
       // O erro do insert PRECISA ser checado: era ignorado, então falha de
       // dimensão/permissão passava batido e o documento era dado como pronto.
       const { error: chunkErr } = await db.from("agent_knowledge_chunks").insert({
@@ -214,6 +229,14 @@ Deno.serve(async (req) => {
       });
       if (chunkErr) throw new Error(`falha ao gravar chunk: ${chunkErr.message}`);
     }
+
+    await registrarUso(db, {
+      companyId: doc.company_id as string,
+      model: "text-embedding-3-large",
+      entrada: tokensDeEmbedding,
+      saida: 0,
+      origem: "base_conhecimento",
+    });
 
     await db.from("agent_knowledge_documents").update({ status: "ready" }).eq("id", doc.id);
     return json({ ok: true, chunks: chunks.length });

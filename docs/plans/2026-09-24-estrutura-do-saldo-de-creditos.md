@@ -146,45 +146,169 @@ admin. Quem descobre o fim do saldo pela ausência de resposta já perdeu o lead
 
 ## 4. A compra
 
-Stripe em modo `payment` (pagamento único), não `subscription`. A função
-`create-checkout-session` já existe e ganha um modo novo, com os valores
-sugeridos do print (R$ 50 / 100 / 250 / 500) e campo livre.
+Stripe em modo `payment` (pagamento unico), nao `subscription`. A funcao
+`create-checkout-session` ja existe e ganha um modo novo.
+
+**O `Price` e criado em USD** (emenda de 25/09/2026, secao 5.1): o cliente
+brasileiro ve o valor em real no checkout porque o Stripe converte sozinho, e
+nao ha tabela de precos em real para manter quando o dolar mexer.
 
 ```
 cliente escolhe valor
-  -> checkout do Stripe
+  -> checkout do Stripe (mode: payment, price em USD)
     -> webhook checkout.session.completed
-      -> credita: insert em credit_transactions (tipo 'compra', stripe_event_id)
-         + update do saldo, na mesma transação
+      -> creditar_credito(company_id, valor_usd, 'compra', stripe_event_id)
 ```
 
-O `stripe_event_id` único é o que torna o webhook repetível sem crédito dobrado.
+O `stripe_event_id` unico e o que torna o webhook repetivel sem credito dobrado.
+
+### 4.1 A unidade -- DECIDIDA: Creditos Rezult (dono, 25/09/2026)
+
+O cliente **paga em dolar** e **recebe creditos**. O dolar aparece uma unica vez,
+no ato do pagamento, que e onde ele e dinheiro de verdade. Depois disso some da
+interface.
+
+| Onde | Unidade |
+|---|---|
+| Botao de compra | **US$ 25** (o Stripe mostra ~R$ 135 ao lado) |
+| Card de saldo | **25.000 creditos** |
+| Linha de consumo | **35 creditos** |
+
+O nome na UI e "creditos" ou "Creditos Rezult", nunca "Rezult Credits": a
+aplicacao e 100% em portugues por regra do projeto.
+
+**As duas constantes:**
+
+```
+1.000 creditos = US$ 1,00 pago        (o que o cliente compra)
+1.500 creditos = US$ 1,00 de custo    (o que o credito compra, com markup de 50%)
+```
+
+A segunda sai da primeira: US$ 1 pago cobre US$ 0,6667 de custo real, e
+1000 / 0,6667 = 1500. Entao `creditos = custo_usd x 1500`, e a resposta de
+agente que custa US$ 0,0232 sai por 35 creditos.
+
+### 4.2 Por que saldo e consumo compartilham a unidade, e a compra nao
+
+O saldo E a soma do consumo. Se o card dissesse "US$ 24,81" e a linha dissesse
+"19 creditos", o cliente veria o saldo cair sem conseguir conferir por que: as
+duas grandezas nao se subtraem. Isso nao e preferencia de estilo, e a condicao
+para o extrato ser legivel.
+
+A compra e livre porque ali o dolar nao e saldo, e preco. E o mesmo que a Kiwify
+faz: o checkout cobra US$ 10,00 e entrega "Ribas credits".
+
+**O credito e ancorado no DOLAR, nao no real.** Se fosse ancorado no real, a
+quantidade de creditos por pacote mudaria sozinha a cada oscilacao do cambio
+("US$ 25 = 13.500 creditos hoje, 14.200 amanha"), o que e impossivel de
+anunciar, e o risco cambial que a secao 5.1 eliminou voltaria pela porta dos
+fundos.
+
+### 4.3 O que isso muda no banco (migration nova, necessaria)
+
+`credit_accounts.saldo_usd` guarda hoje o custo em dolar. Precisa virar
+**creditos**, e a conversao precisa ser CONGELADA no momento da transacao.
+
+O motivo e a regra de nao mexer em saldo ja vendido. Se o banco guardasse
+custo-dolar e a tela multiplicasse por 1500 na hora de exibir, um reajuste
+futuro do markup (fator 1800, por exemplo) faria o saldo antigo do cliente
+mudar de valor sozinho na tela. Congelando na transacao, o credito comprado vale
+o que valia no dia da compra, para sempre.
+
+| Coluna | Antes | Depois |
+|---|---|---|
+| `credit_accounts.saldo_usd` | custo em USD | `saldo_creditos` (numeric) |
+| `credit_transactions.valor` | USD | creditos |
+| `credit_transactions.saldo_depois` | USD | creditos |
+| `credit_transactions.custo_usd` | custo real | **inalterado** |
+
+`custo_usd` fica exatamente como esta: e ele que bate contra a fatura do
+fornecedor na conciliacao mensal (secao 6), e ele nao tem markup nenhum. E a
+razao de as duas colunas terem nascido separadas.
+
+### 4.4 A regra que precisa estar nos termos ANTES da primeira venda
+
+**O valor do credito nunca muda para tras.** Qualquer reajuste do markup vale
+so para compras novas. Sem isso escrito, o primeiro reajuste transforma o saldo
+que o cliente ja pagou em menos trabalho do que ele comprou, e isso e
+reclamacao garantida.
 
 ---
 
 ## 5. As duas decisões de negócio que o desenho não toma
 
-### 5.1 A moeda -- DECIDIDA: dólar (dono, 24/09/2026)
+### 5.1 A moeda -- DECIDIDA: dolar (dono, 24/09/2026)
 
-O saldo é em USD e o câmbio acontece na **venda**, não no débito: o cliente paga
-em real no Stripe e recebe um valor em dólar de crédito.
+O saldo e em USD e o cambio acontece na **venda**, nao no debito: o cliente paga
+em real no Stripe e recebe um valor em dolar de credito.
 
-Isso tira o câmbio do caminho quente. Cada débito é uma subtração simples, sem
-taxa do dia para aplicar nem conversão para explicar em cada linha do extrato --
-e some junto o risco de o crédito já vendido virar prejuízo numa alta do dólar,
-porque a conversão já aconteceu no momento em que o dinheiro entrou.
+Isso tira o cambio do caminho quente. Cada debito e uma subtracao simples, sem
+taxa do dia para aplicar nem conversao para explicar em cada linha do extrato.
 
-O contraponto, que segue valendo: o cliente vê "US$ 12,40" e precisa converter
-de cabeça para saber o que tem. E o valor em dólar deixa inferir a ordem de
+O contraponto, que segue valendo: o cliente ve "US$ 12,40" e precisa converter
+de cabeca para saber o que tem. E o valor em dolar deixa inferir a ordem de
 grandeza do custo de origem.
 
-### 5.2 O markup
+**Emenda de 25/09/2026 -- o PRECO tambem e em dolar, nao so o saldo.**
 
-Não é conta minha, é sua. Só registro que ele precisa cobrir: câmbio entre a
-venda e o consumo, taxa do Stripe, imposto, crédito que expira sem uso (1 ano)
-e a margem em si. E que o custo de origem hoje está inflado pelo Claude -- a
-mesma operação na OpenAI custaria menos, então o markup calculado sobre a
-medição atual sai conservador.
+O `Price` do Stripe e criado em USD e a conversao para real fica com o Stripe
+(Adaptive Pricing). Nao existe uma tabela de precos em real para manter.
+
+Evidencia: o checkout da Kiwify para "Ribas credits" oferece os dois botoes,
+R$ 54,13 ou US$ 10,00, para o mesmo produto, com `1 USD = 5,4130 BRL` impresso
+na tela. Dividindo por 1,04 (a taxa de conversao que o Stripe cobra em pedidos
+abaixo de US$ 500, paga pelo cliente e nao pelo vendedor) sai R$ 5,2048, que e o
+dolar comercial do dia. Ou seja: aquele preco nao carrega markup nenhum, e
+apenas US$ 10 convertidos.
+
+Por que isso importa aqui: precificar em dolar faz a receita e a divida andarem
+na mesma moeda. Se o dolar subir depois da venda, o proximo comprador paga mais
+reais pelos mesmos US$ 10, e o credito ja vendido nao vira prejuizo.
+
+Ressalva: a Kiwify consegue o casamento perfeito porque cobra por uma entidade
+americana (`Kiwify US, Inc.`) que liquida em dolar. Uma conta Stripe brasileira
+recebe reais, entao sobra exposicao entre a venda e a recarga da OpenAI. E uma
+fresta de dias, nao de meses, mas existe.
+
+### 5.2 O markup -- RECOMENDADO: 50% (25/09/2026), decisao do dono pendente
+
+O que o markup precisa cobrir: taxa do Stripe, imposto, IOF e spread do cartao
+na recarga da OpenAI, credito que expira sem uso (1 ano) e a margem em si.
+
+**O custo real de cada dolar de credito**, com o dolar comercial a R$ 5,16:
+
+| Componente | Valor |
+|---|---|
+| Dolar comercial | R$ 5,16 |
+| Spread do cartao na recarga | ~4% |
+| IOF | 3,5% |
+| **Dolar efetivo** | **~R$ 5,55** |
+
+**Os cenarios**, tomando US$ 25 de credito (custo R$ 138,75), Stripe a
+3,99% + R$ 0,39 e imposto de 6% sobre a receita:
+
+| Markup | Preco por US$ 1 | US$ 25 sai por | Stripe | Imposto | Margem |
+|---|---|---|---|---|---|
+| 30% | R$ 7,22 | R$ 180 | R$ 7,57 | R$ 10,82 | R$ 22,86 (12,7%) |
+| **50%** | **R$ 8,33** | **R$ 208** | R$ 8,69 | R$ 12,50 | **R$ 48,06 (23,1%)** |
+| 80% | R$ 9,99 | R$ 250 | R$ 10,36 | R$ 15,00 | R$ 85,89 (34,4%) |
+
+Os 80% tem o apelo comercial de fechar em **R$ 10 = US$ 1**, que o cliente
+entende sem calculadora. O que derrubou esse numero foi a emenda 5.1: o
+argumento mais forte a favor dele era o risco cambial, e precificar em dolar
+elimina esse risco. Sem ele, 50% ja opera com folga.
+
+**Confianca: MEDIA.** A aritmetica esta verificada; a aceitacao de mercado nao.
+O que falta para subir: comprar US$ 10 na Kiwify e medir quanto de uso real
+aquele saldo compra. E o unico jeito de descobrir o markup deles, porque o
+checkout nao revela nada (ver 5.1). Ressalva sobre esse comparavel: "Ribas
+credits" nomeado com o sobrenome do dono e cobrado pela entidade de pagamento
+da Kiwify tem cara de produto pessoal rodando em infra que ja existia, nao de
+linha de receita com pricing estudado.
+
+**O custo de origem medido hoje esta inflado pelo Claude**, que foi o provedor
+da maioria dos testes. A mesma operacao no `gpt-5.6-terra` custaria menos, entao
+qualquer markup calculado sobre a medicao atual sai conservador.
 
 ---
 
@@ -222,15 +346,39 @@ de abrir para a base.
 
 ## 8. Ordem de construção
 
-| # | Passo | Entrega |
-|---|---|---|
-| 1 | ~~Tabelas + `debitar_credito` + RLS~~ **feito em 24/09** | saldo existe, é debitável e está testado |
-| 2 | Débito ligado aos 4 pontos de chamada | consumo já abate, mesmo sem venda |
-| 3 | Extrato na tela de Agentes | dá para auditar antes de cobrar |
-| 4 | Checkout avulso + webhook creditando | passa a vender |
-| 5 | Trava, avisos e teto diário | passa a ser seguro |
-| 6 | Chave da Rezult com fallback para a do cliente | o BYOK vira opcional |
+| # | Passo | Entrega | Estado |
+|---|---|---|---|
+| 1 | Tabelas + `debitar_credito` + RLS | saldo existe e é debitável | feito em 24/09 |
+| 2a | Débito ligado a `agent-operacional-runner` e `agent-sds-qualify` | os dois runners de agente abatem | feito em 24/09 |
+| 2b | **Medir custo em `automation-runner` e `ai-suggest-reply`** | os 4 pontos passam a contar | **pendente, e é o proximo** |
+| 3a | Migration da unidade: saldo em créditos (secao 4.3) | a tela pode falar em créditos | pendente |
+| 3b | Tela: "Compras" cronológico + "Consumo" agregado por agente | dá para auditar antes de cobrar | pendente |
+| 4 | Checkout avulso (price em USD) + webhook creditando | passa a vender | pendente |
+| 5 | Trava, avisos e teto diário | passa a ser seguro | pendente |
+| 6 | Chave da Rezult com fallback para a do cliente | o BYOK vira opcional | pendente |
 
-Os passos 1 a 3 podem rodar **em modo sombra**: debitando de um saldo fictício,
+### Por que 2b vem antes de tudo
+
+O passo 2 foi dado como concluído em 24/09 e cobriu **metade** dos pontos de
+chamada. Verificado por leitura dos quatro arquivos em 25/09:
+
+| Onde a IA é chamada | Calcula `cost_usd`? | Debita? |
+|---|---|---|
+| `agent-operacional-runner` | sim | sim |
+| `agent-sds-qualify` | sim | sim |
+| `automation-runner` (bloco `ia`) | **não** | não |
+| `ai-suggest-reply` | **não** | não |
+
+`automation_logs.tokens` guarda os tokens do bloco de IA mas nunca converte para
+dólar. `ai-suggest-reply` não registra nada.
+
+Uma tela de consumo que não conta as automações mostra um número **menor que a
+realidade**, e o cliente confia nele. Isso é pior do que não ter a tela, e é a
+razão de 2b vir antes de 3b. Cobrar por um consumo medido pela metade é pior
+ainda.
+
+### O modo sombra
+
+Os passos até 3b podem rodar **em modo sombra**: debitando de um saldo fictício,
 sem cobrar ninguém, só para medir o consumo real por empresa. É a forma barata
 de descobrir o custo por cliente antes de prometer preço a alguém.

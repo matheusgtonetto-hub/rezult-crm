@@ -22,7 +22,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { empresaBloqueada } from "../_shared/cobranca.ts";
 import { executeRegistryTool, TOOL_SCHEMAS, type ToolResult, type ToolSchema } from "../_shared/agent-tools.ts";
 import { somenteDigitos } from "../_shared/telefone.ts";
-import { debitarCredito } from "../_shared/credito.ts";
+import { registrarUso } from "../_shared/uso.ts";
 
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -100,15 +100,6 @@ Regras:
 - Ao terminar, responda em uma linha o que você registrou.
 `.trim();
 
-// Espelho de MODEL_PRICING em agent-sds-qualify e de src/lib/ai-models.ts.
-const MODEL_PRICING: Record<string, { inputPer1M: number; outputPer1M: number }> = {
-  "claude-haiku-4-5-20251001": { inputPer1M: 0.8, outputPer1M: 4 },
-  "claude-sonnet-5":           { inputPer1M: 3,   outputPer1M: 15 },
-  "claude-opus-5":             { inputPer1M: 15,  outputPer1M: 75 },
-  "gpt-5.6-luna":              { inputPer1M: 0.4, outputPer1M: 1.6 },
-  "gpt-5.6-terra":             { inputPer1M: 2.5, outputPer1M: 10 },
-  "gpt-5.6-sol":               { inputPer1M: 12,  outputPer1M: 48 },
-};
 
 type Fila = {
   id: string;
@@ -310,7 +301,7 @@ async function processar(db: Db, fila: Fila): Promise<{ processadoAte: string | 
   const loop = provedor === "openai" ? loopOpenAi : loopAnthropic;
   const { uso, textoFinal, falhou } = await loop(chave.api_key as string, model, METODOLOGIA, contexto, ferramentas, dispatch);
 
-  await registrarUso(db, agente.id as string, fila.company_id, model, uso, leadId, !falhou);
+  await registrarUsoDoAgente(db, agente.id as string, fila.company_id, model, uso, leadId, !falhou);
   console.info(`[agent-operacional] empresa=${fila.company_id} conversa=${conversa.id} lead=${leadId ?? "-"} novas=${novas.length} acoes=${acoes.join(",") || "nenhuma"} resultado="${textoFinal.slice(0, 160)}"`);
 
   return { processadoAte, resumo: { lead: leadId, novas: novas.length, acoes } };
@@ -535,38 +526,23 @@ async function loopAnthropic(
 }
 
 /*
- * O débito do crédito acontece AQUI, junto com o registro do uso.
+ * Registro de uso e débito do crédito, agora no módulo compartilhado.
  *
- * É o mesmo lugar de propósito: enquanto o débito for um segundo passo em outro
- * canto do código, existe o caminho em que a chamada acontece e o saldo não cai
- * -- que é a única coisa que este sistema não pode deixar acontecer.
- *
- * `debitar_credito` devolve null para empresa SEM conta de crédito, que é o
- * caso de quem usa chave própria: ela paga direto ao fornecedor e não é tocada.
- * Por isso ligar isto não muda nada para as empresas de hoje.
+ * A tabela de preços vivia copiada aqui e em `agent-sds-qualify`, com um
+ * comentário pedindo sincronia manual. Saiu para `_shared/uso.ts` quando a
+ * varredura de 25/09/2026 mostrou que outros TRÊS pontos chamavam IA sem medir
+ * custo nenhum: manter a regra de dinheiro em um lugar só é o que impede o
+ * próximo ponto de nascer sem medição.
  */
-async function registrarUso(db: Db, agentId: string, companyId: string, model: string, uso: Uso, leadId: string | null, sucesso: boolean) {
-  if (uso.entrada === 0 && uso.saida === 0) return;
-  const preco = MODEL_PRICING[model] ?? { inputPer1M: 0, outputPer1M: 0 };
-  const custo = (uso.entrada / 1_000_000) * preco.inputPer1M + (uso.saida / 1_000_000) * preco.outputPer1M;
-  const custoUsd = Number(custo.toFixed(4));
-  const { data: registro, error } = await db.from("agent_usage_log").insert({
-    agent_id: agentId,
-    company_id: companyId,
+async function registrarUsoDoAgente(db: Db, agentId: string, companyId: string, model: string, uso: Uso, leadId: string | null, sucesso: boolean) {
+  await registrarUso(db, {
+    companyId,
     model,
-    input_tokens: uso.entrada,
-    output_tokens: uso.saida,
-    cost_usd: custoUsd,
-    lead_id: leadId,
-    success: sucesso,
-  }).select("id").single();
-
-  if (error || !registro) {
-    // Uso não registrado é consumo que ninguém vai cobrar nem conciliar. Era um
-    // console.error solto; agora grita, porque passou a valer dinheiro.
-    console.error("[agent-operacional] FALHA AO REGISTRAR USO (consumo sem débito):", error?.message);
-    return;
-  }
-
-  await debitarCredito(db, companyId, registro.id as string, custoUsd, "agent-operacional");
+    entrada: uso.entrada,
+    saida: uso.saida,
+    origem: "agente",
+    agentId,
+    leadId,
+    sucesso,
+  });
 }

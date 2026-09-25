@@ -7,6 +7,7 @@ import { upsertConversationForMessage, previewLabelFor, idsDeConversasPorTelefon
 import { sendWa, type ZapiCreds, type WaMsg } from "../_shared/whatsapp-send.ts";
 import { upsertContact } from "../_shared/contacts.ts";
 import { empresaBloqueada } from "../_shared/cobranca.ts";
+import { registrarUso, custoDeAudio } from "../_shared/uso.ts";
 
 // Deve espelhar o tipo LeadOrigin (src/data/mockData.ts) e a constraint leads_origin_check do banco
 const VALID_LEAD_ORIGINS = ["Instagram", "Facebook Ads", "Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads", "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro"];
@@ -1432,6 +1433,11 @@ async function executeFlow(
       // Transcrição da conversa do lead (quando houver telefone), p/ ações "com base na conversa".
       let conversa = await buildConversationContext(supabase, company_id, (leadData?.whatsapp as string) || (leadData?.phone as string) || "");
 
+      // Atribui o consumo ao lead, para a tela de Consumo responder "qual
+      // conversa custou mais". `payload.lead_id` pode nao existir em gatilho de
+      // webhook sem lead, e a coluna e nullable justamente por isso.
+      const iaLeadId = (payload.lead_id as string | undefined) ?? null;
+
       const errors: string[] = [];
       let ranAny = false;
       let tokensTotal = 0;
@@ -1441,14 +1447,14 @@ async function executeFlow(
       for (const action of actions) {
         try {
           if (action.type === "assistente_chat" || action.type === "gerar_texto") {
-            const { text, tokens } = await runIaTextAction(supabase, company_id, action, vars, conversa);
+            const { text, tokens } = await runIaTextAction(supabase, company_id, iaLeadId, action, vars, conversa);
             dsStore[action.outputVar || "ia"] = { resposta: text };
             tokensTotal += tokens;
             ranAny = true;
 
           } else if (action.type === "intencao") {
             const opts = (action.intencoes ?? []).filter((o) => (o.nome ?? "").trim());
-            const { id: matchedId, tokens } = await runIaClassify(supabase, company_id, action, vars, conversa, opts);
+            const { id: matchedId, tokens } = await runIaClassify(supabase, company_id, iaLeadId, action, vars, conversa, opts);
             const matched = opts.find((o) => o.id === matchedId);
             dsStore[action.outputVar || "ia"] = { intencao: matched?.nome ?? "nenhuma", id: matched?.id ?? "" };
             branchTargets.push(matchedId ? `${node.id}_${matchedId}` : `${node.id}_${action.id}-none`);
@@ -1457,7 +1463,7 @@ async function executeFlow(
 
           } else if (action.type === "sentimento") {
             const opts = (action.sentimentos ?? []).filter((o) => (o.nome ?? "").trim());
-            const { id: matchedId, tokens } = await runIaClassify(supabase, company_id, action, vars, conversa, opts);
+            const { id: matchedId, tokens } = await runIaClassify(supabase, company_id, iaLeadId, action, vars, conversa, opts);
             const matched = opts.find((o) => o.id === matchedId);
             dsStore[action.outputVar || "ia"] = { sentimento: matched?.nome ?? "" };
             if (matchedId) branchTargets.push(`${node.id}_${matchedId}`);
@@ -1465,13 +1471,13 @@ async function executeFlow(
             ranAny = true;
 
           } else if (action.type === "extrator_params") {
-            const { obj, tokens } = await runIaExtractParams(supabase, company_id, action, vars, conversa);
+            const { obj, tokens } = await runIaExtractParams(supabase, company_id, iaLeadId, action, vars, conversa);
             dsStore[action.outputVar || "ia"] = obj;
             tokensTotal += tokens;
             ranAny = true;
 
           } else if (action.type === "transcricao_audio") {
-            const text = await runIaTranscription(supabase, company_id, action,
+            const text = await runIaTranscription(supabase, company_id, iaLeadId, action,
               (leadData?.whatsapp as string) || (leadData?.phone as string) || "");
             dsStore[action.outputVar || "ia"] = { texto: text };
             // Acrescenta a transcrição ao contexto para ações seguintes no mesmo nó
@@ -1871,8 +1877,25 @@ async function getAiKey(
   return row.api_key;
 }
 
+/**
+ * Contexto de cobranca, carregado ate a chamada de IA.
+ *
+ * Existe para que `callAiProvider` consiga registrar o uso SOZINHA. Antes, o no
+ * `ia` somava `tokensTotal` e gravava so em `automation_logs.tokens`, sem nunca
+ * converter para dolar: todo o consumo de automacao era invisivel em dinheiro.
+ *
+ * Somar tokens tambem nao daria para consertar do lado de fora, porque entrada e
+ * saida tem precos diferentes (no `gpt-5.6-terra`, 4x) e cada acao do no pode
+ * usar um modelo diferente. O total agregado perde a informacao necessaria.
+ */
+type CobrancaIa = { db: SupabaseClient; companyId: string; leadId: string | null };
+
 // Chamada genérica ao provedor de IA. Retorna o texto da resposta + tokens consumidos.
+//
+// Registra o uso e debita o credito internamente, de proposito: toda chamada de
+// IA deste runner passa por aqui, entao qualquer acao nova ja nasce medida.
 async function callAiProvider(
+  cob: CobrancaIa,
   provider: string,
   apiKey: string,
   model: string,
@@ -1880,6 +1903,16 @@ async function callAiProvider(
   userPrompt: string,
   maxTokens: number,
 ): Promise<{ text: string; tokens: number }> {
+  const anotar = (entrada: number, saida: number) =>
+    registrarUso(cob.db, {
+      companyId: cob.companyId,
+      model,
+      entrada,
+      saida,
+      origem: "automacao",
+      leadId: cob.leadId,
+    }).catch((e) => console.error("[automation-runner] registrarUso:", e));
+
   if (provider === "openai") {
     const messages: { role: string; content: string }[] = [];
     if (system) messages.push({ role: "system", content: system });
@@ -1891,7 +1924,10 @@ async function callAiProvider(
     });
     if (!resp.ok) throw new Error(`OpenAI HTTP ${resp.status}: ${(await resp.text().catch(() => "")).slice(0, 200)}`);
     const data = await resp.json();
-    return { text: String(data?.choices?.[0]?.message?.content ?? "").trim(), tokens: Number(data?.usage?.total_tokens ?? 0) };
+    const entrada = Number(data?.usage?.prompt_tokens ?? 0);
+    const saida = Number(data?.usage?.completion_tokens ?? 0);
+    anotar(entrada, saida);
+    return { text: String(data?.choices?.[0]?.message?.content ?? "").trim(), tokens: entrada + saida };
   }
 
   if (provider === "anthropic") {
@@ -1904,7 +1940,10 @@ async function callAiProvider(
     const data = await resp.json();
     const parts = Array.isArray(data?.content) ? data.content : [];
     const text = parts.filter((p: { type?: string }) => p.type === "text").map((p: { text?: string }) => p.text ?? "").join("").trim();
-    return { text, tokens: Number(data?.usage?.input_tokens ?? 0) + Number(data?.usage?.output_tokens ?? 0) };
+    const entrada = Number(data?.usage?.input_tokens ?? 0);
+    const saida = Number(data?.usage?.output_tokens ?? 0);
+    anotar(entrada, saida);
+    return { text, tokens: entrada + saida };
   }
 
   // google (gemini)
@@ -1922,7 +1961,10 @@ async function callAiProvider(
   const data = await resp.json();
   const parts = data?.candidates?.[0]?.content?.parts ?? [];
   const text = parts.map((p: { text?: string }) => p.text ?? "").join("").trim();
-  return { text, tokens: Number(data?.usageMetadata?.totalTokenCount ?? 0) };
+  const entrada = Number(data?.usageMetadata?.promptTokenCount ?? 0);
+  const saida = Number(data?.usageMetadata?.candidatesTokenCount ?? 0);
+  anotar(entrada, saida);
+  return { text, tokens: entrada + saida };
 }
 
 // Monta a transcrição recente da conversa de WhatsApp do lead (filtrada pelo dono do
@@ -1965,6 +2007,7 @@ async function buildConversationContext(
 async function runIaTextAction(
   supabase: SupabaseClient,
   companyId: string,
+  leadId: string | null,
   action: IaAction,
   vars: Record<string, string>,
   conversa: string,
@@ -1980,7 +2023,7 @@ async function runIaTextAction(
     instr ? `Instruções:\n${instr}` : "",
   ].filter(Boolean).join("\n\n");
   const maxTokens = action.maxTokens && action.maxTokens > 0 ? action.maxTokens : 500;
-  return await callAiProvider(action.provider, apiKey, action.model, system, userPrompt, maxTokens);
+  return await callAiProvider({ db: supabase, companyId, leadId }, action.provider, apiKey, action.model, system, userPrompt, maxTokens);
 }
 
 // Extrai o primeiro objeto JSON de um texto possivelmente "sujo" (markdown, prosa).
@@ -1995,6 +2038,7 @@ function parseFirstJson(raw: string): Record<string, unknown> | null {
 async function runIaClassify(
   supabase: SupabaseClient,
   companyId: string,
+  leadId: string | null,
   action: IaAction,
   vars: Record<string, string>,
   conversa: string,
@@ -2013,7 +2057,7 @@ async function runIaClassify(
     `Opções de ${kind}:\n${list}`,
     extra ? `Considere também: ${extra}` : "",
   ].filter(Boolean).join("\n\n");
-  const { text: raw, tokens } = await callAiProvider(action.provider, apiKey, action.model, system, userPrompt, 60);
+  const { text: raw, tokens } = await callAiProvider({ db: supabase, companyId, leadId }, action.provider, apiKey, action.model, system, userPrompt, 60);
   const parsed = parseFirstJson(raw);
   const id = parsed?.id ? String(parsed.id) : "none";
   if (id === "none" || !options.some((o) => o.id === id)) return { id: null, tokens };
@@ -2025,6 +2069,7 @@ async function runIaClassify(
 async function runIaExtractParams(
   supabase: SupabaseClient,
   companyId: string,
+  leadId: string | null,
   action: IaAction,
   vars: Record<string, string>,
   conversa: string,
@@ -2040,7 +2085,7 @@ async function runIaExtractParams(
     `Parâmetros a extrair:\n${list}`,
     extra ? `Considere também: ${extra}` : "",
   ].filter(Boolean).join("\n\n");
-  const { text: raw, tokens } = await callAiProvider(action.provider, apiKey, action.model, system, userPrompt, 400);
+  const { text: raw, tokens } = await callAiProvider({ db: supabase, companyId, leadId }, action.provider, apiKey, action.model, system, userPrompt, 400);
   const parsed = parseFirstJson(raw);
   if (!parsed) return { obj: {}, tokens };
   // Mantém apenas as chaves pedidas (evita campos extras alucinados) e normaliza p/ string
@@ -2057,6 +2102,7 @@ async function runIaExtractParams(
 async function runIaTranscription(
   supabase: SupabaseClient,
   companyId: string,
+  leadId: string | null,
   action: IaAction,
   phone: string,
 ): Promise<string> {
@@ -2090,6 +2136,12 @@ async function runIaTranscription(
       const form = new FormData();
       form.append("file", blob, "audio.ogg");
       form.append("model", "whisper-1");
+      // `verbose_json` em vez do padrao para o retorno trazer `duration`.
+      //
+      // O Whisper e cobrado por MINUTO de audio, nao por token, entao sem a
+      // duracao nao ha como saber o custo -- e sem custo, transcricao vira
+      // consumo invisivel. O campo `text` continua vindo igual.
+      form.append("response_format", "verbose_json");
       if (language) form.append("language", language);
       const tr = await fetch("https://api.openai.com/v1/audio/transcriptions", {
         method: "POST",
@@ -2098,6 +2150,17 @@ async function runIaTranscription(
       });
       if (!tr.ok) { console.error(`Whisper HTTP ${tr.status}: ${(await tr.text().catch(() => "")).slice(0, 200)}`); continue; }
       const data = await tr.json();
+
+      registrarUso(supabase, {
+        companyId,
+        model: "whisper-1",
+        entrada: 0,
+        saida: 0,
+        origem: "automacao",
+        leadId,
+        custoUsd: custoDeAudio(Number(data?.duration ?? 0)),
+      }).catch((e) => console.error("[automation-runner] registrarUso (audio):", e));
+
       const t = String(data?.text ?? "").trim();
       if (t) texts.push(t);
     } catch (err) {

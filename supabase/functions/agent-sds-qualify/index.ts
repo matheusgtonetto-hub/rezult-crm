@@ -4,7 +4,7 @@ import { TOOL_SCHEMAS, executeRegistryTool, type ToolCtx, type ToolResult } from
 import { telefonesIguais, variantesDeTelefone } from "../_shared/telefone.ts";
 import { upsertConversationForMessage, previewLabelFor, idsDeConversasPorTelefone } from "../_shared/upsert-conversation.ts";
 import { empresaBloqueada } from "../_shared/cobranca.ts";
-import { debitarCredito } from "../_shared/credito.ts";
+import { registrarUso } from "../_shared/uso.ts";
 
 // Agente SDS: qualifica leads no multiatendimento com objetivo FIXO de
 // agendar reunião qualificada pro time de closers. Disparado pelos webhooks
@@ -829,19 +829,11 @@ async function runOpenAiLoop(
   return { actions, usage, success: !anyToolFailed, finalText };
 }
 
-// Espelho de IA_MODEL_PRICING (src/lib/ai-models.ts) -- Deno não importa de
-// src/, então mantém os dois em sincronia manualmente se os preços mudarem.
-const MODEL_PRICING: Record<string, { inputPer1M: number; outputPer1M: number }> = {
-  "claude-haiku-4-5-20251001": { inputPer1M: 0.8, outputPer1M: 4 },
-  "claude-sonnet-5":           { inputPer1M: 3,   outputPer1M: 15 },
-  "claude-opus-5":             { inputPer1M: 15,  outputPer1M: 75 },
-  "gpt-5.6-luna":               { inputPer1M: 0.4,  outputPer1M: 1.6 },
-  "gpt-5.6-terra":              { inputPer1M: 2.5,  outputPer1M: 10 },
-  "gpt-5.6-sol":                { inputPer1M: 12,   outputPer1M: 48 },
-};
-
-// Grava 1 linha de custo por invocação do loop -- alimenta "Valor gasto em
-// $" na aba Performance. Não bloqueia o fluxo principal se falhar.
+// Registro de uso + débito, no módulo compartilhado `_shared/uso.ts`.
+// A tabela de preços saiu daqui: era uma cópia da de agent-operacional-runner,
+// com sincronia manual, e preço copiado é preço que diverge no primeiro
+// reajuste. `src/lib/ai-models.ts` segue sendo uma cópia porque Deno não
+// importa de src/.
 async function logAgentUsage(
   db: ReturnType<typeof createClient>,
   agentId: string,
@@ -853,27 +845,16 @@ async function logAgentUsage(
   leadId: string | null,
   success: boolean,
 ): Promise<void> {
-  if (usage.inputTokens === 0 && usage.outputTokens === 0) return;
-  const pricing = MODEL_PRICING[model] ?? { inputPer1M: 0, outputPer1M: 0 };
-  const costUsd = (usage.inputTokens / 1_000_000) * pricing.inputPer1M + (usage.outputTokens / 1_000_000) * pricing.outputPer1M;
-  const custo = Number(costUsd.toFixed(4));
-  const { data: registro, error } = await db.from("agent_usage_log").insert({
-    agent_id: agentId,
-    company_id: companyId,
+  await registrarUso(db, {
+    companyId,
     model,
-    input_tokens: usage.inputTokens,
-    output_tokens: usage.outputTokens,
-    cost_usd: custo,
-    lead_id: leadId,
-    success,
-  }).select("id").single();
-
-  if (error || !registro) {
-    console.error("[agent-sds] FALHA AO REGISTRAR USO (consumo sem débito):", error?.message);
-    return;
-  }
-
-  await debitarCredito(db, companyId, registro.id as string, custo, "agent-sds");
+    entrada: usage.inputTokens,
+    saida: usage.outputTokens,
+    origem: "agente",
+    agentId,
+    leadId,
+    sucesso: success,
+  });
 }
 
 // Divide uma mensagem longa em partes de até `maxWords` palavras, quebrando
