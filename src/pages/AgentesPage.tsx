@@ -4166,6 +4166,21 @@ function PerformanceTab({
   const [qualified, setQualified] = useState(0);
   const [notQualified, setNotQualified] = useState(0);
   const [costUsd, setCostUsd] = useState(0);
+  /*
+   * Quanto o saldo do Rezult perdeu com este agente, em dólar PAGO.
+   *
+   * Null quando a empresa usa chave própria: aí não há saldo, e o número certo
+   * é o `costUsd` cru, que é a fatura que o fornecedor vai mandar para ela.
+   *
+   * ─── Por que os dois números existem ──────────────────────────────────────
+   *
+   * Este cartão mostrava sempre o `cost_usd` cru. Para uma empresa COM saldo
+   * isso punha o custo real e o desconto do saldo na mesma tela, na mesma
+   * moeda: US$ 0,19 aqui, US$ 0,29 a menos no saldo. Dividir um pelo outro
+   * entrega a margem inteira. Medido em 25/09/2026 na empresa de demonstração:
+   * 7 chamadas, US$ 0,1932 de custo, 294 créditos debitados.
+   */
+  const [gastoDoSaldo, setGastoDoSaldo] = useState<number | null>(null);
   const [salesCount, setSalesCount] = useState(0);
   const [salesValue, setSalesValue] = useState(0);
   const [conversationsCount, setConversationsCount] = useState(0);
@@ -4212,6 +4227,28 @@ function PerformanceTab({
       setNoShowCount(noShow ?? 0);
       setQualified((leadsData ?? []).length);
       setCostUsd((usageData ?? []).reduce((sum, r) => sum + (Number(r.cost_usd) || 0), 0));
+
+      /*
+       * `consumo_por_origem` em vez de multiplicar o custo por uma taxa.
+       *
+       * Cada débito arredonda para cima individualmente, então a soma dos
+       * arredondamentos não é o arredondamento da soma: converter o total aqui
+       * daria um número que não fecha com o extrato. A função soma os débitos
+       * reais. Devolve zero para quem não tem saldo, e aí o cartão volta a
+       * mostrar o custo em dólar.
+       */
+      if (companyId) {
+        const { data: agregado } = await supabase.rpc("consumo_por_origem", {
+          p_company_id: companyId, p_dias: 7,
+        });
+        const desteAgente = (agregado ?? []).filter(
+          (l: Record<string, unknown>) => l.agent_id === agentId,
+        );
+        const creditos = desteAgente.reduce(
+          (s: number, l: Record<string, unknown>) => s + Number(l.creditos ?? 0), 0,
+        );
+        setGastoDoSaldo(creditos > 0 ? creditos / 1000 : null);
+      }
       setSalesCount((wonData ?? []).length);
       setSalesValue((wonData ?? []).reduce((sum, r) => sum + (Number(r.won_value ?? r.value) || 0), 0));
       const { data: notQualifiedData } = await supabase.from("leads").select("tags").eq("company_id", companyId).contains("tags", ["SDS: Não qualificado"]);
@@ -4274,8 +4311,15 @@ function PerformanceTab({
         </div>
         <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Valor gasto (7 dias)</div>
-          <div className="text-[24px] font-bold text-[color:var(--text-heading)] mt-1">${costUsd.toFixed(2)}</div>
-          <div className="text-[12px] text-[color:var(--neutral-400)] mt-0.5">custo de tokens de IA</div>
+          {/* Com saldo no Rezult, mostra o que saiu do saldo. Sem saldo (chave
+              própria), mostra o custo real, que é o que a empresa vai pagar ao
+              fornecedor. Nunca os dois: juntos, entregam a margem. */}
+          <div className="text-[24px] font-bold text-[color:var(--text-heading)] mt-1">
+            ${(gastoDoSaldo ?? costUsd).toFixed(2)}
+          </div>
+          <div className="text-[12px] text-[color:var(--neutral-400)] mt-0.5">
+            {gastoDoSaldo !== null ? "descontado do seu saldo" : "custo de tokens de IA"}
+          </div>
         </div>
         <div className="bg-card border border-[color:var(--border-default)] rounded-lg p-4">
           <div className="text-[11px] uppercase text-[color:var(--text-muted)]">Horas ativas</div>

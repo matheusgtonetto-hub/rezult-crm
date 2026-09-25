@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /**
  * O saldo de crédito de IA da empresa, em cartão próprio ao lado da Base.
@@ -35,26 +36,68 @@ interface Lancamento {
   criado_em: string;
 }
 
-/**
- * Créditos são inteiros, com separador de milhar.
- *
- * ─── Por que um formatador só, onde antes havia dois ────────────────────────
- *
- * Enquanto o saldo era em dólar, o extrato precisava de duas escalas: duas
- * casas para a compra (US$ 25,00) e QUATRO para o consumo (US$ 0,0232), senão
- * toda linha de uso aparecia como US$ 0,00. Eram duas unidades de leitura na
- * mesma coluna.
- *
- * Com a unidade em créditos (decisão do dono, 25/09/2026), compra e consumo
- * caem na mesma escala -- 25.000 e 35 -- e o segundo formatador deixou de ter
- * razão de existir. É o efeito colateral bom da mudança de unidade: o saldo é a
- * soma do extrato, e agora dá para conferir isso somando a coluna.
- */
-const creditos = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+/** Uma linha da aba Consumo, como `consumo_por_origem` devolve. */
+interface LinhaDeConsumo {
+  origem: string;
+  rotulo: string;
+  chamadas: number;
+  creditos: number;
+  custo_usd: number;
+}
 
-/** Só no popup de compra, que é o único lugar onde ainda existe dinheiro. */
+/**
+ * As janelas da aba Consumo.
+ *
+ * Rótulo "24 horas", e não "Hoje", porque a função no banco usa janela CORRIDA
+ * (`now() - N dias`), não dia de calendário. Chamar de "Hoje" seria prometer um
+ * corte à meia-noite que a consulta não faz.
+ */
+const JANELAS = [
+  { dias: 1,  rotulo: "24 horas" },
+  { dias: 7,  rotulo: "7 dias" },
+  { dias: 30, rotulo: "30 dias" },
+];
+
+/** Contagens inteiras com separador de milhar: hoje só a coluna "Chamadas". */
+const inteiro = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
+
+/**
+ * De crédito para o dólar que o cliente PAGOU.
+ *
+ * O saldo aparece em dólar (dono, 25/09/2026), mas continua guardado em
+ * créditos no banco. Não é redundância: é o que mantém a regra 4.4 do plano
+ * possível de cumprir, porque o crédito é uma unidade de TRABALHO fixa e o
+ * dólar aqui é só o rótulo do que foi pago por ela.
+ *
+ * Com 1.000 créditos por dólar pago, a tela fica 1:1 com o pagamento: quem
+ * paga US$ 25 vê US$ 25,00 de saldo.
+ *
+ * ─── O que isso custa, e que precisa ser sabido antes de reajustar ─────────
+ *
+ * Enquanto o saldo é mostrado em dólar pago, esta taxa não pode mudar: vender
+ * 833 créditos por dólar (markup de 80%) faria quem paga US$ 1 ver US$ 0,83
+ * entrar. Então um reajuste futuro teria de mexer em quanto cada crédito
+ * compra -- e isso desvaloriza saldo já vendido, que é exatamente o que a
+ * regra 4.4 proíbe. Enquanto o markup não mudar, nada disso acontece.
+ */
+const emDolarPago = (creditosDoSaldo: number) => creditosDoSaldo / CREDITOS_POR_DOLAR_PAGO;
+
+/** No popup de compra, que é onde o valor é dinheiro de verdade. */
 const dolar = new Intl.NumberFormat("pt-BR", {
   style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
+});
+
+/**
+ * Quatro casas FIXAS, só para quem usa chave própria (BYOK).
+ *
+ * Essa empresa não tem saldo no Rezult: ela paga o fornecedor direto, e o
+ * número que importa para ela é o custo real. Com duas casas, um consumo de
+ * US$ 0,0232 apareceria como US$ 0,02 e uma linha menor como US$ 0,00. Fixas, e
+ * não "até quatro", porque a coluna alternando 0,018 / 0,03 / 0,036 obriga a
+ * contar dígitos para comparar duas linhas.
+ */
+const dolarFino = new Intl.NumberFormat("pt-BR", {
+  style: "currency", currency: "USD", minimumFractionDigits: 4, maximumFractionDigits: 4,
 });
 
 const ROTULO: Record<string, string> = {
@@ -107,6 +150,11 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
   const [compraAberta, setCompraAberta] = useState(false);
   const [valor, setValor] = useState("");
 
+  const [temUso, setTemUso] = useState(false);
+  const [consumo, setConsumo] = useState<LinhaDeConsumo[]>([]);
+  const [dias, setDias] = useState(30);
+  const [carregandoConsumo, setCarregandoConsumo] = useState(false);
+
   const carregar = useCallback(async () => {
     if (!companyId) { setCarregando(false); return; }
 
@@ -118,11 +166,37 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
 
     setConta(data ? { saldo_creditos: Number(data.saldo_creditos) } : null);
 
+    /*
+     * Existe consumo a mostrar?
+     *
+     * Antes o botão do extrato dependia de haver LANÇAMENTOS, e quem usa chave
+     * própria não tem nenhum -- não há débito porque ela paga o fornecedor
+     * direto. Resultado: justamente quem só tem consumo para ver ficava sem o
+     * botão que mostra consumo.
+     *
+     * `head: true` traz só a contagem, sem trazer linha nenhuma.
+     */
+    const { count } = await supabase
+      .from("agent_usage_log")
+      .select("id", { count: "exact", head: true })
+      .eq("company_id", companyId)
+      .limit(1);
+    setTemUso((count ?? 0) > 0);
+
     if (data) {
+      /*
+       * Só o que NÃO é consumo.
+       *
+       * Antes esta lista trazia tudo, e o consumo dominava: uma conversa de
+       * agente gera dezenas de linhas de poucos créditos cada, e a compra --
+       * o único lançamento que o cliente procura aqui -- ficava enterrada.
+       * Consumo tem aba própria, agregada, desde 25/09/2026.
+       */
       const { data: linhas } = await supabase
         .from("credit_transactions")
         .select("id, tipo, valor, descricao, criado_em")
         .eq("company_id", companyId)
+        .neq("tipo", "consumo")
         .order("criado_em", { ascending: false })
         .limit(100);
       setExtrato((linhas ?? []).map(l => ({ ...l, valor: Number(l.valor) })) as Lancamento[]);
@@ -132,7 +206,41 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
 
   useEffect(() => { void carregar(); }, [carregar]);
 
+  /*
+   * O consumo é buscado só quando o popup abre, e de novo a cada troca de
+   * janela. Não entra no carregamento do cartão: a agregação junta três tabelas
+   * e ninguém deveria pagar esse custo para ver um saldo.
+   */
+  useEffect(() => {
+    if (!extratoAberto || !companyId) return;
+    let cancelado = false;
+    setCarregandoConsumo(true);
+    void supabase
+      .rpc("consumo_por_origem", { p_company_id: companyId, p_dias: dias })
+      .then(({ data }) => {
+        if (cancelado) return;
+        setConsumo((data ?? []).map((l: Record<string, unknown>) => ({
+          origem: String(l.origem),
+          rotulo: String(l.rotulo),
+          chamadas: Number(l.chamadas),
+          creditos: Number(l.creditos),
+          custo_usd: Number(l.custo_usd),
+        })));
+        setCarregandoConsumo(false);
+      });
+    return () => { cancelado = true; };
+  }, [extratoAberto, companyId, dias]);
+
   const saldo = conta?.saldo_creditos ?? 0;
+  /*
+   * Quem PAGA define a unidade da coluna de consumo.
+   *
+   * Com conta de crédito, a empresa comprou créditos e é neles que o gasto
+   * dela é contado. Sem conta, ela usa chave própria e paga o fornecedor
+   * direto: mostrar créditos ali seria inventar uma moeda que ela não tem, e o
+   * número que ela precisa conferir é a fatura em dólar.
+   */
+  const temConta = conta !== null;
   const negativo = saldo < 0;
   const escolhido = Number(valor.replace(",", "."));
   /*
@@ -158,15 +266,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           className="text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] tabular-nums mt-1"
           style={{ color: negativo ? "var(--danger-fg)" : "var(--text-heading)" }}
         >
-          {carregando ? "—" : creditos.format(saldo)}
-          {/* A unidade fica ao lado do número, e não no rótulo acima, porque
-              "37.206" sozinho não diz nada. Menor e mais clara que o valor
-              para o olho pegar a grandeza primeiro e a unidade depois. */}
-          {!carregando && (
-            <span className="text-[15px] font-medium tracking-normal ml-1.5 text-muted-foreground">
-              {saldo === 1 ? "crédito" : "créditos"}
-            </span>
-          )}
+          {carregando ? "—" : dolar.format(emDolarPago(saldo))}
         </p>
 
         {/* O texto vale com ou sem saldo, porque responde a pergunta que vem
@@ -192,7 +292,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           <Button onClick={() => { setValor(""); setCompraAberta(true); }} className="flex-1">
             <Plus size={16} /> Adicionar crédito
           </Button>
-          {extrato.length > 0 && (
+          {(extrato.length > 0 || temUso) && (
             <Button variant="outline" onClick={() => setExtratoAberto(true)} className="border-card-border shrink-0">
               <Receipt size={16} /> Extrato
             </Button>
@@ -200,58 +300,144 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
         </div>
       </div>
 
-      {/* ── Popup do extrato ─────────────────────────────────────────────── */}
+      {/* ── Popup do extrato: Compras e Consumo ──────────────────────────── */}
+      {/* Duas abas, e não uma lista só.
+          São duas perguntas diferentes -- "quanto eu pus" e "no que foi" -- e
+          juntá-las numa coluna fazia a compra desaparecer no meio de dezenas de
+          linhas de consumo. A separação é a mesma que o concorrente usa, com
+          "Créditos" em cima e um explorador de custos embaixo. */}
       <Dialog open={extratoAberto} onOpenChange={setExtratoAberto}>
         <DialogContent className="max-w-xl bg-card">
           <DialogHeader>
-            <DialogTitle>Extrato do crédito</DialogTitle>
+            <DialogTitle>Extrato</DialogTitle>
             <DialogDescription>
-              Saldo de {creditos.format(saldo)} créditos · cada linha é uma compra ou um uso de agente.
+              Saldo de {dolar.format(emDolarPago(saldo))}.
             </DialogDescription>
           </DialogHeader>
 
-          {/* Altura limitada com rolagem interna: o popup não pode crescer além
-              da janela, senão o rodapé sai da tela em notebook. */}
-          <div className="max-h-[52vh] overflow-y-auto -mx-1 px-1">
-            <table className="w-full text-[13px]">
-              <thead className="sticky top-0 bg-card">
-                <tr className="text-muted-foreground text-left">
-                  <th className="font-medium pb-2">Quando</th>
-                  <th className="font-medium pb-2">O que</th>
-                  <th className="font-medium pb-2 text-right">Créditos</th>
-                </tr>
-              </thead>
-              <tbody>
-                {extrato.map(l => {
-                  const credito = l.valor > 0;
-                  return (
-                    <tr key={l.id} className="border-t border-card-border">
-                      <td className="py-2 text-muted-foreground tabular-nums whitespace-nowrap">
-                        {new Date(l.criado_em).toLocaleString("pt-BR", {
-                          day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
-                        })}
-                      </td>
-                      <td className="py-2 text-foreground">
-                        {l.tipo === "consumo" ? ROTULO.consumo : (l.descricao || ROTULO[l.tipo] || l.tipo)}
-                      </td>
-                      {/* O sinal carrega o significado; a cor só destaca o
-                          crédito, que é o evento raro. Consumo é rotina. */}
-                      <td
-                        className="py-2 text-right tabular-nums whitespace-nowrap font-medium"
-                        style={{ color: credito ? "var(--text-link)" : "var(--text-body)" }}
-                      >
-                        {credito ? "+" : "−"}{creditos.format(Math.abs(l.valor))}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <Tabs defaultValue="consumo">
+            <TabsList className="w-full">
+              <TabsTrigger value="consumo" className="flex-1">Consumo</TabsTrigger>
+              <TabsTrigger value="compras" className="flex-1">Compras</TabsTrigger>
+            </TabsList>
 
-          {extrato.length === 100 && (
-            <p className="text-[12px] text-muted-foreground">Mostrando os 100 lançamentos mais recentes.</p>
-          )}
+            {/* ── Consumo: agregado, sem linha por chamada ──────────────────
+                Uma linha por chamada seria uma parede de lançamentos de poucos
+                créditos, ilegível e sem utilidade: a pergunta do cliente é
+                "o que está gastando o meu saldo", não "quanto custou a resposta
+                das 14h32". */}
+            <TabsContent value="consumo" className="mt-3">
+              <div className="flex gap-1.5 mb-3">
+                {JANELAS.map(j => (
+                  <Button
+                    key={j.dias}
+                    type="button"
+                    variant="outline"
+                    onClick={() => setDias(j.dias)}
+                    className={`h-8 text-[13px] border-card-border ${dias === j.dias ? "border-primary text-primary" : ""}`}
+                  >
+                    {j.rotulo}
+                  </Button>
+                ))}
+              </div>
+
+              {carregandoConsumo ? (
+                <p className="text-[13px] text-muted-foreground py-6 text-center">Carregando…</p>
+              ) : consumo.length === 0 ? (
+                /* Frase, e não uma grade de zeros: vazio é informação, não
+                   tabela vazia com cabeçalho. */
+                <p className="text-[13px] text-muted-foreground py-6 text-center">Nada gasto neste período.</p>
+              ) : (
+                <div className="max-h-[46vh] overflow-y-auto -mx-1 px-1">
+                  <table className="w-full text-[13px]">
+                    <thead className="sticky top-0 bg-card">
+                      <tr className="text-muted-foreground text-left">
+                        <th className="font-medium pb-2">O que</th>
+                        <th className="font-medium pb-2 text-right">Chamadas</th>
+                        <th className="font-medium pb-2 text-right">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {consumo.map(l => (
+                        <tr key={`${l.origem}-${l.rotulo}`} className="border-t border-card-border">
+                          <td className="py-2 text-foreground">{l.rotulo}</td>
+                          <td className="py-2 text-right tabular-nums text-muted-foreground">
+                            {inteiro.format(l.chamadas)}
+                          </td>
+                          {/* Os dois lados são dólar, mas NÃO o mesmo dólar:
+                              quem tem saldo vê o que descontou do que pagou;
+                              quem usa chave própria vê o custo real, que é a
+                              fatura que o fornecedor vai mandar para ela. */}
+                          <td className="py-2 text-right tabular-nums font-medium text-foreground">
+                            {dolarFino.format(temConta ? emDolarPago(l.creditos) : l.custo_usd)}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 border-card-border">
+                        <td className="py-2 font-medium text-foreground">Total</td>
+                        <td className="py-2 text-right tabular-nums text-muted-foreground">
+                          {inteiro.format(consumo.reduce((s, l) => s + l.chamadas, 0))}
+                        </td>
+                        <td className="py-2 text-right tabular-nums font-semibold text-foreground">
+                          {dolarFino.format(temConta
+                            ? emDolarPago(consumo.reduce((s, l) => s + l.creditos, 0))
+                            : consumo.reduce((s, l) => s + l.custo_usd, 0))}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* ── Compras: cronológico, poucas linhas, dinheiro de verdade ── */}
+            <TabsContent value="compras" className="mt-3">
+              {extrato.length === 0 ? (
+                <p className="text-[13px] text-muted-foreground py-6 text-center">Nenhuma compra ainda.</p>
+              ) : (
+                <div className="max-h-[52vh] overflow-y-auto -mx-1 px-1">
+                  <table className="w-full text-[13px]">
+                    <thead className="sticky top-0 bg-card">
+                      <tr className="text-muted-foreground text-left">
+                        <th className="font-medium pb-2">Quando</th>
+                        <th className="font-medium pb-2">O que</th>
+                        <th className="font-medium pb-2 text-right">Valor</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {extrato.map(l => {
+                        const credito = l.valor > 0;
+                        return (
+                          <tr key={l.id} className="border-t border-card-border">
+                            <td className="py-2 text-muted-foreground tabular-nums whitespace-nowrap">
+                              {new Date(l.criado_em).toLocaleString("pt-BR", {
+                                day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+                              })}
+                            </td>
+                            <td className="py-2 text-foreground">
+                              {l.descricao || ROTULO[l.tipo] || l.tipo}
+                            </td>
+                            {/* O sinal carrega o significado; a cor só destaca o
+                                crédito, que é o evento que interessa. */}
+                            <td
+                              className="py-2 text-right tabular-nums whitespace-nowrap font-medium"
+                              style={{ color: credito ? "var(--text-link)" : "var(--text-body)" }}
+                            >
+                              {credito ? "+" : "−"}{dolar.format(emDolarPago(Math.abs(l.valor)))}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {extrato.length === 100 && (
+                <p className="text-[12px] text-muted-foreground mt-2">Mostrando os 100 lançamentos mais recentes.</p>
+              )}
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
 
@@ -314,23 +500,11 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
               </p>
             )}
 
-            {/* Quantos créditos o valor digitado compra.
-                É a única ponte entre as duas unidades da tela, e ela precisa
-                existir: o campo está em dólar e o saldo, em créditos. Sem esta
-                linha, a pessoa paga US$ 25 e vê o saldo subir 25.000 sem
-                entender de onde saiu o número.
-
-                Some quando o valor é inválido, porque aí o aviso do mínimo já
-                ocupa este lugar e dois textos empilhados competiriam. */}
-            {!abaixoDoMinimo && escolhido >= COMPRA_MINIMA && (
-              <p className="text-[13px] leading-snug text-muted-foreground">
-                {dolar.format(escolhido)} compram{" "}
-                <span className="font-medium text-foreground tabular-nums">
-                  {creditos.format(Math.floor(escolhido * CREDITOS_POR_DOLAR_PAGO))} créditos
-                </span>
-                .
-              </p>
-            )}
+            {/* Não há mais o que explicar aqui.
+                Enquanto o saldo era em créditos, esta linha era a ponte entre
+                as duas unidades da tela ("US$ 25 compram 25.000 créditos").
+                Com o saldo em dólar pago, quem paga US$ 25 vê US$ 25,00 entrar,
+                e a frase viraria uma tautologia. */}
           </div>
 
           <DialogFooter className="flex-col items-stretch gap-2 sm:flex-col">

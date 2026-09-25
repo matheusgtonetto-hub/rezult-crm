@@ -171,8 +171,23 @@ interface.
 | Onde | Unidade |
 |---|---|
 | Botao de compra | **US$ 25** (o Stripe mostra ~R$ 135 ao lado) |
-| Card de saldo | **25.000 creditos** |
-| Linha de consumo | **35 creditos** |
+| Card de saldo | **US$ 25,00** |
+| Linha de consumo | **US$ 0,0233** |
+
+**Emenda de 25/09/2026 (dono): a TELA mostra dolar, nao creditos.**
+
+O credito continua sendo a unidade guardada no banco; o que mudou e o rotulo.
+Com 1.000 creditos por dolar pago, a tela fica 1:1 com o pagamento -- quem paga
+US$ 25 ve US$ 25,00 de saldo -- e o credito vira representacao interna.
+
+O que isso CUSTA, e precisa ser sabido antes de reajustar: enquanto o saldo
+aparece em dolar pago, a taxa de venda nao pode mudar. Vender 833 creditos por
+dolar (markup de 80%) faria quem paga US$ 1 ver US$ 0,83 entrar. Entao um
+reajuste teria de mexer em quanto cada credito COMPRA, e isso desvaloriza saldo
+ja vendido -- exatamente o que 4.4 proibe. Ver 4.5, que deixa de ter saida
+gratuita: com dolar na tela, ou o markup nunca muda, ou volta o lote FIFO.
+
+Enquanto o markup nao mudar, nada disso acontece.
 
 O nome na UI e "creditos" ou "Creditos Rezult", nunca "Rezult Credits": a
 aplicacao e 100% em portugues por regra do projeto.
@@ -262,7 +277,7 @@ de TRABALHO, fixa; o que varia e quanto ela custa.
 
 ---
 
-### 4.6 O cartão da Performance vaza o markup (achado na revisão de 25/09)
+### 4.6 O cartão da Performance vazava o markup -- CORRIGIDO em 25/09
 
 `src/pages/AgentesPage.tsx:4302` mostra "Valor gasto (7 dias): $0.42 · custo de
 tokens de IA". É o `cost_usd` CRU, somado direto de `agent_usage_log`, sem
@@ -273,8 +288,16 @@ naquele cartão e 630 créditos a menos no saldo. Dividir um pelo outro dá 1500
 fator exato. A opção B existe para que a comparação com o preço de tabela do
 fornecedor não seja possível, e este cartão a reabre.
 
-**Não está vazando hoje**: nenhuma empresa tem conta de crédito além da de
-demonstração. Passa a vazar na primeira compra.
+**Medido na empresa de demonstracao**: 7 chamadas, US$ 0,1932 de custo, 294
+creditos debitados. 294 / 0,1932 = 1521 -- nao 1500, por causa do `ceil` linha a
+linha, mas perto o bastante para entregar a margem.
+
+Com o saldo em dolar (emenda de 4.1) o risco PIOROU: os dois numeros passaram a
+ser dolar, e mesma unidade convida a comparacao direta.
+
+**Corrigido**: o cartao passa a ler `consumo_por_origem` e mostrar o que saiu do
+saldo, em dolar pago, para quem tem conta. Quem usa chave propria segue vendo o
+custo real, que e a fatura dele. Nunca os dois na mesma tela.
 
 O conserto não é esconder o número, é escolher a unidade certa para cada caso:
 
@@ -404,8 +427,8 @@ de abrir para a base.
 | 2a | Débito ligado a `agent-operacional-runner` e `agent-sds-qualify` | os dois runners de agente abatem | feito em 24/09 |
 | 2b | Medir custo nos CINCO pontos (eram 4 na conta anterior) | todo consumo de IA passa a contar | feito em 25/09 |
 | 3a | Migration da unidade + card em créditos | o saldo e o extrato falam em créditos | feito em 25/09 |
-| 3b | Tela: "Compras" + "Consumo" agregado + consertar o cartão da Performance (4.6) | dá para auditar antes de cobrar | **pendente, e é o proximo** |
-| 4 | Checkout avulso (price em USD) + webhook creditando | passa a vender | pendente |
+| 3b | Abas "Consumo" e "Compras" + cartão da Performance (4.6) | dá para auditar antes de cobrar | feito em 25/09 |
+| 4 | Checkout avulso (price em USD) + webhook creditando | passa a vender | **pendente, e é o proximo** |
 | 5 | Trava, avisos e teto diário | passa a ser seguro | pendente |
 | 6 | Chave da Rezult com fallback para a do cliente | o BYOK vira opcional | pendente |
 
