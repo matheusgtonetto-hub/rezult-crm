@@ -122,8 +122,10 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
             Antes havia "US$ 0,1932 usados hoje · teto de US$ 5,00 por dia" --
             um número cru mais um teto que eu tinha INVENTADO para a
             demonstração. Texto do dono, 25/09/2026. */}
-        <p className="text-[12px] text-muted-foreground leading-relaxed">
-          Pague só pelo que usar. O consumo varia com o trabalho pedido e as ferramentas usadas.
+        {/* `mt-[5px]`: sem ele, o respiro entre o número e esta linha vinha
+            só do line-height, e o subtítulo ficava colado (dono, 25/09/2026). */}
+        <p className="text-[12px] text-muted-foreground leading-relaxed mt-[5px]">
+          Pague só pelo que usar.
         </p>
 
         {negativo && (
