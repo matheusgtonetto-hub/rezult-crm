@@ -127,35 +127,19 @@ const ROTULO: Record<string, string> = {
  */
 const VALORES_SUGERIDOS = [10, 25, 50, 100];
 
-/**
- * Quantos créditos cada dólar pago compra. Markup de 30% (dono, 25/09/2026).
+/*
+ * ─── A taxa de venda NÃO mora aqui ──────────────────────────────────────────
  *
- * Esta é a taxa de VENDA, e ela pode mudar: vender menos créditos por dólar é
- * como um reajuste acontece, e o saldo de quem já comprou não é tocado.
+ * `CREDITOS_POR_DOLAR_PAGO = 1070` existia neste arquivo só para a tela dizer
+ * quantos créditos o valor digitado compraria. Como essa previsão saiu (ver o
+ * popup de compra), a constante perdeu a razão de existir -- e some com ela o
+ * risco de as duas cópias divergirem, fazendo a tela prometer um número e o
+ * checkout entregar outro.
  *
- * NÃO confundir com a taxa de consumo (1.500 créditos por dólar de custo real),
- * que vive em `debitar_credito` no banco e é FIXA. Aquela é a definição da
- * unidade: mudá-la mudaria o significado de todo saldo já vendido. Ver o
- * cabeçalho da migration 20260925000002.
- *
- * ─── Como 1.070 sai de "30%" ────────────────────────────────────────────────
- *
- * O markup é sobre o custo EFETIVO, não sobre o preço de tabela do fornecedor.
- * Comprar US$ 1 de custo custa US$ 1,0764, porque o IOF (3,5%) e o spread do
- * cartão (~4%) incidem na recarga.
- *
- *     1500 / (1,30 x 1,0764) = 1072,3  ->  1.070
- *
- * Arredondado para BAIXO de propósito: menos crédito por dólar empurra o markup
- * para cima (30,25%), e o erro de arredondamento deve cair do lado seguro.
- *
- * Esta era 1.000 e estava ERRADA. Aquele número foi derivado sobre o custo cru,
- * ignorando IOF e spread, enquanto a tabela de cenários que embasou a decisão
- * calculava sobre o efetivo. Os "50%" daquela constante eram 39,4% de verdade.
- *
- * Margem líquida em 30,25%, depois de Stripe (3,99%) e imposto (6%): ~13%.
+ * A taxa vive em um lugar só: `supabase/functions/create-checkout-session`,
+ * que é quem grava os créditos no metadata da sessão. A derivação dos 1.070 a
+ * partir de "30% de markup" está documentada lá.
  */
-const CREDITOS_POR_DOLAR_PAGO = 1070;
 
 /**
  * Teto de compra. Espelho de `COMPRA_MAXIMA_USD` em
@@ -648,23 +632,22 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
               </p>
             )}
 
-            {/* Quantos créditos o valor digitado compra.
-                É a única ponte entre as duas unidades da tela, e ela precisa
-                existir: o campo está em dólar e o saldo, em créditos. Sem esta
-                linha, a pessoa paga US$ 25 e vê o saldo subir 25.000 sem
-                entender de onde saiu o número.
+            {/* ── Por que NÃO se diz quantos créditos o valor compra ───────
+                Havia aqui "US$ 10,00 compram 10.700 créditos", como ponte entre
+                o campo em dólar e o saldo em créditos. Saiu (dono, 25/09/2026).
 
-                Some quando o valor é inválido, porque aí o aviso do mínimo já
-                ocupa este lugar e dois textos empilhados competiriam. */}
-            {valorValido && (
-              <p className="text-[13px] leading-snug text-muted-foreground">
-                {dolar.format(escolhido)} compram{" "}
-                <span className="font-medium text-foreground tabular-nums">
-                  {inteiro.format(Math.floor(escolhido * CREDITOS_POR_DOLAR_PAGO))} créditos
-                </span>
-                .
-              </p>
-            )}
+                O motivo não é estética: anunciar a taxa torna todo reajuste
+                VISÍVEL. No dia em que US$ 10 passar a dar 8.300 créditos, o
+                cliente compara com a compra anterior e lê um aumento de 29%.
+                Poder reajustar sem que essa comparação exista é a razão de o
+                saldo ser em créditos e não em dólar (secao 4.1 do plano), e
+                esta linha reabria exatamente o que a decisão fechou.
+
+                O concorrente faz igual: o checkout dele cobra "US$ 10,00" de
+                "Ribas credits" e em nenhum momento diz quantos créditos são.
+
+                O cliente descobre a quantidade no saldo, depois de comprar, em
+                vez de prever antes. */}
           </div>
 
           <DialogFooter className="flex-col items-stretch gap-2 sm:flex-col">

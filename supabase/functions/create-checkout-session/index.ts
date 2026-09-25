@@ -31,13 +31,25 @@ const CUPOM_PRIMEIRA_COMPRA = Deno.env.get("STRIPE_COUPON_PRIMEIRA_COMPRA") ?? "
  * ─── Compra de crédito de IA (passo 4 do plano do saldo) ────────────────────
  *
  * `1.070 créditos por dólar pago` é a taxa de VENDA, com markup de 30% sobre o
- * custo efetivo (dono, 25/09/2026). Espelho de `CREDITOS_POR_DOLAR_PAGO` em
- * `src/components/SaldoDeCreditos.tsx`, que existe só para a tela dizer quantos
- * créditos o valor digitado compra. **Esta é a cópia que vale**, porque é a que
- * entra no metadata da sessão e chega ao webhook.
+ * custo efetivo (dono, 25/09/2026). **Mora só aqui**: a cópia que existia em
+ * `src/components/SaldoDeCreditos.tsx` saiu junto com a previsão de créditos na
+ * tela, e com ela foi embora o risco de as duas divergirem.
+ *
+ * ─── Como 1.070 sai de "30%" ────────────────────────────────────────────────
+ *
+ * O markup é sobre o custo EFETIVO, não sobre o preço de tabela do fornecedor:
+ * comprar US$ 1 de custo custa US$ 1,0764, porque o IOF (3,5%) e o spread do
+ * cartão (~4%) incidem na recarga.
+ *
+ *     1500 / (1,30 x 1,0764) = 1072,3  ->  1.070
+ *
+ * Arredondado para BAIXO de propósito: menos crédito por dólar empurra o markup
+ * para cima (30,24%), e o erro de arredondamento deve cair do lado seguro.
+ * Margem líquida depois de Stripe (3,99%) e imposto (6%): ~13,2%.
  *
  * A outra taxa, 1.500 créditos por dólar de CUSTO, vive em `debitar_credito` no
- * banco e é fixa: ela define a unidade. Ver a migration 20260925000002.
+ * banco e é FIXA: ela define a unidade, e mudá-la mudaria o significado de todo
+ * saldo já vendido. Ver a migration 20260925000002.
  */
 const CREDITOS_POR_DOLAR_PAGO = 1070;
 
@@ -149,10 +161,23 @@ Deno.serve(async (req) => {
             // mexer, e a taxa de conversão é paga pelo cliente, não por nós.
             currency: "usd",
             unit_amount: centavos,
-            product_data: {
-              name: "Créditos Rezult",
-              description: `${creditos.toLocaleString("pt-BR")} créditos para os agentes de IA`,
-            },
+            /*
+             * A descrição NÃO diz quantos créditos são.
+             *
+             * Ela trazia "26.750 créditos para os agentes de IA", e isso
+             * aparece na página de pagamento do Stripe. Anunciar a quantidade
+             * torna a TAXA pública, e com ela todo reajuste futuro fica
+             * visível: quem comprou a 1.070 por dólar e voltar a 830 lê um
+             * aumento de 29%. Poder reajustar sem essa comparação é a razão de
+             * o saldo ser em créditos (secao 4.1 do plano).
+             *
+             * O concorrente faz igual: cobra "US$ 10,00" de "Ribas credits" e
+             * em nenhum momento diz quantos créditos são.
+             *
+             * A quantidade continua no `metadata`, que é interno e é de onde o
+             * webhook credita. O cliente a descobre no saldo, depois de pagar.
+             */
+            product_data: { name: "Créditos Rezult" },
           },
         }],
         /*
