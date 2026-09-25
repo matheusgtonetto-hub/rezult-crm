@@ -126,18 +126,34 @@ const ROTULO: Record<string, string> = {
 const VALORES_SUGERIDOS = [10, 25, 50, 100];
 
 /**
- * Quantos créditos cada dólar pago compra.
+ * Quantos créditos cada dólar pago compra. Markup de 30% (dono, 25/09/2026).
  *
  * Esta é a taxa de VENDA, e ela pode mudar: vender menos créditos por dólar é
- * como um reajuste de preço acontece, e o saldo de quem já comprou não é
- * tocado. Hoje 1.000, o que corresponde a 50% de markup.
+ * como um reajuste acontece, e o saldo de quem já comprou não é tocado.
  *
- * NÃO confundir com a outra taxa, a de consumo (1.500 créditos por dólar de
- * custo real), que vive em `debitar_credito` no banco e é FIXA. Aquela é a
- * definição da unidade -- mudá-la mudaria o significado de todo saldo já
- * vendido. Ver o cabeçalho da migration 20260925000002.
+ * NÃO confundir com a taxa de consumo (1.500 créditos por dólar de custo real),
+ * que vive em `debitar_credito` no banco e é FIXA. Aquela é a definição da
+ * unidade: mudá-la mudaria o significado de todo saldo já vendido. Ver o
+ * cabeçalho da migration 20260925000002.
+ *
+ * ─── Como 1.070 sai de "30%" ────────────────────────────────────────────────
+ *
+ * O markup é sobre o custo EFETIVO, não sobre o preço de tabela do fornecedor.
+ * Comprar US$ 1 de custo custa US$ 1,0764, porque o IOF (3,5%) e o spread do
+ * cartão (~4%) incidem na recarga.
+ *
+ *     1500 / (1,30 x 1,0764) = 1072,3  ->  1.070
+ *
+ * Arredondado para BAIXO de propósito: menos crédito por dólar empurra o markup
+ * para cima (30,25%), e o erro de arredondamento deve cair do lado seguro.
+ *
+ * Esta era 1.000 e estava ERRADA. Aquele número foi derivado sobre o custo cru,
+ * ignorando IOF e spread, enquanto a tabela de cenários que embasou a decisão
+ * calculava sobre o efetivo. Os "50%" daquela constante eram 39,4% de verdade.
+ *
+ * Margem líquida em 30,25%, depois de Stripe (3,99%) e imposto (6%): ~13%.
  */
-const CREDITOS_POR_DOLAR_PAGO = 1000;
+const CREDITOS_POR_DOLAR_PAGO = 1070;
 
 /**
  * Compra mínima, em dólar.

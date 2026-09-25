@@ -344,45 +344,63 @@ americana (`Kiwify US, Inc.`) que liquida em dolar. Uma conta Stripe brasileira
 recebe reais, entao sobra exposicao entre a venda e a recarga da OpenAI. E uma
 fresta de dias, nao de meses, mas existe.
 
-### 5.2 O markup -- RECOMENDADO: 50% (25/09/2026), decisao do dono pendente
+### 5.2 O markup -- DECIDIDO: 30% com hedge (dono, 25/09/2026)
 
-O que o markup precisa cobrir: taxa do Stripe, imposto, IOF e spread do cartao
-na recarga da OpenAI, credito que expira sem uso (1 ano) e a margem em si.
+**O markup e de 30% sobre o custo EFETIVO**, e a exposicao cambial e fechada
+comprando os dolares no ato da venda (o hedge, secao 6.1).
 
-**O custo real de cada dolar de credito**, com o dolar comercial a R$ 5,16:
+Periodo inicial, explicitamente: o dono decidiu medir com cliente real
+consumindo antes de ajustar. Nenhum cliente comprou credito ainda, e todo o
+consumo medido ate hoje foi teste do proprio dono.
 
-| Componente | Valor |
+**As duas taxas:**
+
+```
+1.500 creditos = US$ 1,00 de custo do fornecedor   → definicao da unidade, FIXA
+1.070 creditos = US$ 1,00 pago                     → preco, reajustavel
+```
+
+**Como 1.070 sai de "30%":** o markup e sobre o custo efetivo, nao sobre o preco
+de tabela do fornecedor. Comprar US$ 1 de custo custa US$ 1,0764, porque o IOF
+(3,5%) e o spread do cartao (~4%) incidem na recarga.
+
+```
+1500 / (1,30 x 1,0764) = 1072,3  →  1.070
+```
+
+Arredondado para BAIXO: menos credito por dolar empurra o markup para cima
+(30,24%), e o erro de arredondamento deve cair do lado seguro.
+
+**Correcao de um erro meu, de 25/09/2026.** A constante anterior era 1.000 e
+estava errada. Ela foi derivada sobre o custo CRU, ignorando IOF e spread,
+enquanto a tabela de cenarios que embasou a discussao calculava sobre o
+EFETIVO. Os "50%" daquela constante eram 39,4% de verdade. As duas contas nao
+usavam a mesma definicao de markup.
+
+**A economia de cada dolar pago, em 30,24%:**
+
+| | Por US$ 1,00 pago |
 |---|---|
-| Dolar comercial | R$ 5,16 |
-| Spread do cartao na recarga | ~4% |
-| IOF | 3,5% |
-| **Dolar efetivo** | **~R$ 5,55** |
+| Receita | US$ 1,0000 |
+| Compra dos dolares (com IOF e spread) | US$ 0,7678 |
+| Stripe (3,99%) | US$ 0,0399 |
+| Imposto (6%) | US$ 0,0600 |
+| **Margem liquida** | **US$ 0,1323 (13,2%)** |
 
-**Os cenarios**, tomando US$ 25 de credito (custo R$ 138,75), Stripe a
-3,99% + R$ 0,39 e imposto de 6% sobre a receita:
+**O que o hedge muda nessa conta:** nada. E esse o ponto. Sem hedge, os 30%
+tinham um ponto de ruina -- dolar acima de R$ 6,02 e a venda virava prejuizo.
+Com os dolares comprados no ato da venda, os 13,2% sao estaveis qualquer que
+seja a cotacao, e escolher 30% deixa de ser aposta e passa a ser decisao sobre
+quanto operar apertado.
 
-| Markup | Preco por US$ 1 | US$ 25 sai por | Stripe | Imposto | Margem |
-|---|---|---|---|---|---|
-| 30% | R$ 7,22 | R$ 180 | R$ 7,57 | R$ 10,82 | R$ 22,86 (12,7%) |
-| **50%** | **R$ 8,33** | **R$ 208** | R$ 8,69 | R$ 12,50 | **R$ 48,06 (23,1%)** |
-| 80% | R$ 9,99 | R$ 250 | R$ 10,36 | R$ 15,00 | R$ 85,89 (34,4%) |
+**O que 13,2% NAO absorve, e e o que justifica medir cedo:** um estorno, uma
+hora de suporte, a taxa da Stripe mudando. E os 30 dias de repasse continuam
+significando que a recarga sai do bolso antes de o dinheiro entrar (secao 7).
 
-Os 80% tem o apelo comercial de fechar em **R$ 10 = US$ 1**, que o cliente
-entende sem calculadora. O que derrubou esse numero foi a emenda 5.1: o
-argumento mais forte a favor dele era o risco cambial, e precificar em dolar
-elimina esse risco. Sem ele, 50% ja opera com folga.
-
-**Confianca: MEDIA.** A aritmetica esta verificada; a aceitacao de mercado nao.
-O que falta para subir: comprar US$ 10 na Kiwify e medir quanto de uso real
-aquele saldo compra. E o unico jeito de descobrir o markup deles, porque o
-checkout nao revela nada (ver 5.1). Ressalva sobre esse comparavel: "Ribas
-credits" nomeado com o sobrenome do dono e cobrado pela entidade de pagamento
-da Kiwify tem cara de produto pessoal rodando em infra que ja existia, nao de
-linha de receita com pricing estudado.
-
-**O custo de origem medido hoje esta inflado pelo Claude**, que foi o provedor
-da maioria dos testes. A mesma operacao no `gpt-5.6-terra` custaria menos, entao
-qualquer markup calculado sobre a medicao atual sai conservador.
+**Confianca: MEDIA.** A aritmetica esta verificada acima. O que falta para subir:
+consumo de cliente real. O custo de origem medido ate hoje esta inflado pelo
+Claude, que foi o provedor da maioria dos testes -- e desde 25/09 o produto usa
+somente OpenAI, entao a medicao vai mudar.
 
 ---
 
@@ -394,6 +412,38 @@ qualquer markup calculado sobre a medicao atual sai conservador.
 | Alarme de cobertura | a conta OpenAI zerar e parar todos | job diário: saldo lá / queima média |
 | Cartão reserva na OpenAI | recarga recusada derrubar a base | configuração, não código |
 | Conciliação mensal | divergência entre nosso débito e a fatura real | soma de `custo_usd` do mês x fatura |
+
+### 6.1 O hedge: comprar os dolares quando vender
+
+**A regra:** o saldo em dolar na OpenAI deve cobrir os creditos vendidos e ainda
+nao consumidos. Cada venda gera uma recarga na proporcao correspondente.
+
+Sem isso, o credito e um passivo em dolar com receita travada em reais: o
+cliente paga hoje e consome em seis meses, com o dolar em outro patamar. Indexar
+o PRECO nao resolve, porque o preco ja foi cobrado. O que resolve e travar o
+custo na mesma cotacao da receita, e para isso os dolares tem de ser comprados
+no ato da venda.
+
+**A cobertura necessaria, a qualquer momento:**
+
+```
+creditos_vendidos_nao_consumidos / 1500 = USD que precisa existir na OpenAI
+```
+
+Isso e `sum(saldo_creditos)` de `credit_accounts` dividido por 1500. O sistema
+sabe calcular; ele nao sabe ler o saldo real na OpenAI, que nao e exposto por
+API estavel. Entao o relatorio diz **quanto deveria haver**, e a conferencia com
+o painel da OpenAI e humana.
+
+**O risco NOVO que o hedge cria:** credito da OpenAI expira em 1 ano. Pre-comprar
+dolar para credito que o cliente so vai consumir no mes onze deixa a validade
+apertada; pre-comprar de sobra e perder dinheiro na expiracao. Por isso o hedge
+**acompanha o passivo** e nao e uma reserva: compra-se o que foi vendido, e nao
+mais.
+
+**Implementacao:** entra no passo 5, junto com a trava e os avisos. E um
+relatorio, nao um automatismo -- a recarga da OpenAI dispara por limite minimo e
+nao por venda, entao a acao final e do dono.
 
 A conciliação é o que revela erro de medição. Se a nossa soma e a fatura
 divergirem mais que centavos, alguma chamada não está sendo contabilizada -- e
@@ -427,8 +477,8 @@ de abrir para a base.
 | 2b | Medir custo nos CINCO pontos (eram 4 na conta anterior) | todo consumo de IA passa a contar | feito em 25/09 |
 | 3a | Migration da unidade + card em créditos | o saldo e o extrato falam em créditos | feito em 25/09 |
 | 3b | Abas "Consumo" e "Compras" + cartão da Performance (4.6) | dá para auditar antes de cobrar | feito em 25/09 |
-| 4 | Checkout avulso (price em USD) + webhook creditando | passa a vender | **pendente, e é o proximo** |
-| 5 | Trava, avisos e teto diário | passa a ser seguro | pendente |
+| 4 | Checkout avulso (price em USD, 1.070 créditos por dólar) + webhook creditando | passa a vender | **destravado, e é o proximo** |
+| 5 | Trava, avisos, teto diário e **relatório de cobertura do hedge (6.1)** | passa a ser seguro | pendente |
 | 6 | Chave da Rezult com fallback para a do cliente | o BYOK vira opcional | pendente |
 
 ### Por que 2b vem antes de tudo
