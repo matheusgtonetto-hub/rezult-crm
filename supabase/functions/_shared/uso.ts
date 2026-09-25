@@ -28,6 +28,15 @@ export const MODEL_PRICING: Record<string, { inputPer1M: number; outputPer1M: nu
   "gpt-5.6-luna":              { inputPer1M: 0.4, outputPer1M: 1.6 },
   "gpt-5.6-terra":             { inputPer1M: 2.5, outputPer1M: 10 },
   "gpt-5.6-sol":               { inputPer1M: 12,  outputPer1M: 48 },
+  // Gemini. Os tres modelos que o catalogo oferecia (2.0-flash, 1.5-pro,
+  // 1.5-flash) estao MORTOS: o 2.0 Flash foi desligado em 01/06/2026 e a
+  // familia 1.5 devolve 404. Substituidos pelos recomendados de hoje.
+  //
+  // ATENCAO ao prazo: a tarifa do 3.8 Flash vale ate 31/12/2026 e DOBRA em
+  // 01/01/2027, para 1,50 / 7,50. Revisar antes da virada, ou a margem de quem
+  // usa Gemini cai pela metade sem ninguem mexer em nada.
+  "gemini-3.8-flash":          { inputPer1M: 0.75, outputPer1M: 3.75 },
+  "gemini-3.5-flash-lite":     { inputPer1M: 0.30, outputPer1M: 2.50 },
   // Embeddings da Base de Conhecimento. Só entrada: não existe token de saída
   // num embedding, o retorno é um vetor.
   "text-embedding-3-large":    { inputPer1M: 0.13, outputPer1M: 0 },
@@ -48,7 +57,27 @@ export type OrigemDoUso = "agente" | "automacao" | "sugestao" | "base_conhecimen
  * a ingestão de um documento inteiro apareceria como consumo nenhum.
  */
 export function custoDaChamada(model: string, entrada: number, saida: number): number {
-  const preco = MODEL_PRICING[model] ?? { inputPer1M: 0, outputPer1M: 0 };
+  const preco = MODEL_PRICING[model];
+
+  /*
+   * Modelo sem preco GRITA, em vez de devolver zero em silencio.
+   *
+   * O silencio era um buraco real: o catalogo do frontend (src/lib/ai-models.ts)
+   * oferecia tres modelos Gemini que nao existiam em tabela de preco nenhuma, e
+   * o `?? { 0, 0 }` fazia essa escolha sair DE GRACA -- consumo cobrado do
+   * fornecedor e nao cobrado do cliente, sem nenhum sinal.
+   *
+   * O zero continua, porque inventar um preco seria pior que nao cobrar. O que
+   * muda e que agora da para achar no log.
+   */
+  if (!preco) {
+    console.error(
+      `[uso] MODELO SEM PRECO: "${model}". O consumo sera registrado como ZERO e ninguem sera cobrado. ` +
+      `Acrescente o preco em supabase/functions/_shared/uso.ts (e espelhe em src/lib/ai-models.ts).`,
+    );
+    return 0;
+  }
+
   const bruto = (entrada / 1_000_000) * preco.inputPer1M + (saida / 1_000_000) * preco.outputPer1M;
   return Number(bruto.toFixed(6));
 }
@@ -97,7 +126,14 @@ export type DadosDoUso = {
  */
 export async function registrarUso(db: any, dados: DadosDoUso): Promise<void> {
   const { companyId, model, entrada, saida, origem } = dados;
-  if (!companyId) return;
+
+  // Sem empresa nao ha a quem atribuir, entao nao ha o que gravar -- mas isso
+  // significa consumo que aconteceu e ninguem paga. Grita pelo mesmo motivo do
+  // modelo sem preco: buraco visivel e consertavel, buraco silencioso nao.
+  if (!companyId) {
+    console.error(`[${origem}] uso de IA SEM company_id: consumo nao atribuido a ninguem`, { model, entrada, saida });
+    return;
+  }
 
   const custo = dados.custoUsd ?? custoDaChamada(model, entrada, saida);
   // Nada a registrar: nem token, nem custo direto. Evita poluir o extrato com

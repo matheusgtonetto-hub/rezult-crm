@@ -262,6 +262,31 @@ de TRABALHO, fixa; o que varia e quanto ela custa.
 
 ---
 
+### 4.6 O cartão da Performance vaza o markup (achado na revisão de 25/09)
+
+`src/pages/AgentesPage.tsx:4302` mostra "Valor gasto (7 dias): $0.42 · custo de
+tokens de IA". É o `cost_usd` CRU, somado direto de `agent_usage_log`, sem
+markup nenhum.
+
+Quem tiver conta de crédito vê as duas coisas na mesma sessão: US$ 0,42 de custo
+naquele cartão e 630 créditos a menos no saldo. Dividir um pelo outro dá 1500, o
+fator exato. A opção B existe para que a comparação com o preço de tabela do
+fornecedor não seja possível, e este cartão a reabre.
+
+**Não está vazando hoje**: nenhuma empresa tem conta de crédito além da de
+demonstração. Passa a vazar na primeira compra.
+
+O conserto não é esconder o número, é escolher a unidade certa para cada caso:
+
+| Empresa | O que o cartão deve mostrar | Por que |
+|---|---|---|
+| com conta de crédito | créditos consumidos | é a unidade dela, e bate com o saldo |
+| BYOK (todas hoje) | dólar de custo real | é a fatura que ela mesma paga ao fornecedor |
+
+Somar os créditos de `credit_transactions` em vez de multiplicar o dólar por
+1500: cada débito arredonda para cima individualmente, então a soma dos `ceil`
+não é o `ceil` da soma. Multiplicar daria um número que não fecha com o extrato.
+
 ## 5. As duas decisões de negócio que o desenho não toma
 
 ### 5.1 A moeda -- DECIDIDA: dolar (dono, 24/09/2026)
@@ -379,7 +404,7 @@ de abrir para a base.
 | 2a | Débito ligado a `agent-operacional-runner` e `agent-sds-qualify` | os dois runners de agente abatem | feito em 24/09 |
 | 2b | Medir custo nos CINCO pontos (eram 4 na conta anterior) | todo consumo de IA passa a contar | feito em 25/09 |
 | 3a | Migration da unidade + card em créditos | o saldo e o extrato falam em créditos | feito em 25/09 |
-| 3b | Tela: "Compras" cronológico + "Consumo" agregado por agente e origem | dá para auditar antes de cobrar | **pendente, e é o proximo** |
+| 3b | Tela: "Compras" + "Consumo" agregado + consertar o cartão da Performance (4.6) | dá para auditar antes de cobrar | **pendente, e é o proximo** |
 | 4 | Checkout avulso (price em USD) + webhook creditando | passa a vender | pendente |
 | 5 | Trava, avisos e teto diário | passa a ser seguro | pendente |
 | 6 | Chave da Rezult com fallback para a do cliente | o BYOK vira opcional | pendente |
