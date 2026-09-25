@@ -105,7 +105,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
       <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col h-full">
         <div className="flex items-center gap-2">
           <Wallet size={14} className="text-muted-foreground shrink-0" />
-          <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Crédito de IA</p>
+          <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Saldo</p>
         </div>
 
         {/* Métrica do sistema: 32/600, `tabular-nums` porque o número muda a
