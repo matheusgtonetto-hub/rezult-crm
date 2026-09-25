@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Receipt, Wallet } from "lucide-react";
+import { Plus, Receipt } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -103,10 +103,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           painel e elevação 1 -- para os dois lerem como um par, e não como duas
           peças de origens diferentes. */}
       <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col h-full">
-        <div className="flex items-center gap-2">
-          <Wallet size={14} className="text-muted-foreground shrink-0" />
-          <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Saldo</p>
-        </div>
+        <p className="text-[12px] font-medium uppercase tracking-[0.08em] text-muted-foreground">Saldo</p>
 
         {/* Métrica do sistema: 32/600, `tabular-nums` porque o número muda a
             cada uso e dígitos de larguras diferentes fazem o saldo tremer. */}
