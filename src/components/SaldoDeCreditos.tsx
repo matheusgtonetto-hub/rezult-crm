@@ -58,6 +58,16 @@ const ROTULO: Record<string, string> = {
 /** Os mesmos degraus do concorrente, em dólar, porque o saldo é em dólar. */
 const VALORES_SUGERIDOS = [10, 25, 50, 100];
 
+/**
+ * Compra mínima, em dólar.
+ *
+ * Não é número escolhido a esmo: é o mesmo piso de recarga que a OpenAI impõe
+ * na conta que abastece todo mundo (verificado em 24/09/2026). Aceitar menos
+ * aqui criaria venda que o outro lado não consegue repor na mesma proporção, e
+ * a taxa do Stripe comeria boa parte de um valor tão pequeno.
+ */
+const COMPRA_MINIMA = 5;
+
 export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
   const [conta, setConta] = useState<Conta | null>(null);
   const [extrato, setExtrato] = useState<Lancamento[]>([]);
@@ -95,6 +105,13 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
   const saldo = conta?.saldo_usd ?? 0;
   const negativo = saldo < 0;
   const escolhido = Number(valor.replace(",", "."));
+  /*
+   * Só reclama depois de a pessoa digitar algo. Campo vazio não é erro, é o
+   * estado inicial -- avisar ali seria repreender quem ainda nem começou.
+   * `Number.isFinite` cobre o que não é número ("," ou "." sozinhos), que
+   * também não serve como valor.
+   */
+  const abaixoDoMinimo = valor.trim() !== "" && (!Number.isFinite(escolhido) || escolhido < COMPRA_MINIMA);
 
   return (
     <>
@@ -211,13 +228,25 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           </DialogHeader>
 
           <div className="space-y-3">
-            <Input
-              autoFocus
-              inputMode="decimal"
-              placeholder="US$"
-              value={valor}
-              onChange={e => setValor(e.target.value.replace(/[^\d.,]/g, ""))}
-            />
+            {/* A cifra é PARTE do campo, não placeholder: ela fica visível
+                enquanto se digita, que é quando a pessoa precisa saber em que
+                moeda está o número. Como placeholder, sumia no primeiro
+                caractere (dono, 25/09/2026).
+
+                `pointer-events-none` para o clique atravessar até o input, e
+                `pl-11` para o texto digitado começar depois dela. */}
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-[color:var(--text-subtle)]">
+                US$
+              </span>
+              <Input
+                autoFocus
+                inputMode="decimal"
+                className="pl-11"
+                value={valor}
+                onChange={e => setValor(e.target.value.replace(/[^\d.,]/g, ""))}
+              />
+            </div>
             <div className="flex gap-2">
               {VALORES_SUGERIDOS.map(v => (
                 <Button
@@ -231,13 +260,23 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                 </Button>
               ))}
             </div>
+
+            {abaixoDoMinimo && (
+              <p className="text-[12px] leading-snug" style={{ color: "var(--danger-fg)" }}>
+                O menor valor é US$ {COMPRA_MINIMA}.
+              </p>
+            )}
           </div>
 
           <DialogFooter className="flex-col items-stretch gap-2 sm:flex-col">
             {/* Desabilitado de propósito: a cobrança é o passo seguinte, e um
                 botão que abre um checkout inexistente é pior do que um botão
                 que não abre. A nota que explicava isso saiu a pedido do dono
-                (25/09/2026), então o estado desabilitado é a única pista. */}
+                (25/09/2026), então o estado desabilitado é a única pista.
+
+                Quando o passo 4 ligar o Stripe, este `disabled` fixo vira
+                `disabled={abaixoDoMinimo || !escolhido}` -- a regra do mínimo
+                já está escrita acima, só não tem o que travar ainda. */}
             <Button disabled className="w-full">Ir para o pagamento</Button>
           </DialogFooter>
         </DialogContent>
