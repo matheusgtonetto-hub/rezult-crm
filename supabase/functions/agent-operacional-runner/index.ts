@@ -24,6 +24,7 @@ import { executeRegistryTool, TOOL_SCHEMAS, type ToolResult, type ToolSchema } f
 import { somenteDigitos } from "../_shared/telefone.ts";
 import { registrarUso } from "../_shared/uso.ts";
 import { podeGastar } from "../_shared/credito.ts";
+import { resolverChaveDeIa } from "../_shared/chave-ia.ts";
 
 // deno-lint-ignore no-explicit-any
 type Db = any;
@@ -210,12 +211,18 @@ async function processar(db: Db, fila: Fila): Promise<{ processadoAte: string | 
 
   const model = (agente.model as string) || "gpt-5.6-terra";
   const provedor = model.startsWith("gpt-") ? "openai" : "anthropic";
-  // `.limit(1)` e não `.maybeSingle()` puro: chave duplicada viraria erro.
-  const { data: chave } = await db.from("ai_provider_keys")
-    .select("api_key")
-    .eq("company_id", fila.company_id).eq("provider", provedor).eq("active", true)
-    .limit(1).maybeSingle();
-  if (!chave?.api_key) throw new Error(`empresa sem chave ativa da ${provedor === "openai" ? "OpenAI" : "Anthropic"}`);
+
+  /*
+   * Quem paga esta chamada: a Rezult (empresa com saldo) ou o cliente (chave
+   * própria). O mesmo objeto carrega a chave e a resposta, e o `daRezult` vai
+   * direto para `registrarUso({ debitar })`.
+   *
+   * Substituiu uma busca direta em `ai_provider_keys`. Enquanto a escolha da
+   * chave e a decisão de debitar viviam em lugares diferentes, existia o
+   * caminho em que as duas diziam sim e o cliente pagava duas vezes.
+   */
+  const chave = await resolverChaveDeIa(db, fila.company_id, provedor, "agent-operacional");
+  if (!chave) throw new Error(`empresa sem chave ativa da ${provedor === "openai" ? "OpenAI" : "Anthropic"}`);
 
   const { data: conversa } = await db.from("whatsapp_conversations")
     .select("id, name, phone, contact_id")
@@ -314,9 +321,9 @@ async function processar(db: Db, fila: Fila): Promise<{ processadoAte: string | 
   ];
 
   const loop = provedor === "openai" ? loopOpenAi : loopAnthropic;
-  const { uso, textoFinal, falhou } = await loop(chave.api_key as string, model, METODOLOGIA, contexto, ferramentas, dispatch);
+  const { uso, textoFinal, falhou } = await loop(chave.apiKey, model, METODOLOGIA, contexto, ferramentas, dispatch);
 
-  await registrarUsoDoAgente(db, agente.id as string, fila.company_id, model, uso, leadId, !falhou);
+  await registrarUsoDoAgente(db, agente.id as string, fila.company_id, model, uso, leadId, !falhou, chave.daRezult);
   console.info(`[agent-operacional] empresa=${fila.company_id} conversa=${conversa.id} lead=${leadId ?? "-"} novas=${novas.length} acoes=${acoes.join(",") || "nenhuma"} resultado="${textoFinal.slice(0, 160)}"`);
 
   return { processadoAte, resumo: { lead: leadId, novas: novas.length, acoes } };
@@ -549,7 +556,7 @@ async function loopAnthropic(
  * custo nenhum: manter a regra de dinheiro em um lugar só é o que impede o
  * próximo ponto de nascer sem medição.
  */
-async function registrarUsoDoAgente(db: Db, agentId: string, companyId: string, model: string, uso: Uso, leadId: string | null, sucesso: boolean) {
+async function registrarUsoDoAgente(db: Db, agentId: string, companyId: string, model: string, uso: Uso, leadId: string | null, sucesso: boolean, debitar: boolean) {
   await registrarUso(db, {
     companyId,
     model,
@@ -559,5 +566,7 @@ async function registrarUsoDoAgente(db: Db, agentId: string, companyId: string, 
     agentId,
     leadId,
     sucesso,
+    // Vem de `resolverChaveDeIa`: só debita quem usou a chave da Rezult.
+    debitar,
   });
 }

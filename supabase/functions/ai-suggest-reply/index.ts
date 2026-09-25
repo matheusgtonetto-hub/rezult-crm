@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { empresaBloqueada } from "../_shared/cobranca.ts";
 import { registrarUso } from "../_shared/uso.ts";
 import { podeGastar } from "../_shared/credito.ts";
+import { resolverChaveDeIa } from "../_shared/chave-ia.ts";
 
 // Sugestão de resposta com IA para o Multiatendimento.
 // Lê o histórico recente da conversa + contexto do lead e gera a próxima
@@ -65,31 +66,35 @@ Deno.serve(async (req) => {
   if (veredicto !== "ok") return json({ error: veredicto }, 200);
 
   // Chave da EMPRESA (BYOK), o mesmo padrão do agente. As variáveis de ambiente
-  // ficam como último recurso, para ambiente de desenvolvimento.
-  const chaves: Record<string, string> = {};
-  if (body.companyId) {
-    const { data } = await db
-      .from("ai_provider_keys")
-      .select("provider, api_key")
-      .eq("company_id", body.companyId)
-      .in("provider", ["openai", "anthropic"])
-      .eq("active", true);
-    for (const row of (data ?? []) as { provider: string; api_key: string }[]) {
-      if (row.api_key) chaves[row.provider] = row.api_key;
-    }
+  /*
+   * ─── A chave, e quem paga por ela ─────────────────────────────────────────
+   *
+   * `resolverChaveDeIa` devolve a chave da Rezult para quem tem saldo e a do
+   * cliente para quem não tem, e diz qual foi -- é esse `daRezult` que decide
+   * se o consumo é debitado. Enquanto a escolha da chave e a decisão de
+   * debitar viviam em lugares diferentes, quem tinha saldo E chave própria
+   * pagava duas vezes pela mesma sugestão.
+   *
+   * OpenAI primeiro, Anthropic como resto de compatibilidade: o produto só
+   * oferece OpenAI desde 25/09/2026, mas quem já tinha chave da Anthropic
+   * cadastrada continua funcionando. Saiu o fallback para variável de
+   * ambiente neste ponto, porque `resolverChaveDeIa` já cuida da chave da
+   * Rezult -- e uma chave de desenvolvimento passando na frente da chave
+   * cadastrada pelo cliente era exatamente o risco documentado aqui antes.
+   */
+  // O provedor sai de QUAL tentativa funcionou, e não do formato da chave.
+  // Inferir por prefixo ("sk-ant-") quebraria no dia em que um deles mudar o
+  // padrão dos tokens, e quebraria em silêncio: a chave iria para a API errada.
+  let provedor: "openai" | "anthropic" = "openai";
+  let chave = await resolverChaveDeIa(db, body.companyId ?? "", "openai", "sugestao");
+  if (!chave) {
+    chave = await resolverChaveDeIa(db, body.companyId ?? "", "anthropic", "sugestao");
+    provedor = "anthropic";
   }
-  const openaiKey = chaves.openai || Deno.env.get("OPENAI_API_KEY") || "";
-  const anthropicKey = chaves.anthropic || Deno.env.get("ANTHROPIC_API_KEY") || "";
-  // A chave da própria empresa ganha da variável de ambiente, qualquer que seja
-  // o provedor: sem isso, um OPENAI_API_KEY de desenvolvimento passaria na frente
-  // da Anthropic que o cliente cadastrou.
-  const provedor: "openai" | "anthropic" | null =
-    chaves.openai ? "openai"
-    : chaves.anthropic ? "anthropic"
-    : openaiKey ? "openai"
-    : anthropicKey ? "anthropic"
-    : null;
-  if (!provedor) return json({ error: "not_configured" }, 200);
+  if (!chave) return json({ error: "not_configured" }, 200);
+
+  const openaiKey = provedor === "openai" ? chave.apiKey : "";
+  const anthropicKey = provedor === "anthropic" ? chave.apiKey : "";
 
   const msgs = (body.messages ?? []).filter(m => (m.text ?? "").trim()).slice(-30);
   if (msgs.length === 0) return json({ error: "empty_conversation" }, 400);
@@ -206,6 +211,7 @@ Deno.serve(async (req) => {
       saida,
       origem: "sugestao",
       sucesso: !!suggestion,
+      debitar: chave.daRezult,
     }).catch(e => console.error("[ai-suggest-reply] registrarUso:", e));
 
     if (!suggestion) return json({ error: "empty_suggestion" }, 502);

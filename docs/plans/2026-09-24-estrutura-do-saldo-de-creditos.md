@@ -565,7 +565,58 @@ de abrir para a base.
 | 3b | Abas "Consumo" e "Compras" + cartão da Performance (4.6) | dá para auditar antes de cobrar | feito em 25/09 |
 | 4 | Checkout avulso (price em USD, 1.070 créditos por dólar) + webhook creditando | passa a vender | feito em 25/09 |
 | 5 | Trava, avisos, teto diário e relatório de cobertura do hedge (6.1) | passa a ser seguro | feito em 25/09 |
-| 6 | Chave da Rezult com fallback para a do cliente | o BYOK vira opcional | **pendente, e é o ultimo** |
+| 6 | Chave da Rezult com fallback para a do cliente | o BYOK vira opcional, e a cobranca dupla e fechada | feito em 25/09 |
+
+### O passo 6 nao era "nice to have", era um defeito aberto
+
+Descoberto em 25/09/2026, depois do deploy do passo 5.
+
+O debito acontecia sempre que a empresa tinha conta de credito, e a chave usada
+na chamada continuava sendo **a do cliente**. Nada ligava as duas decisoes.
+Entao, na primeira compra real:
+
+1. a chamada usava a chave DELE, e a OpenAI cobrava DELE
+2. `debitar_credito` descontava do saldo que ele comprou de NOS
+
+**Cobranca dupla pela mesma resposta.** Ninguem foi cobrado duas vezes porque
+nenhuma empresa tinha conta de credito de verdade -- so a de demonstracao, que
+nao roda nada. Mas o checkout entrou no ar no passo 4, e era questao de uma
+venda.
+
+**O conserto:** `_shared/chave-ia.ts::resolverChaveDeIa` decide a chave E devolve
+quem paga, no mesmo lugar:
+
+```
+tem saldo  →  chave da REZULT, e o consumo E debitado
+sem saldo  →  chave do CLIENTE, e nada e debitado
+```
+
+`registrarUso` passou a EXIGIR o campo `debitar`, sem valor por omissao. `true`
+por omissao seria reproduzir o defeito: o certo e cada ponto de chamada declarar
+quem paga, e o valor vem do mesmo codigo que escolheu a chave. Uma decisao, nao
+duas que podem discordar.
+
+**Degradacao quando a nossa chave falta:** empresa com saldo cai para a chave do
+cliente SEM debitar. Ele continua atendido e nao paga duas vezes; o prejuizo e
+nosso, porque ele comprou credito que nao foi consumido. E o lado certo para o
+erro cair, porque a falha e de configuracao nossa. Grita no log.
+
+**Secret nova a configurar:** `REZULT_OPENAI_API_KEY`. `OPENAI_API_KEY` fica como
+segunda opcao por compatibilidade, mas nome proprio existe para que uma chave de
+desenvolvimento nao vire, por acidente, a chave que cobra a operacao inteira.
+
+### Um SEXTO ponto de chamada, e a licao sobre a varredura
+
+A varredura do passo 2b encontrou cinco pontos. Eram seis.
+
+`agent-sds-qualify::retrieveKbContext` faz um embedding por consulta a Base de
+Conhecimento, e nao era medido. Ele escapou porque eu varri por **arquivo**: o
+arquivo tinha medicao (`logAgentUsage`), entao passou por coberto -- mas aquela
+medicao cobria a chamada do modelo, nao o embedding.
+
+**Varrer por arquivo esconde chamada dentro de arquivo ja medido.** O certo e
+varrer por CHAMADA (`fetch` para o endpoint do fornecedor), que e o que
+encontrou esta. Sao 15 chamadas em 6 arquivos, todas medidas hoje.
 
 ### Por que 2b vem antes de tudo
 

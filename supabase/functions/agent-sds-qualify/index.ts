@@ -6,6 +6,7 @@ import { upsertConversationForMessage, previewLabelFor, idsDeConversasPorTelefon
 import { empresaBloqueada } from "../_shared/cobranca.ts";
 import { registrarUso } from "../_shared/uso.ts";
 import { podeGastar } from "../_shared/credito.ts";
+import { resolverChaveDeIa } from "../_shared/chave-ia.ts";
 
 // Agente SDS: qualifica leads no multiatendimento com objetivo FIXO de
 // agendar reunião qualificada pro time de closers. Disparado pelos webhooks
@@ -289,15 +290,21 @@ async function retrieveKbContext(
     .limit(1);
   if (!temDocumento?.length) return "";
 
-  const { data: openaiKeyRow } = await db
-    .from("ai_provider_keys")
-    .select("api_key")
-    .eq("company_id", companyId)
-    .eq("provider", "openai")
-    .eq("active", true)
-    .maybeSingle();
-  const openaiKey = openaiKeyRow?.api_key || Deno.env.get("OPENAI_API_KEY") || "";
-  if (!openaiKey) return "";
+  /*
+   * ─── Sexto ponto de chamada, encontrado em 25/09/2026 ─────────────────────
+   *
+   * Esta busca faz um embedding por consulta à Base de Conhecimento, e o
+   * consumo dela NÃO era medido. A varredura do passo 2b procurou por arquivo:
+   * este arquivo tinha medição (`logAgentUsage`), então passou por coberto --
+   * mas a medição cobria só a chamada do modelo, não o embedding daqui.
+   *
+   * A lição: varrer por ARQUIVO esconde chamada dentro de arquivo já medido. O
+   * certo é varrer por CHAMADA (`fetch` para api.openai.com), que é o que
+   * encontrou esta.
+   */
+  const chaveKb = await resolverChaveDeIa(db, companyId, "openai", "base_conhecimento");
+  if (!chaveKb) return "";
+  const openaiKey = chaveKb.apiKey;
 
   try {
     const embRes = await fetch("https://api.openai.com/v1/embeddings", {
@@ -316,6 +323,19 @@ async function retrieveKbContext(
       return "";
     }
     const embData = await embRes.json();
+
+    // Sem `await`: o agente está montando uma resposta e o lead espera. O
+    // registro não pode somar latência a isso.
+    registrarUso(db, {
+      companyId,
+      model: "text-embedding-3-large",
+      entrada: Number(embData?.usage?.prompt_tokens ?? 0),
+      saida: 0,
+      origem: "base_conhecimento",
+      agentId,
+      debitar: chaveKb.daRezult,
+    }).catch((e) => console.error("[agent-sds] registrarUso (kb):", e));
+
     const queryEmbedding = embData.data[0].embedding;
     const { data: chunks, error } = await db.rpc("match_knowledge_chunks", {
       query_embedding: queryEmbedding, p_agent_id: agentId, p_company_id: companyId, match_count: 5,
@@ -845,6 +865,9 @@ async function logAgentUsage(
   // existe no banco. A coluna é nullable justamente para casos assim.
   leadId: string | null,
   success: boolean,
+  // Vem de `resolverChaveDeIa`: só debita quem usou a chave da Rezult. Sem
+  // isso, empresa com saldo E chave própria pagava duas vezes pela resposta.
+  debitar: boolean,
 ): Promise<void> {
   await registrarUso(db, {
     companyId,
@@ -855,6 +878,7 @@ async function logAgentUsage(
     agentId,
     leadId,
     sucesso: success,
+    debitar,
   });
 }
 
@@ -1932,12 +1956,9 @@ async function executarTeste(
   const behaviorConfig = ((agent.behavior_config as BehaviorConfig | null) ?? {}) as BehaviorConfig;
   const model = (agent.model as string) || "claude-sonnet-5";
   const provider = providerForModel(model);
-  const { data: companyKey } = await db
-    .from("ai_provider_keys").select("api_key")
-    .eq("company_id", companyId).eq("provider", provider).eq("active", true)
-    .maybeSingle();
-  const apiKey = companyKey?.api_key || "";
-  if (!apiKey) return json({ error: "no_company_api_key", provider }, 200);
+  const chave = await resolverChaveDeIa(db, companyId, provider, "agent-sds-teste");
+  if (!chave) return json({ error: "no_company_api_key", provider }, 200);
+  const apiKey = chave.apiKey;
 
   // A simulação queima token igual à conversa real, então trava igual. Aqui o
   // erro VAI para a tela: quem clicou em simular está olhando e precisa saber
@@ -2020,7 +2041,7 @@ async function executarTeste(
 
   // O teste custa token igual à conversa real, então entra no consumo. Sem
   // isso a fatura do provedor não bateria com o painel de uso.
-  await logAgentUsage(db, agentId, companyId, model, resultado.usage, null, resultado.success);
+  await logAgentUsage(db, agentId, companyId, model, resultado.usage, null, resultado.success, chave.daRezult);
 
   // Erro do teste volta com HTTP 200 de propósito. supabase.functions.invoke
   // não entrega o corpo da resposta quando o status não é 2xx: o navegador
@@ -2246,15 +2267,9 @@ Deno.serve(async (req) => {
   // modelo escolhido na aba "Modelos". Sem fallback pra outro provedor ou pra
   // uma chave global — se a empresa trocar de modelo sem ter a chave daquele
   // provedor cadastrada, o correto é parar de atuar, não quebrar silenciosamente.
-  const { data: companyKey } = await db
-    .from("ai_provider_keys")
-    .select("api_key")
-    .eq("company_id", companyId)
-    .eq("provider", provider)
-    .eq("active", true)
-    .maybeSingle();
-  const apiKey = companyKey?.api_key || "";
-  if (!apiKey) return json({ skipped: "no_company_api_key" }, 200);
+  const chave = await resolverChaveDeIa(db, companyId, provider, "agent-sds");
+  if (!chave) return json({ skipped: "no_company_api_key" }, 200);
+  const apiKey = chave.apiKey;
 
   /*
    * Trava de saldo. `skipped`, no mesmo formato de "sem chave" logo acima.
@@ -2402,7 +2417,7 @@ Deno.serve(async (req) => {
       const closingResult = provider === "openai"
         ? await runOpenAiLoop(apiKey, model, closingSystem, transcript, [TOOLS.find((t) => t.name === "enviar_mensagem")!, closingTool], closingDispatch)
         : await runAnthropicLoop(apiKey, model, closingSystem, transcript, [TOOLS.find((t) => t.name === "enviar_mensagem")!, closingTool], closingDispatch, temperaturaDoEstilo(behaviorConfig, model));
-      await logAgentUsage(db, agent.id as string, companyId, model, closingResult.usage, leadId, closingResult.success);
+      await logAgentUsage(db, agent.id as string, companyId, model, closingResult.usage, leadId, closingResult.success, chave.daRezult);
       if (closingResult.actions === null) return json({ error: "ai_request_failed" }, 502);
       // Mesma rede de segurança do fluxo principal: texto sem envio = lead
       // sem receber nada. Aqui dói mais ainda, porque esta é a ÚLTIMA
@@ -2453,7 +2468,7 @@ Deno.serve(async (req) => {
   const result = provider === "openai"
     ? await runOpenAiLoop(apiKey, model, system, transcript, tools, dispatch)
     : await runAnthropicLoop(apiKey, model, system, transcript, tools, dispatch, temperaturaDoEstilo(behaviorConfig, model));
-  await logAgentUsage(db, agent.id as string, companyId, model, result.usage, leadId, result.success);
+  await logAgentUsage(db, agent.id as string, companyId, model, result.usage, leadId, result.success, chave.daRezult);
   if (result.actions === null) return json({ error: "ai_request_failed" }, 502);
 
   // Rede de segurança: o modelo pode encerrar o turno escrevendo em TEXTO em

@@ -9,6 +9,7 @@ import { upsertContact } from "../_shared/contacts.ts";
 import { empresaBloqueada } from "../_shared/cobranca.ts";
 import { registrarUso, custoDeAudio } from "../_shared/uso.ts";
 import { podeGastar } from "../_shared/credito.ts";
+import { resolverChaveDeIa } from "../_shared/chave-ia.ts";
 
 // Deve espelhar o tipo LeadOrigin (src/data/mockData.ts) e a constraint leads_origin_check do banco
 const VALID_LEAD_ORIGINS = ["Instagram", "Facebook Ads", "Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads", "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro"];
@@ -1879,7 +1880,7 @@ async function getAiKey(
   supabase: SupabaseClient,
   companyId: string,
   provider: string,
-): Promise<string> {
+): Promise<{ apiKey: string; daRezult: boolean }> {
   const veredito = await podeGastar(supabase, companyId, "automation-runner");
   if (veredito === "sem_saldo") {
     throw new Error("Sem saldo de crédito para usar IA. Adicione crédito em Agentes.");
@@ -1888,16 +1889,20 @@ async function getAiKey(
     throw new Error("Teto diário de consumo de IA atingido. O bloco de IA volta a rodar amanhã.");
   }
 
-  const { data } = await supabase
-    .from("ai_provider_keys")
-    .select("api_key, active")
-    .eq("company_id", companyId)
-    .eq("provider", provider)
-    .maybeSingle();
-  const row = data as { api_key?: string; active?: boolean } | null;
-  if (!row?.api_key) throw new Error(`Nenhuma chave de API cadastrada para ${provider}. Configure em Configurações → Chaves de API.`);
-  if (row.active === false) throw new Error(`A chave de API do ${provider} está desativada.`);
-  return row.api_key;
+  /*
+   * Devolve QUEM PAGA junto com a chave.
+   *
+   * `resolverChaveDeIa` entrega a chave da Rezult para quem tem saldo e a do
+   * cliente para quem não tem, e o `daRezult` vai direto para
+   * `registrarUso({ debitar })`. Enquanto a escolha da chave e a decisão de
+   * debitar viviam separadas, quem tinha saldo E chave própria pagava duas
+   * vezes pela mesma chamada.
+   */
+  const chave = await resolverChaveDeIa(supabase, companyId, provider, "automation-runner");
+  if (!chave) {
+    throw new Error(`Nenhuma chave de API cadastrada para ${provider}. Configure em Configurações → Chaves de API.`);
+  }
+  return chave;
 }
 
 /**
@@ -1911,7 +1916,7 @@ async function getAiKey(
  * saida tem precos diferentes (no `gpt-5.6-terra`, 4x) e cada acao do no pode
  * usar um modelo diferente. O total agregado perde a informacao necessaria.
  */
-type CobrancaIa = { db: SupabaseClient; companyId: string; leadId: string | null };
+type CobrancaIa = { db: SupabaseClient; companyId: string; leadId: string | null; daRezult: boolean };
 
 // Chamada genérica ao provedor de IA. Retorna o texto da resposta + tokens consumidos.
 //
@@ -1934,6 +1939,7 @@ async function callAiProvider(
       saida,
       origem: "automacao",
       leadId: cob.leadId,
+      debitar: cob.daRezult,
     }).catch((e) => console.error("[automation-runner] registrarUso:", e));
 
   if (provider === "openai") {
@@ -2035,7 +2041,7 @@ async function runIaTextAction(
   vars: Record<string, string>,
   conversa: string,
 ): Promise<{ text: string; tokens: number }> {
-  const apiKey = await getAiKey(supabase, companyId, action.provider);
+  const chave = await getAiKey(supabase, companyId, action.provider);
   const instr = interpolate(action.instructions ?? "", vars).trim();
   if (!instr && !conversa) throw new Error("Ação de IA sem instruções");
   const system = action.type === "assistente_chat"
@@ -2046,7 +2052,7 @@ async function runIaTextAction(
     instr ? `Instruções:\n${instr}` : "",
   ].filter(Boolean).join("\n\n");
   const maxTokens = action.maxTokens && action.maxTokens > 0 ? action.maxTokens : 500;
-  return await callAiProvider({ db: supabase, companyId, leadId }, action.provider, apiKey, action.model, system, userPrompt, maxTokens);
+  return await callAiProvider({ db: supabase, companyId, leadId, daRezult: chave.daRezult }, action.provider, chave.apiKey, action.model, system, userPrompt, maxTokens);
 }
 
 // Extrai o primeiro objeto JSON de um texto possivelmente "sujo" (markdown, prosa).
@@ -2068,7 +2074,7 @@ async function runIaClassify(
   options: { id: string; nome: string; detalhes?: string; exemplos?: string }[],
 ): Promise<{ id: string | null; tokens: number }> {
   if (options.length === 0) return { id: null, tokens: 0 };
-  const apiKey = await getAiKey(supabase, companyId, action.provider);
+  const chave = await getAiKey(supabase, companyId, action.provider);
   const kind = action.type === "sentimento" ? "sentimento" : "intenção";
   const list = options.map((o) =>
     `- id="${o.id}" | nome="${o.nome}"${o.detalhes ? ` | quando: ${o.detalhes}` : ""}${(o as { exemplos?: string }).exemplos ? ` | exemplos: ${(o as { exemplos?: string }).exemplos}` : ""}`
@@ -2080,7 +2086,7 @@ async function runIaClassify(
     `Opções de ${kind}:\n${list}`,
     extra ? `Considere também: ${extra}` : "",
   ].filter(Boolean).join("\n\n");
-  const { text: raw, tokens } = await callAiProvider({ db: supabase, companyId, leadId }, action.provider, apiKey, action.model, system, userPrompt, 60);
+  const { text: raw, tokens } = await callAiProvider({ db: supabase, companyId, leadId, daRezult: chave.daRezult }, action.provider, chave.apiKey, action.model, system, userPrompt, 60);
   const parsed = parseFirstJson(raw);
   const id = parsed?.id ? String(parsed.id) : "none";
   if (id === "none" || !options.some((o) => o.id === id)) return { id: null, tokens };
@@ -2099,7 +2105,7 @@ async function runIaExtractParams(
 ): Promise<{ obj: Record<string, string>; tokens: number }> {
   const params = (action.parametros ?? []).filter((p) => (p.nome ?? "").trim());
   if (params.length === 0) return { obj: {}, tokens: 0 };
-  const apiKey = await getAiKey(supabase, companyId, action.provider);
+  const chave = await getAiKey(supabase, companyId, action.provider);
   const list = params.map((p) => `- "${p.nome}" (tipo: ${p.tipo})${p.info ? `: ${p.info}` : ""}`).join("\n");
   const extra = interpolate(action.instructions ?? "", vars).trim();
   const system = `Você extrai informações estruturadas de uma conversa. Responda APENAS com JSON válido cujas chaves são EXATAMENTE os nomes dos parâmetros pedidos. Use null quando o valor não estiver presente na conversa. Não invente dados.`;
@@ -2108,7 +2114,7 @@ async function runIaExtractParams(
     `Parâmetros a extrair:\n${list}`,
     extra ? `Considere também: ${extra}` : "",
   ].filter(Boolean).join("\n\n");
-  const { text: raw, tokens } = await callAiProvider({ db: supabase, companyId, leadId }, action.provider, apiKey, action.model, system, userPrompt, 400);
+  const { text: raw, tokens } = await callAiProvider({ db: supabase, companyId, leadId, daRezult: chave.daRezult }, action.provider, chave.apiKey, action.model, system, userPrompt, 400);
   const parsed = parseFirstJson(raw);
   if (!parsed) return { obj: {}, tokens };
   // Mantém apenas as chaves pedidas (evita campos extras alucinados) e normaliza p/ string
@@ -2129,7 +2135,8 @@ async function runIaTranscription(
   action: IaAction,
   phone: string,
 ): Promise<string> {
-  const apiKey = await getAiKey(supabase, companyId, "openai");
+  const chave = await getAiKey(supabase, companyId, "openai");
+  const apiKey = chave.apiKey;
   const digits = String(phone ?? "").replace(/\D/g, "");
   if (digits.length < 8) return "";
   const { data: comp } = await supabase.from("companies").select("owner_id").eq("id", companyId).maybeSingle();
@@ -2182,6 +2189,7 @@ async function runIaTranscription(
         origem: "automacao",
         leadId,
         custoUsd: custoDeAudio(Number(data?.duration ?? 0)),
+        debitar: chave.daRezult,
       }).catch((e) => console.error("[automation-runner] registrarUso (audio):", e));
 
       const t = String(data?.text ?? "").trim();

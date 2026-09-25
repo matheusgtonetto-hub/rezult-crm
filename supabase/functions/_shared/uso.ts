@@ -107,6 +107,22 @@ export type DadosDoUso = {
   leadId?: string | null;
   sucesso?: boolean;
   /**
+   * A chamada foi feita com a chave da REZULT? Então o consumo sai do saldo.
+   *
+   * ─── Por que é obrigatório, e não `true` por omissão ──────────────────────
+   *
+   * Porque `true` por omissão é exatamente o defeito que este campo existe
+   * para fechar. Até 25/09/2026 o débito acontecia sempre que a empresa tinha
+   * conta de crédito, independente de qual chave tinha sido usada -- então uma
+   * empresa com saldo E chave própria pagava duas vezes pela mesma resposta:
+   * a OpenAI cobrava a chave dela e o saldo caía junto.
+   *
+   * Sendo obrigatório, cada ponto de chamada tem de declarar quem paga, e o
+   * valor vem de `resolverChaveDeIa`, que é o mesmo código que escolheu a
+   * chave. Uma decisão, não duas que podem discordar.
+   */
+  debitar: boolean;
+  /**
    * Custo ja calculado, para o que nao e cobrado por token (Whisper, por
    * minuto). Quando vem, a conta de entrada/saida e ignorada.
    */
@@ -162,5 +178,14 @@ export async function registrarUso(db: any, dados: DadosDoUso): Promise<void> {
     return;
   }
 
-  await debitarCredito(db, companyId, registro.id as string, custo, origem);
+  /*
+   * Só debita quem usou a nossa chave.
+   *
+   * Sem este `if`, quem tem saldo e chave própria pagaria duas vezes. E é aqui
+   * também que o BYOK segue intocado: `debitar` vem `false` para ele, e nem a
+   * consulta ao banco acontece.
+   */
+  if (dados.debitar) {
+    await debitarCredito(db, companyId, registro.id as string, custo, origem);
+  }
 }

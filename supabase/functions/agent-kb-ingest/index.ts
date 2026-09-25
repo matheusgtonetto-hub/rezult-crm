@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { extractText, getDocumentProxy } from "https://esm.sh/unpdf@0.11.0";
 import { registrarUso } from "../_shared/uso.ts";
 import { podeGastar } from "../_shared/credito.ts";
+import { resolverChaveDeIa } from "../_shared/chave-ia.ts";
 
 // Processa um documento enviado na aba "Base de Conhecimento" do agente:
 // baixa do Storage, extrai texto, divide em chunks, gera embedding e grava
@@ -196,8 +197,18 @@ Deno.serve(async (req) => {
       .eq("provider", "openai")
       .eq("active", true)
       .maybeSingle();
-    const openaiKey = companyOpenaiKey?.api_key || Deno.env.get("OPENAI_API_KEY") || "";
-    if (!openaiKey) throw new Error("OPENAI_API_KEY não configurada (nem por empresa, nem global)");
+    /*
+     * A chave, e quem paga por ela. `resolverChaveDeIa` entrega a da Rezult
+     * para quem tem saldo e a do cliente para quem não tem, e o `daRezult`
+     * decide se o consumo é debitado.
+     *
+     * Saiu o fallback direto para `OPENAI_API_KEY`: ele existia como recurso de
+     * desenvolvimento e passava na frente de nada, mas agora a chave da Rezult
+     * tem nome próprio e caminho próprio.
+     */
+    const chave = await resolverChaveDeIa(db, doc.company_id as string, "openai", "base_conhecimento");
+    if (!chave) throw new Error("Nenhuma chave da OpenAI configurada para indexar a Base de Conhecimento.");
+    const openaiKey = chave.apiKey;
 
     /*
      * Trava de saldo. Um documento grande vira dezenas de chamadas de
@@ -254,6 +265,7 @@ Deno.serve(async (req) => {
       entrada: tokensDeEmbedding,
       saida: 0,
       origem: "base_conhecimento",
+      debitar: chave.daRezult,
     });
 
     await db.from("agent_knowledge_documents").update({ status: "ready" }).eq("id", doc.id);
