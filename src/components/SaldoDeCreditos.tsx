@@ -242,7 +242,12 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
               <Input
                 autoFocus
                 inputMode="decimal"
-                className="pl-11"
+                /* Maior e mais pesado que o padrão do sistema (14/400): este é o
+                   campo que a pessoa veio preencher, e o valor digitado é a
+                   única informação da tela que ela precisa conferir antes de
+                   pagar (dono, 25/09/2026). A cifra à esquerda fica no tamanho
+                   normal, de propósito: ela é rótulo, não dado. */
+                className="pl-11 text-lg font-medium"
                 value={valor}
                 onChange={e => setValor(e.target.value.replace(/[^\d.,]/g, ""))}
               />
