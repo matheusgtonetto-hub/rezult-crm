@@ -206,7 +206,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           <DialogHeader>
             <DialogTitle>Adicionar crédito</DialogTitle>
             <DialogDescription>
-              O crédito é consumido conforme os agentes trabalham. Conversa de texto gasta pouco; imagem e áudio gastam mais rápido.
+              O crédito é consumido conforme os agentes trabalham.
             </DialogDescription>
           </DialogHeader>
 
@@ -234,14 +234,11 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
           </div>
 
           <DialogFooter className="flex-col items-stretch gap-2 sm:flex-col">
-            {/* Desabilitado de propósito, e dito em voz alta: a cobrança é o
-                passo seguinte. Um botão que abre um checkout inexistente seria
-                pior do que um botão que explica por que ainda não abre. */}
+            {/* Desabilitado de propósito: a cobrança é o passo seguinte, e um
+                botão que abre um checkout inexistente é pior do que um botão
+                que não abre. A nota que explicava isso saiu a pedido do dono
+                (25/09/2026), então o estado desabilitado é a única pista. */}
             <Button disabled className="w-full">Ir para o pagamento</Button>
-            <p className="text-[12px] text-muted-foreground leading-snug text-center">
-              O pagamento está sendo ligado ao Stripe. Enquanto isso, a chave própria em
-              Configurações → Chaves de API continua funcionando.
-            </p>
           </DialogFooter>
         </DialogContent>
       </Dialog>
