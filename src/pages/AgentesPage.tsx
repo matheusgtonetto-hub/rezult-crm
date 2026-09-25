@@ -2080,11 +2080,21 @@ export default function AgentesPage() {
 
           {/* Base da empresa no topo: é o material que todos os agentes que
               conversam leem, então vem antes deles. */}
-          <BaseDaEmpresa companyId={companyId} userId={user?.id} />
+          {/* Os dois cartões lado a lado: o que o agente SABE e com o que ele
+              PAGA. Em tela estreita empilham, porque 340px de saldo mais o
+              texto da base não cabem lado a lado num notebook pequeno.
 
-          {/* O saldo vem depois da base e antes dos agentes, porque é o que
-              eles consomem. Não desenha nada para quem usa chave própria. */}
-          <SaldoDeCreditos companyId={companyId} />
+              `items-stretch` (padrão do flex) faz os dois terem a mesma altura,
+              e é por isso que o saldo usa `h-full` e empurra os botões para o
+              pé: sem isso, um cartão ficaria mais curto que o irmão. */}
+          <div className="flex flex-col lg:flex-row gap-4 shrink-0">
+            <div className="flex-1 min-w-0">
+              <BaseDaEmpresa companyId={companyId} userId={user?.id} />
+            </div>
+            <div className="lg:w-[340px] lg:shrink-0">
+              <SaldoDeCreditos companyId={companyId} />
+            </div>
+          </div>
 
           {/* Rascunho conta como agente na grade: some do "nenhum agente
               ainda", senão a tela dizia que não havia nada enquanto o card do
