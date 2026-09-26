@@ -1931,12 +1931,14 @@ async function callAiProvider(
   userPrompt: string,
   maxTokens: number,
 ): Promise<{ text: string; tokens: number }> {
-  const anotar = (entrada: number, saida: number) =>
+  // `cacheada` e subconjunto de `entrada`: token vindo do cache custa 10%.
+  const anotar = (entrada: number, saida: number, cacheada = 0) =>
     registrarUso(cob.db, {
       companyId: cob.companyId,
       model,
       entrada,
       saida,
+      entradaCacheada: cacheada,
       origem: "automacao",
       leadId: cob.leadId,
       debitar: cob.daRezult,
@@ -1955,7 +1957,8 @@ async function callAiProvider(
     const data = await resp.json();
     const entrada = Number(data?.usage?.prompt_tokens ?? 0);
     const saida = Number(data?.usage?.completion_tokens ?? 0);
-    anotar(entrada, saida);
+    // Cache automatico da OpenAI acima de 1.024 tokens de prompt.
+    anotar(entrada, saida, Number(data?.usage?.prompt_tokens_details?.cached_tokens ?? 0));
     return { text: String(data?.choices?.[0]?.message?.content ?? "").trim(), tokens: entrada + saida };
   }
 
@@ -1971,7 +1974,8 @@ async function callAiProvider(
     const text = parts.filter((p: { type?: string }) => p.type === "text").map((p: { text?: string }) => p.text ?? "").join("").trim();
     const entrada = Number(data?.usage?.input_tokens ?? 0);
     const saida = Number(data?.usage?.output_tokens ?? 0);
-    anotar(entrada, saida);
+    // Anthropic (legado): exige marcador cache_control, que nao usamos.
+    anotar(entrada, saida, Number(data?.usage?.cache_read_input_tokens ?? 0));
     return { text, tokens: entrada + saida };
   }
 
@@ -2188,6 +2192,7 @@ async function runIaTranscription(
         saida: 0,
         origem: "automacao",
         leadId,
+        // Audio nao cacheia: e cobrado por minuto, nao por token.
         custoUsd: custoDeAudio(Number(data?.duration ?? 0)),
         debitar: chave.daRezult,
       }).catch((e) => console.error("[automation-runner] registrarUso (audio):", e));

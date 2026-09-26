@@ -567,6 +567,50 @@ de abrir para a base.
 | 5 | Trava, avisos, teto diário e relatório de cobertura do hedge (6.1) | passa a ser seguro | feito em 25/09 |
 | 6 | Chave da Rezult com fallback para a do cliente | o BYOK vira opcional, e a cobranca dupla e fechada | feito em 25/09 |
 
+### Token cacheado custa 10%, e nao estava sendo considerado (25/09/2026)
+
+**Era cobranca a mais do cliente, nao so economia perdida.**
+
+O cache da OpenAI e automatico em prompts acima de 1.024 tokens, com 90% de
+desconto no input cacheado, sem configuracao. E o prompt destes runners JA
+cacheava por construcao: a mensagem `system` (3.917 tokens de metodologia no
+operacional, 2.652 no SDS) vem PRIMEIRO, e o contexto variavel vem depois --
+exatamente a ordem que o cache de prefixo exige.
+
+So que `custoDaChamada` multiplicava TODOS os tokens de entrada pelo preco
+cheio. Tres consequencias:
+
+1. **O cliente pagava a mais.** O saldo caia por 1500 x um custo inflado, e o
+   markup efetivo passava dos 30% combinados.
+2. **A conciliacao mensal nao fecharia.** A soma dos nossos `custo_usd` ficaria
+   acima da fatura da OpenAI -- e essa verificacao (secao 6) existe justamente
+   para detectar erro de medicao. Ela dispararia apontando para isto.
+3. **O hedge super-provisionava.**
+
+**Medido**, com a entrada media de 7.243 tokens e os 3.917 da metodologia
+cacheados, no Terra:
+
+| | Por chamada | Por lead (44) |
+|---|---|---|
+| Como era cobrado | US$ 0,021768 | US$ 0,9578 |
+| Custo real | US$ 0,012954 | US$ 0,5700 |
+| **Diferenca** | **40,5%** | **US$ 0,39** |
+
+**O conserto:** `cached_input_tokens` novo em `agent_usage_log` (migration
+20260925000006), `custoDaChamada` cobra esses tokens a 10%, e os quatro pontos
+que chamam modelo de linguagem passam a ler `prompt_tokens_details.cached_tokens`
+(OpenAI) e `cache_read_input_tokens` (Anthropic).
+
+`Math.min`/`Math.max` protegem contra fornecedor devolvendo cacheado maior que o
+total ou negativo -- preferivel a confiar e gravar custo errado.
+
+**As 98 linhas anteriores ficam com `cost_usd` superestimado** e nao da para
+corrigir: o dado nunca foi pedido ao fornecedor. Servem para ordem de grandeza
+(custo por lead, chamadas por lead), NAO para conciliar contra fatura.
+
+**Embeddings e audio nao cacheiam:** embedding nao tem prefixo reutilizavel, e
+audio e cobrado por minuto.
+
 ### O padrao de modelo virou Luna (dono, 25/09/2026)
 
 Nao mexe na margem -- o custo e repassado pelo credito, e 30% de um numero maior

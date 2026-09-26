@@ -132,6 +132,8 @@ Deno.serve(async (req) => {
 
   let entrada = 0;
   let saida = 0;
+  // Subconjunto de `entrada` que veio do cache e custa 10%.
+  let cacheada = 0;
   let modelo = "";
 
   try {
@@ -162,12 +164,17 @@ Deno.serve(async (req) => {
       }
       const data = await res.json() as {
         choices?: { message?: { content?: string } }[];
-        usage?: { prompt_tokens?: number; completion_tokens?: number };
+        usage?: {
+          prompt_tokens?: number;
+          completion_tokens?: number;
+          prompt_tokens_details?: { cached_tokens?: number };
+        };
       };
       suggestion = (data.choices?.[0]?.message?.content ?? "").trim();
-      entrada = data.usage?.prompt_tokens ?? 0;
-      saida   = data.usage?.completion_tokens ?? 0;
-      modelo  = MODELO_OPENAI;
+      entrada  = data.usage?.prompt_tokens ?? 0;
+      saida    = data.usage?.completion_tokens ?? 0;
+      cacheada = data.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+      modelo   = MODELO_OPENAI;
     } else {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
@@ -190,11 +197,12 @@ Deno.serve(async (req) => {
       }
       const data = await res.json() as {
         content?: { type: string; text?: string }[];
-        usage?: { input_tokens?: number; output_tokens?: number };
+        usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number };
       };
-      entrada = data.usage?.input_tokens ?? 0;
-      saida   = data.usage?.output_tokens ?? 0;
-      modelo  = MODELO_ANTHROPIC;
+      entrada  = data.usage?.input_tokens ?? 0;
+      saida    = data.usage?.output_tokens ?? 0;
+      cacheada = data.usage?.cache_read_input_tokens ?? 0;
+      modelo   = MODELO_ANTHROPIC;
       suggestion = (data.content ?? [])
         .filter(b => b.type === "text")
         .map(b => b.text ?? "")
@@ -217,6 +225,7 @@ Deno.serve(async (req) => {
       model: modelo,
       entrada,
       saida,
+      entradaCacheada: cacheada,
       origem: "sugestao",
       sucesso: !!suggestion,
       debitar: chave.daRezult,

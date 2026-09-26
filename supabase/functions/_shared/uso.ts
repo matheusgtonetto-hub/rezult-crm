@@ -56,7 +56,32 @@ export type OrigemDoUso = "agente" | "automacao" | "sugestao" | "base_conhecimen
  * quatro casas isso vira 0,0001 (erro de 54%), e um chunk menor vira ZERO --
  * a ingestão de um documento inteiro apareceria como consumo nenhum.
  */
-export function custoDaChamada(model: string, entrada: number, saida: number): number {
+/**
+ * Quanto do preço de entrada um token CACHEADO custa.
+ *
+ * O cache da OpenAI é automático em prompts acima de 1.024 tokens e dá 90% de
+ * desconto no input cacheado. O prompt destes runners já cacheia por
+ * construção: a mensagem `system` vem primeiro e o contexto variável depois,
+ * que é a ordem que o cache de prefixo exige.
+ *
+ * Até 25/09/2026 isso não era considerado, e todo token de entrada era cobrado
+ * cheio. O `cost_usd` gravado ficava ACIMA do custo real: o cliente pagava mais
+ * que os 30% de markup combinados, e a conciliação contra a fatura da OpenAI
+ * não fecharia.
+ */
+const FATOR_CACHEADO = 0.1;
+
+export function custoDaChamada(
+  model: string,
+  entrada: number,
+  saida: number,
+  /**
+   * Parte de `entrada` que veio do cache. É SUBCONJUNTO de `entrada`, não soma
+   * a ela -- o fornecedor devolve o total em `prompt_tokens` e o quanto disso
+   * foi cacheado em `prompt_tokens_details.cached_tokens`.
+   */
+  entradaCacheada = 0,
+): number {
   const preco = MODEL_PRICING[model];
 
   /*
@@ -78,7 +103,16 @@ export function custoDaChamada(model: string, entrada: number, saida: number): n
     return 0;
   }
 
-  const bruto = (entrada / 1_000_000) * preco.inputPer1M + (saida / 1_000_000) * preco.outputPer1M;
+  // `Math.min` e `Math.max` protegem contra fornecedor devolvendo cacheado
+  // maior que o total, ou negativo. Preferível a confiar e gravar custo errado.
+  const cacheada = Math.max(0, Math.min(entradaCacheada, entrada));
+  const cheia = entrada - cacheada;
+
+  const bruto =
+    (cheia / 1_000_000) * preco.inputPer1M +
+    (cacheada / 1_000_000) * preco.inputPer1M * FATOR_CACHEADO +
+    (saida / 1_000_000) * preco.outputPer1M;
+
   return Number(bruto.toFixed(6));
 }
 
@@ -100,6 +134,8 @@ export type DadosDoUso = {
   model: string;
   entrada: number;
   saida: number;
+  /** Subconjunto de `entrada` que veio do cache e custa 10%. */
+  entradaCacheada?: number;
   origem: OrigemDoUso;
   /** Null nos pontos que não têm agente: sugestão, automação e embeddings. */
   agentId?: string | null;
@@ -151,7 +187,8 @@ export async function registrarUso(db: any, dados: DadosDoUso): Promise<void> {
     return;
   }
 
-  const custo = dados.custoUsd ?? custoDaChamada(model, entrada, saida);
+  const cacheada = Math.max(0, Math.min(dados.entradaCacheada ?? 0, entrada));
+  const custo = dados.custoUsd ?? custoDaChamada(model, entrada, saida, cacheada);
   // Nada a registrar: nem token, nem custo direto. Evita poluir o extrato com
   // linhas de zero (cache, erro antes de chegar no modelo, audio de 0s).
   if (entrada === 0 && saida === 0 && custo === 0) return;
@@ -162,6 +199,7 @@ export async function registrarUso(db: any, dados: DadosDoUso): Promise<void> {
     model,
     input_tokens:  entrada,
     output_tokens: saida,
+    cached_input_tokens: cacheada,
     cost_usd:      custo,
     lead_id:       dados.leadId ?? null,
     success:       dados.sucesso ?? true,

@@ -121,7 +121,12 @@ type Mensagem = {
 };
 
 type Dispatch = (nome: string, input: Record<string, unknown>) => Promise<ToolResult>;
-type Uso = { entrada: number; saida: number };
+/**
+ * `cacheada` é SUBCONJUNTO de `entrada`, não soma a ela: o fornecedor devolve o
+ * total em `prompt_tokens` e o quanto disso veio do cache em
+ * `prompt_tokens_details.cached_tokens`. Token cacheado custa 10%.
+ */
+type Uso = { entrada: number; saida: number; cacheada: number };
 
 const norm = (s: unknown) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 
@@ -459,7 +464,7 @@ async function loopOpenAi(
   // deno-lint-ignore no-explicit-any
   const messages: any[] = [{ role: "system", content: system }, { role: "user", content: contexto }];
   const tools = ferramentas.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.input_schema } }));
-  const uso: Uso = { entrada: 0, saida: 0 };
+  const uso: Uso = { entrada: 0, saida: 0, cacheada: 0 };
   let textoFinal = "";
   let falhou = false;
   let executouAlgo = false;
@@ -483,6 +488,10 @@ async function loopOpenAi(
     }
     const data = await res.json();
     uso.entrada += Number(data.usage?.prompt_tokens) || 0;
+    // O cache da OpenAI é automático acima de 1.024 tokens, e a metodologia
+    // (~3.917 tokens) vem primeiro na mensagem `system`, então ela cacheia por
+    // construção. Sem ler isto, o custo gravado fica acima do real.
+    uso.cacheada += Number(data.usage?.prompt_tokens_details?.cached_tokens) || 0;
     uso.saida += Number(data.usage?.completion_tokens) || 0;
     const msg = data.choices?.[0]?.message;
     const chamadas = msg?.tool_calls ?? [];
@@ -508,7 +517,7 @@ async function loopAnthropic(
   // deno-lint-ignore no-explicit-any
   const messages: any[] = [{ role: "user", content: contexto }];
   const tools = ferramentas.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema }));
-  const uso: Uso = { entrada: 0, saida: 0 };
+  const uso: Uso = { entrada: 0, saida: 0, cacheada: 0 };
   let textoFinal = "";
   let falhou = false;
   let executouAlgo = false;
@@ -528,6 +537,9 @@ async function loopAnthropic(
     }
     const data = await res.json();
     uso.entrada += Number(data.usage?.input_tokens) || 0;
+    // Anthropic (legado): o cache dela exige marcador `cache_control` explícito,
+    // que não usamos. Fica em zero, e a leitura existe para o dia em que usar.
+    uso.cacheada += Number(data.usage?.cache_read_input_tokens) || 0;
     uso.saida += Number(data.usage?.output_tokens) || 0;
     // deno-lint-ignore no-explicit-any
     const blocos = (data.content ?? []) as any[];
@@ -565,6 +577,7 @@ async function registrarUsoDoAgente(db: Db, agentId: string, companyId: string, 
     model,
     entrada: uso.entrada,
     saida: uso.saida,
+    entradaCacheada: uso.cacheada,
     origem: "agente",
     agentId,
     leadId,

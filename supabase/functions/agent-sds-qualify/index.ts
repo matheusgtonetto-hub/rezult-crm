@@ -632,7 +632,11 @@ const MAX_TOOL_TURNS = 6;
 // a imprecisão de um minuto dele, que é irrelevante num delay longo.
 const DELAY_MAX_ESPERA_INLINE_S = 60;
 
-type LoopUsage = { inputTokens: number; outputTokens: number };
+/**
+ * `cachedInputTokens` e SUBCONJUNTO de `inputTokens`, nao soma a ele. Token
+ * cacheado custa 10% do preco de entrada.
+ */
+type LoopUsage = { inputTokens: number; outputTokens: number; cachedInputTokens: number };
 // `finalText` é o texto que o modelo escreveu na última volta, quando parou
 // de pedir tools. Ele NÃO chega ao lead sozinho: o único canal é a tool
 // enviar_mensagem. Antes esse texto era descartado em silêncio -- num teste
@@ -670,7 +674,7 @@ async function runAnthropicLoop(
   // deno-lint-ignore no-explicit-any
   const messages: any[] = [{ role: "user", content: `Conversa até agora:\n${transcript}` }];
   const actions: string[] = [];
-  const usage: LoopUsage = { inputTokens: 0, outputTokens: 0 };
+  const usage: LoopUsage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 };
   let anyToolFailed = false;
   let finalText = "";
   let esgotouRodadas = true;
@@ -688,6 +692,9 @@ async function runAnthropicLoop(
     }
     const data = await res.json();
     usage.inputTokens += Number(data.usage?.input_tokens) || 0;
+    // Anthropic (legado): o cache dela exige marcador `cache_control` explicito,
+    // que nao usamos. Fica em zero; a leitura existe para o dia em que usar.
+    usage.cachedInputTokens += Number(data.usage?.cache_read_input_tokens) || 0;
     usage.outputTokens += Number(data.usage?.output_tokens) || 0;
     // deno-lint-ignore no-explicit-any
     const toolUseBlocks = (data.content ?? []).filter((b: any) => b.type === "tool_use");
@@ -732,6 +739,9 @@ async function runAnthropicLoop(
       if (res.ok) {
         const data = await res.json();
         usage.inputTokens += Number(data.usage?.input_tokens) || 0;
+        // Anthropic (legado): o cache dela exige marcador `cache_control` explicito,
+        // que nao usamos. Fica em zero; a leitura existe para o dia em que usar.
+        usage.cachedInputTokens += Number(data.usage?.cache_read_input_tokens) || 0;
         usage.outputTokens += Number(data.usage?.output_tokens) || 0;
         // deno-lint-ignore no-explicit-any
         for (const block of (data.content ?? []).filter((b: any) => b.type === "tool_use")) {
@@ -760,7 +770,7 @@ async function runOpenAiLoop(
     { role: "user", content: `Conversa até agora:\n${transcript}` },
   ];
   const actions: string[] = [];
-  const usage: LoopUsage = { inputTokens: 0, outputTokens: 0 };
+  const usage: LoopUsage = { inputTokens: 0, outputTokens: 0, cachedInputTokens: 0 };
   let anyToolFailed = false;
   let finalText = "";
   let esgotouRodadas = true;
@@ -796,6 +806,9 @@ async function runOpenAiLoop(
     }
     const data = await res.json();
     usage.inputTokens += Number(data.usage?.prompt_tokens) || 0;
+    // Cache automatico da OpenAI: a metodologia (~2.652 tokens) vem primeiro
+    // na mensagem `system`, entao cacheia por construcao. Cacheado custa 10%.
+    usage.cachedInputTokens += Number(data.usage?.prompt_tokens_details?.cached_tokens) || 0;
     usage.outputTokens += Number(data.usage?.completion_tokens) || 0;
     const msg = data.choices?.[0]?.message;
     const toolCalls = msg?.tool_calls ?? [];
@@ -834,6 +847,9 @@ async function runOpenAiLoop(
       if (res.ok) {
         const data = await res.json();
         usage.inputTokens += Number(data.usage?.prompt_tokens) || 0;
+        // Cache automatico da OpenAI: a metodologia (~2.652 tokens) vem primeiro
+        // na mensagem `system`, entao cacheia por construcao. Cacheado custa 10%.
+        usage.cachedInputTokens += Number(data.usage?.prompt_tokens_details?.cached_tokens) || 0;
         usage.outputTokens += Number(data.usage?.completion_tokens) || 0;
         // deno-lint-ignore no-explicit-any
         for (const call of (data.choices?.[0]?.message?.tool_calls ?? []) as any[]) {
@@ -874,6 +890,7 @@ async function logAgentUsage(
     model,
     entrada: usage.inputTokens,
     saida: usage.outputTokens,
+    entradaCacheada: usage.cachedInputTokens,
     origem: "agente",
     agentId,
     leadId,
