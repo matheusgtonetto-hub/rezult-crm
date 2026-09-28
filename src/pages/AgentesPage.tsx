@@ -288,6 +288,51 @@ const MODELOS_DE_AGENTE: Record<"atendente" | "sdr" | "closer", {
   },
 };
 
+/**
+ * As duas primitivas dos cartões de agente.
+ *
+ * ─── Por que existem ────────────────────────────────────────────────────────
+ *
+ * Os dois cartões (Operacional e os configuráveis) tinham cada um o seu jeito de
+ * mostrar a mesma coisa: um empilhava dois parágrafos soltos, o outro usava
+ * rótulos em caixa alta com listas embaixo. Lado a lado na grade, liam como
+ * peças de produtos diferentes.
+ *
+ * Com `Pill` e `BlocoDetalhe`, os dois passam a ter o mesmo ritmo:
+ *
+ *     identidade (nome, estado)
+ *     o que ele faz  → pills
+ *     o detalhe      → bloco sobre superfície
+ *     rodapé         → ação + switch
+ *
+ * O `title` da Pill leva a descrição do objetivo, que antes só aparecia dentro
+ * da edição.
+ */
+function Pill({ children, title }: { children: React.ReactNode; title?: string }) {
+  return (
+    <span
+      title={title}
+      className="inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-medium leading-none
+                 bg-[color:var(--surface-accent-strong)]/10 text-[color:var(--text-link)]"
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * O bloco de detalhe. Superfície sutil com raio de controle (10px), o mesmo do
+ * input e do botão -- é o que tira o texto de "solto sobre o cartão" e o
+ * transforma num objeto com limite.
+ */
+function BlocoDetalhe({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  return (
+    <div className={`rounded-[10px] bg-[color:var(--neutral-50)] px-3 py-2.5 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
 function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; temChave: boolean; onToggle: (ligar: boolean) => void }) {
   return (
     <div className="bg-card rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow border border-[color:var(--accent-500)]/40">
@@ -295,7 +340,10 @@ function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; 
       <div className="flex items-center gap-3 mb-3">
         <div className="min-w-0 flex-1">
           <p title={agente.name} className="text-[14px] font-bold text-[color:var(--text-heading)] truncate">{agente.name}</p>
-          <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-[color:var(--text-link)]">
+          {/* Selo, e não texto solto: ele diz uma categoria ("este agente não
+              precisa de configuração"), e categoria é o papel de um selo. */}
+          <span className="inline-flex items-center gap-1 mt-0.5 rounded-full px-2 py-0.5 text-[12px] font-semibold leading-none
+                           bg-[color:var(--surface-accent-strong)]/10 text-[color:var(--text-link)]">
             <Check size={11} /> Pronto para usar
           </span>
         </div>
@@ -305,16 +353,29 @@ function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; 
         </div>
       </div>
 
-      <p className="text-[12px] text-[color:var(--text-body)] leading-relaxed mb-3">
-        Lê todas as conversas e mantém o CRM atualizado sozinho: anota o que foi combinado, preenche campos, move a etapa
-        e associa produto e valor. Não conversa com seus leads nem mexe em tags.
-      </p>
-      <p className="text-[12px] text-[color:var(--text-muted)] leading-relaxed mb-3">
-        Não precisa de configuração nem de material da empresa. Contatos com a tag “{TAG_IGNORAR_OPERACIONAL}” ficam de fora.
-      </p>
+      {/* O que ele faz, em pills -- o mesmo lugar e a mesma forma dos objetivos
+          nos agentes configuráveis. Ele não TEM objetivos escolhíveis, mas tem
+          um escopo fixo, e mostrá-lo aqui faz os dois cartões se lerem juntos
+          em vez de parecerem dois produtos. */}
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        <Pill title="Registra no lead um resumo do que foi combinado na conversa">Anotações</Pill>
+        <Pill title="Preenche os campos adicionais cuja resposta apareceu na conversa">Campos</Pill>
+        <Pill title="Move o negócio quando a conversa mostra avanço claro">Etapa do funil</Pill>
+        <Pill title="Associa o produto citado e atualiza o valor do negócio">Produto e valor</Pill>
+      </div>
+
+      <BlocoDetalhe className="mb-3 space-y-1.5">
+        <p className="text-[12px] text-[color:var(--text-body)] leading-relaxed">
+          Lê todas as conversas e mantém o CRM fiel ao que aconteceu nelas. <span className="font-medium">Não conversa com seus leads
+          nem mexe em tags.</span>
+        </p>
+        <p className="text-[12px] text-[color:var(--text-muted)] leading-relaxed">
+          Não precisa de configuração nem de material da empresa. Contatos com a tag “{TAG_IGNORAR_OPERACIONAL}” ficam de fora.
+        </p>
+      </BlocoDetalhe>
 
       {!temChave && !agente.active && (
-        <p className="text-[12px] text-[color:var(--danger-fg)] bg-[color:var(--danger-bg)] rounded-md px-2.5 py-1.5 mb-3">
+        <p className="text-[12px] text-[color:var(--danger-fg)] bg-[color:var(--danger-bg)] rounded-[10px] px-3 py-2 mb-3 leading-relaxed">
           Cadastre a chave da OpenAI em Configurações → Chaves de API para ligar.
         </p>
       )}
@@ -2183,37 +2244,50 @@ export default function AgentesPage() {
                     </div>
                   </div>
 
-                  {/* Objetivos: o que o agente faz de fato. Sem isso, dois
-                      agentes com nomes parecidos ficam indistinguíveis na
-                      grade e só dá pra saber entrando na edição. */}
+                  {/* Objetivos em pills, sem rótulo acima.
+                      O rótulo "OBJETIVOS" em caixa alta saiu: com um segundo
+                      rótulo igual logo abaixo, a leitura virava uma escada de
+                      microtítulos e as pills -- que são o conteúdo -- perdiam
+                      o primeiro lugar do olhar. As pills dizem o que são.
+
+                      Sem objetivo é a exceção, e aí SIM vira aviso: um agente
+                      sem objetivo não tem ferramenta nenhuma e não faz nada. */}
                   <div className="mb-3">
-                    <p className="text-[12px] uppercase tracking-wide text-[color:var(--text-muted)] font-semibold mb-1">Objetivos</p>
                     {a.objectives.length === 0 ? (
-                      <span className="text-[12px]" style={{ color: "var(--danger-fg)" }}>Nenhum objetivo definido</span>
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium leading-none
+                                   bg-[color:var(--danger-bg)] text-[color:var(--danger-fg)]"
+                      >
+                        <AlertTriangle size={11} /> Nenhum objetivo definido
+                      </span>
                     ) : (
                       <div className="flex flex-wrap gap-1.5">
                         {AGENT_OBJECTIVES.filter((o) => a.objectives.includes(o.id)).map((o) => (
-                          <span
-                            key={o.id}
-                            title={o.description}
-                            className="inline-flex items-center rounded-full px-2 py-0.5 text-[12px] font-medium bg-[color:var(--surface-accent-strong)]/10 text-[color:var(--text-link)]"
-                          >
-                            {o.label}
-                          </span>
+                          <Pill key={o.id} title={o.description}>{o.label}</Pill>
                         ))}
                       </div>
                     )}
                   </div>
-                  <div className="mb-3">
-                    <p className="text-[12px] uppercase tracking-wide text-[color:var(--text-muted)] font-semibold mb-1">Tag de ativação</p>
-                    <AgentActivationTagPicker
-                      value={a.activation_tag}
-                      onChange={(tag) => void salvarTagAtivacao(a, tag)}
-                      ocupadas={tagsOcupadasPorAgente}
-                      agenteAtualId={a.id}
-                      placeholder="Definir tag"
-                    />
-                  </div>
+
+                  {/* A tag de ativação num bloco, e com o rótulo NA MESMA LINHA
+                      do valor. É um par rótulo-valor, não uma seção: empilhado,
+                      ocupava duas linhas para dizer uma coisa só. */}
+                  <BlocoDetalhe className="mb-3 flex items-center justify-between gap-3 py-2">
+                    <span className="text-[12px] text-[color:var(--text-muted)] shrink-0">Ativa com a tag</span>
+                    {/* `flex-1 min-w-0`: o gatilho do seletor é `w-full`, então
+                        sem um pai dimensionado ele empurraria o rótulo para
+                        fora do bloco. O `min-w-0` deixa o nome da tag truncar em
+                        vez de esticar o cartão. */}
+                    <div className="flex-1 min-w-0 max-w-[60%]">
+                      <AgentActivationTagPicker
+                        value={a.activation_tag}
+                        onChange={(tag) => void salvarTagAtivacao(a, tag)}
+                        ocupadas={tagsOcupadasPorAgente}
+                        agenteAtualId={a.id}
+                        placeholder="Definir tag"
+                      />
+                    </div>
+                  </BlocoDetalhe>
                   <div className="flex items-center justify-between pt-3 border-t border-[color:var(--border-default)] mt-auto">
                     {a.draft ? (
                       <>
