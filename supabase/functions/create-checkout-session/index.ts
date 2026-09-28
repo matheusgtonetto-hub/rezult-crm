@@ -12,6 +12,7 @@
 // deixa de depender de um CDN de terceiro estar respondendo.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import Stripe from "npm:stripe@14";
+import { cotacaoDoDolar } from "../_shared/cambio.ts";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
   apiVersion: "2024-04-10",
@@ -51,21 +52,52 @@ const CUPOM_PRIMEIRA_COMPRA = Deno.env.get("STRIPE_COUPON_PRIMEIRA_COMPRA") ?? "
  * banco e é FIXA: ela define a unidade, e mudá-la mudaria o significado de todo
  * saldo já vendido. Ver a migration 20260925000002.
  */
-const CREDITOS_POR_DOLAR_PAGO = 1070;
+const CREDITOS_POR_DOLAR_DE_CUSTO = 1500;
 
 /**
- * Mínimo: o mesmo piso de recarga que a OpenAI impõe na conta que abastece
- * todo mundo. Aceitar menos criaria venda que o outro lado não consegue repor
- * na mesma proporção, e a taxa do Stripe comeria boa parte.
+ * Markup sobre o custo EFETIVO (dono, 25/09/2026).
+ *
+ * Efetivo, e não o preço de tabela do fornecedor: comprar US$ 1 de custo sai
+ * por US$ 1,0764, porque o IOF (3,5%) e o spread do cartão (~4%) incidem na
+ * recarga da OpenAI. É a única definição em que "30% de markup" significa 30%
+ * acima do que sai do bolso.
  */
-const COMPRA_MINIMA_USD = 5;
+const MARKUP = 1.30;
+const CUSTO_DE_AQUISICAO = 1.0764;
+
+/**
+ * Quantos créditos cada REAL compra, na cotação do momento.
+ *
+ *     creditos = reais x 1500 / (cotacao x 1,0764 x 1,30)
+ *
+ * A US$ 5,1991 (PTAX de 25/09/2026) isso dá ~206 créditos por real, ou
+ * R$ 48,50 pelos 10.000 créditos.
+ *
+ * ─── Por que em real, e não mais em dólar ──────────────────────────────────
+ *
+ * A conta Stripe é brasileira e liquida em real. Preço em USD nela não traz
+ * dólar: traz real convertido pelo Stripe, joga IOF no cartão do cliente e
+ * desliga o Adaptive Pricing, que converte DA moeda da conta PARA a do
+ * cliente. Ver a migration 20260928000001.
+ */
+function creditosPorReal(cotacao: number): number {
+  return CREDITOS_POR_DOLAR_DE_CUSTO / (cotacao * CUSTO_DE_AQUISICAO * MARKUP);
+}
+
+/**
+ * Mínimo, em real. Equivale a ~US$ 9 de compra, folgado acima do piso de
+ * recarga de US$ 5 que a OpenAI impõe na conta que abastece todo mundo --
+ * aceitar menos criaria venda que o outro lado não consegue repor na mesma
+ * proporção, e a taxa fixa do Stripe (R$ 0,39) comeria boa parte.
+ */
+const COMPRA_MINIMA_BRL = 50;
 
 /**
  * Máximo. Não é desconfiança do cliente, é proteção contra dedo errado: um
- * zero a mais em "500" vira uma cobrança de US$ 5.000, e desfazer isso custa
+ * zero a mais em "1500" vira uma cobrança de R$ 15.000, e desfazer isso custa
  * estorno, taxa e uma conversa ruim.
  */
-const COMPRA_MAXIMA_USD = 2000;
+const COMPRA_MAXIMA_BRL = 15000;
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const serviceKey  = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -115,8 +147,8 @@ Deno.serve(async (req) => {
     semOferta?: boolean;
     /** "credito" entra no caminho de compra de saldo. Ausente = assinatura. */
     tipo?: string;
-    /** Só em tipo="credito": quanto o cliente quer pôr, em dólar. */
-    valorUsd?: number;
+    /** Só em tipo="credito": quanto o cliente quer pôr, em REAL. */
+    valorBrl?: number;
   };
   try {
     body = await req.json();
@@ -133,21 +165,41 @@ Deno.serve(async (req) => {
    * para o cupom de 50% um dia cair numa compra de crédito.
    */
   if (body.tipo === "credito") {
-    const { companyId, userId, userEmail, valorUsd } = body;
+    const { companyId, userId, userEmail, valorBrl } = body;
     if (!companyId || !userId || !userEmail) {
       return json({ error: "missing required fields" }, 400);
     }
 
-    const valor = Number(valorUsd);
-    if (!Number.isFinite(valor) || valor < COMPRA_MINIMA_USD || valor > COMPRA_MAXIMA_USD) {
-      return json({ error: "valor_invalido", minimo: COMPRA_MINIMA_USD, maximo: COMPRA_MAXIMA_USD }, 400);
+    const valor = Number(valorBrl);
+    if (!Number.isFinite(valor) || valor < COMPRA_MINIMA_BRL || valor > COMPRA_MAXIMA_BRL) {
+      return json({ error: "valor_invalido", minimo: COMPRA_MINIMA_BRL, maximo: COMPRA_MAXIMA_BRL }, 400);
+    }
+
+    const db = createClient(supabaseUrl, serviceKey);
+
+    /*
+     * A cotação ANTES de criar a sessão, e falhando alto se não houver.
+     *
+     * Sem ela não dá para saber quantos créditos aquele real compra. Vender
+     * assim mesmo, com um número chutado, transformaria uma falha visível num
+     * prejuízo silencioso que só apareceria na recarga do mês seguinte.
+     */
+    let cotacao: number;
+    try {
+      cotacao = (await cotacaoDoDolar(db)).valor;
+    } catch (err) {
+      console.error("[create-checkout-session] sem cotacao do dolar:", err);
+      return json({ error: "cotacao_indisponivel" }, 503);
     }
 
     // Centavos inteiros: o Stripe recusa fração de centavo, e `Math.round`
-    // evita que 10.005 vire 1000.4999999 por aritmética de ponto flutuante.
-    const centavos  = Math.round(valor * 100);
-    const pagoUsd   = centavos / 100;
-    const creditos  = Math.floor(pagoUsd * CREDITOS_POR_DOLAR_PAGO);
+    // evita que 50.005 vire 5000.4999999 por aritmética de ponto flutuante.
+    const centavos = Math.round(valor * 100);
+    const pagoBrl  = centavos / 100;
+    const creditos = Math.floor(pagoBrl * creditosPorReal(cotacao));
+    // O equivalente em dólar daquele real: é ele que soma contra a fatura do
+    // fornecedor na conciliação mensal.
+    const pagoUsd  = Number((pagoBrl / cotacao).toFixed(2));
 
     try {
       const session = await stripe.checkout.sessions.create({
@@ -156,10 +208,19 @@ Deno.serve(async (req) => {
         line_items: [{
           quantity: 1,
           price_data: {
-            // USD, e o Stripe converte para real na tela do cliente (secao 4.1
-            // do plano). Sem tabela de preço em real para manter quando o dólar
-            // mexer, e a taxa de conversão é paga pelo cliente, não por nós.
-            currency: "usd",
+            /*
+             * REAL, a moeda da conta.
+             *
+             * Era USD, e isso desligava o Adaptive Pricing: ele converte DA
+             * moeda da conta PARA a do cliente, e com a moeda já forçada em
+             * dólar não sobrava o que adaptar -- o brasileiro via "US$ 10,00"
+             * e pagava IOF do próprio banco. Em real, ele vê real, e o
+             * estrangeiro passa a ver a moeda dele.
+             *
+             * A tabela de preço não envelhece porque o valor vem da cotação
+             * do momento, e o hedge compra os dólares na mesma cotação.
+             */
+            currency: "brl",
             unit_amount: centavos,
             /*
              * A descrição NÃO diz quantos créditos são.
@@ -190,14 +251,20 @@ Deno.serve(async (req) => {
          * mesmo `valor` que foi cobrado: o cliente não consegue inflar um sem
          * inflar o outro.
          */
-        metadata: { companyId, userId, tipo: "credito", creditos: String(creditos), pagoUsd: String(pagoUsd) },
+        metadata: {
+          companyId, userId, tipo: "credito",
+          creditos: String(creditos),
+          pagoBrl:  String(pagoBrl),
+          pagoUsd:  String(pagoUsd),
+          cotacao:  String(cotacao),
+        },
         // Sem `allow_promotion_codes`: cupom em compra de saldo daria crédito
         // acima do que foi pago, e o markup de 30% não tem folga para isso.
         success_url: "https://app.rezultcrm.com/agentes?credito=ok",
         cancel_url:  "https://app.rezultcrm.com/agentes",
       });
 
-      console.log(`[create-checkout-session] credito: empresa=${companyId} US$ ${pagoUsd} -> ${creditos} creditos sessao=${session.id}`);
+      console.log(`[create-checkout-session] credito: empresa=${companyId} R$ ${pagoBrl} (cotacao ${cotacao}, ~US$ ${pagoUsd}) -> ${creditos} creditos sessao=${session.id}`);
       return json({ url: session.url });
     } catch (err) {
       console.error("[create-checkout-session] credito falhou:", err);

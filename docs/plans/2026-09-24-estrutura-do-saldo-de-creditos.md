@@ -291,6 +291,63 @@ ingenuo (uma taxa so, derivada do markup) nao sobreviveu a ela. Ver 4.5.
 `creditos = ceil(custo_usd x 1500)`, entao a resposta de agente que custa
 US$ 0,0232 sai por 35 creditos.
 
+### 4.1-bis O preco voltou para REAL (dono, 28/09/2026)
+
+**A decisao de precificar em USD caiu, e o motivo e a conta Stripe.**
+
+Aquela decisao tinha um proposito: receita e divida na mesma moeda, sem risco
+cambial. Isso **pressupunha receber dolar**. A conta e brasileira e liquida em
+real -- as assinaturas sao R$ 237, R$ 399, R$ 747.
+
+Precificar em USD numa conta BRL nao traz dolar nenhum. Traz real convertido
+pelo Stripe, e de quebra:
+
+| | Com preco em real | Com preco em USD (como estava) |
+|---|---|---|
+| O cliente ve | R$ 100 | US$ 10,00 |
+| Quem converte | ninguem, ja e real | o banco dele |
+| IOF | nao incide | **3,5% em cima** |
+| Recusa do cartao | normal | maior, e compra internacional |
+
+**E desligava o Adaptive Pricing.** Ele converte DA moeda da conta PARA a do
+cliente; com a moeda ja forcada em USD, nao sobra o que adaptar. Era por isso
+que o nosso checkout mostrava so "US$ 10,00" enquanto o do concorrente mostrava
+"R$ 54,29" com a cotacao ao lado -- a conta deles e `Kiwify US, Inc.`, americana,
+entao para um cliente brasileiro o recurso tem o que fazer.
+
+O recurso ja estava LIGADO no painel. Nao era configuracao: era a moeda.
+
+**A cotacao e buscada a cada checkout** (dono, 28/09/2026), no PTAX do Banco
+Central: oficial, publico, de graca e sem chave. Ele so publica em dia util,
+entao a busca anda para tras ate achar o ultimo dia com cotacao -- testado ao
+vivo, 26/09 (sabado) volta vazio e 25/09 devolve R$ 5,1991.
+
+```
+creditos = reais x 1500 / (cotacao x 1,0764 x 1,30)
+```
+
+A R$ 5,1991 isso da **206,2 creditos por real**:
+
+| Pacote | Creditos | Custo do fornecedor |
+|---|---|---|
+| R$ 50 | 10.308 | US$ 6,87 |
+| R$ 100 | 20.617 | US$ 13,74 |
+| R$ 250 | 51.544 | US$ 34,36 |
+| R$ 500 | 103.089 | US$ 68,73 |
+
+Margem liquida conferida em R$ 100: receita R$ 100, compra dos dolares
+R$ 76,92, Stripe R$ 4,38, imposto R$ 6,00, **sobram R$ 12,70 (12,7%)**.
+
+**O que torna isso seguro e o HEDGE** (secao 6.1). Sem ele, preco fixo em real
+seria exatamente a exposicao que a 5.1 queria evitar. Com os dolares comprados
+no ato da venda, receita e custo ficam travados na mesma cotacao.
+
+**Se a cotacao nao vier, a venda NAO acontece.** A funcao devolve 503 e a tela
+pede para tentar de novo em alguns minutos. Ha uma rede: a ultima cotacao boa
+fica guardada em `cotacao_dolar` e serve por ate 48h (cobre um fim de semana).
+Acima disso, recusa -- vender a uma cotacao que pode estar muito velha e vender
+sem saber o preco, e o prejuizo so apareceria na recarga do mes seguinte.
+
 ### 4.2 Por que saldo e consumo compartilham a unidade, e a compra nao
 
 O saldo E a soma do consumo. Se o card dissesse "US$ 24,81" e a linha dissesse

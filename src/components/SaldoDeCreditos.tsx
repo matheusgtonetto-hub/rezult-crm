@@ -92,9 +92,15 @@ const inteiro = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
  * menos créditos por dólar, e o saldo de quem já comprou não é tocado.
  */
 
-/** No popup de compra, que é onde o valor é dinheiro de verdade. */
-const dolar = new Intl.NumberFormat("pt-BR", {
-  style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2,
+/**
+ * No popup de compra, que é onde o valor é dinheiro de verdade.
+ *
+ * REAL, e não dólar (28/09/2026). A conta Stripe é brasileira e liquida em
+ * real; cobrar em dólar jogava IOF no cartão do cliente e desligava o Adaptive
+ * Pricing. O preço em real é calculado no servidor com a cotação do momento.
+ */
+const real = new Intl.NumberFormat("pt-BR", {
+  style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2,
 });
 
 /**
@@ -125,7 +131,7 @@ const ROTULO: Record<string, string> = {
  * pagamento, o único momento em que o valor é dinheiro de verdade. O saldo e o
  * consumo são em créditos (decisão do dono, 25/09/2026).
  */
-const VALORES_SUGERIDOS = [10, 25, 50, 100];
+const VALORES_SUGERIDOS = [50, 100, 250, 500];
 
 /*
  * ─── A taxa de venda NÃO mora aqui ──────────────────────────────────────────
@@ -149,7 +155,7 @@ const VALORES_SUGERIDOS = [10, 25, 50, 100];
  * em "500" vira uma cobrança de US$ 5.000, e desfazer isso custa estorno, taxa
  * e uma conversa ruim.
  */
-const COMPRA_MAXIMA = 2000;
+const COMPRA_MAXIMA = 15000;
 
 /**
  * Onde o aviso de saldo baixo acende.
@@ -175,7 +181,7 @@ const AVISO_SALDO_BAIXO = 3000;
  * aqui criaria venda que o outro lado não consegue repor na mesma proporção, e
  * a taxa do Stripe comeria boa parte de um valor tão pequeno.
  */
-const COMPRA_MINIMA = 5;
+const COMPRA_MINIMA = 50;
 
 export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
   const { user } = useAuth();
@@ -366,7 +372,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
         },
         body: JSON.stringify({
           tipo: "credito",
-          valorUsd: escolhido,
+          valorBrl: escolhido,
           companyId,
           userId: user.id,
           userEmail: user.email ?? "",
@@ -374,7 +380,24 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
       });
 
       const data = await res.json();
-      if (!res.ok || !data.url) throw new Error(data.error ?? "Não foi possível abrir o pagamento.");
+      if (!res.ok || !data.url) {
+        /*
+         * Os códigos do servidor viram frase aqui.
+         *
+         * Sem isto, o aviso mostrava a chave crua -- "cotacao_indisponivel" --
+         * e a pessoa não tinha como saber se o problema era dela, se o cartão
+         * falhou ou se devia tentar de novo.
+         *
+         * `cotacao_indisponivel` acontece quando o Banco Central está fora E a
+         * última cotação guardada passou de 48h. É raro e passageiro, então a
+         * frase manda esperar em vez de mandar procurar suporte.
+         */
+        const frases: Record<string, string> = {
+          cotacao_indisponivel: "Não foi possível consultar a cotação do dólar agora. Tente de novo em alguns minutos.",
+          valor_invalido: `O valor precisa estar entre ${real.format(COMPRA_MINIMA)} e ${real.format(COMPRA_MAXIMA)}.`,
+        };
+        throw new Error(frases[data.error as string] ?? "Não foi possível abrir o pagamento.");
+      }
       window.open(data.url, "_blank");
       setCompraAberta(false);
     } catch (err) {
@@ -614,7 +637,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                 `pl-11` para o texto digitado começar depois dela. */}
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg font-medium text-[color:var(--text-subtle)]">
-                US$
+                R$
               </span>
               <Input
                 autoFocus
@@ -642,20 +665,20 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                   onClick={() => setValor(String(v))}
                   className={`flex-1 border-card-border ${escolhido === v ? "border-primary text-primary" : ""}`}
                 >
-                  US$ {v}
+                  {inteiro.format(v)}
                 </Button>
               ))}
             </div>
 
             {abaixoDoMinimo && (
               <p className="text-[12px] leading-snug" style={{ color: "var(--danger-fg)" }}>
-                O menor valor é US$ {COMPRA_MINIMA}.
+                O menor valor é {real.format(COMPRA_MINIMA)}.
               </p>
             )}
 
             {acimaDoMaximo && (
               <p className="text-[12px] leading-snug" style={{ color: "var(--danger-fg)" }}>
-                O maior valor por compra é US$ {inteiro.format(COMPRA_MAXIMA)}.
+                O maior valor por compra é {real.format(COMPRA_MAXIMA)}.
               </p>
             )}
 

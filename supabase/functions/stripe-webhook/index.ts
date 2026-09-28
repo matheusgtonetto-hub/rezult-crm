@@ -401,7 +401,9 @@ Deno.serve(async (req) => {
            * creditar "135 x 1070" seria catastrófico.
            */
           const creditos = Number(session.metadata?.creditos);
+          const pagoBrl  = Number(session.metadata?.pagoBrl);
           const pagoUsd  = Number(session.metadata?.pagoUsd);
+          const cotacao  = Number(session.metadata?.cotacao);
 
           if (!Number.isFinite(creditos) || creditos <= 0) {
             console.error(`[credito] metadata.creditos invalido (${session.metadata?.creditos}) na sessao ${session.id} — NAO creditado, cliente pagou`);
@@ -423,6 +425,12 @@ Deno.serve(async (req) => {
             p_stripe_event_id: event.id,
             p_descricao:       `Compra de ${creditos.toLocaleString("pt-BR")} créditos`,
             p_pago_usd:        Number.isFinite(pagoUsd) ? pagoUsd : null,
+            // O real pago e a cotação usada. Sem os dois, uma compra antiga
+            // vira número sem origem na conciliação: não dá para conferir
+            // contra o extrato do Stripe (que é em real) nem contra a fatura
+            // do fornecedor (que é em dólar).
+            p_pago_brl:        Number.isFinite(pagoBrl) ? pagoBrl : null,
+            p_cotacao:         Number.isFinite(cotacao) ? cotacao : null,
           });
 
           if (error) {
@@ -431,20 +439,20 @@ Deno.serve(async (req) => {
               console.log(`[credito] evento ${event.id} ja creditado — reenvio ignorado`);
             } else {
               // Cliente pagou e não recebeu saldo. Precisa de olho humano.
-              console.error(`[credito] FALHA AO CREDITAR (cliente pagou US$ ${pagoUsd}, empresa ${companyId}):`, error.message);
+              console.error(`[credito] FALHA AO CREDITAR (cliente pagou R$ ${pagoBrl}, empresa ${companyId}):`, error.message);
             }
             break;
           }
 
-          console.log(`[credito] empresa ${companyId} +${creditos} creditos (US$ ${pagoUsd}) — saldo agora ${saldo}`);
+          console.log(`[credito] empresa ${companyId} +${creditos} creditos (R$ ${pagoBrl}, cotacao ${cotacao}, ~US$ ${pagoUsd}) — saldo agora ${saldo}`);
 
           await sendMetaConversion({
             eventName: "Purchase",
             eventId:   session.id,
             email:     session.customer_details?.email,
             name:      session.customer_details?.name,
-            value:     pagoUsd,
-            currency:  "USD",
+            value:     pagoBrl,
+            currency:  "BRL",
             planName:  "creditos",
           });
           break;
