@@ -312,8 +312,19 @@ function Pill({ children, title }: { children: React.ReactNode; title?: string }
   return (
     <span
       title={title}
+      /* `--accent-50`, e NÃO `--surface-accent-strong)/10`.
+       *
+       * Aquela classe não pintava nada: medido ao vivo em 28/09/2026, o fundo
+       * computado era `rgba(0, 0, 0, 0)`. O modificador de alfa do Tailwind
+       * (`/10`) precisa da cor em canais; `--surface-accent-strong` é um hex
+       * (#008762), e a regra sai inválida -- silenciosamente, sem erro de
+       * build. As pills existiam sem fundo desde sempre.
+       *
+       * `--accent-50` é token sólido da rampa e tem valor próprio no escuro
+       * (#10312A), o que alfa sobre hex nunca teria: 10% de verde sobre fundo
+       * escuro fica invisível. */
       className="inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-medium leading-none
-                 bg-[color:var(--surface-accent-strong)]/10 text-[color:var(--text-link)]"
+                 bg-[color:var(--accent-50)] text-[color:var(--text-link)]"
     >
       {children}
     </span>
@@ -325,15 +336,26 @@ function Pill({ children, title }: { children: React.ReactNode; title?: string }
  * input e do botão -- é o que tira o texto de "solto sobre o cartão" e o
  * transforma num objeto com limite.
  */
-function BlocoDetalhe({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+function BlocoDetalhe({ children, className = "", title }: { children: React.ReactNode; className?: string; title?: string }) {
   return (
-    <div className={`rounded-[10px] bg-[color:var(--neutral-50)] px-3 py-2.5 ${className}`}>
+    <div title={title} className={`rounded-[10px] bg-[color:var(--neutral-50)] px-3 py-2.5 ${className}`}>
       {children}
     </div>
   );
 }
 
-function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; temChave: boolean; onToggle: (ligar: boolean) => void }) {
+/*
+ * O cartão não avisa mais sobre chave faltando (dono, 28/09/2026).
+ *
+ * O bloco vermelho duplicava uma trava que já existe onde importa: `toggleActive`
+ * consulta os provedores NA HORA e recusa a ativação com a explicação. O cartão
+ * carregava a mesma informação o tempo todo, para uma condição que só importa no
+ * instante do clique -- e era ele que deixava este cartão mais alto que os
+ * outros três, abrindo um vazio branco na linha inteira da grade.
+ *
+ * Regra que fica: pré-requisito se cobra na AÇÃO, não no repouso.
+ */
+function CardAgenteOperacional({ agente, onToggle }: { agente: Agent; onToggle: (ligar: boolean) => void }) {
   return (
     <div className="bg-card rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow border border-[color:var(--accent-500)]/40">
       {/* Sem ícone ilustrativo, igual aos demais agentes (dono, 27/09/2026). */}
@@ -343,7 +365,7 @@ function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; 
           {/* Selo, e não texto solto: ele diz uma categoria ("este agente não
               precisa de configuração"), e categoria é o papel de um selo. */}
           <span className="inline-flex items-center gap-1 mt-0.5 rounded-full px-2 py-0.5 text-[12px] font-semibold leading-none
-                           bg-[color:var(--surface-accent-strong)]/10 text-[color:var(--text-link)]">
+                           bg-[color:var(--accent-50)] text-[color:var(--text-link)]">
             <Check size={11} /> Pronto para usar
           </span>
         </div>
@@ -355,30 +377,37 @@ function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; 
 
       {/* O que ele faz, em pills -- o mesmo lugar e a mesma forma dos objetivos
           nos agentes configuráveis. Ele não TEM objetivos escolhíveis, mas tem
-          um escopo fixo, e mostrá-lo aqui faz os dois cartões se lerem juntos
-          em vez de parecerem dois produtos. */}
-      <div className="flex flex-wrap gap-1.5 mb-3">
-        <Pill title="Registra no lead um resumo do que foi combinado na conversa">Anotações</Pill>
-        <Pill title="Preenche os campos adicionais cuja resposta apareceu na conversa">Campos</Pill>
-        <Pill title="Move o negócio quando a conversa mostra avanço claro">Etapa do funil</Pill>
-        <Pill title="Associa o produto citado e atualiza o valor do negócio">Produto e valor</Pill>
+          escopo fixo, e mostrá-lo aqui faz os dois cartões se lerem juntos.
+
+          O rótulo é "O que ele faz", e não "Objetivos": objetivo é algo que se
+          escolhe, e aqui não há escolha. */}
+      <div className="mb-3">
+        <span className="block text-[12px] text-[color:var(--text-muted)] mb-1.5">O que ele faz</span>
+        <div className="flex flex-wrap gap-1.5">
+          <Pill title="Registra no lead um resumo do que foi combinado na conversa">Anotações</Pill>
+          <Pill title="Preenche os campos adicionais cuja resposta apareceu na conversa">Campos</Pill>
+          <Pill title="Move o negócio quando a conversa mostra avanço claro">Etapa do funil</Pill>
+          <Pill title="Associa o produto citado e atualiza o valor do negócio">Produto e valor</Pill>
+        </div>
       </div>
 
-      <BlocoDetalhe className="mb-3 space-y-1.5">
+      {/* Um parágrafo, não dois.
+          Medido ao vivo em 28/09: com dois, este cartão ficava 200px mais alto
+          que os outros, e como a grade estica a linha pela mais alta, os três
+          cartões ao lado ganhavam um buraco branco no meio.
+
+          A letra miúda ("não precisa de configuração", a tag de exclusão) virou
+          `title`: é informação de quem já parou para ler, não de quem está
+          batendo o olho na grade. */}
+      <BlocoDetalhe
+        className="mb-3"
+        title={`Não precisa de configuração nem de material da empresa. Contatos com a tag “${TAG_IGNORAR_OPERACIONAL}” ficam de fora.`}
+      >
         <p className="text-[12px] text-[color:var(--text-body)] leading-relaxed">
-          Lê todas as conversas e mantém o CRM fiel ao que aconteceu nelas. <span className="font-medium">Não conversa com seus leads
-          nem mexe em tags.</span>
-        </p>
-        <p className="text-[12px] text-[color:var(--text-muted)] leading-relaxed">
-          Não precisa de configuração nem de material da empresa. Contatos com a tag “{TAG_IGNORAR_OPERACIONAL}” ficam de fora.
+          Lê todas as conversas e mantém o CRM fiel ao que aconteceu nelas. <span className="font-medium">Não conversa
+          com seus leads nem mexe em tags.</span>
         </p>
       </BlocoDetalhe>
-
-      {!temChave && !agente.active && (
-        <p className="text-[12px] text-[color:var(--danger-fg)] bg-[color:var(--danger-bg)] rounded-[10px] px-3 py-2 mb-3 leading-relaxed">
-          Cadastre a chave da OpenAI em Configurações → Chaves de API para ligar.
-        </p>
-      )}
 
       <div className="flex items-center justify-between pt-3 border-t border-[color:var(--border-default)] mt-auto">
         <span className="text-[12px] text-[color:var(--text-muted)]">{agente.active ? "Trabalhando nas conversas" : "Desligado"}</span>
@@ -2180,7 +2209,6 @@ export default function AgentesPage() {
                 <CardAgenteOperacional
                   key={a.id}
                   agente={a}
-                  temChave={hasOpenaiKey}
                   onToggle={(v) => void toggleActive(a, v)}
                 />
               ) : (
@@ -2192,8 +2220,12 @@ export default function AgentesPage() {
                     <div className="min-w-0 flex-1">
                       {/* title: com o estado ocupando a direita da linha, nome
                           longo trunca cedo -- o hover devolve o texto inteiro. */}
+                      {/* Sem a descrição sob o nome (dono, 28/09/2026). Ela
+                          truncava em quase todo agente, então entregava meia
+                          frase -- e o que o cartão precisa responder ("o que
+                          este agente faz") já está nas pills logo abaixo, de
+                          forma completa e comparável entre cartões. */}
                       <p title={a.name} className="text-[14px] font-bold text-[color:var(--text-heading)] truncate">{a.name}</p>
-                      {a.description && <p title={a.description} className="text-[12px] text-[color:var(--text-muted)] truncate">{a.description}</p>}
                     </div>
                     {/* Estado na mesma linha do nome, à direita: é a
                         informação que o usuário procura primeiro ao bater o
@@ -2244,15 +2276,17 @@ export default function AgentesPage() {
                     </div>
                   </div>
 
-                  {/* Objetivos em pills, sem rótulo acima.
-                      O rótulo "OBJETIVOS" em caixa alta saiu: com um segundo
-                      rótulo igual logo abaixo, a leitura virava uma escada de
-                      microtítulos e as pills -- que são o conteúdo -- perdiam
-                      o primeiro lugar do olhar. As pills dizem o que são.
+                  {/* O rótulo "Objetivos" voltou (dono, 28/09/2026), agora no
+                      MESMO estilo do "Ativa com a tag" logo abaixo: 12px, tinta
+                      suave, sem caixa alta. Era caixa alta com `tracking-wide`,
+                      e dois microtítulos em caixa alta empilhados competiam com
+                      as pills pelo primeiro lugar do olhar. Um estilo só de
+                      rótulo no cartão inteiro.
 
-                      Sem objetivo é a exceção, e aí SIM vira aviso: um agente
-                      sem objetivo não tem ferramenta nenhuma e não faz nada. */}
+                      Sem objetivo é a exceção, e aí vira aviso: um agente sem
+                      objetivo não recebe ferramenta nenhuma e não faz nada. */}
                   <div className="mb-3">
+                    <span className="block text-[12px] text-[color:var(--text-muted)] mb-1.5">Objetivos</span>
                     {a.objectives.length === 0 ? (
                       <span
                         className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-medium leading-none
@@ -2272,21 +2306,19 @@ export default function AgentesPage() {
                   {/* A tag de ativação num bloco, e com o rótulo NA MESMA LINHA
                       do valor. É um par rótulo-valor, não uma seção: empilhado,
                       ocupava duas linhas para dizer uma coisa só. */}
-                  <BlocoDetalhe className="mb-3 flex items-center justify-between gap-3 py-2">
-                    <span className="text-[12px] text-[color:var(--text-muted)] shrink-0">Ativa com a tag</span>
-                    {/* `flex-1 min-w-0`: o gatilho do seletor é `w-full`, então
-                        sem um pai dimensionado ele empurraria o rótulo para
-                        fora do bloco. O `min-w-0` deixa o nome da tag truncar em
-                        vez de esticar o cartão. */}
-                    <div className="flex-1 min-w-0 max-w-[60%]">
-                      <AgentActivationTagPicker
-                        value={a.activation_tag}
-                        onChange={(tag) => void salvarTagAtivacao(a, tag)}
-                        ocupadas={tagsOcupadasPorAgente}
-                        agenteAtualId={a.id}
-                        placeholder="Definir tag"
-                      />
-                    </div>
+                  {/* Rótulo ACIMA do seletor (dono, 28/09/2026), e não ao lado.
+                      Lado a lado, o seletor tinha 60% da largura do bloco e o
+                      nome da tag truncava cedo; empilhado, ele usa a linha
+                      inteira. O bloco mantém os dois juntos como um par. */}
+                  <BlocoDetalhe className="mb-3">
+                    <span className="block text-[12px] text-[color:var(--text-muted)] mb-1.5">Ativa com a tag</span>
+                    <AgentActivationTagPicker
+                      value={a.activation_tag}
+                      onChange={(tag) => void salvarTagAtivacao(a, tag)}
+                      ocupadas={tagsOcupadasPorAgente}
+                      agenteAtualId={a.id}
+                      placeholder="Definir tag"
+                    />
                   </BlocoDetalhe>
                   <div className="flex items-center justify-between pt-3 border-t border-[color:var(--border-default)] mt-auto">
                     {a.draft ? (
@@ -3393,7 +3425,7 @@ export default function AgentesPage() {
                             <p className="text-[12px] text-[color:var(--text-muted)]">Escolha em quais conexões já existentes na empresa esse agente atua.</p>
                           </div>
                           {emUso > 0 && (
-                            <span className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--text-link)] bg-[color:var(--surface-accent-strong)]/10 px-2.5 py-1 rounded-full">
+                            <span className="shrink-0 inline-flex items-center gap-1.5 text-[12px] font-medium text-[color:var(--text-link)] bg-[color:var(--accent-50)] px-2.5 py-1 rounded-full">
                               <span className="w-1.5 h-1.5 rounded-full bg-[color:var(--surface-accent-strong)]" />
                               {emUso} em uso
                             </span>
@@ -3447,7 +3479,7 @@ export default function AgentesPage() {
                               <div key={c.chave} className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-md transition-shadow">
                                 <div className="flex items-center justify-between mb-3">
                                   <div className="flex items-center gap-1.5">
-                                    <span className={`w-2 h-2 rounded-full ${c.conectado ? "bg-[color:var(--surface-accent-strong)]" : "bg-[var(--text-muted)]/40"}`} />
+                                    <span className={`w-2 h-2 rounded-full ${c.conectado ? "bg-[color:var(--surface-accent-strong)]" : "bg-[color:var(--neutral-300)]"}`} />
                                     <span className={`text-[12px] font-medium ${c.conectado ? "text-[color:var(--text-link)]" : "text-[color:var(--text-muted)]"}`}>
                                       {c.conectado ? "Conectado" : "Desconectado"}
                                     </span>
@@ -3854,7 +3886,7 @@ export default function AgentesPage() {
                               Ver todas as ferramentas do CRM ({demais.length})
                             </span>
                             {marcadasNasDemais > 0 && (
-                              <span className="text-[12px] font-medium text-[color:var(--text-link)] bg-[color:var(--surface-accent-strong)]/10 px-2 py-0.5 rounded-full">
+                              <span className="text-[12px] font-medium text-[color:var(--text-link)] bg-[color:var(--accent-50)] px-2 py-0.5 rounded-full">
                                 {marcadasNasDemais} marcada{marcadasNasDemais > 1 ? "s" : ""}
                               </span>
                             )}
