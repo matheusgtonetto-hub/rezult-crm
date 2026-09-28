@@ -307,7 +307,7 @@ function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; 
 
       <p className="text-[12px] text-[color:var(--text-body)] leading-relaxed mb-3">
         Lê todas as conversas e mantém o CRM atualizado sozinho: anota o que foi combinado, preenche campos, move a etapa
-        e aplica tags. Não conversa com seus leads.
+        e associa produto e valor. Não conversa com seus leads nem mexe em tags.
       </p>
       <p className="text-[12px] text-[color:var(--text-muted)] leading-relaxed mb-3">
         Não precisa de configuração nem de material da empresa. Contatos com a tag “{TAG_IGNORAR_OPERACIONAL}” ficam de fora.

@@ -2,7 +2,7 @@
 //
 // O agente que nasce pronto em toda empresa. Não conversa com ninguém: lê as
 // conversas de WhatsApp e mantém o CRM fiel ao que aconteceu nelas (anotação,
-// dados do contato, campos adicionais, etapa do funil, tags, produto e valor).
+// dados do contato, campos adicionais, etapa do funil, produto e valor).
 // Não depende de material da empresa, então a metodologia é fixa e mora aqui.
 //
 // Acionado pelo cron `process-agent-operacional` (ver a migration
@@ -13,8 +13,11 @@
 // Garantias:
 //   * nunca envia mensagem (nenhuma ferramenta de envio é oferecida ao modelo);
 //   * nunca marca negócio ganho ou perdido;
-//   * nunca coloca nem tira tag de ativação de agente, nem as de sistema: quem
-//     liga e desliga os agentes que conversam são as automações;
+//   * NÃO MEXE EM TAG NENHUMA (dono, 28/09/2026). Antes ele mexia nas tags
+//     "livres" e era barrado nas de ativação e de sistema, o que funcionava mas
+//     deixava a fronteira fina: bastava alguém criar uma tag de ativação depois
+//     e o Operacional já tinha o hábito de marcar. Tag passou a ser inteiramente
+//     das automações e do time;
 //   * contato com a tag "Operacional: ignorar" fica de fora;
 //   * só age sobre o lead desta conversa (lead_id vindo do modelo é descartado).
 
@@ -46,8 +49,9 @@ const MENSAGENS_NA_JANELA = 60;
 /** Quanto das notas atuais do lead o modelo vê, para não repetir o que já está lá. */
 const NOTAS_NO_CONTEXTO = 1500;
 
+// A única tag que o Operacional ainda LÊ: com ela no card, a conversa não é
+// processada. Ler não é mexer -- ele não aplica nem remove tag nenhuma.
 const TAG_IGNORAR = "Operacional: ignorar";
-const TAGS_DE_SISTEMA = ["Agente", "SDS: Qualificado", "SDS: Não qualificado", TAG_IGNORAR];
 
 /** Ferramentas do registro compartilhado que o Operacional pode usar. */
 const FERRAMENTAS = [
@@ -56,8 +60,6 @@ const FERRAMENTAS = [
   "atualizar_lead_info",
   "atualizar_lead_contatos",
   "atualizar_lead_endereco",
-  "adicionar_tag_lead",
-  "remover_tag_lead",
   "mover_negocio_estagio",
   "adicionar_produto_negocio",
   "atualizar_total_negocio",
@@ -90,9 +92,8 @@ O que fazer, quando a conversa trouxer o fato:
 2. Dados do contato: nome, e-mail, empresa e endereço quando o próprio contato informar (atualizar_lead_info, atualizar_lead_contatos, atualizar_lead_endereco). O nome do lead é o nome da pessoa, e a empresa vai no campo empresa. Atualize o nome quando o contato disser como se chama e o nome atual estiver vazio, for um número de telefone, for igual ao nome da empresa ou for genérico (como "Novo contato"). Nunca troque um nome mais completo por um mais curto.
 3. Campos adicionais: preencha os campos da lista cuja resposta apareceu com clareza (definir_campo_adicional_lead). Não troque um valor já preenchido por um menos específico.
 4. Etapa do funil: mova (mover_negocio_estagio) só quando a conversa mostrar avanço claro que corresponda ao nome de uma etapa. Não volte etapa sem motivo explícito. Nunca marque ganho ou perdido: isso é decidido pelo pagamento confirmado ou pelo time.
-5. Tags: aplique ou remova só tags da lista, quando o nome da tag descrever claramente algo dito na conversa.
-6. Produto e valor: associe o produto só quando ele for citado na conversa. Ao associar, pode usar como valor do negócio o preço do produto na lista de produtos. Fora isso, atualize o valor só quando um valor for citado explicitamente.
-7. Lead inexistente: se ainda não existe lead e a conversa tem interesse comercial, crie com criar_lead_da_conversa e depois registre o resto. Conversa pessoal, fornecedor, spam ou suporte de quem já é cliente não vira lead.
+5. Produto e valor: associe o produto só quando ele for citado na conversa. Ao associar, pode usar como valor do negócio o preço do produto na lista de produtos. Fora isso, atualize o valor só quando um valor for citado explicitamente.
+6. Lead inexistente: se ainda não existe lead e a conversa tem interesse comercial, crie com criar_lead_da_conversa e depois registre o resto. Conversa pessoal, fornecedor, spam ou suporte de quem já é cliente não vira lead.
 
 Regras:
 - Só registre o que está escrito na conversa. Nunca deduza, nunca invente, nunca complete com suposição.
@@ -256,14 +257,12 @@ async function processar(db: Db, fila: Fila): Promise<{ processadoAte: string | 
     return { processadoAte, resumo: { motivo: "ignorado_por_tag" } };
   }
 
-  const [empresaRes, funisRes, etapasRes, camposRes, tagsRes, produtosRes, agentesRes] = await Promise.all([
+  const [empresaRes, funisRes, etapasRes, camposRes, produtosRes] = await Promise.all([
     db.from("companies").select("owner_id, name").eq("id", fila.company_id).maybeSingle(),
     db.from("pipelines").select("id, name, position").eq("company_id", fila.company_id).order("position"),
     db.from("pipeline_columns").select("id, title, pipeline_id, position").eq("company_id", fila.company_id).order("position"),
     db.from("custom_field_items").select("id, label").eq("company_id", fila.company_id).order("position"),
-    db.from("tags").select("name").eq("company_id", fila.company_id),
     db.from("products").select("name, default_value").eq("company_id", fila.company_id).limit(50),
-    db.from("agents").select("activation_tag").eq("company_id", fila.company_id).not("activation_tag", "is", null),
   ]);
 
   const ownerId = empresaRes.data?.owner_id as string | undefined;
@@ -274,18 +273,9 @@ async function processar(db: Db, fila: Fila): Promise<{ processadoAte: string | 
   const campos = (camposRes.data ?? []) as { id: string; label: string }[];
   const produtos = (produtosRes.data ?? []) as { name: string; default_value: number | null }[];
 
-  // Tags que o Operacional não toca: as de sistema e as de ativação dos agentes
-  // que conversam. Elas nem aparecem na lista que o modelo recebe.
-  const protegidas = new Set([
-    ...TAGS_DE_SISTEMA,
-    ...((agentesRes.data ?? []) as { activation_tag: string }[]).map((a) => a.activation_tag),
-  ].map(norm));
-  const ehProtegida = (tag: unknown) => protegidas.has(norm(tag)) || String(tag ?? "").startsWith("Agente: ");
-  const tagsLivres = ((tagsRes.data ?? []) as { name: string }[]).map((t) => t.name).filter((t) => !ehProtegida(t));
-
   const contexto = montarContexto({
     empresa: String(empresaRes.data?.name ?? ""),
-    funis, etapas, campos, produtos, tagsLivres, lead, mensagens, corte,
+    funis, etapas, campos, produtos, lead, mensagens, corte,
   });
 
   let leadId: string | null = (lead?.id as string | undefined) ?? null;
@@ -304,9 +294,6 @@ async function processar(db: Db, fila: Fila): Promise<{ processadoAte: string | 
     if (!FERRAMENTAS.includes(nome)) return { ok: false, error: `ferramenta indisponível: ${nome}` };
     if (!leadId) {
       return { ok: false, error: "ainda não existe lead para este contato. Crie com criar_lead_da_conversa, ou não registre nada se a conversa não for comercial." };
-    }
-    if ((nome === "adicionar_tag_lead" || nome === "remover_tag_lead") && ehProtegida(input.tag)) {
-      return { ok: false, error: "essa tag é controlada pelas automações e pelo time; não mexa nela" };
     }
     // Nome: só troca nos casos de podeTrocarNome. Fora deles o nome sai do
     // pedido e o resto da atualização segue.
@@ -357,7 +344,6 @@ function montarContexto(p: {
   etapas: { id: string; title: string; pipeline_id: string }[];
   campos: { id: string; label: string }[];
   produtos: { name: string; default_value: number | null }[];
-  tagsLivres: string[];
   // deno-lint-ignore no-explicit-any
   lead: any;
   mensagens: Mensagem[];
@@ -372,7 +358,6 @@ function montarContexto(p: {
   });
   blocos.push(`FUNIS E ETAPAS, NA ORDEM:\n${funis.join("\n") || "(nenhum funil)"}`);
   blocos.push(`CAMPOS ADICIONAIS DISPONÍVEIS: ${p.campos.map((c) => c.label).join(", ") || "nenhum"}`);
-  blocos.push(`TAGS QUE VOCÊ PODE USAR: ${p.tagsLivres.join(", ") || "nenhuma"}`);
   if (p.produtos.length) {
     blocos.push(`PRODUTOS: ${p.produtos.map((x) => x.default_value != null ? `${x.name} (R$ ${x.default_value})` : x.name).join(", ")}`);
   }
