@@ -8,12 +8,8 @@ import {
   Loader2,
   CheckCircle2,
   AlertTriangle,
-  Sparkles,
   Zap,
   Brain,
-  Rocket,
-  Target,
-  Headphones,
   MessageSquare,
   BookOpen,
   Info,
@@ -114,18 +110,10 @@ const WIZARD_STEPS: { v: string; l: string }[] = [
   { v: "teste", l: "Testar" },
 ];
 
-// Ícones ilustrativos pra atrelar ao agente na criação — meramente visual,
-// não afeta comportamento. Chave é salva em agents.avatar.
-const AGENT_AVATARS: Record<string, typeof Bot> = {
-  bot: Bot,
-  sparkles: Sparkles,
-  zap: Zap,
-  brain: Brain,
-  rocket: Rocket,
-  target: Target,
-  headphones: Headphones,
-  message: MessageSquare,
-};
+// Os ícones ilustrativos do agente saíram em 27/09/2026 (dono). A coluna
+// `agents.avatar` continua no banco com os valores antigos: dado guardado não
+// atrapalha, e apagá-lo seria migração destrutiva para desfazer uma decisão
+// visual. Se um dia voltar, os valores ainda estão lá.
 // Andaimes da aba "Instruções". Clicar num chip escreve o título markdown no
 // texto; o conteúdo é do usuário.
 //
@@ -341,11 +329,6 @@ function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; 
     </div>
   );
 }
-function AgentAvatarIcon({ avatar, size = 18 }: { avatar: string | null; size?: number }) {
-  const Icon = AGENT_AVATARS[avatar ?? ""] ?? Bot;
-  return <Icon size={size} />;
-}
-
 type BehaviorConfig = {
   finalizar_conversa?: boolean;
   transferir_responsavel?: boolean;
@@ -2144,10 +2127,10 @@ export default function AgentesPage() {
                 />
               ) : (
                 <div key={a.id} className={`bg-card rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow ${a.draft ? "border border-dashed border-[color:var(--border-strong)]" : "border border-[color:var(--border-default)]"}`}>
+                  {/* Sem ícone ilustrativo (dono, 27/09/2026): o nome e a
+                      descrição bastam, e o círculo colorido não dizia nada
+                      sobre o agente -- era escolha estética de quem criou. */}
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-[color:var(--surface-accent-strong)] flex items-center justify-center text-white shrink-0">
-                      <AgentAvatarIcon avatar={a.avatar} size={18} />
-                    </div>
                     <div className="min-w-0 flex-1">
                       {/* title: com o estado ocupando a direita da linha, nome
                           longo trunca cedo -- o hover devolve o texto inteiro. */}
@@ -2352,9 +2335,6 @@ export default function AgentesPage() {
                     passam. */}
                 <div className="w-[260px] shrink-0 border-r border-[color:var(--border-default)] flex flex-col min-h-0">
                   <div className="px-4 py-4 border-b border-[color:var(--border-default)] flex items-center gap-3 shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-[color:var(--surface-accent-strong)] flex items-center justify-center text-white shrink-0">
-                      <AgentAvatarIcon avatar={selected.avatar} size={20} />
-                    </div>
                     <div className="min-w-0">
                       <h2 className="text-[14px] font-bold text-[color:var(--text-heading)] truncate">{selected.name}</h2>
                       {selected.description && (
@@ -3997,26 +3977,6 @@ export default function AgentesPage() {
               <p className="text-[12px] text-[color:var(--text-muted)] mt-1">
                 O agente atende os negócios que tiverem essa tag no card. Cada tag ativa um único agente.
               </p>
-            </div>
-            <div>
-              <Label className="text-[12px]">Ícone</Label>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {Object.entries(AGENT_AVATARS).map(([key, Icon]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setDraftAvatar(key)}
-                    className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors cursor-pointer ${
-                      draftAvatar === key
-                        ? "bg-[color:var(--surface-accent-strong)] text-white"
-                        : "bg-[color:var(--neutral-50)] text-[color:var(--text-muted)] hover:bg-[color:var(--neutral-100)]"
-                    }`}
-                  >
-                    <Icon size={16} />
-                  </button>
-                ))}
-              </div>
-              <p className="text-[12px] text-[color:var(--text-muted)] mt-1">Meramente ilustrativo.</p>
             </div>
           </div>
           <DialogFooter>
