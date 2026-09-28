@@ -85,12 +85,18 @@ function creditosPorReal(cotacao: number): number {
 }
 
 /**
- * Mínimo, em real. Equivale a ~US$ 9 de compra, folgado acima do piso de
- * recarga de US$ 5 que a OpenAI impõe na conta que abastece todo mundo --
- * aceitar menos criaria venda que o outro lado não consegue repor na mesma
- * proporção, e a taxa fixa do Stripe (R$ 0,39) comeria boa parte.
+ * Mínimo, em real (dono, 28/09/2026).
+ *
+ * Era R$ 50, escolhido para ficar acima do piso de recarga de US$ 5 da OpenAI.
+ * Esse raciocínio estava errado: o piso da OpenAI vale para CADA recarga nossa,
+ * e o hedge recarrega acompanhando o passivo TOTAL, não venda a venda. Uma
+ * compra de R$ 25 se soma às outras antes de virar recarga.
+ *
+ * O que R$ 25 custa de verdade é margem: a taxa fixa do Stripe (R$ 0,39) pesa
+ * 1,56% num pedido desse tamanho contra 0,08% num de R$ 500, e a margem cai de
+ * 13,0% para 11,5%.
  */
-const COMPRA_MINIMA_BRL = 50;
+const COMPRA_MINIMA_BRL = 25;
 
 /**
  * Máximo. Não é desconfiança do cliente, é proteção contra dedo errado: um

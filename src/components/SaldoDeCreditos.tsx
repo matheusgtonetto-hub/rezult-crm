@@ -131,7 +131,7 @@ const ROTULO: Record<string, string> = {
  * pagamento, o único momento em que o valor é dinheiro de verdade. O saldo e o
  * consumo são em créditos (decisão do dono, 25/09/2026).
  */
-const VALORES_SUGERIDOS = [50, 100, 250, 500];
+const VALORES_SUGERIDOS = [25, 50, 100, 250, 500];
 
 /*
  * ─── A taxa de venda NÃO mora aqui ──────────────────────────────────────────
@@ -181,7 +181,7 @@ const AVISO_SALDO_BAIXO = 3000;
  * aqui criaria venda que o outro lado não consegue repor na mesma proporção, e
  * a taxa do Stripe comeria boa parte de um valor tão pequeno.
  */
-const COMPRA_MINIMA = 50;
+const COMPRA_MINIMA = 25;
 
 export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
   const { user } = useAuth();
@@ -663,9 +663,15 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                   type="button"
                   variant="outline"
                   onClick={() => setValor(String(v))}
-                  className={`flex-1 border-card-border ${escolhido === v ? "border-primary text-primary" : ""}`}
+                  /* `px-0` e texto menor: com cinco opções na linha, o padding
+                     lateral do botão passava a somar mais que o próprio texto e
+                     "R$ 250" quebrava em duas linhas. */
+                  className={`flex-1 px-0 text-[13px] border-card-border ${escolhido === v ? "border-primary text-primary" : ""}`}
                 >
-                  {inteiro.format(v)}
+                  {/* Com a cifra: "25" sozinho não diz a moeda, e o campo ao
+                      lado tem o "R$" fixo. O botão precisa falar a mesma
+                      língua que ele. */}
+                  R$ {inteiro.format(v)}
                 </Button>
               ))}
             </div>
