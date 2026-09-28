@@ -203,8 +203,17 @@ Deno.serve(async (req) => {
     const centavos = Math.round(valor * 100);
     const pagoBrl  = centavos / 100;
     const creditos = Math.floor(pagoBrl * creditosPorReal(cotacao));
-    // O equivalente em dólar daquele real: é ele que soma contra a fatura do
-    // fornecedor na conciliação mensal.
+    /*
+     * O equivalente em dólar da RECEITA, na cotação do dia.
+     *
+     * NÃO é o que vamos gastar na OpenAI, e a diferença importa: R$ 25 valem
+     * US$ 4,80 de receita, mas compram só US$ 3,43 de trabalho -- o resto é
+     * IOF, spread e margem. Quem soma contra a fatura do fornecedor é
+     * `custo_usd` das linhas de CONSUMO, não este campo.
+     *
+     * Serve para medir a margem realizada: receita em dólar contra custo em
+     * dólar, sem o câmbio no meio distorcendo a comparação entre meses.
+     */
     const pagoUsd  = Number((pagoBrl / cotacao).toFixed(2));
 
     try {

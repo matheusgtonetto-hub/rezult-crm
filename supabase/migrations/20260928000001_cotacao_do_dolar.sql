@@ -52,8 +52,10 @@ comment on column public.credit_transactions.pago_brl is
 comment on column public.credit_transactions.cotacao is
   'Compra: a cotacao USD/BRL usada para converter. Sem ela, uma compra antiga vira numero sem origem na conciliacao.';
 
--- `pago_usd` continua, agora como o equivalente em dolar daquele real na
--- cotacao do dia. E ele que soma contra a fatura do fornecedor.
+-- `pago_usd` continua, agora como o equivalente em dolar da RECEITA na cotacao
+-- do dia. NAO e o que se gasta no fornecedor: R$ 25 valem US$ 4,80 de receita e
+-- compram US$ 3,43 de trabalho, e a diferenca e IOF, spread e margem. Quem soma
+-- contra a fatura e `custo_usd` das linhas de CONSUMO.
 
 -- ── Creditar passa a aceitar os dois ───────────────────────────────────────
 drop function if exists public.creditar_credito(uuid, numeric, text, text, text, numeric);
