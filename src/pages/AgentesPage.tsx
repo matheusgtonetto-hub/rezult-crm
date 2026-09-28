@@ -8,7 +8,6 @@ import {
   Loader2,
   CheckCircle2,
   AlertTriangle,
-  Zap,
   Brain,
   MessageSquare,
   BookOpen,
@@ -292,10 +291,8 @@ const MODELOS_DE_AGENTE: Record<"atendente" | "sdr" | "closer", {
 function CardAgenteOperacional({ agente, temChave, onToggle }: { agente: Agent; temChave: boolean; onToggle: (ligar: boolean) => void }) {
   return (
     <div className="bg-card rounded-2xl shadow-elev-1 p-5 flex flex-col hover:shadow-raised transition-shadow border border-[color:var(--accent-500)]/40">
+      {/* Sem ícone ilustrativo, igual aos demais agentes (dono, 27/09/2026). */}
       <div className="flex items-center gap-3 mb-3">
-        <div className="w-10 h-10 rounded-full bg-[color:var(--surface-accent-strong)] flex items-center justify-center text-white shrink-0">
-          <Zap size={18} />
-        </div>
         <div className="min-w-0 flex-1">
           <p title={agente.name} className="text-[14px] font-bold text-[color:var(--text-heading)] truncate">{agente.name}</p>
           <span className="inline-flex items-center gap-1 text-[12px] font-semibold text-[color:var(--text-link)]">
