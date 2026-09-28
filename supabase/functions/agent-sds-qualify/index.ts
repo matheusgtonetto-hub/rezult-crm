@@ -341,10 +341,19 @@ async function retrieveKbContext(
       query_embedding: queryEmbedding, p_agent_id: agentId, p_company_id: companyId, match_count: 5,
     });
     if (error || !chunks?.length) return "";
-    // Agrupa por KB e prefixa com nome+descrição uma vez só -- a descrição
-    // (aba "Configurações" da KB) é a instrução de quando usar aquele
-    // material, então o modelo precisa ver isso junto do conteúdo, não só o
-    // texto solto dos chunks.
+    /*
+     * Agrupa por DOCUMENTO e prefixa com nome + "quando usar", uma vez só.
+     *
+     * Os dois campos mudaram de significado em 28/09/2026, sem mudar este
+     * código: `kb_name` era o nome do agrupamento e passou a ser o nome do
+     * arquivo; `kb_description` era a descrição do agrupamento e passou a ser
+     * o `quando_usar` do documento.
+     *
+     * A troca melhora as duas pontas. "Base de Conhecimento" repetido em todo
+     * trecho não informava nada, e o nome do arquivo diz de onde aquilo veio;
+     * e o "quando usar" por documento é a granularidade certa para a dica --
+     * antes, um agrupamento inteiro compartilhava a mesma.
+     */
     // deno-lint-ignore no-explicit-any
     const byKb = new Map<string, { description: string | null; parts: string[] }>();
     // deno-lint-ignore no-explicit-any
@@ -1645,13 +1654,32 @@ const CAMPOS_DA_BASE: { chave: string; titulo: string }[] = [
   { chave: "condicoes",            titulo: "Preço, pagamento e condições" },
   { chave: "objecoes",             titulo: "Objeções comuns e como responder" },
   { chave: "perguntas_frequentes", titulo: "Perguntas frequentes" },
-  { chave: "horario_contato",      titulo: "Horário e canais de atendimento" },
   { chave: "links",                titulo: "Links úteis" },
 ];
 
-async function carregarBaseDaEmpresa(db: ReturnType<typeof createClient>, companyId: string): Promise<string> {
-  const [{ data: base }, { data: produtos }] = await Promise.all([
-    db.from("company_knowledge_base").select("*").eq("company_id", companyId).maybeSingle(),
+/**
+ * O contexto comercial do agente, mais os produtos cadastrados.
+ *
+ * ─── Por que veio da empresa para o agente (dono, 28/09/2026) ──────────────
+ *
+ * Uma empresa pode ter um agente por PRODUTO, e aí "o que vende", "preço" e
+ * "objeções" mudam de agente para agente. Na tabela da empresa, os três eram
+ * obrigados a ser os mesmos para todos.
+ *
+ * E havia contradição silenciosa: três dessas perguntas já tinham seção
+ * equivalente na aba Instruções de cada agente, e as duas entravam no MESMO
+ * prompt. O modelo recebia duas versões do mesmo fato e seguia a que estivesse
+ * mais abaixo no texto.
+ *
+ * `horario_contato` não veio junto: duplicava o horário de atendimento da aba
+ * Comportamento, e ali ele não é texto, é comportamento de verdade.
+ */
+async function carregarContextoComercial(
+  db: ReturnType<typeof createClient>,
+  companyId: string,
+  contexto: Record<string, unknown> | null,
+): Promise<string> {
+  const [{ data: produtos }] = await Promise.all([
     // Produtos com descrição e preço. `listar_produtos` sozinho só devolve nome e
     // valor, e só para agente com a ferramenta marcada.
     db.from("products").select("name, default_value, descricao").eq("company_id", companyId).order("name").limit(40),
@@ -1659,8 +1687,7 @@ async function carregarBaseDaEmpresa(db: ReturnType<typeof createClient>, compan
 
   const blocos: string[] = [];
   for (const campo of CAMPOS_DA_BASE) {
-    // deno-lint-ignore no-explicit-any
-    const texto = String((base as any)?.[campo.chave] ?? "").trim();
+    const texto = String(contexto?.[campo.chave] ?? "").trim();
     if (texto) blocos.push(`## ${campo.titulo}\n${texto}`);
   }
 
@@ -1676,7 +1703,7 @@ async function carregarBaseDaEmpresa(db: ReturnType<typeof createClient>, compan
   if (!blocos.length) return "";
   // "INSTRUÇÕES DA EMPRESA" de propósito: é o nome que o DYNAMIC_BASE_INTRO e a
   // SDS_METHODOLOGY já usam para dizer de onde o agente pode tirar fatos.
-  return `INSTRUÇÕES DA EMPRESA (base da empresa, preenchida pela própria empresa e válida para todos os agentes. Se as instruções específicas deste agente disserem algo diferente, siga as deste agente):\n\n${blocos.join("\n\n")}`;
+  return `CONTEXTO COMERCIAL DESTE AGENTE (preenchido pela empresa na aba Instruções):\n\n${blocos.join("\n\n")}`;
 }
 
 async function montarExecucaoDoAgente(
@@ -1748,8 +1775,10 @@ async function montarExecucaoDoAgente(
     tools = buildDynamicTools(objectives, enabledTools, qualFields);
   }
 
-  // Base da empresa vale para TODO agente (legado e dinâmico).
-  const baseDaEmpresa = await carregarBaseDaEmpresa(db, companyId);
+  // Vale para todo agente, legado e dinâmico.
+  const baseDaEmpresa = await carregarContextoComercial(
+    db, companyId, (agent.contexto_comercial as Record<string, unknown> | null) ?? null,
+  );
   if (baseDaEmpresa) system = `${system}\n\n${baseDaEmpresa}`;
 
   // Papel fixo dos modelos prontos. O Atendente precisa de adicionar_tag_lead
@@ -1946,7 +1975,7 @@ async function executarTeste(
 
   const { data: agent } = await db
     .from("agents")
-    .select("id, company_id, name, description, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag")
+    .select("id, company_id, name, description, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, contexto_comercial")
     .eq("id", agentId)
     .maybeSingle();
   if (!agent) return json({ error: "agent_not_found" }, 200);
@@ -2168,7 +2197,7 @@ Deno.serve(async (req) => {
   // 2+ agentes ativos essa chamada quebraria a função inteira.
   const { data: activeAgents } = await db
     .from("agents")
-    .select("id, name, description, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag")
+    .select("id, name, description, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, contexto_comercial")
     .eq("company_id", companyId)
     .eq("type", "SDS")
     .eq("active", true)
