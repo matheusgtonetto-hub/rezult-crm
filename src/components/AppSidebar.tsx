@@ -389,7 +389,7 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
 
             A seta de recolher muda de lugar conforme o estado (dono,
             22/09/2026): ABERTA, ela fica no fim desta linha, depois de "Rezult
-            CRM"; RECOLHIDA, desce para o bloco abaixo. Ao lado do logo nos 51px
+            CRM"; RECOLHIDA, desce para o bloco abaixo. Ao lado do logo na régua
             da barra fechada ela empurraria a marca para fora do centro, que foi
             a reclamação do dono em 21/09 -- e é por isso que o lugar não é o
             mesmo nos dois estados. */}

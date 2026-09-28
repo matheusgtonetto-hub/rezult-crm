@@ -257,8 +257,11 @@
        Os 3px a mais vieram logo em seguida, no mesmo dia: com a linha do topo
        atravessando a tela, a coluna de ícones ficou apertada contra a borda
        direita, e o dono pediu a folga. É por isso que este valor não é mais
-       exatamente o da barra superior. */
-    --rail-w: 51px;
+       exatamente o da barra superior.
+
+       De 51px para 55px em 27/09/2026, a pedido do dono: mais 4px de folga na
+       mesma direção do ajuste anterior. */
+    --rail-w: 55px;
     --sidebar-w-expanded: 248px;
     /* Nasceu como o respiro em volta da régua que separava a marca do menu na
        barra lateral, igualado em 21px pelo dono em 21/09/2026. Essa régua
