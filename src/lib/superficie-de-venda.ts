@@ -33,27 +33,58 @@
 // degraus escuros novos na rampa, o que é acréscimo de token, e mudaria a
 // aparência de uma tela de conversão. Isso é decisão do dono, não de varredura.
 
+// ─── Token aqui só se não inverter (dono, 29/09/2026) ───────────────────────
+//
+// Esta superfície é escura SEMPRE, nos dois temas. Quem seguia o tema era a
+// tinta em cima dela, e no modo escuro o modal de planos ficava ilegível:
+//
+//   campo          token usado        claro      escuro     sobre #0C1115
+//   texto          --neutral-0        #FFFFFF -> #1A1D21    ~1,3:1, some
+//   textoSuave     --neutral-300      #D5D5D5 -> #3A4046    ~1,8:1, some
+//   verdeFechado   --accent-800       #00654A -> #8BF0D3    selo claro com
+//                                                           texto BRANCO
+//   sobreVerde     --text-on-accent   #2D2F33 -> #0C231D    (os dois escuros,
+//                                                            este não quebrou)
+//
+// No escuro `--neutral-0` deixa de ser branco e vira "superfície de cartão"
+// (#1A1D21), e `--accent-800` deixa de ser tinta sobre canvas claro e vira
+// tinta sobre canvas escuro. Os dois tokens estão certos; era o uso aqui que
+// estava errado, porque assumia o valor do tema claro.
+//
+// A REGRA desta paleta, então: só usar `var(--token)` para token que NÃO é
+// redefinido no bloco escuro do index.css. Hoje isso vale para `--accent-400`
+// e `--danger-400` (verificados). Todo o resto entra como hex fixo, porque num
+// fundo fixo a tinta também é fixa. Antes de trocar um hex daqui por um token,
+// conferir se ele aparece redefinido em `:root[data-theme="dark"]`.
+
 export const VENDA = {
   /** Os três níveis de profundidade do cartão preto. Ver a nota acima. */
   fundo: "#05080A",
   superficie: "#0C1115",
   superficie2: "#131A1E",
 
-  /** O emerald do sistema. 9,32:1 sobre superfície escura. */
+  /**
+   * O emerald do sistema. 9,32:1 sobre superfície escura.
+   *
+   * Este pode continuar sendo token: `--accent-400` é um dos poucos que NÃO é
+   * redefinido no tema escuro. Ver a nota "Token aqui só se não inverter".
+   */
   verde: "var(--accent-400)",
+
   /** Tinta sobre o emerald: charcoal, como manda a decisão D2. */
-  sobreVerde: "var(--text-on-accent)",
+  sobreVerde: "#2D2F33",
+
   /**
    * Verde fechado do selo da oferta, que leva texto BRANCO.
    *
    * Precisa ser mais escuro que o botão ao lado, senão os dois blocos verdes
    * competem. E branco sobre o emerald dá 1,85:1: o selo não teria saída sem
-   * um verde fechado. `--accent-800` dá 7,09:1.
+   * um verde fechado. 7,09:1.
    */
-  verdeFechado: "var(--accent-800)",
+  verdeFechado: "#00654A",
 
-  texto: "var(--neutral-0)",
-  textoSuave: "var(--neutral-300)",
+  texto: "#FFFFFF",
+  textoSuave: "#D5D5D5",
   textoFraco: "rgba(244, 246, 244, 0.38)",
   borda: "rgba(255, 255, 255, 0.15)",
   bordaSuave: "rgba(1, 216, 164, 0.20)",

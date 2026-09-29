@@ -706,7 +706,12 @@ export function OfertaDeContratacao({
           Duas janelas separadas fariam uma fechar e outra abrir no meio de uma
           decisão de compra, e cada troca dessas é uma chance de desistir. */}
       <Dialog open={!!confirmPlan} onOpenChange={v => { if (!v) fecharConfirmacao(); }}>
-        <DialogContent className="max-w-[400px] rounded-[8px] bg-white">
+        {/* Sem `bg-white`: o texto aqui é `text-foreground`, que no tema escuro é
+            claro -- branco sobre branco forçado. O padrão do DialogContent é
+            `bg-card`, que acompanha o tema, e é o que este diálogo precisa.
+            Ele NÃO é superfície de venda: é uma escolha operacional (à vista
+            ou parcelado), então segue o app e não a paleta VENDA. */}
+        <DialogContent className="max-w-[400px] rounded-[8px]">
           {confirmPlan && (() => {
             const plan = PLANS.find(p => p.key === confirmPlan)!;
             // Com desconto, como no cartão: se o diálogo mostrasse o preço
@@ -823,7 +828,7 @@ export function OfertaDeContratacao({
 
       {/* ── Sucesso ── */}
       <Dialog open={successOpen} onOpenChange={setSuccessOpen}>
-        <DialogContent className="max-w-[400px] rounded-[8px] bg-white text-center">
+        <DialogContent className="max-w-[400px] rounded-[8px] text-center">
           <div className="flex flex-col items-center py-4 gap-4">
             <div className="w-16 h-16 rounded-full bg-[color:var(--accent-50)] flex items-center justify-center">
               <CircleCheck size={36} className="fill-primary stroke-white" />
