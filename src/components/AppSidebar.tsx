@@ -9,7 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { useMensagensNaoLidas } from "@/hooks/useMensagensNaoLidas";
 import {
   ContactRound,
-  ChartPie,
+  LayoutDashboard,
   House,
   Workflow,
   Zap,
@@ -190,7 +190,7 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
     // quem acabou de chegar.
     { to: "/inicio", label: "Início", icon: House },
     ...(canAny("dashboard:admin", "dashboard:member")
-      ? [{ to: "/dashboard", label: "Dashboard", icon: ChartPie }] : []),
+      ? [{ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard }] : []),
     ...(canAny("pipelines:admin", "pipelines:member", "leads:admin", "leads:member", "leads:restricted", "leads:operator")
       ? [{ to: "/pipeline", label: "Pipelines", icon: Filter }] : []),
     ...(canAny("leads:admin", "leads:member", "leads:restricted", "leads:operator")
