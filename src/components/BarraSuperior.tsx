@@ -163,9 +163,21 @@ export function BarraSuperior() {
         barra e a mesma borda embaixo, então o traço atravessa a tela de ponta a
         ponta, sem emenda visível.
       */}
+      {/* O recuo da esquerda NÃO é um número escolhido: é a conta que centra um
+          logo de 30px na régua da barra lateral recolhida.
+
+              (--rail-w - 30) / 2  =  (55 - 30) / 2  =  12,5px
+
+          Com ela, a marca daqui cai no MESMO eixo vertical do logo da empresa
+          logo abaixo -- e, de quebra, no mesmo eixo dos ícones do menu, porque
+          a barra recolhida centra tudo nessa linha (medido: centro em 27px).
+
+          Escrito como `calc` e não como 12.5px de propósito: se a régua mudar
+          de largura, como mudou de 51 para 55 em 27/09/2026, o alinhamento
+          acompanha sozinho em vez de quebrar em silêncio. */}
       <header
-        className="flex items-center shrink-0 pl-4 pr-3 bg-[color:var(--surface-card)] border-b border-[color:var(--border-default)]"
-        style={{ height: "var(--topbar-h)" }}
+        className="flex items-center shrink-0 pr-3 bg-[color:var(--surface-card)] border-b border-[color:var(--border-default)]"
+        style={{ height: "var(--topbar-h)", paddingLeft: "calc((var(--rail-w) - 30px) / 2)" }}
       >
         {/* ── A marca do produto ─────────────────────────────────────────────
             Voltou para cá em 29/09/2026, a pedido do dono, e agora troca de
@@ -186,7 +198,7 @@ export function BarraSuperior() {
             src="/favicon.png?v=4"
             alt="Rezult"
             className="shrink-0 block object-cover"
-            style={{ width: 28, height: 28, borderRadius: 7 }}
+            style={{ width: 30, height: 30, borderRadius: 8 }}
           />
           <span className="text-[15px] tracking-tight whitespace-nowrap text-[color:var(--text-heading)]">
             <span className="font-semibold">Rezult</span> <span className="font-normal">CRM</span>

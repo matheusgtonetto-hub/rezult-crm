@@ -401,8 +401,17 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
             a reclamação do dono em 21/09 -- e é por isso que o lugar não é o
             mesmo nos dois estados. */}
         <div
-          className={`flex shrink-0 items-center ${recolhida ? "justify-center" : "px-4 justify-between gap-2"}`}
-          style={{ height: "var(--topbar-h)" }}
+          className={`flex shrink-0 items-center ${recolhida ? "justify-center" : "justify-between gap-2"}`}
+          /* Expandida, o recuo é o MESMO que centra o logo na régua recolhida:
+             (--rail-w - 30) / 2. Era `px-4`, e o logo pulava 4px para a direita
+             ao abrir a barra -- com a marca do produto fixa logo acima, o
+             desencontro ficava visível. À direita segue 16px, que é o respiro
+             da seta de recolher. */
+          style={{
+            height: "var(--topbar-h)",
+            paddingLeft: recolhida ? undefined : "calc((var(--rail-w) - 30px) / 2)",
+            paddingRight: recolhida ? undefined : 16,
+          }}
         >
           {/* ── A EMPRESA, e não mais a marca do produto ────────────────────
               Trocaram de lugar em 29/09/2026 (dono): a marca do produto subiu
