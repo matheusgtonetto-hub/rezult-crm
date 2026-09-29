@@ -15,6 +15,27 @@ import { OfertaDeContratacao } from "@/components/OfertaDeContratacao";
 const ONBOARDING_PATHS = ["/company-register", "/setup"];
 
 
+/**
+ * O piso de largura do conteúdo, em pixels.
+ *
+ * Mil porque é o que a tela mais apertada exige: o Multiatendimento tem
+ * 350px de lista + 350px de perfil do lead, e o chat entre os dois precisa de
+ * uns 300 para uma mensagem não virar uma palavra por linha.
+ *
+ * Não é um número de estilo, é um limite físico: abaixo dele as colunas se
+ * sobrepõem. Por isso vale para TODAS as telas, e não só para as de três
+ * colunas -- um piso único é o que torna previsível o que acontece ao estreitar
+ * a janela.
+ *
+ * Confira antes de subir: num notebook de 1280px com a barra lateral aberta
+ * (248px) sobram 1032px de conteúdo. Passar de mil faria esse notebook ganhar
+ * rolagem horizontal em toda tela, que é o oposto do que se quer.
+ *
+ * O `width=1100` do viewport, no index.html, deriva deste número. Os dois
+ * andam juntos.
+ */
+const LARGURA_MINIMA_DO_APP = 1000;
+
 export default function AppLayout() {
   const { crmLoading }                                                    = useCRM();
   const { company, companyLoading, isFreePlan, billingBlocked, motivoDoBloqueio, isTrialing } = useCompany();
@@ -193,7 +214,16 @@ export default function AppLayout() {
             flex: 1,
             minHeight: 0,
             overflowY: "auto",
-            overflowX: "hidden",
+            /*
+             * Era `hidden`, que CLIPAVA o que não coubesse: numa janela estreita
+             * a coluna da direita simplesmente sumia, sem rolagem para
+             * alcançá-la. Com `auto` o conteúdo continua acessível, arrastando.
+             *
+             * É o par do `minWidth` logo abaixo: um define o piso, o outro dá o
+             * caminho para ver o que passa dele. Sozinho, o `minWidth` só
+             * esconderia mais coisa.
+             */
+            overflowX: "auto",
             background: "hsl(var(--background))",
             /*
              * Sem borda e sem canto arredondado.
@@ -206,7 +236,24 @@ export default function AppLayout() {
             paddingBottom: reservaRodape ? BANNER_HEIGHT : 0,
           }}
         >
-          <div style={{ width: "100%", height: "100%", boxSizing: "border-box" }}>
+          {/*
+            O piso de largura do conteúdo.
+
+            Abaixo de mil pixels as telas de três colunas -- Multiatendimento é
+            a mais apertada, com 350 de lista + 350 de perfil + o chat --
+            deixam de caber e passam a se sobrepor. O `minWidth` troca esse
+            atropelo por rolagem horizontal: a informação continua inteira, e
+            quem está numa janela estreita arrasta em vez de perder metade da
+            tela.
+
+            Mora AQUI, e não no `<main>`: quem rola é o pai, e um `minWidth` no
+            próprio elemento que rola não empurra nada -- é o filho que precisa
+            ser mais largo que o pai para a barra aparecer.
+
+            O `width: 100%` continua: em tela larga ele manda, e o `minWidth` só
+            entra quando a janela encolhe além do limite.
+          */}
+          <div style={{ width: "100%", minWidth: LARGURA_MINIMA_DO_APP, height: "100%", boxSizing: "border-box" }}>
             <Outlet />
           </div>
         </div>

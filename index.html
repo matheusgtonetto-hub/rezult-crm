@@ -2,7 +2,30 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      Largura VIRTUAL de 1100px no celular, em vez de `width=device-width`.
+
+      Navegador de desktop IGNORA esta meta por completo: ela só tem efeito em
+      celular e tablet. Então trocá-la não muda nada no computador.
+
+      Por que trocar: com `device-width` o iPhone se declara com 390px e o app
+      tentava espremer nesses 390 um layout que precisa de mil e poucos -- as
+      colunas se atropelavam e a tela ficava ilegível. Com 1100, o celular monta
+      a página EXATAMENTE como o desktop e depois reduz tudo junto para caber na
+      tela. Nada se sobrepõe, e quem quiser ler dá uma pinça (o zoom continua
+      liberado, de propósito: sem ele isto viraria uma tela só de enfeite).
+
+      O número: 1100 = os 1000px de piso do conteúdo (ver LARGURA_MINIMA_DO_APP
+      em AppLayout.tsx) + os 55px da régua da barra lateral + folga. É o que
+      garante que no celular nenhuma tela chegue a precisar de rolagem
+      horizontal, porque o conteúdo já nasce acima do próprio piso.
+
+      Quando o Multiatendimento ganhar layout de uma coluna para celular, esta
+      meta precisa voltar a ser `device-width` NAQUELA rota -- senão o layout de
+      celular nunca será acionado, já que a página continuará se achando com
+      1100px de largura.
+    -->
+    <meta name="viewport" content="width=1100" />
     <title>Rezult CRM</title>
     <meta name="description" content="CRM simples para quem vende pelo WhatsApp" />
     <meta name="author" content="Rezult" />
