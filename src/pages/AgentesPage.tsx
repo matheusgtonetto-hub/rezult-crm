@@ -76,7 +76,8 @@ import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
 import { AgentActivationTagPicker } from "@/components/AgentActivationTagPicker";
 import { AgentTestChat } from "@/components/AgentTestChat";
-import { BaseDaEmpresa } from "@/components/BaseDaEmpresa";
+import { BaseDeConhecimento } from "@/components/BaseDeConhecimento";
+import { CAMPOS_DO_CONTEXTO, contextoPreenchido, type ContextoComercial } from "@/lib/contextoComercial";
 import { SaldoDeCreditos } from "@/components/SaldoDeCreditos";
 
 // Objetivo final do agente — múltipla escolha. Substitui o antigo seletor de
@@ -664,6 +665,8 @@ type Agent = {
   // Tag que liga este agente num negócio. O lead com essa tag no card é
   // atendido por ele. Única por empresa (índice no banco).
   activation_tag: string | null;
+  /** As perguntas sobre o negócio, por agente. Ver lib/contextoComercial. */
+  contexto_comercial: ContextoComercial | null;
   activated_at: string | null;
   active_seconds_total: number;
   // true enquanto o agente está sendo criado pelo wizard e ainda não foi
@@ -776,6 +779,13 @@ export default function AgentesPage() {
   const [memberCalendarEmail, setMemberCalendarEmail] = useState<Record<string, string>>({});
   const [closerAvailability, setCloserAvailability] = useState<Record<string, WorkDay[]>>({});
   const [docs, setDocs] = useState<KnowledgeDoc[]>([]);
+
+  /** As perguntas sobre o negócio, agora por agente (ver lib/contextoComercial). */
+  const [contextoDraft, setContextoDraft] = useState<ContextoComercial>({});
+
+  /** Documentos da EMPRESA e quais o agente aberto desativou. */
+  const [docsDaEmpresa, setDocsDaEmpresa] = useState<{ id: string; file_name: string; status: string; trechos: number }[]>([]);
+  const [docsDesativados, setDocsDesativados] = useState<Set<string>>(new Set());
   const [docSearch, setDocSearch] = useState("");
   const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
   const [kbSearch, setKbSearch] = useState("");
@@ -884,7 +894,7 @@ export default function AgentesPage() {
     setLoading(true);
     const [{ data: agentsData }, { data: aiProviders }, { data: membersData }, { data: automationsData }, { data: whatsappData }, { data: metaData }, { data: webhookData }] =
       await Promise.all([
-        supabase.from("agents").select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft, wizard_step").eq("company_id", companyId).order("created_at"),
+        supabase.from("agents").select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, contexto_comercial, activated_at, active_seconds_total, draft, wizard_step").eq("company_id", companyId).order("created_at"),
         // Via RPC, não lendo a tabela: ai_provider_keys é owner-only (o valor
         // da chave não pode vazar pros membros), então um membro lia zero
         // linhas e a tela dizia "cadastre sua chave" com a chave cadastrada.
@@ -977,6 +987,24 @@ export default function AgentesPage() {
     setEnabledToolsDraft(selected?.enabled_tools ?? []);
     setDescriptionDraft(selected?.description ?? "");
     setModelDraft(selected?.model ?? "");
+    setContextoDraft((selected?.contexto_comercial as ContextoComercial | null) ?? {});
+
+    /*
+     * Documentos da EMPRESA e quais este agente desativou.
+     *
+     * Carregado aqui, ao abrir o agente, e não junto da lista: a grade mostra
+     * dezenas de agentes e nenhuma delas precisa desta consulta.
+     */
+    void (async () => {
+      const [{ data: todos }, { data: desativados }] = await Promise.all([
+        supabase.rpc("documentos_da_empresa", { p_company_id: companyId }),
+        supabase.from("agente_documento_desativado").select("document_id").eq("agent_id", selectedId),
+      ]);
+      setDocsDaEmpresa(((todos ?? []) as { id: string; file_name: string; status: string; trechos: number }[])
+        .map(d => ({ ...d, trechos: Number(d.trechos) })));
+      setDocsDesativados(new Set(((desativados ?? []) as { document_id: string }[]).map(x => x.document_id)));
+    })();
+
     setDocSearch("");
     setKbSearch("");
     // Filtros de tela não são do agente, são de quem está olhando: trocar de
@@ -1252,7 +1280,7 @@ export default function AgentesPage() {
         enabled_tools: m.ferramentas,
         behavior_config: { ...BEHAVIOR_DEFAULTS, ...m.comportamento, modelo: chave },
       })
-      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft, wizard_step")
+      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, contexto_comercial, activated_at, active_seconds_total, draft, wizard_step")
       .single();
     if (error || !data) {
       toast.error(error?.code === "23505"
@@ -1306,7 +1334,7 @@ export default function AgentesPage() {
         // conversa, a menos que ele por acaso mexesse em algum toggle.
         behavior_config: BEHAVIOR_DEFAULTS,
       })
-      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft, wizard_step")
+      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, contexto_comercial, activated_at, active_seconds_total, draft, wizard_step")
       .single();
     if (error || !data) {
       // 23505 = unique_violation do índice (company_id, activation_tag).
@@ -1450,7 +1478,7 @@ export default function AgentesPage() {
         // configurado -- o que falta é uma tag, e o card resolve isso ali mesmo.
         draft: false,
       })
-      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, activated_at, active_seconds_total, draft, wizard_step")
+      .select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, contexto_comercial, activated_at, active_seconds_total, draft, wizard_step")
       .single();
     if (error || !data) { toast.error("Erro ao duplicar o agente"); return; }
     setAgents((prev) => [...prev, data]);
@@ -1809,6 +1837,15 @@ export default function AgentesPage() {
         model: modelDraft,
         description: descriptionDraft.trim() || null,
         custom_context: customContext,
+        // As perguntas sobre o negócio. Campos vazios saem do objeto em vez de
+        // virar string vazia: `contextoPreenchido` e o runner usam "tem texto?"
+        // como critério, e "" gravado seria indistinguível de respondido para
+        // quem lesse o jsonb cru.
+        contexto_comercial: Object.fromEntries(
+          CAMPOS_DO_CONTEXTO
+            .map((c) => [c.chave, String(contextoDraft[c.chave] ?? "").trim()])
+            .filter(([, v]) => v),
+        ),
       }).eq("id", selected.id).eq("company_id", companyId),
       ...(closerAdded.length ? [supabase.from("agent_closers").upsert(closerAdded.map((user_id) => ({ agent_id: selected.id, company_id: companyId, user_id })), { onConflict: "agent_id,user_id", ignoreDuplicates: true })] : []),
       ...(closerRemoved.length ? [supabase.from("agent_closers").delete().eq("agent_id", selected.id).in("user_id", closerRemoved)] : []),
@@ -1832,7 +1869,12 @@ export default function AgentesPage() {
       behavior_config: behaviorDraft,
       enabled_tools: enabledToolsDraft,
       model: modelDraft,
-      custom_context: customContext,
+custom_context: customContext,
+      contexto_comercial: Object.fromEntries(
+        CAMPOS_DO_CONTEXTO
+          .map((c) => [c.chave, String(contextoDraft[c.chave] ?? "").trim()])
+          .filter(([, v]) => v),
+      ),
     } : a)));
     setCloserIdsSaved(closerIds);
     setAgentWhatsappIdsSaved(agentWhatsappIds);
@@ -1853,6 +1895,20 @@ export default function AgentesPage() {
     modelDraft !== selected.model ||
     descriptionDraft !== (selected.description ?? "") ||
     customContext !== (selected.custom_context ?? "") ||
+    /*
+     * As perguntas sobre o negócio.
+     *
+     * Comparado por CHAVE e com `trim`, e não por JSON.stringify direto: o
+     * rascunho guarda o que está no campo, com os espaços e as chaves vazias
+     * que a digitação cria, e o salvo guarda só o que tem texto. Um
+     * `stringify` dos dois acusaria alteração em campo que a pessoa abriu,
+     * digitou e apagou -- deixando "Atualizar agente" aceso sem nada para
+     * atualizar.
+     */
+    CAMPOS_DO_CONTEXTO.some((c) =>
+      String(contextoDraft[c.chave] ?? "").trim() !==
+      String((selected.contexto_comercial ?? {})[c.chave] ?? "").trim()
+    ) ||
     JSON.stringify([...closerIds].sort()) !== JSON.stringify([...closerIdsSaved].sort()) ||
     JSON.stringify(closerAvailability) !== JSON.stringify(closerAvailabilitySaved) ||
     JSON.stringify([...agentWhatsappIds].sort()) !== JSON.stringify([...agentWhatsappIdsSaved].sort()) ||
@@ -2114,6 +2170,39 @@ export default function AgentesPage() {
     setKbModalStep("arquivos");
   }
 
+  /**
+   * Liga ou desliga um documento da empresa PARA ESTE AGENTE.
+   *
+   * Grava a EXCEÇÃO, não a inclusão: ligado é a ausência de linha. Foi a
+   * escolha feita na migration 20260928000002, e a razão é qual falha é pior --
+   * guardando inclusões, um documento novo não chegaria a agente nenhum até
+   * alguém marcar, e a pessoa subiria o arquivo, testaria, o agente diria que
+   * não sabe, e nada na tela explicaria.
+   *
+   * O estado da tela muda ANTES da ida ao banco e volta atrás se falhar: um
+   * switch que espera a rede para se mexer parece travado.
+   */
+  async function alternarDocumento(documentId: string, ligar: boolean) {
+    if (!selectedId || !companyId) return;
+    const anterior = new Set(docsDesativados);
+    setDocsDesativados((atual) => {
+      const proximo = new Set(atual);
+      if (ligar) proximo.delete(documentId); else proximo.add(documentId);
+      return proximo;
+    });
+
+    const { error } = ligar
+      ? await supabase.from("agente_documento_desativado").delete()
+          .eq("agent_id", selectedId).eq("document_id", documentId)
+      : await supabase.from("agente_documento_desativado")
+          .insert({ agent_id: selectedId, document_id: documentId, company_id: companyId });
+
+    if (error) {
+      setDocsDesativados(anterior);
+      toast.error("Não foi possível salvar. Tente de novo.");
+    }
+  }
+
   async function toggleKbEnabled(kb: KnowledgeBase, checked: boolean) {
     if (!companyId) return;
     const { error } = await supabase.from("agent_knowledge_bases").update({ enabled: checked }).eq("id", kb.id).eq("company_id", companyId);
@@ -2181,7 +2270,7 @@ export default function AgentesPage() {
               cartão era o mais alto -- e o de crédito ficava encostado. */}
           <div className="flex flex-col lg:flex-row items-stretch gap-4 mb-6 shrink-0">
             <div className="flex-1 min-w-0">
-              <BaseDaEmpresa companyId={companyId} userId={user?.id} />
+              <BaseDeConhecimento companyId={companyId} userId={user?.id} />
             </div>
             <div className="lg:w-[340px] lg:shrink-0">
               <SaldoDeCreditos companyId={companyId} />
@@ -2755,62 +2844,66 @@ export default function AgentesPage() {
                 </TabsContent>
 
                 {/* BASE DE CONHECIMENTO */}
-                <TabsContent value="kb" className="p-6 space-y-6 mt-0 flex-1 overflow-y-auto min-h-0 bg-[color:var(--neutral-50)]">
+                <TabsContent value="kb" className="p-6 space-y-4 mt-0 flex-1 overflow-y-auto min-h-0 bg-[color:var(--neutral-50)]">
+                  {/* ── A aba deixou de criar material e passou a ESCOLHER ────
+                      Antes, cada agente tinha as próprias bases e arquivos, e
+                      compartilhar exigia subir o mesmo arquivo de novo -- havia
+                      um `politicas.txt` duplicado nos dados reais, uma cópia por
+                      agente.
+
+                      Agora o material é da empresa, subido uma vez na Base de
+                      Conhecimento em /agentes, e aqui se decide o que ESTE
+                      agente lê (dono, 28/09/2026). */}
                   <div>
-                    <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Bases de Conhecimento</h3>
-                    <p className="text-[12px] text-[color:var(--text-muted)]">
-                      Gerencie as bases de conhecimento associadas a este agente para fornecer as informações que ele precisa para realizar suas tarefas.
+                    <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Base de Conhecimento</h3>
+                    <p className="text-[12px] text-[color:var(--text-muted)] leading-relaxed">
+                      Os materiais da empresa. Marque o que este agente deve consultar — por padrão ele usa todos.
+                      Para subir ou remover arquivos, use a Base de Conhecimento na tela de Agentes.
                     </p>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={kbSearch}
-                      onChange={(e) => setKbSearch(e.target.value)}
-                      placeholder="Buscar bases de conhecimento..."
-                      className="flex-1 focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-                    />
-                    <Button onClick={openCreateKbModal} >
-                      <Plus size={16} /> Adicionar Conhecimento
-                    </Button>
-                  </div>
+                  {docsDaEmpresa.length === 0 ? (
+                    <p className="text-[13px] text-[color:var(--text-muted)] text-center py-8">
+                      Nenhum material na Base de Conhecimento da empresa ainda.
+                    </p>
+                  ) : (
+                    <>
+                      {/* Nenhum marcado é estado válido e silencioso: o agente
+                          responde como se a empresa não tivesse material, sem
+                          nada na conversa explicando. Precisa estar na tela. */}
+                      {docsDaEmpresa.every((d) => docsDesativados.has(d.id)) && (
+                        <div className="flex items-start gap-2.5 p-3 rounded-[10px] bg-[color:var(--warning-bg)]">
+                          <AlertTriangle size={15} className="mt-0.5 shrink-0" style={{ color: "var(--warning-fg)" }} />
+                          <p className="text-[12px] leading-snug" style={{ color: "var(--warning-fg)" }}>
+                            Este agente não usa nenhum material. Ele vai responder sobre o negócio apenas com o que estiver na aba Instruções.
+                          </p>
+                        </div>
+                      )}
 
-                  <div className="space-y-2">
-                    {kbs
-                      .filter((k) => k.name.toLowerCase().includes(kbSearch.toLowerCase()))
-                      .map((kb) => {
-                        const fileCount = docs.filter((d) => d.knowledge_base_id === kb.id).length;
-                        return (
-                          <div
-                            key={kb.id}
-                            onClick={() => openEditKbModal(kb)}
-                            className="group flex items-center gap-3 p-3 bg-card border border-[color:var(--border-default)] rounded-lg hover:bg-[color:var(--neutral-50)] transition-colors cursor-pointer"
-                          >
-                            <div className="w-9 h-9 rounded-full bg-[color:var(--accent-100)] flex items-center justify-center text-[color:var(--text-link)] shrink-0">
-                              <BookOpen size={18} />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="text-[13px] font-medium text-[color:var(--text-heading)] truncate">{kb.name}</div>
-                              <div className="text-[12px] text-[color:var(--text-muted)] truncate">
-                                {kb.description || "Sem descrição"} · {fileCount} arquivo{fileCount === 1 ? "" : "s"}
+                      <div className="space-y-2">
+                        {docsDaEmpresa.map((doc) => {
+                          const ligado = !docsDesativados.has(doc.id);
+                          const mudo = doc.status === "ready" && doc.trechos === 0;
+                          return (
+                            <div key={doc.id} className="flex items-center gap-3 p-3 bg-card border border-card-border rounded-[10px]">
+                              <FileText size={16} className="shrink-0 text-[color:var(--text-muted)]" />
+                              <div className="flex-1 min-w-0">
+                                <p title={doc.file_name} className="text-[13px] font-medium text-[color:var(--text-heading)] truncate">{doc.file_name}</p>
+                                <p className="text-[12px] text-[color:var(--text-muted)]">
+                                  {mudo
+                                    ? "Processado sem conteúdo — não entrega nada ao agente"
+                                    : doc.status === "ready"
+                                      ? `${doc.trechos} trecho${doc.trechos === 1 ? "" : "s"}`
+                                      : "Ainda processando"}
+                                </p>
                               </div>
+                              <Switch checked={ligado} onCheckedChange={(v) => void alternarDocumento(doc.id, v)} />
                             </div>
-                            <div onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 shrink-0">
-                              <Switch checked={kb.enabled} onCheckedChange={(v) => toggleKbEnabled(kb, v)} />
-                              <button onClick={() => deleteKb(kb)} className="opacity-0 group-hover:opacity-100 text-[color:var(--text-muted)] hover:text-[color:var(--danger-fg)] transition-opacity">
-                                <X size={16} />
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    {kbs.length === 0 && (
-                      <p className="text-[12px] text-[color:var(--text-muted)] text-center py-6">Nenhuma base de conhecimento ainda</p>
-                    )}
-                    {kbs.length > 0 && kbs.filter((k) => k.name.toLowerCase().includes(kbSearch.toLowerCase())).length === 0 && (
-                      <p className="text-[12px] text-[color:var(--text-muted)] text-center py-6">Nenhuma base encontrada para "{kbSearch}"</p>
-                    )}
-                  </div>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
                 </TabsContent>
 
                 {/* COMPORTAMENTO */}
@@ -3924,6 +4017,47 @@ export default function AgentesPage() {
                       O que o agente precisa saber sobre a empresa e sobre como responder. Tom de voz, objetivos e
                       comportamento são configurados nas outras etapas, não aqui.
                     </p>
+                  </div>
+
+                  {/* ── As perguntas, como CAMPOS e não como texto livre ──────
+                      Vieram da Base da empresa em 28/09/2026, por agente: uma
+                      empresa pode ter um agente por produto, e aí "o que vende",
+                      "preço" e "objeções" mudam entre eles.
+
+                      Continuam sendo campos rotulados com contador, e não
+                      viraram mais um chip da caixa abaixo, por uma razão de
+                      preenchimento: campo com rótulo e progresso é respondido;
+                      caixa em branco fica vazia. E agente sem contexto responde
+                      mal, o que o cliente atribui ao produto e não ao campo que
+                      deixou em branco. */}
+                  <div className="bg-card border border-card-border rounded-2xl p-5 space-y-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h4 className="text-[13px] font-semibold text-[color:var(--text-heading)]">Sobre o negócio</h4>
+                        <p className="text-[12px] text-[color:var(--text-muted)]">
+                          O agente só afirma o que estiver aqui. O que ficar em branco ele não inventa.
+                        </p>
+                      </div>
+                      <span className="text-[12px] font-semibold tabular-nums shrink-0 text-[color:var(--text-body)]">
+                        {contextoPreenchido(contextoDraft)} de {CAMPOS_DO_CONTEXTO.length}
+                      </span>
+                    </div>
+
+                    {CAMPOS_DO_CONTEXTO.map((campo) => (
+                      <div key={campo.chave}>
+                        <Label htmlFor={`ctx-${campo.chave}`} className="text-[13px] font-semibold text-[color:var(--text-heading)]">
+                          {campo.pergunta}
+                        </Label>
+                        <Textarea
+                          id={`ctx-${campo.chave}`}
+                          rows={2}
+                          value={contextoDraft[campo.chave] ?? ""}
+                          onChange={(e) => setContextoDraft((c) => ({ ...c, [campo.chave]: e.target.value }))}
+                          placeholder={campo.exemplo}
+                          className="mt-1 text-[13px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
+                        />
+                      </div>
+                    ))}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">

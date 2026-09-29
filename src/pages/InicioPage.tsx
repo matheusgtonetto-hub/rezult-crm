@@ -5,7 +5,7 @@ import {
   BookOpen, Bot,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { respostasPreenchidas } from "@/components/BaseDaEmpresa";
+import { contextoPreenchido, type ContextoComercial } from "@/lib/contextoComercial";
 import { useCRM } from "@/context/CRMContext";
 import { useCompany } from "@/context/CompanyContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -414,17 +414,27 @@ export default function InicioPage() {
    * agentes que conversam saberem o que a empresa faz, vende e cobra. Exigir as
    * oito deixaria a missão pendurada por causa de "links" ou "objeções".
    */
+  /*
+   * O contexto do negócio saiu da empresa e foi para cada agente em
+   * 28/09/2026, então a pergunta mudou: não é mais "a empresa preencheu?", é
+   * "algum agente já sabe do que fala?".
+   *
+   * O MELHOR agente conta, não a soma nem a média. A trilha existe para dizer
+   * "você já tem um agente pronto", e um segundo agente vazio não desfaz isso.
+   */
   const [respostasDaBase, setRespostasDaBase] = useState(0);
   useEffect(() => {
     if (!company?.id) return;
     let cancelado = false;
     supabase
-      .from("company_knowledge_base")
-      .select("*")
+      .from("agents")
+      .select("contexto_comercial")
       .eq("company_id", company.id)
-      .maybeSingle()
       .then(({ data }) => {
-        if (!cancelado) setRespostasDaBase(respostasPreenchidas(data as Record<string, string> | null));
+        if (cancelado) return;
+        const melhor = ((data ?? []) as { contexto_comercial: ContextoComercial | null }[])
+          .reduce((max, a) => Math.max(max, contextoPreenchido(a.contexto_comercial)), 0);
+        setRespostasDaBase(melhor);
       });
     return () => { cancelado = true; };
   }, [company?.id]);
@@ -478,13 +488,13 @@ export default function InicioPage() {
         // Depois do Operacional: é o que os agentes que conversam (Atendente,
         // SDR, Closer) precisam para responder sobre o negócio.
         id: "base-da-empresa",
-        titulo: "Preencha a base da empresa",
-        descricao: "Conte o que a empresa faz, vende e cobra. É com isso que o Atendente e o SDR respondem os leads.",
+        titulo: "Conte ao agente sobre o negócio",
+        descricao: "Na aba Instruções do agente: o que a empresa faz, vende e cobra. É com isso que ele responde os leads.",
         para: "/agentes",
         pontos: 15,
         feita: respostasDaBase >= 4,
         Icone: BookOpen,
-        acao: { rotulo: "Preencher base", para: "/agentes" },
+        acao: { rotulo: "Preencher", para: "/agentes" },
       },
       {
         id: "pipeline",
