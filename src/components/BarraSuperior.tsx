@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { NavLink as RouterNavLink, useLocation, useNavigate } from "react-router-dom";
 import {
-  Bell, CalendarDays, ChevronRight, ChevronsUpDown, ExternalLink, GraduationCap, LogOut, Plus, UserCircle,
+  Bell, CalendarDays, ChevronRight, ChevronsUpDown, ExternalLink, GraduationCap, Headset, LogOut, Plus, UserCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
 import { useCompany } from "@/context/CompanyContext";
 import { supabase } from "@/lib/supabase";
+import { linkDoSuporte } from "@/lib/suporte";
 import { tintaSobre } from "@/lib/contraste";
 import { colorFromString, iniciais } from "@/lib/iniciais";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -213,6 +214,34 @@ export function BarraSuperior() {
             círculos de 30px lado a lado eles liam como um bloco só. */}
         <div className="flex items-center gap-[10px] shrink-0">
           {link("/calendario", "Agenda", CalendarDays)}
+
+          {/* ── Suporte (dono, 29/09/2026) ───────────────────────────────────
+              Leva para o WhatsApp do atendimento, com a mensagem já digitada.
+
+              É `<a>` e não o helper `link()`: aquele monta um RouterNavLink,
+              que trataria o endereço como rota interna do app e daria em tela
+              em branco. Por isso só as classes do botão são reaproveitadas.
+
+              Ícone de linha do lucide, e não a marca do WhatsApp: os quatro
+              botões desta fileira são o mesmo desenho neutro de 15px, e uma
+              arte verde no meio deles leria como anúncio. O destino aparece no
+              próprio WhatsApp, um clique depois.
+
+              `rel="noopener noreferrer"` porque `target="_blank"` dá à página
+              aberta uma referência de volta para esta (`window.opener`), e
+              esta é uma sessão autenticada. */}
+          {comDica(
+            "Suporte",
+            <a
+              href={linkDoSuporte()}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Suporte"
+              className={`${BOTAO} ${BOTAO_REPOUSO}`}
+            >
+              <Headset size={15} strokeWidth={1.75} />
+            </a>,
+          )}
 
           <Popover open={ajudaAberta} onOpenChange={setAjudaAberta}>
             {comDica(

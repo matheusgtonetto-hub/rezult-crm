@@ -5,6 +5,7 @@ import {
   BookOpen, Bot,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { linkDoSuporte } from "@/lib/suporte";
 import { contextoPreenchido, type ContextoComercial } from "@/lib/contextoComercial";
 import { useCRM } from "@/context/CRMContext";
 import { useCompany } from "@/context/CompanyContext";
@@ -68,18 +69,6 @@ interface Missao {
     arquivo?: "logo" | "foto";
   };
 }
-
-/**
- * WhatsApp do suporte, só dígitos, no formato que o wa.me espera.
- *
- * Em constante, e não escrito no meio do JSX: é um dado de negócio que muda
- * (número novo, atendimento por outro time) e quem for trocar precisa achá-lo
- * sem ler a tela inteira.
- */
-const WHATSAPP_SUPORTE = "554891160449";
-
-/** Mensagem que já vai digitada, para o atendente saber de onde veio o contato. */
-const MENSAGEM_SUPORTE = "Olá! Preciso de ajuda com o Rezult CRM.";
 
 /**
  * Verde do ícone do WhatsApp, tirado do próprio arquivo (a cor de 13.736 dos
@@ -932,7 +921,7 @@ export default function InicioPage() {
                 texto. */}
             <div className="mt-auto pt-4">
               <a
-                href={`https://wa.me/${WHATSAPP_SUPORTE}?text=${encodeURIComponent(MENSAGEM_SUPORTE)}`}
+                href={linkDoSuporte()}
                 target="_blank"
                 rel="noopener noreferrer"
                 // Cor no estilo, e não em classe: `bg-[#29A71A]` funcionaria,
