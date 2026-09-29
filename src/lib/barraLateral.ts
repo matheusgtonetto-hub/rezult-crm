@@ -3,7 +3,12 @@
 // `localStorage` porque é preferência de quem está olhando, não dado da
 // empresa: cada pessoa, em cada navegador, escolhe a sua. Leitura e escrita
 // dentro de try/catch -- em janela anônima ou com armazenamento bloqueado o
-// acesso lança erro, e aí a barra abre aberta, que é o padrão do design system.
+// acesso lança erro, e aí vale o padrão.
+//
+// O PADRÃO é RECOLHIDA (dono, 29/09/2026). Era aberta, e a diferença aparece
+// em quem entra pela primeira vez: a barra aberta come 248px da largura útil
+// antes de a pessoa ter escolhido qualquer coisa. Recolhida, ela come 55px, e
+// quem quiser os rótulos abre uma vez -- a escolha fica gravada.
 //
 // Mora aqui, e não no `AppLayout`, porque há dois lugares que desenham a barra:
 // o app de verdade e a réplica desfocada atrás da tela de planos
@@ -13,7 +18,16 @@
 const CHAVE = "rezult:barra-recolhida";
 
 export function lerBarraRecolhida(): boolean {
-  try { return localStorage.getItem(CHAVE) === "1"; } catch { return false; }
+  try {
+    const guardado = localStorage.getItem(CHAVE);
+    // AUSENTE é diferente de "0". Antes os dois caíam em `=== "1"` e viravam
+    // `false`, então quem nunca clicou e quem clicou para abrir eram tratados
+    // igual -- e não dava para mudar o padrão sem mexer em quem já escolheu.
+    // Agora ausente cai no padrão e "0" continua sendo a escolha de abrir.
+    return guardado === null ? true : guardado === "1";
+  } catch {
+    return true;
+  }
 }
 
 export function gravarBarraRecolhida(recolhida: boolean) {
