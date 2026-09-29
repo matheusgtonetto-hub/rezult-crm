@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { NavLink as RouterNavLink, useLocation, useNavigate } from "react-router-dom";
 import {
-  Bell, CalendarDays, ChevronRight, ChevronsUpDown, ExternalLink, GraduationCap, Headset, LogOut, Plus, UserCircle,
+  Bell, CalendarDays, ChevronRight, ChevronsUpDown, ExternalLink, GraduationCap, LogOut, Plus, UserCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -246,12 +246,11 @@ export function BarraSuperior() {
             target="_blank"
             rel="noopener noreferrer"
             className={
-              "inline-flex items-center gap-1.5 h-[30px] shrink-0 rounded-lg border border-transparent " +
+              "inline-flex items-center h-[30px] shrink-0 rounded-lg border border-transparent " +
               "bg-primary px-3 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 " +
               "outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]"
             }
           >
-            <Headset size={14} strokeWidth={2} />
             Suporte
           </a>
 
