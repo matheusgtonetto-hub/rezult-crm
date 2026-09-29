@@ -1057,7 +1057,25 @@ export default function MultiatendimentoPage() {
   const [qmSearch, setQmSearch]             = useState("");
 
   // ── mensagens rápidas ─────────────────────────────────────────────────
-  type QuickMessage = { id: string; title: string; shortcut: string | null; content: string };
+  //
+  // Deixaram de ser só texto em 29/09/2026 (dono): agora também arquivo e
+  // áudio. O `tipo` é o que manda -- ver a migration
+  // 20260929000002_mensagem_rapida_com_midia.sql para o porquê de ele ser uma
+  // coluna e não uma inferência a partir do que está preenchido.
+  type TipoDeMensagemRapida = "texto" | "arquivo" | "audio";
+  type QuickMessage = {
+    id: string;
+    title: string;
+    shortcut: string | null;
+    /** Obrigatório em texto; legenda opcional em arquivo; sempre nulo em áudio. */
+    content: string | null;
+    tipo: TipoDeMensagemRapida;
+    media_url: string | null;
+    media_nome: string | null;
+    media_mime: string | null;
+    /** Segundos. Sem isto o balão de nota de voz aparece como 00:00. */
+    media_duracao: number | null;
+  };
   const [qmList, setQmList]                 = useState<QuickMessage[]>([]);
   const [qmModalOpen, setQmModalOpen]       = useState(false);
   const [qmEditing, setQmEditing]           = useState<QuickMessage | null>(null);
@@ -1066,12 +1084,57 @@ export default function MultiatendimentoPage() {
   const [qmContent, setQmContent]           = useState("");
   const [qmSaving, setQmSaving]             = useState(false);
   const [qmPickerOpen, setQmPickerOpen]     = useState(false);
+  const [qmEnviando, setQmEnviando]         = useState(false);
+
+  const [qmTipo, setQmTipo]                 = useState<TipoDeMensagemRapida>("texto");
+  /** Arquivo/áudio ESCOLHIDO agora, ainda não salvo. */
+  const [qmArquivo, setQmArquivo]           = useState<File | null>(null);
+  const [qmAudio, setQmAudio]               = useState<{ blob: Blob; segundos: number } | null>(null);
+  /**
+   * Mídia que a mensagem JÁ tem, ao editar.
+   *
+   * Separada do que foi escolhido agora porque as duas respondem perguntas
+   * diferentes na hora de salvar: "preciso subir alguma coisa?" e "posso
+   * salvar?". Com um campo só, abrir uma mensagem de áudio para trocar o
+   * título apagaria o áudio.
+   */
+  const [qmMidiaSalva, setQmMidiaSalva]     = useState<Pick<QuickMessage, "media_url" | "media_nome" | "media_mime" | "media_duracao"> | null>(null);
+
+  const [qmGravando, setQmGravando]         = useState(false);
+  const [qmSegundos, setQmSegundos]         = useState(0);
+  const qmRecorderRef  = useRef<Recorder | null>(null);
+  const qmTimerRef     = useRef<ReturnType<typeof setInterval> | null>(null);
+  const qmSegundosRef  = useRef(0);
+  const qmFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  /**
+   * Endereço local para ouvir o áudio antes de salvar.
+   *
+   * Em `useMemo` com `revoke` na limpeza, e não montado direto no `src`:
+   * `createObjectURL` no meio do JSX roda a cada render e cada chamada registra
+   * um blob novo no navegador, que só é liberado com o `revoke`. Gravar, ouvir
+   * e regravar algumas vezes deixaria uma pilha deles presa na aba.
+   */
+  const qmAudioPreview = useMemo(() => (qmAudio ? URL.createObjectURL(qmAudio.blob) : null), [qmAudio]);
+  useEffect(() => () => { if (qmAudioPreview) URL.revokeObjectURL(qmAudioPreview); }, [qmAudioPreview]);
+
+  /** mm:ss, para o rótulo do áudio. */
+  const duracaoEmTexto = (segundos: number) =>
+    `${String(Math.floor(segundos / 60)).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}`;
+
+  /** O que aparece na prévia de uma linha da lista, seja qual for o tipo. */
+  const resumoDaMensagemRapida = (q: QuickMessage) =>
+    q.tipo === "audio"   ? `🎤 Áudio · ${duracaoEmTexto(q.media_duracao ?? 0)}`
+    : q.tipo === "arquivo" ? `📎 ${q.media_nome ?? "Arquivo"}${q.content ? ` — ${q.content}` : ""}`
+    : (q.content ?? "");
+
+  const CAMPOS_DA_MENSAGEM_RAPIDA = "id, title, shortcut, content, tipo, media_url, media_nome, media_mime, media_duracao";
 
   const loadQuickMessages = async () => {
     const oid = company?.owner_id;
     if (!oid) return;
     const { data } = await supabase.from("quick_messages")
-      .select("id, title, shortcut, content")
+      .select(CAMPOS_DA_MENSAGEM_RAPIDA)
       .eq("owner_id", oid)
       .order("created_at", { ascending: false });
     if (data) setQmList(data as QuickMessage[]);
@@ -1079,18 +1142,135 @@ export default function MultiatendimentoPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadQuickMessages(); }, [company?.owner_id]);
 
-  const openNewQuickMessage = () => { setQmEditing(null); setQmTitle(""); setQmShortcut(""); setQmContent(""); setQmModalOpen(true); };
-  const openEditQuickMessage = (q: QuickMessage) => { setQmEditing(q); setQmTitle(q.title); setQmShortcut(q.shortcut ?? ""); setQmContent(q.content); setQmModalOpen(true); };
+  /** Solta a gravação em curso sem salvar nada. Usado ao fechar o modal. */
+  const descartarGravacaoDaMensagemRapida = () => {
+    if (qmRecorderRef.current) { qmRecorderRef.current.stop(); qmRecorderRef.current = null; }
+    if (qmTimerRef.current) { clearInterval(qmTimerRef.current); qmTimerRef.current = null; }
+    qmSegundosRef.current = 0;
+    setQmGravando(false);
+    setQmSegundos(0);
+  };
+
+  const fecharModalDeMensagemRapida = () => {
+    if (qmSaving) return;
+    descartarGravacaoDaMensagemRapida();
+    setQmModalOpen(false);
+  };
+
+  const openNewQuickMessage = () => {
+    setQmEditing(null);
+    setQmTitle(""); setQmShortcut(""); setQmContent("");
+    setQmTipo("texto"); setQmArquivo(null); setQmAudio(null); setQmMidiaSalva(null);
+    descartarGravacaoDaMensagemRapida();
+    setQmModalOpen(true);
+  };
+
+  const openEditQuickMessage = (q: QuickMessage) => {
+    setQmEditing(q);
+    setQmTitle(q.title); setQmShortcut(q.shortcut ?? ""); setQmContent(q.content ?? "");
+    setQmTipo(q.tipo); setQmArquivo(null); setQmAudio(null);
+    setQmMidiaSalva(q.media_url ? { media_url: q.media_url, media_nome: q.media_nome, media_mime: q.media_mime, media_duracao: q.media_duracao } : null);
+    descartarGravacaoDaMensagemRapida();
+    setQmModalOpen(true);
+  };
+
+  // ── gravação dentro do modal ──────────────────────────────────────────
+  //
+  // Recorder próprio, e não o do rodapé do chat: aquele tem `ondataavailable`
+  // fixado em ENVIAR o áudio para a conversa aberta. Reaproveitá-lo aqui faria
+  // a gravação de uma mensagem rápida sair disparada para o contato.
+  //
+  // Ogg/Opus pelo mesmo motivo do chat: o WhatsApp aceita o WebM/Opus do
+  // MediaRecorder nativo, mas o app do destinatário recusa tocar.
+  const gravarAudioDaMensagemRapida = async () => {
+    if (!Recorder.isRecordingSupported()) {
+      toast.error("Seu navegador não suporta gravação de áudio. Envie um arquivo de áudio.");
+      return;
+    }
+    try {
+      const rec = new Recorder({ encoderPath: "/encoderWorker.min.js" });
+      rec.ondataavailable = arrayBuffer => {
+        setQmAudio({ blob: new Blob([arrayBuffer], { type: "audio/ogg" }), segundos: qmSegundosRef.current });
+      };
+      await rec.start();
+      qmRecorderRef.current = rec;
+      qmSegundosRef.current = 0;
+      setQmAudio(null);
+      setQmGravando(true);
+      setQmSegundos(0);
+      qmTimerRef.current = setInterval(() => {
+        qmSegundosRef.current += 1;
+        setQmSegundos(qmSegundosRef.current);
+      }, 1000);
+    } catch {
+      toast.error("Não foi possível acessar o microfone. Verifique as permissões.");
+    }
+  };
+
+  const pararGravacaoDaMensagemRapida = () => {
+    qmRecorderRef.current?.stop();
+    qmRecorderRef.current = null;
+    if (qmTimerRef.current) { clearInterval(qmTimerRef.current); qmTimerRef.current = null; }
+    setQmGravando(false);
+  };
 
   const saveQuickMessage = async () => {
     const oid = company?.owner_id;
-    if (!oid) return;
-    if (!qmTitle.trim() || !qmContent.trim()) { toast.error("Preencha o título e a mensagem."); return; }
+    if (!oid || !user) return;
+    if (!qmTitle.trim()) { toast.error("Preencha o título."); return; }
+
+    // Uma validação por tipo, espelhando a checagem do banco
+    // (quick_messages_conteudo_coerente). Aqui ela existe para dizer o que
+    // falta; lá, para impedir que falte.
+    if (qmTipo === "texto" && !qmContent.trim()) { toast.error("Escreva a mensagem."); return; }
+    if (qmTipo === "arquivo" && !qmArquivo && !qmMidiaSalva) { toast.error("Escolha o arquivo."); return; }
+    if (qmTipo === "audio" && !qmAudio && !qmMidiaSalva) { toast.error("Grave ou escolha o áudio."); return; }
+    if (qmGravando) { toast.error("Pare a gravação antes de salvar."); return; }
+
     setQmSaving(true);
+
+    // A mídia só sobe quando é NOVA. Trocar o título de uma mensagem de áudio
+    // não deve reenviar o arquivo nem gerar um segundo objeto no storage.
+    let midia = qmMidiaSalva;
+    const novoConteudo: Blob | File | null =
+      qmTipo === "arquivo" ? qmArquivo
+      : qmTipo === "audio" ? (qmAudio?.blob ?? null)
+      : null;
+
+    if (novoConteudo) {
+      const ehAudio = qmTipo === "audio";
+      const nome = ehAudio ? `audio-${Date.now()}.ogg` : (qmArquivo?.name ?? "arquivo");
+      const mime = ehAudio ? "audio/ogg" : (qmArquivo?.type || "application/octet-stream");
+      const nomeSeguro = nome.replace(/[^\w.-]+/g, "_");
+      const caminho = `${user.id}/mensagens-rapidas/${crypto.randomUUID()}-${nomeSeguro}`;
+      const { error: erroUpload } = await supabase.storage
+        .from("automation-media")
+        .upload(caminho, novoConteudo, { upsert: true, contentType: mime });
+      if (erroUpload) {
+        setQmSaving(false);
+        console.error("[mensagem rápida] upload:", erroUpload);
+        toast.error(`Não foi possível salvar o arquivo: ${erroUpload.message}`);
+        return;
+      }
+      midia = {
+        media_url: supabase.storage.from("automation-media").getPublicUrl(caminho).data.publicUrl,
+        media_nome: nome,
+        media_mime: mime,
+        media_duracao: ehAudio ? (qmAudio?.segundos ?? 0) : null,
+      };
+    }
+
     const payload = {
       title: qmTitle.trim(),
       shortcut: qmShortcut.trim() || null,
-      content: qmContent.trim(),
+      // Áudio não carrega texto. Gravar string vazia faria a prévia da lista
+      // mostrar uma linha em branco embaixo do título.
+      content: qmTipo === "audio" ? null : (qmContent.trim() || null),
+      tipo: qmTipo,
+      media_url:     qmTipo === "texto" ? null : midia?.media_url     ?? null,
+      media_nome:    qmTipo === "texto" ? null : midia?.media_nome    ?? null,
+      media_mime:    qmTipo === "texto" ? null : midia?.media_mime    ?? null,
+      media_duracao: qmTipo === "texto" ? null : midia?.media_duracao ?? null,
       owner_id: oid,
       company_id: company?.id ?? null,
       updated_at: new Date().toISOString(),
@@ -1099,7 +1279,7 @@ export default function MultiatendimentoPage() {
       ? await supabase.from("quick_messages").update(payload).eq("id", qmEditing.id)
       : await supabase.from("quick_messages").insert(payload);
     setQmSaving(false);
-    if (error) { toast.error("Erro ao salvar mensagem rápida."); return; }
+    if (error) { console.error("[mensagem rápida] salvar:", error); toast.error(`Erro ao salvar mensagem rápida: ${error.message}`); return; }
     toast.success(qmEditing ? "Mensagem rápida atualizada." : "Mensagem rápida criada.");
     setQmModalOpen(false);
     loadQuickMessages();
@@ -1112,9 +1292,47 @@ export default function MultiatendimentoPage() {
     setQmList(prev => prev.filter(x => x.id !== q.id));
   };
 
-  const insertQuickMessage = (q: QuickMessage) => {
-    setInputValue(prev => (prev.trim() ? `${prev.trimEnd()} ${q.content}` : q.content));
+  /**
+   * Usar uma mensagem rápida.
+   *
+   * Texto vai para o campo de digitação, como sempre foi: a pessoa ainda edita
+   * antes de mandar. Arquivo e áudio NÃO têm como caber num campo de texto,
+   * então saem direto -- e é por isso que o rótulo da linha muda de "inserir"
+   * para "enviar" nesses dois casos. Mandar sem confirmação é o mesmo que o
+   * clipe e o microfone do rodapé já fazem.
+   */
+  const usarMensagemRapida = async (q: QuickMessage) => {
     setQmPickerOpen(false);
+    if (q.tipo === "texto") {
+      const texto = q.content ?? "";
+      setInputValue(prev => (prev.trim() ? `${prev.trimEnd()} ${texto}` : texto));
+      return;
+    }
+    if (!q.media_url) { toast.error("Esta mensagem rápida está sem o arquivo."); return; }
+    if (qmEnviando) return;
+    setQmEnviando(true);
+    try {
+      // O conteúdo é baixado do nosso próprio storage porque a Z-API não aceita
+      // URL, só base64. Para Cloud API e D-API a URL bastaria, mas manter dois
+      // caminhos aqui duplicaria a diferença entre provedores, que é justamente
+      // o que `enviarArquivoWhatsapp` existe para concentrar.
+      const resposta = await fetch(q.media_url);
+      if (!resposta.ok) throw new Error(`não foi possível baixar o arquivo (${resposta.status})`);
+      const blob = await resposta.blob();
+      if (q.tipo === "audio") {
+        await sendAudioBlob(blob, q.media_duracao ?? 0, q.media_url);
+      } else {
+        const nome = q.media_nome ?? "arquivo";
+        await enviarArquivoNaConversa(
+          new File([blob], nome, { type: q.media_mime || blob.type || "application/octet-stream" }),
+          q.media_url,
+        );
+      }
+    } catch (e) {
+      toast.error(`Erro ao enviar a mensagem rápida: ${(e as Error).message}`);
+    } finally {
+      setQmEnviando(false);
+    }
   };
 
   // Autocomplete por atalho: enquanto o texto digitado for só um atalho (ex: "/ola"),
@@ -1126,7 +1344,15 @@ export default function MultiatendimentoPage() {
   }, [inputValue, qmList]);
 
   // Expande um atalho substituindo o texto digitado pelo conteúdo da mensagem.
-  const expandShortcut = (q: QuickMessage) => { setInputValue(q.content); };
+  //
+  // Em arquivo e áudio não há texto para substituir: o atalho some do campo e a
+  // mídia sai. Deixar o "/audio" digitado no campo depois do envio faria a
+  // próxima mensagem começar com ele.
+  const expandShortcut = (q: QuickMessage) => {
+    if (q.tipo === "texto") { setInputValue(q.content ?? ""); return; }
+    setInputValue("");
+    void usarMensagemRapida(q);
+  };
 
   // ── toolbar states ────────────────────────────────────────────────────
   const [showEmoji, setShowEmoji]         = useState(false);
@@ -2144,8 +2370,24 @@ export default function MultiatendimentoPage() {
 
   async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file || !activeId || !active || !user) return;
     e.target.value = "";
+    if (file) await enviarArquivoNaConversa(file);
+  }
+
+  /**
+   * Envia um arquivo na conversa aberta: bolha otimista, entrega pelo provedor,
+   * prévia na lista e gravação no histórico.
+   *
+   * Saiu de dentro do `handleFileSelect` quando as mensagens rápidas de arquivo
+   * apareceram. As duas fazem a MESMA coisa a partir do momento em que existe
+   * um `File` em mãos, e a diferença entre elas -- de onde o arquivo veio -- é
+   * só o `urlExistente`.
+   *
+   * `urlExistente` é o arquivo que já está no storage, no caso da mensagem
+   * rápida. Sem ele, cada disparo subiria de novo o mesmo conteúdo.
+   */
+  async function enviarArquivoNaConversa(file: File, urlExistente?: string | null) {
+    if (!activeId || !active || !user) return;
     if (billingBlocked) { emitBillingBlocked(); return; }
     const inst = instances.find(i => i.instanceId === selectedInstance);
     if (!inst?.token || !active.phone || active.phone === "—") {
@@ -2161,6 +2403,7 @@ export default function MultiatendimentoPage() {
         telefone: cleanPhone,
         conexao: inst,
         userId: user.id,
+        urlExistente,
       });
       if (avisoUpload) toast.error(`Falha ao salvar o arquivo (não será baixável no chat): ${avisoUpload}`);
       const msgId = crypto.randomUUID(); // mesmo id no otimista e no insert (dedupe realtime)
@@ -2242,7 +2485,11 @@ export default function MultiatendimentoPage() {
     setRecordingTime(0);
   }
 
-  async function sendAudioBlob(blob: Blob, durationSecs: number) {
+  /**
+   * `urlExistente`: áudio que já está no storage (mensagem rápida de áudio).
+   * Sem ele, reenviar a mesma saudação dez vezes gera dez cópias do arquivo.
+   */
+  async function sendAudioBlob(blob: Blob, durationSecs: number, urlExistente?: string | null) {
     if (!activeId || !active || !user) return;
     if (billingBlocked) { emitBillingBlocked(); return; }
     const inst = instances.find(i => i.instanceId === selectedInstance);
@@ -2255,8 +2502,8 @@ export default function MultiatendimentoPage() {
     toast.loading("Enviando áudio…", { id: "audio-send" });
     try {
       // Sobe o áudio para o storage → URL pública (reprodução no chat e histórico)
-      let mediaUrl: string | null = null;
-      try {
+      let mediaUrl: string | null = urlExistente ?? null;
+      if (!mediaUrl) try {
         const path = `${user.id}/audio-${Date.now()}.ogg`;
         const { error: upErr } = await supabase.storage.from("automation-media").upload(path, blob, { upsert: true, contentType: "audio/ogg" });
         if (!upErr) {
@@ -4621,7 +4868,7 @@ export default function MultiatendimentoPage() {
                             )}
                           </div>
                           <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.4 }}>
-                            Textos prontos seus. Vão para o campo de digitação e você edita antes de enviar.
+                            Respostas prontas suas. Texto vai para o campo de digitação e você edita antes de enviar; arquivo e áudio saem na hora.
                           </p>
                         </div>
                         <div style={{ height: 1, background: "var(--neutral-100)" }} />
@@ -4632,7 +4879,7 @@ export default function MultiatendimentoPage() {
                               Nenhuma mensagem rápida ainda.<br />Crie a primeira para responder o de sempre em um clique.
                             </div>
                           ) : qmList.map(q => (
-                            <button key={q.id} onClick={() => insertQuickMessage(q)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
+                            <button key={q.id} disabled={qmEnviando} onClick={() => void usarMensagemRapida(q)} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
                               onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
                               onMouseLeave={e => (e.currentTarget.style.background = "none")}
                             >
@@ -4640,7 +4887,7 @@ export default function MultiatendimentoPage() {
                                 <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
                                 {q.shortcut && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)", background: "var(--accent-50)", borderRadius: 6, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>}
                               </div>
-                              <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
+                              <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{resumoDaMensagemRapida(q)}</div>
                             </button>
                           ))}
                         </div>
@@ -4687,7 +4934,7 @@ export default function MultiatendimentoPage() {
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 8, position: "relative" }}>
                   {shortcutSuggestions.length > 0 && (
                     <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, width: 300, maxHeight: 220, overflowY: "auto", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 6 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 8px 6px" }}>Mensagens rápidas · Tab para inserir</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 8px 6px" }}>Mensagens rápidas · Tab para usar</div>
                       {shortcutSuggestions.map(q => (
                         <button key={q.id} onMouseDown={e => { e.preventDefault(); expandShortcut(q); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
                           onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
@@ -4697,7 +4944,7 @@ export default function MultiatendimentoPage() {
                             <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)", background: "var(--accent-50)", borderRadius: 6, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>
                             <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
                           </div>
-                          <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{q.content}</div>
+                          <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{resumoDaMensagemRapida(q)}</div>
                         </button>
                       ))}
                     </div>
@@ -6027,7 +6274,7 @@ export default function MultiatendimentoPage() {
                                   <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)" }}>{q.title}</span>
                                   {q.shortcut && <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)", background: "var(--accent-50)", borderRadius: 6, padding: "1px 7px" }}>{q.shortcut}</span>}
                                 </div>
-                                <div style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{q.content}</div>
+                                <div style={{ fontSize: 12, color: "var(--text-muted)", whiteSpace: "pre-wrap", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical" }}>{resumoDaMensagemRapida(q)}</div>
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                                 <button title="Editar" onClick={() => openEditQuickMessage(q)} style={{ background: "none", border: "none", cursor: "pointer", padding: 6, borderRadius: 8, display: "flex" }}><Pencil size={15} color="var(--text-subtle)" /></button>
@@ -6050,13 +6297,13 @@ export default function MultiatendimentoPage() {
       {/* ── MODAL: criar/editar mensagem rápida ──────────────────────── */}
       {qmModalOpen && (
         <div
-          onClick={() => !qmSaving && setQmModalOpen(false)}
+          onClick={fecharModalDeMensagemRapida}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center" }}
         >
           <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: 16, width: 440, boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
             <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{qmEditing ? "Editar mensagem rápida" : "Nova mensagem rápida"}</div>
-              <button onClick={() => !qmSaving && setQmModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="var(--text-subtle)" /></button>
+              <button onClick={fecharModalDeMensagemRapida} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="var(--text-subtle)" /></button>
             </div>
             <div style={{ padding: "18px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
@@ -6067,13 +6314,149 @@ export default function MultiatendimentoPage() {
                 <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Atalho <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(opcional)</span></label>
                 <input value={qmShortcut} onChange={e => setQmShortcut(e.target.value)} placeholder="Ex: /ola" style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "var(--text-heading)", outline: "none", boxSizing: "border-box" }} />
               </div>
+              {/* ── O que esta mensagem é (dono, 29/09/2026) ──────────────────
+                  Três estados excludentes, não três campos opcionais: a linha
+                  só pode ser uma coisa, e é isso que o banco cobra em
+                  `quick_messages_conteudo_coerente`. Em abas de opção, um
+                  arquivo escolhido e um texto digitado poderiam conviver na
+                  tela sem que nada dissesse qual dos dois seria enviado.
+
+                  Trocar de tipo NÃO limpa o que já foi preenchido nos outros:
+                  quem clica em Áudio por engano e volta para Texto encontra o
+                  texto onde deixou. O que é salvo sai do tipo ativo. */}
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Mensagem</label>
-                <textarea value={qmContent} onChange={e => setQmContent(e.target.value)} placeholder="Digite o conteúdo da mensagem..." rows={4} style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "var(--text-heading)", outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Tipo</label>
+                <div style={{ display: "flex", gap: 6, background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 10, padding: 4 }}>
+                  {([
+                    ["texto",   "Texto",   FileText],
+                    ["arquivo", "Arquivo", Paperclip],
+                    ["audio",   "Áudio",   Mic],
+                  ] as const).map(([valor, rotulo, Icone]) => {
+                    const ativo = qmTipo === valor;
+                    return (
+                      <button
+                        key={valor}
+                        type="button"
+                        onClick={() => setQmTipo(valor)}
+                        style={{
+                          flex: 1, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6,
+                          padding: "7px 0", borderRadius: 7, cursor: "pointer", fontSize: 12.5, fontWeight: 600,
+                          border: "1px solid " + (ativo ? "var(--border-accent)" : "transparent"),
+                          background: ativo ? "var(--surface-accent)" : "transparent",
+                          color: ativo ? "var(--text-on-accent)" : "var(--text-muted)",
+                        }}
+                      >
+                        <Icone size={14} /> {rotulo}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
+
+              {qmTipo === "texto" && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Mensagem</label>
+                  <textarea value={qmContent} onChange={e => setQmContent(e.target.value)} placeholder="Digite o conteúdo da mensagem..." rows={4} style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "var(--text-heading)", outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
+                </div>
+              )}
+
+              {qmTipo === "arquivo" && (
+                <>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Arquivo</label>
+                    {/* Os mesmos formatos do clipe do rodapé. Aceitar qualquer
+                        coisa aqui criaria mensagens rápidas que o provedor
+                        recusa na hora do envio, longe de onde foram criadas. */}
+                    <input
+                      ref={qmFileInputRef}
+                      type="file"
+                      accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx"
+                      style={{ display: "none" }}
+                      onChange={e => { const f = e.target.files?.[0]; e.target.value = ""; if (f) setQmArquivo(f); }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => qmFileInputRef.current?.click()}
+                      style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, border: "1.5px dashed var(--border-default)", background: "none", borderRadius: 10, padding: "12px 14px", cursor: "pointer", textAlign: "left" }}
+                    >
+                      <Paperclip size={16} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, color: qmArquivo || qmMidiaSalva ? "var(--text-heading)" : "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {qmArquivo?.name ?? qmMidiaSalva?.media_nome ?? "Escolher arquivo"}
+                      </span>
+                    </button>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Legenda <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(opcional)</span></label>
+                    <textarea value={qmContent} onChange={e => setQmContent(e.target.value)} placeholder="Texto que acompanha o arquivo..." rows={2} style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "var(--text-heading)", outline: "none", boxSizing: "border-box", resize: "vertical", fontFamily: "inherit" }} />
+                  </div>
+                </>
+              )}
+
+              {qmTipo === "audio" && (
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Áudio</label>
+                  <div style={{ border: "1.5px dashed var(--border-default)", borderRadius: 10, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+                    {qmGravando ? (
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <span style={{ width: 9, height: 9, borderRadius: "50%", background: "var(--danger-400)", flexShrink: 0 }} />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text-heading)", fontVariantNumeric: "tabular-nums" }}>{duracaoEmTexto(qmSegundos)}</span>
+                        <button type="button" onClick={pararGravacaoDaMensagemRapida} style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, background: "var(--surface-accent)", color: "var(--text-on-accent)", border: "none", borderRadius: 8, padding: "7px 12px", fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
+                          <span style={{ width: 9, height: 9, borderRadius: 2, background: "currentColor" }} /> Parar
+                        </button>
+                      </div>
+                    ) : (qmAudio || qmMidiaSalva) ? (
+                      <>
+                        {/* O áudio toca ANTES de salvar. Sem ouvir, a pessoa só
+                            descobre que gravou em silêncio, ou com o microfone
+                            errado, quando um cliente receber. */}
+                        <audio
+                          controls
+                          src={qmAudioPreview ?? qmMidiaSalva?.media_url ?? undefined}
+                          style={{ width: "100%", height: 34 }}
+                        />
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 12, color: "var(--text-muted)" }}>
+                            {duracaoEmTexto(qmAudio?.segundos ?? qmMidiaSalva?.media_duracao ?? 0)}
+                          </span>
+                          <button type="button" onClick={() => { setQmAudio(null); setQmMidiaSalva(null); }} style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "1px solid var(--border-default)", borderRadius: 8, padding: "6px 11px", fontSize: 12.5, fontWeight: 600, color: "var(--text-muted)", cursor: "pointer" }}>
+                            <Trash2 size={13} /> Descartar
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <button type="button" onClick={() => void gravarAudioDaMensagemRapida()} style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8, background: "var(--surface-accent)", color: "var(--text-on-accent)", border: "none", borderRadius: 8, padding: "9px 12px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+                          <Mic size={15} /> Gravar áudio
+                        </button>
+                        {/* A saída para quem está num navegador sem gravação, ou
+                            num computador sem microfone. Sem isto, o tipo Áudio
+                            seria um beco sem saída nessas máquinas. */}
+                        <button type="button" onClick={() => qmFileInputRef.current?.click()} style={{ background: "none", border: "none", padding: 0, fontSize: 12, color: "var(--text-muted)", cursor: "pointer", textDecoration: "underline" }}>
+                          ou enviar um arquivo de áudio
+                        </button>
+                        <input
+                          ref={qmFileInputRef}
+                          type="file"
+                          accept="audio/*"
+                          style={{ display: "none" }}
+                          onChange={e => {
+                            const f = e.target.files?.[0];
+                            e.target.value = "";
+                            // Duração 0: o arquivo escolhido não passa pelo
+                            // cronômetro da gravação. O balão mostra 00:00 até
+                            // o áudio tocar, e o WhatsApp lê a duração real do
+                            // próprio arquivo.
+                            if (f) setQmAudio({ blob: f, segundos: 0 });
+                          }}
+                        />
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
             <div style={{ padding: "14px 22px 18px", display: "flex", justifyContent: "flex-end", gap: 8 }}>
-              <button onClick={() => setQmModalOpen(false)} disabled={qmSaving} style={{ background: "none", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "var(--text-muted)", cursor: "pointer" }}>Cancelar</button>
+              <button onClick={fecharModalDeMensagemRapida} disabled={qmSaving} style={{ background: "none", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, color: "var(--text-muted)", cursor: "pointer" }}>Cancelar</button>
               <button onClick={saveQuickMessage} disabled={qmSaving} style={{ background: "var(--surface-accent)", border: "none", color: "var(--text-on-accent)", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: qmSaving ? "default" : "pointer", opacity: qmSaving ? 0.6 : 1 }}>{qmSaving ? "Salvando..." : "Salvar"}</button>
             </div>
           </div>

@@ -60,17 +60,30 @@ export async function enviarArquivoWhatsapp(params: {
   conexao: ConexaoWhatsapp;
   /** Usado só para montar o caminho no storage, separando por usuário. */
   userId: string;
+  /**
+   * URL pública de um arquivo que JÁ está no storage.
+   *
+   * Existe por causa das mensagens rápidas de arquivo: o arquivo subiu uma vez,
+   * quando a mensagem foi criada, e é o mesmo em todo envio. Sem isto, cada
+   * disparo faria um upload novo do mesmo conteúdo -- cem envios de um PDF de
+   * 2MB são 200MB de storage, num projeto cuja cota é 512MB.
+   *
+   * O `file` continua obrigatório mesmo assim: a Z-API não aceita URL, só
+   * base64, então o conteúdo precisa estar em mãos de qualquer jeito. O que
+   * esta opção evita é a ESCRITA, não a leitura.
+   */
+  urlExistente?: string | null;
 }): Promise<ResultadoEnvioArquivo> {
-  const { file, telefone, conexao, userId } = params;
+  const { file, telefone, conexao, userId, urlExistente } = params;
   const ehImagem = file.type.startsWith("image/");
   let idNoProvedor: string | null = null;
 
   // Storage primeiro. Sem isso a mensagem fica sem media_url e, ao recarregar a
   // conversa, o arquivo não pode mais ser baixado no chat -- ele só existiria
   // no WhatsApp do destinatário.
-  let mediaUrl: string | null = null;
+  let mediaUrl: string | null = urlExistente ?? null;
   let avisoUpload: string | undefined;
-  try {
+  if (!mediaUrl) try {
     const nomeSeguro = file.name.replace(/[^\w.-]+/g, "_");
     const caminho = `${userId}/file-${Date.now()}-${nomeSeguro}`;
     const { error: erroUpload } = await supabase.storage
