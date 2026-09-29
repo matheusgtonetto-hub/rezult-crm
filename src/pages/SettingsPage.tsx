@@ -161,7 +161,7 @@ export default function SettingsPage() {
 
           `overflow-hidden` porque o "Voltar" encosta no topo: o canto quadrado
           dele vazaria por cima do raio do cartão. */}
-      <aside className="w-[230px] ml-8 my-8 self-start max-h-[calc(100%-4rem)] bg-card border border-card-border rounded-2xl shadow-elev-1 overflow-hidden flex flex-col shrink-0">
+      <aside className="w-[230px] ml-5 my-8 self-start max-h-[calc(100%-4rem)] bg-card border border-card-border rounded-2xl shadow-elev-1 overflow-hidden flex flex-col shrink-0">
         <button
           onClick={() => navigate("/inicio")}
           className="flex items-center gap-2 text-[14px] text-muted-foreground hover:bg-muted px-4 py-3 border-b border-card-border"
