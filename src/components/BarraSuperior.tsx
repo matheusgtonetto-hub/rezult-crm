@@ -167,9 +167,33 @@ export function BarraSuperior() {
         className="flex items-center shrink-0 pl-4 pr-3 bg-[color:var(--surface-card)] border-b border-[color:var(--border-default)]"
         style={{ height: "var(--topbar-h)" }}
       >
-        {/* Nada à esquerda: a marca e a seta de recolher moram na barra
-            lateral (dono, 22/09/2026), e esta barra não carrega texto desde
-            21/09. O vão empurra as ferramentas para a direita. */}
+        {/* ── A marca do produto ─────────────────────────────────────────────
+            Voltou para cá em 29/09/2026, a pedido do dono, e agora troca de
+            lugar com a empresa: a marca do PRODUTO fica aqui, no topo, e o
+            logo da EMPRESA assumiu o alto da barra lateral, com o seletor.
+
+            É a separação certa: o topo diz onde você está (Rezult CRM, sempre
+            o mesmo), e a coluna da esquerda diz por qual empresa você está
+            olhando (muda, e é clicável).
+
+            Dois pesos na mesma palavra composta: "Rezult" em 600 e "CRM" em
+            400 (dono). O `tracking-tight` junta as duas o suficiente para
+            lerem como um nome e não como duas palavras soltas. */}
+        <span className="flex items-center gap-2.5 min-w-0">
+          {/* O MESMO arquivo do favicon, servido de public/: são a mesma marca,
+              e duas cópias significam trocar a arte em dois lugares. */}
+          <img
+            src="/favicon.png?v=4"
+            alt="Rezult"
+            className="shrink-0 block object-cover"
+            style={{ width: 28, height: 28, borderRadius: 7 }}
+          />
+          <span className="text-[15px] tracking-tight whitespace-nowrap text-[color:var(--text-heading)]">
+            <span className="font-semibold">Rezult</span> <span className="font-normal">CRM</span>
+          </span>
+        </span>
+
+        {/* O vão empurra as ferramentas para a direita. */}
         <div className="flex-1" />
 
         {/* ── Ferramentas ──────────────────────────────────────────────────── */}

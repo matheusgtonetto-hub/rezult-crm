@@ -2,6 +2,10 @@ import { Fragment, type ComponentType, type ReactNode } from "react";
 import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useProfile } from "@/context/ProfileContext";
+import { useCompany } from "@/context/CompanyContext";
+import { colorFromString, iniciais } from "@/lib/iniciais";
+import { tintaSobre } from "@/lib/contraste";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useMensagensNaoLidas } from "@/hooks/useMensagensNaoLidas";
 import {
   ContactRound,
@@ -14,7 +18,9 @@ import {
   Cog,
   ChevronsLeft,
   ChevronsRight,
+  ChevronsUpDown,
   Moon,
+  Plus,
   Sun,
 } from "lucide-react";
 import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
@@ -127,6 +133,7 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
   const { pathname } = useLocation();
   const { canAny } = usePermissions();
   const { tema, alternarTema } = useProfile();
+  const { company, availableCompanies, setSelectedCompany } = useCompany();
   /*
    * As não lidas do Multiatendimento.
    *
@@ -397,21 +404,74 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
           className={`flex shrink-0 items-center ${recolhida ? "justify-center" : "px-4 justify-between gap-2"}`}
           style={{ height: "var(--topbar-h)" }}
         >
-          <span className="flex items-center gap-2.5 min-w-0">
-            {/* O MESMO arquivo do favicon, servido de public/: são a mesma
-                marca, e duas cópias significam trocar a arte em dois lugares. */}
-            <img
-              src="/favicon.png?v=4"
-              alt="Rezult"
-              className="shrink-0 block object-cover"
-              style={{ width: 30, height: 30, borderRadius: 8 }}
-            />
-            {!recolhida && (
-              <span className="text-sm font-semibold text-[color:var(--text-heading)] truncate whitespace-nowrap">
-                Rezult CRM
-              </span>
-            )}
-          </span>
+          {/* ── A EMPRESA, e não mais a marca do produto ────────────────────
+              Trocaram de lugar em 29/09/2026 (dono): a marca do produto subiu
+              para a barra superior e aqui entrou o logo da empresa, clicável
+              para trocar -- como era antes de 19/09.
+
+              A divisão que isso desenha: o topo diz onde você está (sempre
+              Rezult CRM) e esta coluna diz por qual empresa você está olhando.
+              Só o segundo muda, e só o segundo é clicável. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Empresa: ${company?.name ?? "—"}. Clique para trocar`}
+                title={company?.name ?? undefined}
+                className="flex items-center gap-2.5 min-w-0 rounded-lg outline-none cursor-pointer
+                           hover:opacity-80 transition-opacity focus-visible:ring-2 focus-visible:ring-[color:var(--border-accent)]"
+              >
+                <span
+                  className="shrink-0 flex items-center justify-center overflow-hidden text-[12px] font-bold"
+                  style={{
+                    width: 30, height: 30, borderRadius: 8,
+                    // Sem logo, a inicial sobre uma cor derivada do nome. A
+                    // tinta vem de `tintaSobre` porque a cor sorteada pode ser
+                    // clara: texto branco fixo reprovaria o contraste em parte
+                    // da paleta.
+                    background: company?.logo_url ? "transparent" : colorFromString(company?.name ?? "R"),
+                    color: tintaSobre(colorFromString(company?.name ?? "R")),
+                  }}
+                >
+                  {company?.logo_url
+                    ? <img src={company.logo_url} alt="" className="w-full h-full object-cover" />
+                    : iniciais(company?.name ?? "R")}
+                </span>
+                {!recolhida && (
+                  <span className="flex items-center gap-1 min-w-0">
+                    <span className="text-sm font-semibold text-[color:var(--text-heading)] truncate whitespace-nowrap">
+                      {company?.name ?? "—"}
+                    </span>
+                    <ChevronsUpDown size={13} className="shrink-0 text-[color:var(--icon-default)]" />
+                  </span>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-56">
+              {availableCompanies
+                .filter((c) => c.id !== company?.id)
+                .map((c) => (
+                  <DropdownMenuItem key={c.id} onClick={() => setSelectedCompany(c)} className="cursor-pointer">
+                    <span
+                      className="w-4 h-4 rounded flex items-center justify-center text-[12px] font-bold overflow-hidden shrink-0 mr-2"
+                      style={{ background: c.logo_url ? "transparent" : colorFromString(c.name), color: tintaSobre(colorFromString(c.name)) }}
+                    >
+                      {c.logo_url ? <img src={c.logo_url} alt="" className="w-full h-full object-cover" /> : iniciais(c.name)}
+                    </span>
+                    <span className="truncate">{c.name}</span>
+                  </DropdownMenuItem>
+                ))}
+              {/* Com uma empresa só, a lista acima fica vazia e o menu teria
+                  apenas "Adicionar empresa". A régua separaria de nada, então
+                  só aparece quando há para onde trocar. */}
+              {availableCompanies.filter((c) => c.id !== company?.id).length > 0 && <DropdownMenuSeparator />}
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <a href="/company-register">
+                  <Plus size={14} className="mr-2" /> Adicionar empresa
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           {!recolhida && botaoDeRecolher}
         </div>
 
