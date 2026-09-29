@@ -2232,7 +2232,17 @@ custom_context: customContext,
     // 30 nas laterais e embaixo. Estava em `p-6`, 24 dos quatro lados, e o
     // título nascia 16px mais alto que o das vizinhas -- diferença pequena que
     // aparece na hora de alternar entre as abas.
-    <div className="pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto h-full flex flex-col">
+    /* ── A altura é condicional, e é isso que decide QUEM rola ─────────────
+       GRADE: sem `h-full`, o conteúdo cresce e quem rola é a área do layout,
+       que já tem `overflow-y: auto`. A página inteira desliza, com o cartão de
+       boas-vindas e o da Base junto (dono, 29/09/2026).
+
+       DETALHE: com `h-full flex flex-col`, porque o painel do agente usa
+       `flex-1 min-h-0` para se esticar e deixar SÓ o conteúdo da aba rolar,
+       mantendo a navegação das etapas e o botão de salvar sempre à vista. Sem
+       altura limitada aqui, aquele `flex-1` não teria contra o que medir e o
+       botão sairia da tela nas etapas longas. */
+    <div className={`pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto ${view === "grid" ? "" : "h-full flex flex-col"}`}>
       {view === "grid" ? (
         <>
           {/*
@@ -2292,7 +2302,10 @@ custom_context: customContext,
               </Button>
             </div>
           ) : (
-            <div className="grid gap-4 overflow-y-auto" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
+            // Sem `overflow-y-auto`: a rolagem é da página. Aqui dentro, ela
+            // cortava os cartões numa faixa e escondia o rodapé com o botão de
+            // editar e o switch.
+            <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
               {/* O Operacional vem primeiro: é o que já está pronto para ligar. */}
               {[...agents].sort((x, y) => Number(y.type === TIPO_OPERACIONAL) - Number(x.type === TIPO_OPERACIONAL)).map((a) => a.type === TIPO_OPERACIONAL ? (
                 <CardAgenteOperacional
