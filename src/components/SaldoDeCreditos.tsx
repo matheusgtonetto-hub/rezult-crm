@@ -76,6 +76,23 @@ const JANELAS = [
 const inteiro = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 });
 
 /*
+ * ─── Por que o consumo tem casas decimais e o saldo não (29/09/2026) ────────
+ *
+ * O débito parou de arredondar para cima: a busca na Base de Conhecimento
+ * custa 0,06 crédito de verdade, e cobrar 1 era até 85x o custo real. Só que
+ * agora uma linha do Consumo pode somar 2,64 créditos, e `inteiro` a mostraria
+ * como "3" -- ou, pior, uma linha de 0,4 apareceria como "0" ao lado de 44
+ * chamadas, o que se lê como defeito da tela e não como um valor pequeno.
+ *
+ * Então a regra é por GRANDEZA, não por coluna: abaixo de 10 créditos as casas
+ * decimais são a informação; acima delas são ruído, e o alinhamento da coluna
+ * vale mais. O saldo continua inteiro porque ninguém precisa do centésimo de
+ * crédito num número de cinco dígitos.
+ */
+const doisDecimais = new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const creditos = (v: number) => (v > 0 && v < 10 ? doisDecimais : inteiro).format(v);
+
+/*
  * ─── Ida e volta do dólar na tela (25/09/2026) ──────────────────────────────
  *
  * O saldo chegou a aparecer em dólar do que foi pago, e voltou para crédito no
@@ -545,7 +562,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                               Rezult vê créditos, quem usa a própria chave vê o
                               dólar que o fornecedor vai cobrar dele. */}
                           <td className="py-2 text-right tabular-nums font-medium text-foreground">
-                            {temConta ? inteiro.format(l.creditos) : dolarFino.format(l.custo_usd)}
+                            {temConta ? creditos(l.creditos) : dolarFino.format(l.custo_usd)}
                           </td>
                         </tr>
                       ))}
@@ -556,7 +573,7 @@ export function SaldoDeCreditos({ companyId }: { companyId?: string }) {
                         </td>
                         <td className="py-2 text-right tabular-nums font-semibold text-foreground">
                           {temConta
-                            ? inteiro.format(consumo.reduce((s, l) => s + l.creditos, 0))
+                            ? creditos(consumo.reduce((s, l) => s + l.creditos, 0))
                             : dolarFino.format(consumo.reduce((s, l) => s + l.custo_usd, 0))}
                         </td>
                       </tr>
