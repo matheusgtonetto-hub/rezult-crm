@@ -139,15 +139,36 @@ export default function SettingsPage() {
 
   return (
     <div className="flex h-[var(--altura-util)] bg-background">
-      {/* Sidebar */}
-      <aside className="w-[230px] bg-card border-r border-card-border flex flex-col shrink-0">
+      {/* ─── A barra de seções, flutuante (dono, 29/09/2026) ──────────────────
+          Era uma coluna colada na borda esquerda com `border-r`, sem raio e sem
+          sombra: lia-se como parte do chrome do app, e não como conteúdo da
+          tela. Agora usa a MESMA formatação do `Card` que desenha todo bloco
+          dentro das abas -- `bg-card`, `border`, `rounded-2xl`, `shadow-elev-1`
+          -- então /configuracoes passa a ser cartões sobre o fundo, sem um
+          elemento com regra própria.
+
+          `self-start` em vez de esticar até embaixo: cartão que flutua termina
+          onde a lista termina. Esticado, ele viraria uma coluna vazia com canto
+          arredondado no rodapé, que é o que se estava tentando sair.
+
+          `max-h-[calc(100%-4rem)]` são as mesmas 4rem que `my-8` tira em cima e
+          embaixo. É o que devolve o scroll interno da lista em tela baixa: sem
+          ele o cartão cresceria além da janela e as últimas seções ficariam
+          inalcançáveis, porque quem rola aqui é a `nav`, não a página.
+
+          `min-h-0` na nav porque item de flex não encolhe abaixo do conteúdo
+          por padrão -- sem ele o `overflow-y-auto` nunca chega a agir.
+
+          `overflow-hidden` porque o "Voltar" encosta no topo: o canto quadrado
+          dele vazaria por cima do raio do cartão. */}
+      <aside className="w-[230px] ml-8 my-8 self-start max-h-[calc(100%-4rem)] bg-card border border-card-border rounded-2xl shadow-elev-1 overflow-hidden flex flex-col shrink-0">
         <button
           onClick={() => navigate("/inicio")}
           className="flex items-center gap-2 text-[14px] text-muted-foreground hover:bg-muted px-4 py-3 border-b border-card-border"
         >
           <ArrowLeft size={14} /> Voltar
         </button>
-        <nav className="flex-1 overflow-y-auto py-2 space-y-[3px]">
+        <nav className="flex-1 min-h-0 overflow-y-auto py-2 space-y-[3px]">
           {visibleSections.map(s => {
             const isActive = active === s.id;
             return (
