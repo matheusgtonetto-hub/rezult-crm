@@ -292,7 +292,16 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
   return (
     <TooltipProvider delayDuration={200}>
 
-      {/* Cabeçalho do perfil */}
+      {/* ─── Um cartão só para a aba (dono, 29/09/2026) ───────────────────
+          O cabeçalho (foto, nome, e-mail, Sair) era um cartão separado logo
+          acima de "Informações". Eram dois cartões dizendo a mesma coisa sobre
+          a mesma pessoa, com um vão entre eles -- e o de cima não tinha ação
+          nenhuma além do Sair.
+
+          Unidos, o separador é o MESMO `hr` que já divide Informações de
+          Preferências e de Imagem de perfil dentro deste cartão. Não é um
+          padrão novo: é o cabeçalho passando a ser o primeiro bloco da pilha
+          que já existia. */}
       <Card>
         <div className="flex items-start gap-4">
           <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center text-[color:var(--text-on-accent)] text-2xl font-semibold shrink-0 overflow-hidden">
@@ -317,10 +326,9 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
             Sair
           </Button>
         </div>
-      </Card>
 
-      {/* Card único: Informações + Preferências + Imagem de perfil */}
-      <Card>
+        <hr className="border-card-border my-[30px]" />
+
         {/* Informações */}
         <SectionTitle title="Informações" subtitle="Suas informações de cadastro e login" />
         <div className="grid grid-cols-2 gap-4">
@@ -689,8 +697,21 @@ function EmpresaSection() {
   return (
     <>
 
-      {/* Cabeçalho da empresa */}
-      <Card className="!p-4">
+      {/* ─── Um cartão só para a aba (dono, 29/09/2026) ───────────────────
+          Mesmo caso do Meu perfil: o cabeçalho (logo, nome, nicho, data) era um
+          cartão separado logo acima de "Informações", falando da mesma empresa
+          que o formulário logo abaixo edita.
+
+          Saiu o `!p-4`: dentro do cartão único o cabeçalho passa a usar o mesmo
+          `p-6` do resto, senão a primeira faixa teria um respiro menor que
+          todas as outras do cartão.
+
+          O `isFullAdmin` continua guardando exatamente o que guardava -- o
+          formulário, não o cabeçalho. Na prática ele é sempre verdadeiro aqui,
+          porque "empresa" está em FULL_ADMIN_SECTIONS e a seção nem aparece no
+          menu para os demais, mas remover a guarda ao unir os cartões seria
+          apagar uma regra de acesso de passagem. */}
+      <Card>
         <div className="flex items-start gap-3">
           <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-[color:var(--text-on-accent)] text-xl font-semibold shrink-0 overflow-hidden">
             {company?.logo_url
@@ -722,7 +743,6 @@ function EmpresaSection() {
             </div>
           </div>
         </div>
-      </Card>
 
       {/* A Equipe saiu daqui para uma seção própria no menu lateral: era uma aba
           dentro de uma aba, escondida atrás de um par de botões que só aparecia
@@ -730,8 +750,8 @@ function EmpresaSection() {
           uma tela. Restou a informação da empresa, sem abas. */}
       {isFullAdmin && <>
 
-      {/* Card único com todas as informações */}
-      <Card>
+        <hr className="border-card-border my-[30px]" />
+
         {/* Informações principais */}
         <SectionTitle title="Informações" subtitle="Principais informações sobre sua empresa" />
         <div className="grid grid-cols-2 gap-4">
@@ -873,9 +893,9 @@ function EmpresaSection() {
             {saving ? "Salvando..." : "Salvar"}
           </Button>
         </div>
-      </Card>
 
       </>}
+      </Card>
 
       {/* Zona de perigo — Excluir empresa (somente admin master / dono) */}
       {isOwner && (
@@ -2185,17 +2205,23 @@ function PlanosSection() {
 
   return (
     <>
-      {/* Cabeçalho */}
-      <Card className="!p-0 overflow-hidden">
-        {/*
-          As duas metades viram uma sobre a outra abaixo de 768px. Em coluna, o
-          traço que as separa precisa ser HORIZONTAL: o vertical de 1px, deitado
-          numa pilha, viraria um risquinho solto entre os dois blocos. Por isso
-          são dois divisores, cada um aparecendo na sua direção.
-        */}
+      {/* ─── Um cartão só para a aba (dono, 29/09/2026) ───────────────────
+          Mesmo caso do Meu perfil e da Empresa: o cabeçalho era um cartão
+          separado logo acima do plano atual.
+
+          Aqui ele tinha `!p-0` com respiro próprio (px-5, 25px em cima e
+          embaixo) porque o divisor vertical entre as duas metades precisava
+          encostar nas bordas do cartão. Dentro do cartão único quem dá o
+          respiro é o `p-6` dele, então as medidas manuais saem e cada metade
+          fica com um `md:pr-5`/`md:pl-5` só para não colar no divisor.
+
+          Os DOIS divisores continuam: o vertical some abaixo de 768px, onde as
+          metades viram uma pilha e um traço de 1px deitado seria um risquinho
+          solto; o horizontal aparece exatamente aí. */}
+      <Card>
         <div className="flex flex-col md:flex-row md:items-stretch">
           {/* Lado esquerdo */}
-          <div className="flex flex-col justify-center w-full md:w-1/2 px-5" style={{ paddingTop: 25, paddingBottom: 25 }}>
+          <div className="flex flex-col justify-center w-full md:w-1/2 md:pr-5">
             <div className="flex items-center gap-2 mb-0.5">
               <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <CreditCard size={15} className="text-primary" />
@@ -2206,12 +2232,12 @@ function PlanosSection() {
           </div>
 
           {/* Divisor: vertical lado a lado, horizontal empilhado */}
-          <div className="hidden md:block w-px bg-border self-stretch my-4" />
-          <div className="md:hidden h-px bg-border mx-5" />
+          <div className="hidden md:block w-px bg-border self-stretch" />
+          <div className="md:hidden h-px bg-border my-4" />
 
           {/* Lado direito */}
           {company && (
-            <div className="flex flex-col justify-center w-full md:w-1/2 px-5" style={{ paddingTop: 25, paddingBottom: 25 }}>
+            <div className="flex flex-col justify-center w-full md:w-1/2 md:pl-5">
               <p className="text-[12px] font-normal text-muted-foreground uppercase tracking-widest mb-2">Empresa</p>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-[color:var(--text-on-accent)] text-sm font-bold overflow-hidden shrink-0">
@@ -2229,10 +2255,9 @@ function PlanosSection() {
             </div>
           )}
         </div>
-      </Card>
 
-      {/* Plano atual + Benefícios + Uso — bloco único */}
-      <Card>
+        <hr className="border-card-border my-[30px]" />
+
         {/* Plano atual */}
         <div className="flex items-start justify-between gap-4 mb-5">
           <div>
