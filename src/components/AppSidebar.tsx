@@ -141,6 +141,29 @@ const OVERLINE =
 const RESPIRO_DA_SETA = 3;
 const ALTURA_DA_SETA = 20 + RESPIRO_DA_SETA * 2;
 
+/**
+ * O espaço ANTES do bloco da seta, com a barra recolhida.
+ *
+ * Sem ele a seta nascia colada na barra superior: media ao vivo em 29/09/2026
+ * deu 3px entre a régua do topo e o ícone -- e os 3px eram só o respiro de
+ * dentro do próprio bloco, não uma folga.
+ *
+ * O valor iguala a folga que já existia ABAIXO da seta, entre ela e o logo da
+ * empresa (12px): 9 aqui mais os 3 do respiro fecham os mesmos 12. A seta fica
+ * centrada entre as duas coisas em vez de encostada numa delas.
+ */
+const MARGEM_ACIMA_DA_SETA = 12 - RESPIRO_DA_SETA;
+
+/**
+ * O espaço TOTAL que a seta ocupa quando a barra está recolhida.
+ *
+ * É esta soma, e não a altura do ícone, que o vão abaixo da marca precisa
+ * devolver quando a barra abre -- senão o menu pula ao alternar. Existe como
+ * uma constante só para não haver duas parcelas que alguém possa atualizar
+ * pela metade, que foi o erro cometido mais cedo hoje.
+ */
+const ESPACO_DA_SETA = MARGEM_ACIMA_DA_SETA + ALTURA_DA_SETA;
+
 /** O espaço entre a marca e o primeiro item do menu. */
 const VAO_ANTES_DO_MENU = 12;
 
@@ -425,7 +448,12 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
         {recolhida && (
           <div
             className="shrink-0 flex items-center justify-center"
-            style={{ height: ALTURA_DA_SETA, paddingTop: RESPIRO_DA_SETA, paddingBottom: RESPIRO_DA_SETA }}
+            style={{
+              height: ALTURA_DA_SETA,
+              marginTop: MARGEM_ACIMA_DA_SETA,
+              paddingTop: RESPIRO_DA_SETA,
+              paddingBottom: RESPIRO_DA_SETA,
+            }}
           >
             {botaoDeRecolher}
           </div>
@@ -540,8 +568,8 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
           porque é ele que COMPENSA a altura dela: onde a seta não está, este
           bloco cresce exatamente o que ela ocuparia.
 
-              recolhida   ALTURA_DA_SETA + marca +              VAO
-              expandida               0  + marca + ALTURA_DA_SETA + VAO
+              recolhida   ESPACO_DA_SETA + marca +              VAO
+              expandida               0  + marca + ESPACO_DA_SETA + VAO
 
           A conta é feita pelo código, e não à mão, porque à mão ela já saiu
           errada: na primeira tentativa a seta entrou em cima e este bloco ficou
@@ -553,7 +581,7 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
           barra já tem duas linhas por perto, a da superior rente ao topo e a
           da direita.
         */}
-        <div className="shrink-0" style={{ height: recolhida ? 0 : ALTURA_DA_SETA, marginBottom: VAO_ANTES_DO_MENU }} />
+        <div className="shrink-0" style={{ height: recolhida ? 0 : ESPACO_DA_SETA, marginBottom: VAO_ANTES_DO_MENU }} />
 
         {/* ── Menu: as telas de trabalho. A única parte que rola. ──────────────
             Os itens ficam no TOPO, logo abaixo da marca. Centrá-los na altura
