@@ -129,6 +129,21 @@ const REGUA_BASE = "shrink-0 h-px bg-[color:var(--border-default)]";
 const OVERLINE =
   "block px-3 pt-1 pb-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-[color:var(--text-muted)] whitespace-nowrap";
 
+/**
+ * A altura do bloco da seta de recolher, e o respiro dentro dele.
+ *
+ * Existem como constantes porque DUAS partes do layout dependem delas: o bloco
+ * da seta, que só aparece com a barra recolhida, e o vão abaixo da marca, que
+ * cresce exatamente o mesmo tanto quando ela não está. Com os números soltos no
+ * JSX, mexer num e esquecer o outro faz o menu pular ao alternar a barra -- e
+ * foi o que aconteceu em 29/09/2026.
+ */
+const RESPIRO_DA_SETA = 3;
+const ALTURA_DA_SETA = 20 + RESPIRO_DA_SETA * 2;
+
+/** O espaço entre a marca e o primeiro item do menu. */
+const VAO_ANTES_DO_MENU = 12;
+
 export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAlternar: () => void }) {
   const { pathname } = useLocation();
   const { canAny } = usePermissions();
@@ -400,6 +415,22 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
             da barra fechada ela empurraria a marca para fora do centro, que foi
             a reclamação do dono em 21/09 -- e é por isso que o lugar não é o
             mesmo nos dois estados. */}
+        {/* Recolhida, a seta fica ACIMA do logo da empresa (dono, 29/09/2026).
+            Expandida, ela segue no fim da linha da marca, depois do nome.
+
+            Os dois lugares existem porque na régua de 55px a seta ao LADO do
+            logo empurraria a marca para fora do centro -- foi a reclamação do
+            dono em 21/09, e é a mesma razão de antes, só que agora o destino é
+            em cima e não embaixo. */}
+        {recolhida && (
+          <div
+            className="shrink-0 flex items-center justify-center"
+            style={{ height: ALTURA_DA_SETA, paddingTop: RESPIRO_DA_SETA, paddingBottom: RESPIRO_DA_SETA }}
+          >
+            {botaoDeRecolher}
+          </div>
+        )}
+
         <div
           className={`flex shrink-0 items-center ${recolhida ? "justify-center" : "justify-between gap-2"}`}
           /* Expandida, o recuo é o MESMO que centra o logo na régua recolhida:
@@ -484,24 +515,45 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
           {!recolhida && botaoDeRecolher}
         </div>
 
-        {/*
-          O lugar da seta quando a barra está RECOLHIDA.
-
-          O bloco existe nos dois estados, com a mesma altura, mesmo aberto --
-          quando a seta sobe para o cabeçalho, aqui fica o vão (pedido do dono
-          em 22/09/2026). Sem isso o menu inteiro subiria 32px ao abrir a barra
-          e desceria ao fechar, e os ícones dançariam a cada clique.
-
-          Sem régua: a linha que já ficou aqui saiu, e a separação entre a
-          assinatura e a navegação passou a ser o espaço. A barra já tem duas
-          linhas por perto, a da superior rente ao topo e a da direita.
-        */}
+        {/* A régua abaixo do logo da empresa (dono, 29/09/2026).
+            Recuada dos dois lados, e não de borda a borda: o recuo é o MESMO
+            que posiciona o logo, então a linha começa exatamente onde ele
+            começa em vez de cortar a barra inteira. `flex` não a encolhe. */}
         <div
-          className="shrink-0 flex items-center justify-center"
-          style={{ height: 20, marginBottom: 12 }}
-        >
-          {recolhida && botaoDeRecolher}
-        </div>
+          className="shrink-0 border-t border-[color:var(--border-default)]"
+          style={{
+            marginLeft: "calc((var(--rail-w) - 30px) / 2)",
+            marginRight: "calc((var(--rail-w) - 30px) / 2)",
+          }}
+        />
+
+        {/*
+          O vão que sobrou embaixo.
+
+          O bloco existe nos DOIS estados, com a mesma altura, mesmo vazio.
+          Somado ao cabeçalho, ele mantém 80px acima do menu independente do
+          estado -- sem isso os ícones subiriam 32px ao abrir a barra e
+          desceriam ao fechar, dançando a cada clique (dono, 22/09/2026).
+
+          A seta saiu daqui em 29/09/2026: com a barra recolhida ela passou a
+          ficar ACIMA do logo da empresa, a pedido do dono. Este bloco continua
+          porque é ele que COMPENSA a altura dela: onde a seta não está, este
+          bloco cresce exatamente o que ela ocuparia.
+
+              recolhida   ALTURA_DA_SETA + marca +              VAO
+              expandida               0  + marca + ALTURA_DA_SETA + VAO
+
+          A conta é feita pelo código, e não à mão, porque à mão ela já saiu
+          errada: na primeira tentativa a seta entrou em cima e este bloco ficou
+          com 32px nos dois estados, somando 112 contra 80 -- o menu pularia
+          32px a cada clique. Agora mudar a altura da seta ajusta os dois lados
+          sozinho.
+
+          Sem régua: a separação entre a assinatura e a navegação é o espaço. A
+          barra já tem duas linhas por perto, a da superior rente ao topo e a
+          da direita.
+        */}
+        <div className="shrink-0" style={{ height: recolhida ? 0 : ALTURA_DA_SETA, marginBottom: VAO_ANTES_DO_MENU }} />
 
         {/* ── Menu: as telas de trabalho. A única parte que rola. ──────────────
             Os itens ficam no TOPO, logo abaixo da marca. Centrá-los na altura
