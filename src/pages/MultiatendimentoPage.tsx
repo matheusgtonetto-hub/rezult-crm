@@ -536,6 +536,18 @@ function DealValueField({ value, onSave }: { value: number; onSave: (v: number) 
 }
 
 /* ── main page ─────────────────────────────────────────────────────────── */
+/**
+ * O respiro em volta do cartão do chat.
+ *
+ * Em constante porque aparece em dois lugares que precisam concordar: o
+ * `padding` da coluna e a explicação de quanto os painéis do rodapé perdem de
+ * headroom ao serem recortados pelo cartão. Doze, e não os 20px da barra de
+ * /configuracoes: ali o cartão flutua sobre o canvas vazio, aqui ele fica
+ * espremido entre duas colunas de 350px, e um vão maior comeria largura útil
+ * de leitura das mensagens.
+ */
+const GAP_DO_CHAT = 12;
+
 export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const { company, whatsappConnections, whatsappConnectionsLoaded, billingBlocked } = useCompany();
@@ -3990,8 +4002,40 @@ export default function MultiatendimentoPage() {
         </div>
       </aside>
 
-      {/* ── COLUNA 2 — CHAT ──────────────────────────────────────────── */}
-      <section style={{ flex: 1, display: "flex", flexDirection: "column", height: "var(--altura-util)", background: "hsl(var(--background))", minWidth: 0 }}>
+      {/* ── COLUNA 2 — CHAT ──────────────────────────────────────────────────
+          Flutuante desde 29/09/2026 (dono). A coluna do meio ia de encosto a
+          encosto, colada nas duas laterais, e o chat lia como fundo da tela em
+          vez de peça sobre ela.
+
+          A `<section>` deixou de desenhar e virou só o respiro: ela continua
+          sendo o filho de flex que ocupa a largura restante, e o cartão dentro
+          dela é que leva borda, raio e sombra. Foi o caminho menos invasivo --
+          a alternativa era pôr as medidas na própria section, e aí o
+          `height: var(--altura-util)` mais a margem estouraria a altura da
+          janela.
+
+          `overflow: hidden` é o que faz o raio valer para o cabeçalho e para o
+          rodapé, que são opacos e encostam nas quatro quinas. O preço é que os
+          painéis do rodapé (emojis, arquivos, modelos) passam a ser recortados
+          no topo do cartão em vez de no topo da tela: todos abrem para CIMA,
+          para dentro da área de mensagens, então perdem os 12px do
+          respiro e nada mais.
+
+          `minHeight: 0` no cartão porque ele é filho de flex em coluna: sem
+          isso ele não encolhe abaixo do conteúdo, e a área de mensagens, que
+          rola por dentro, empurraria o rodapé para fora da tela. */}
+      <section style={{ flex: 1, display: "flex", flexDirection: "column", height: "var(--altura-util)", background: "hsl(var(--background))", minWidth: 0, padding: GAP_DO_CHAT }}>
+        <div style={{
+          flex: 1,
+          minHeight: 0,
+          display: "flex",
+          flexDirection: "column",
+          background: "var(--surface-card)",
+          border: "1px solid var(--border-default)",
+          borderRadius: 16,
+          boxShadow: "var(--shadow-elevated-1)",
+          overflow: "hidden",
+        }}>
         {active && cs ? (
           <>
             {/* header */}
@@ -4704,6 +4748,7 @@ export default function MultiatendimentoPage() {
             <div style={{ fontSize: 12, fontWeight: 400, fontFamily: "Inter", color: "var(--text-heading)" }}>Escolha um contato à esquerda para iniciar o atendimento</div>
           </div>
         )}
+        </div>
       </section>
 
       {/* Seletor de destino do encaminhar. Lista as conversas com busca, em vez
