@@ -213,11 +213,13 @@ export function BarraSuperior() {
         {/* 10px entre os botões (dono, 21/09/2026). Eram 6px, e com os
             círculos de 30px lado a lado eles liam como um bloco só. */}
         <div className="flex items-center gap-[10px] shrink-0">
-          {link("/calendario", "Agenda", CalendarDays)}
-
-          {/* ── Suporte (dono, 29/09/2026) ───────────────────────────────────
+          {/* ── Suporte, primeiro da fileira (dono, 29/09/2026) ──────────────
               Leva para o WhatsApp do atendimento em aba nova, com a mensagem
               já digitada.
+
+              Fica À ESQUERDA da Agenda, encostado no vão que separa a marca
+              das ferramentas: é o único botão com rótulo, e no meio da
+              fileira ele partiria os círculos em dois grupos.
 
               Botão com RÓTULO, no molde do "Ligar agente" da tela inicial
               (`classeDoBotao`, InicioPage): emerald sólido, 12px semibold,
@@ -252,6 +254,8 @@ export function BarraSuperior() {
             <Headset size={14} strokeWidth={2} />
             Suporte
           </a>
+
+          {link("/calendario", "Agenda", CalendarDays)}
 
           <Popover open={ajudaAberta} onOpenChange={setAjudaAberta}>
             {comDica(
