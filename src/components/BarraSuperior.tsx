@@ -216,32 +216,42 @@ export function BarraSuperior() {
           {link("/calendario", "Agenda", CalendarDays)}
 
           {/* ── Suporte (dono, 29/09/2026) ───────────────────────────────────
-              Leva para o WhatsApp do atendimento, com a mensagem já digitada.
+              Leva para o WhatsApp do atendimento em aba nova, com a mensagem
+              já digitada.
 
-              É `<a>` e não o helper `link()`: aquele monta um RouterNavLink,
-              que trataria o endereço como rota interna do app e daria em tela
-              em branco. Por isso só as classes do botão são reaproveitadas.
+              Botão com RÓTULO, no molde do "Ligar agente" da tela inicial
+              (`classeDoBotao`, InicioPage): emerald sólido, 12px semibold,
+              `rounded-lg`. Primeiro ele saiu como círculo de ícone igual aos
+              vizinhos, e o dono pediu botão de verdade -- faz sentido, porque
+              os outros quatro são ferramentas do app e este manda a pessoa
+              para fora, falar com gente. O rótulo é o que diz isso antes do
+              clique; um ícone só dependeria da dica passando o mouse.
 
-              Ícone de linha do lucide, e não a marca do WhatsApp: os quatro
-              botões desta fileira são o mesmo desenho neutro de 15px, e uma
-              arte verde no meio deles leria como anúncio. O destino aparece no
-              próprio WhatsApp, um clique depois.
+              As classes estão escritas aqui e não importadas do `classeDoBotao`
+              porque aquele helper carrega `mt-3` (ele vive numa lista de
+              tarefas empilhada) e não tem altura fixa. Aqui os 30px são o que
+              alinha o botão com os círculos ao lado.
+
+              É `<a>` e não o helper `link()` da barra: aquele monta um
+              RouterNavLink, que trataria o wa.me como rota interna do app e
+              daria tela em branco.
 
               `rel="noopener noreferrer"` porque `target="_blank"` dá à página
               aberta uma referência de volta para esta (`window.opener`), e
               esta é uma sessão autenticada. */}
-          {comDica(
-            "Suporte",
-            <a
-              href={linkDoSuporte()}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Suporte"
-              className={`${BOTAO} ${BOTAO_REPOUSO}`}
-            >
-              <Headset size={15} strokeWidth={1.75} />
-            </a>,
-          )}
+          <a
+            href={linkDoSuporte()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={
+              "inline-flex items-center gap-1.5 h-[30px] shrink-0 rounded-lg border border-transparent " +
+              "bg-primary px-3 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 " +
+              "outline-none focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]"
+            }
+          >
+            <Headset size={14} strokeWidth={2} />
+            Suporte
+          </a>
 
           <Popover open={ajudaAberta} onOpenChange={setAjudaAberta}>
             {comDica(
