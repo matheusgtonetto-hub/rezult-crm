@@ -8,6 +8,7 @@ import { tintaSobre } from "@/lib/contraste";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useMensagensNaoLidas } from "@/hooks/useMensagensNaoLidas";
 import {
+  CalendarDays,
   ContactRound,
   LayoutDashboard,
   House,
@@ -227,6 +228,11 @@ export function AppSidebar({ recolhida, aoAlternar, sobreposta = false, aberta =
     // Leads, no meio das telas do funil.
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
       ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: CrmWhatsAppIcon, contador: naoLidas }] : []),
+    // Só na gaveta: a Agenda mora na barra SUPERIOR, e lá ela sai no celular
+    // para a faixa de 390px parar de amontoar tudo num bloco só. Entra aqui
+    // para não ficar inalcançável -- tirar da barra sem devolver em algum lugar
+    // seria perder a tela, não economizar espaço.
+    ...(sobreposta ? [{ to: "/calendario", label: "Agenda", icon: CalendarDays }] : []),
   ];
 
   /** A dica com o nome de uma tela, só com a barra recolhida. */

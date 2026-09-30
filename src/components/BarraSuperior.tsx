@@ -275,9 +275,18 @@ export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?:
             Suporte
           </a>
 
-          {link("/calendario", "Agenda", CalendarDays)}
+          {/* Agenda e Tutoriais saem no modo compacto (celular).
+              Em 390px a faixa levava hambúrguer + logo + Suporte + três ícones
+              + avatar, e sobravam 22px de vão entre o logo e as ferramentas:
+              tudo lia como um bloco só, colado. Estes dois são os menos usados
+              da fileira e os únicos com destino fixo, então são os que podem
+              mudar de lugar sem perder nada.
 
-          <Popover open={ajudaAberta} onOpenChange={setAjudaAberta}>
+              A Agenda entra na GAVETA do menu (ver AppSidebar). Os Tutoriais
+              seguem acessíveis pelo mesmo endereço que este popover abre. */}
+          {!compacta && link("/calendario", "Agenda", CalendarDays)}
+
+          {!compacta && <Popover open={ajudaAberta} onOpenChange={setAjudaAberta}>
             {comDica(
               "Tutoriais",
               <PopoverTrigger asChild>
@@ -310,7 +319,7 @@ export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?:
                 </div>
               </a>
             </PopoverContent>
-          </Popover>
+          </Popover>}
 
           <Popover open={notifAberto} onOpenChange={setNotifAberto}>
             {comDica(
