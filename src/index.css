@@ -543,9 +543,6 @@
   .glow-rz {
     animation: rzShine 4s ease-in-out infinite;
   }
-  .chat-watermark-badge {
-    animation: chatWatermarkPulse 3.2s ease-in-out infinite;
-  }
 }
 
 /* Sombra do botão principal do site (`.btn-primary` em rezult-site/styles.css).
@@ -645,11 +642,6 @@
   0%, 100% { opacity: 1; transform: scale(1); }
   50%      { opacity: 0.5; transform: scale(0.85); }
 }
-@keyframes chatWatermarkPulse {
-  0%, 100%  { box-shadow: 0 0 18px 6px rgba(16, 185, 129, 0.10); }
-  50%       { box-shadow: 0 0 34px 16px rgba(16, 185, 129, 0.24); }
-}
-
 @layer base {
   * {
     @apply border-border;

@@ -4613,12 +4613,15 @@ export default function MultiatendimentoPage() {
 
             {/* mensagens */}
             <div style={{ position: "relative", flex: 1, overflow: "hidden", display: "flex", flexDirection: "column", background: "var(--neutral-25)" }}>
-              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 0 }}>
-                <div className="chat-watermark-badge" style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(16,185,129,0.05)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, fontWeight: 800, letterSpacing: -0.5, color: "rgba(16,185,129,0.32)" }}>
-                  RZ
-                </div>
-              </div>
-              <div data-lista-mensagens style={{ position: "relative", zIndex: 1, flex: 1, overflowY: "auto", padding: 16 }}>
+              {/* Saiu daqui a marca d'água "RZ" que pulsava no centro da
+                  conversa (dono, 29/09/2026).
+
+                  O `zIndex: 1` desta lista foi junto: ele existia só para as
+                  mensagens ficarem por cima do selo. Sem o selo, ele criava um
+                  contexto de empilhamento sem nada para empilhar, e é desse
+                  tipo de resto que nasce um popover que some sem explicação
+                  meses depois. */}
+              <div data-lista-mensagens style={{ position: "relative", flex: 1, overflowY: "auto", padding: 16 }}>
               {cs.messages.length === 0 && (
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 8 }}>
                   <p style={{ fontSize: 18, fontWeight: 700, fontFamily: "Inter", color: "var(--text-heading)" }}>Conversas</p>
