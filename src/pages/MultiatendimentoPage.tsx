@@ -29,7 +29,7 @@ import {
   Filter, Eye, Check, MoreHorizontal, Paperclip, Calendar as CalendarIcon, FolderOpen,
   Smile, Mic, Sparkles, ExternalLink, ChevronDown, CheckCheck, FileText, Reply, Copy, Ban, Forward, CornerUpLeft,
   MessageSquare, MessageCircle, Plus, ArrowLeft, ArrowRight, ChevronRight, Tag, Send, X, UserPlus, ImageIcon, List, CalendarDays, UserCheck,
-  Download, Pencil, Trash2, Inbox, RefreshCw, BotMessageSquare,
+  Download, Pencil, Trash2, Inbox, RefreshCw, BotMessageSquare, UserCircle,
   StickyNote, Phone, Mail, Bold, Italic, Underline, ListOrdered,
   type LucideIcon,
 } from "lucide-react";
@@ -45,6 +45,7 @@ import { normalizarTelefoneBr, somenteDigitos, telefonesIguais, variantesDeTelef
 import { previewLabelFor } from "@/lib/conversas";
 import { EMOJIS } from "@/lib/emojis";
 import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
+import { useTelaDeCelular } from "@/lib/telaDeCelular";
 import { apagarMensagemWhatsapp } from "@/lib/apagarMensagemWhatsapp";
 import { sendWa, type ZapiCreds, type WaMsg } from "@/lib/enviarWhatsapp";
 import { extrairIdDaResposta, descreverResposta } from "@/lib/respostaEnvio";
@@ -547,6 +548,19 @@ function DealValueField({ value, onSave }: { value: number; onSave: (v: number) 
  * de leitura das mensagens.
  */
 const GAP_DO_CHAT = 12;
+
+/**
+ * O teto de largura de todo diálogo desta tela.
+ *
+ * Os cartões têm largura fixa (380, 440, 860) porque no desktop é o que os
+ * mantém legíveis. Num telefone de 390px isso os faz sangrar para fora da
+ * janela: o conteúdo sai pela direita e não há como alcançá-lo, porque o fundo
+ * escuro do diálogo não rola.
+ *
+ * `calc(100vw - 24px)` deixa 12px de cada lado. Como é `maxWidth`, no desktop
+ * ele nunca entra em ação -- a largura fixa continua mandando.
+ */
+const TETO_DO_DIALOGO = "calc(100vw - 24px)";
 
 export default function MultiatendimentoPage() {
   const { user } = useAuth();
@@ -1055,6 +1069,28 @@ export default function MultiatendimentoPage() {
   const [deptSearch, setDeptSearch]         = useState("");
   const [deptCreateOpen, setDeptCreateOpen] = useState(false);
   const [qmSearch, setQmSearch]             = useState("");
+
+  // ── uma coluna no celular (dono, 29/09/2026) ──────────────────────────
+  //
+  // As três colunas desta tela somam 350 + chat + 350. Num telefone de 390px
+  // isso não cabe de jeito nenhum, e é por isso que ela foi a primeira a ganhar
+  // layout próprio: é a tela onde o celular é usado DE VERDADE, vendedor
+  // atendendo WhatsApp na rua.
+  //
+  // O padrão é o do próprio WhatsApp: lista OU conversa, nunca as duas, com
+  // volta pela seta. O perfil do lead vira uma folha por cima, aberta por um
+  // botão -- ele é consulta, não é o que se olha enquanto digita.
+  //
+  // `useTelaDeCelular` e não media query: o app declara viewport de 1100px, e
+  // dentro da página toda media query enxerga 1100 mesmo num iPhone. Ver
+  // `src/lib/telaDeCelular.ts`.
+  const telaDeCelular = useTelaDeCelular();
+  const [perfilAberto, setPerfilAberto] = useState(false);
+
+  // Trocar de conversa fecha o perfil: ele descreve o lead da conversa
+  // anterior, e deixá-lo aberto mostraria os dados de um contato sobre a
+  // conversa de outro.
+  useEffect(() => { setPerfilAberto(false); }, [activeId]);
 
   // ── mensagens rápidas ─────────────────────────────────────────────────
   //
@@ -3918,7 +3954,16 @@ export default function MultiatendimentoPage() {
       onClick={() => { if (instanceOpen) setInstanceOpen(false); if (moreMenuOpen) setMoreMenuOpen(false); if (bulkMenuOpen) setBulkMenuOpen(false); if (deptMenuOpen) setDeptMenuOpen(false); if (deptAssignOpen) { setDeptAssignOpen(false); setDeptEmTransferencia(null); } if (respMenuOpen) setRespMenuOpen(false); }}
     >
       {/* ── COLUNA 1 — LISTA ─────────────────────────────────────────── */}
-      <aside style={{ width: 350, minWidth: 350, maxWidth: 350, height: "var(--altura-util)", boxShadow: "1px 0 4px rgba(0,0,0,0.04)", borderRight: "1px solid var(--border-default)", display: "flex", flexDirection: "column", background: "var(--surface-card)", position: "relative", zIndex: 2, overflow: "hidden" }}>
+      <aside style={{
+        // No celular a lista OCUPA a tela e some quando uma conversa é aberta.
+        // As três larguras juntas (width/min/max) existem para o flex não
+        // espremer a coluna no desktop; no celular elas dariam 350px fixos
+        // dentro de 390, então saem todas.
+        ...(telaDeCelular
+          ? { width: "100%", minWidth: 0, maxWidth: "none", display: activeId ? "none" : "flex", borderRight: "none", boxShadow: "none" }
+          : { width: 350, minWidth: 350, maxWidth: 350, display: "flex", borderRight: "1px solid var(--border-default)", boxShadow: "1px 0 4px rgba(0,0,0,0.04)" }),
+        height: "var(--altura-util)", flexDirection: "column", background: "var(--surface-card)", position: "relative", zIndex: 2, overflow: "hidden",
+      }}>
         <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid var(--neutral-100)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, background: "var(--neutral-50)", border: "1px solid var(--border-default)", borderRadius: 8, padding: "8px 10px" }}>
@@ -4271,23 +4316,43 @@ export default function MultiatendimentoPage() {
           `minHeight: 0` no cartão porque ele é filho de flex em coluna: sem
           isso ele não encolhe abaixo do conteúdo, e a área de mensagens, que
           rola por dentro, empurraria o rodapé para fora da tela. */}
-      <section style={{ flex: 1, display: "flex", flexDirection: "column", height: "var(--altura-util)", background: "hsl(var(--background))", minWidth: 0, padding: GAP_DO_CHAT }}>
+      <section style={{
+        flex: 1, flexDirection: "column", height: "var(--altura-util)", background: "hsl(var(--background))", minWidth: 0,
+        // No celular a conversa É a tela: sem respiro em volta, e some enquanto
+        // nenhuma está aberta para a lista ficar com tudo.
+        ...(telaDeCelular
+          ? { display: activeId ? "flex" : "none", padding: 0 }
+          : { display: "flex", padding: GAP_DO_CHAT }),
+      }}>
+        {/* O cartão flutuante é de tela grande. Num telefone, borda e canto
+            arredondado em volta de algo que ocupa a tela inteira só comem
+            pixels de leitura e desenham uma moldura sem função. */}
         <div style={{
           flex: 1,
           minHeight: 0,
           display: "flex",
           flexDirection: "column",
           background: "var(--surface-card)",
-          border: "1px solid var(--border-default)",
-          borderRadius: 16,
-          boxShadow: "var(--shadow-elevated-1)",
           overflow: "hidden",
+          ...(telaDeCelular ? {} : {
+            border: "1px solid var(--border-default)",
+            borderRadius: 16,
+            boxShadow: "var(--shadow-elevated-1)",
+          }),
         }}>
         {active && cs ? (
           <>
             {/* header */}
-            <div style={{ minHeight: 52, background: "var(--surface-card)", borderBottom: "1px solid var(--border-default)", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ minHeight: 52, background: "var(--surface-card)", borderBottom: "1px solid var(--border-default)", padding: telaDeCelular ? "8px 10px" : "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, gap: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+                {telaDeCelular && (
+                  // A volta para a lista. No celular a conversa ocupa a tela
+                  // inteira, então sem esta seta não há como sair dela -- o
+                  // botão do navegador levaria para fora do Multiatendimento.
+                  <button onClick={() => setActiveId(null)} aria-label="Voltar para as conversas" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", flexShrink: 0 }}>
+                    <ArrowLeft size={20} color="var(--text-heading)" />
+                  </button>
+                )}
                 <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={32} fontSize={11} onError={() => refetchAvatar(active.phone, active.instanceId)} />
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-heading)" }}>{convName(active)}</div>
@@ -4379,6 +4444,14 @@ export default function MultiatendimentoPage() {
                 >
                   {atendimentoAtivo ? `#${atendimentoAtivo.numero}` : `#${active.id.slice(0, 4).toUpperCase()}`}
                 </span>
+                {telaDeCelular && (
+                  // O acesso ao perfil, que no desktop é a coluna da direita.
+                  // Fica antes das demais ações porque é a mais usada das três
+                  // e a que some por completo no celular.
+                  <button onClick={() => setPerfilAberto(true)} aria-label="Ver perfil do contato" style={{ background: "none", border: "1px solid var(--border-default)", borderRadius: 8, cursor: "pointer", padding: 6, display: "flex", flexShrink: 0 }}>
+                    <UserCircle size={17} color="var(--text-heading)" />
+                  </button>
+                )}
                 {/* "Iniciar atendimento" só aparece enquanto ninguém pegou a
                     conversa. Depois de iniciada, sobra "Finalizar": o par
                     espelha o ciclo do atendimento em vez de oferecer as duas
@@ -5075,8 +5148,32 @@ export default function MultiatendimentoPage() {
       />
 
       {/* ── COLUNA 3 — PERFIL + GESTÃO ───────────────────────────────── */}
-      {active && cs && (
-        <aside style={{ width: 350, minWidth: 350, height: "var(--altura-util)", borderLeft: "1px solid var(--border-default)", overflowY: "auto", background: "var(--surface-card)" }}>
+      {/* No celular ela deixa de ser coluna e vira uma folha por cima da
+          conversa, aberta pelo botão do cabeçalho. Ela é CONSULTA -- dados do
+          lead, negócio, atividades --, não é o que se olha enquanto se digita,
+          então tirá-la do caminho não custa nada e devolve a tela inteira para
+          a conversa.
+
+          `position: fixed` com `inset: 0`: cobre inclusive a barra superior e a
+          régua da lateral. Meia folha, com o menu aparecendo atrás, convidaria a
+          navegar para outra tela com o perfil aberto por cima. */}
+      {active && cs && (!telaDeCelular || perfilAberto) && (
+        <aside style={{
+          ...(telaDeCelular
+            ? { position: "fixed", inset: 0, width: "100%", minWidth: 0, height: "100%", zIndex: 60, borderLeft: "none" }
+            : { width: 350, minWidth: 350, height: "var(--altura-util)", borderLeft: "1px solid var(--border-default)" }),
+          overflowY: "auto", background: "var(--surface-card)",
+        }}>
+          {telaDeCelular && (
+            // A única saída da folha. Sem ela o perfil vira um beco: não há
+            // borda visível para tocar fora, porque ele cobre a tela toda.
+            <div style={{ position: "sticky", top: 0, zIndex: 1, display: "flex", alignItems: "center", gap: 10, padding: "10px 14px", background: "var(--surface-card)", borderBottom: "1px solid var(--border-default)" }}>
+              <button onClick={() => setPerfilAberto(false)} aria-label="Voltar para a conversa" style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex" }}>
+                <ArrowLeft size={20} color="var(--text-heading)" />
+              </button>
+              <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>Perfil</span>
+            </div>
+          )}
             {/* HEADER */}
             <div style={{ padding: "16px", borderBottom: "1px solid var(--neutral-100)" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -5982,7 +6079,7 @@ export default function MultiatendimentoPage() {
         const stepsLeft = totalMoves - pa.currentStep;
         return (
           <div onClick={() => setPendingStageAdvance(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: 16, width: 380, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: 16, width: 380, maxWidth: TETO_DO_DIALOGO, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
               <div style={{ padding: "18px 20px 12px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>
                   <CheckCircle2 size={16} color="var(--accent-700)" /> Confirmar avanço de etapa
@@ -6006,7 +6103,7 @@ export default function MultiatendimentoPage() {
       {/* ── DIALOG: confirmar retrocesso de etapa ───────────────────────── */}
       {pendingStageBack && (
         <div onClick={() => setPendingStageBack(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: 16, width: 380, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: 16, width: 380, maxWidth: TETO_DO_DIALOGO, boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}>
             <div style={{ padding: "18px 20px 12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>
                 <CheckCircle2 size={16} color="var(--accent-700)" /> Confirmar retrocesso de etapa
@@ -6054,7 +6151,7 @@ export default function MultiatendimentoPage() {
         >
           <div
             onClick={e => e.stopPropagation()}
-            style={{ background: "var(--surface-card)", borderRadius: 16, width: 860, height: 570, display: "flex", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.22)" }}
+            style={{ background: "var(--surface-card)", borderRadius: 16, width: 860, maxWidth: TETO_DO_DIALOGO, height: 570, maxHeight: "calc(100vh - 24px)", display: "flex", overflow: "hidden", boxShadow: "0 24px 80px rgba(0,0,0,0.22)" }}
           >
             {/* sidebar */}
             <div style={{ width: 180, background: "var(--neutral-50)", borderRight: "1px solid var(--border-default)", display: "flex", flexDirection: "column" }}>
@@ -6300,7 +6397,7 @@ export default function MultiatendimentoPage() {
           onClick={fecharModalDeMensagemRapida}
           style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center" }}
         >
-          <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: 16, width: 440, boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: 16, width: 440, maxWidth: TETO_DO_DIALOGO, boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
             <div style={{ padding: "18px 22px 14px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{qmEditing ? "Editar mensagem rápida" : "Nova mensagem rápida"}</div>
               <button onClick={fecharModalDeMensagemRapida} style={{ background: "none", border: "none", cursor: "pointer", padding: 4 }}><X size={18} color="var(--text-subtle)" /></button>
@@ -6558,7 +6655,7 @@ export default function MultiatendimentoPage() {
       {/* ── MODAL: ações em massa (transferir atendente/departamento) ──── */}
       {(bulkAction === "agent" || bulkAction === "dept") && (
         <div onClick={() => setBulkAction(null)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 320, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: 16, width: 380, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "var(--surface-card)", borderRadius: 16, width: 380, maxWidth: TETO_DO_DIALOGO, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 24px 80px rgba(0,0,0,0.22)", overflow: "hidden" }}>
             <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-default)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-heading)" }}>{bulkAction === "agent" ? "Transferir atendente" : "Transferir departamento"}</div>
@@ -6703,7 +6800,7 @@ function TransferDialog({
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{ background: "var(--surface-card)", borderRadius: 16, width: 420, maxHeight: "60vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        style={{ background: "var(--surface-card)", borderRadius: 16, width: 420, maxWidth: TETO_DO_DIALOGO, maxHeight: "60vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
       >
         {/* header */}
         <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -6829,7 +6926,7 @@ function NewConvDialog({
     >
       <div
         onClick={e => e.stopPropagation()}
-        style={{ background: "var(--surface-card)", borderRadius: 16, width: 480, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
+        style={{ background: "var(--surface-card)", borderRadius: 16, width: 480, maxWidth: TETO_DO_DIALOGO, maxHeight: "70vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 60px rgba(0,0,0,0.2)", overflow: "hidden" }}
       >
         {/* header */}
         <div style={{ padding: "18px 20px 12px", borderBottom: "1px solid var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>

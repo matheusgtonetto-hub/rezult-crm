@@ -10,6 +10,7 @@ import { FreePlanBanner, BANNER_HEIGHT } from "@/components/FreePlanBanner";
 import { PlanLimitModal } from "@/components/PlanLimitModal";
 import { BillingBlockedModal } from "@/components/BillingBlockedModal";
 import { OfertaDeContratacao } from "@/components/OfertaDeContratacao";
+import { useTelaDeCelular, aplicarViewport, VIEWPORT_DO_APP, VIEWPORT_DE_CELULAR } from "@/lib/telaDeCelular";
 
 // Routes where the user is actively completing onboarding — no redirect needed
 const ONBOARDING_PATHS = ["/company-register", "/setup"];
@@ -36,11 +37,36 @@ const ONBOARDING_PATHS = ["/company-register", "/setup"];
  */
 const LARGURA_MINIMA_DO_APP = 1000;
 
+/**
+ * As rotas que têm layout PRÓPRIO de celular.
+ *
+ * Nelas o app abre mão do truque do viewport de 1100px: a página volta a se
+ * medir pela largura real do aparelho, e o piso de 1000px sai do caminho --
+ * senão a tela de uma coluna nasceria com rolagem horizontal, que é o oposto do
+ * que ela existe para resolver.
+ *
+ * É uma lista, e não um `if` no meio do componente, porque ela vai crescer: o
+ * Multiatendimento foi a primeira porque é onde o celular é usado de verdade
+ * (vendedor atendendo WhatsApp na rua). Leads e Pipeline são as candidatas
+ * seguintes.
+ */
+const ROTAS_COM_LAYOUT_DE_CELULAR = ["/multiatendimento"];
+
 export default function AppLayout() {
   const { crmLoading }                                                    = useCRM();
   const { company, companyLoading, isFreePlan, billingBlocked, motivoDoBloqueio, isTrialing } = useCompany();
   const navigate                                                          = useNavigate();
   const { pathname }                                                      = useLocation();
+  const telaDeCelular = useTelaDeCelular();
+  /**
+   * A tela atual se vira sozinha num celular?
+   *
+   * Duas condições, não uma: é preciso SER um celular e estar numa rota
+   * preparada. Num computador nada disto liga, e numa rota sem layout próprio o
+   * celular continua recebendo a versão de desktop reduzida, que é melhor que
+   * uma tela de desktop espremida em 390px.
+   */
+  const emModoCelular = telaDeCelular && ROTAS_COM_LAYOUT_DE_CELULAR.some(r => pathname.startsWith(r));
   const [planLimitResource, setPlanLimitResource] = useState<string | null>(null);
   const [billingBlockedOpen, setBillingBlockedOpen] = useState(false);
   /** Cartão de planos aberto a pedido da tarja, sem ação barrada por trás. */
@@ -113,6 +139,13 @@ export default function AppLayout() {
   // 1. Company data has finished loading
   // 2. No company record exists
   // 3. User is not already on an onboarding route (safety guard)
+  // A meta viewport segue a rota. Trocá-la em tempo de execução é reconhecido
+  // pelo Safari do iOS e pelo Chrome do Android, e é o que permite uma tela ter
+  // layout de celular sem que o app inteiro precise ter.
+  useEffect(() => {
+    aplicarViewport(emModoCelular ? VIEWPORT_DE_CELULAR : VIEWPORT_DO_APP);
+  }, [emModoCelular]);
+
   useEffect(() => {
     if (companyLoading) return;
     if (!company && !ONBOARDING_PATHS.includes(pathname)) {
@@ -253,7 +286,7 @@ export default function AppLayout() {
             O `width: 100%` continua: em tela larga ele manda, e o `minWidth` só
             entra quando a janela encolhe além do limite.
           */}
-          <div style={{ width: "100%", minWidth: LARGURA_MINIMA_DO_APP, height: "100%", boxSizing: "border-box" }}>
+          <div style={{ width: "100%", minWidth: emModoCelular ? undefined : LARGURA_MINIMA_DO_APP, height: "100%", boxSizing: "border-box" }}>
             <Outlet />
           </div>
         </div>
