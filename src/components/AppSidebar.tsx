@@ -178,12 +178,22 @@ const VAO_ANTES_DO_MENU = 12;
  * vem com os rótulos -- num telefone não há tooltip de mouse para explicar um
  * ícone solto.
  */
-export function AppSidebar({ recolhida, aoAlternar, sobreposta = false, aberta = false, aoFechar }: {
+export function AppSidebar({ recolhida, aoAlternar, sobreposta = false, aberta = false, aoFechar, mostrarAgenda = false }: {
   recolhida: boolean;
   aoAlternar: () => void;
   sobreposta?: boolean;
   aberta?: boolean;
   aoFechar?: () => void;
+  /**
+   * A Agenda mora na barra SUPERIOR. Quando a faixa aperta ela sai de lá, e
+   * este menu é quem a recebe -- senão a tela ficaria inalcançável.
+   *
+   * Vem de fora, e não de `sobreposta`, porque os dois não coincidem: numa
+   * janela estreita no computador a barra já enxuga, mas a lateral continua
+   * sendo coluna e não gaveta. Amarrar à gaveta deixaria a Agenda sem casa
+   * exatamente nesse caso.
+   */
+  mostrarAgenda?: boolean;
 }) {
   const { pathname } = useLocation();
   const { canAny } = usePermissions();
@@ -228,11 +238,10 @@ export function AppSidebar({ recolhida, aoAlternar, sobreposta = false, aberta =
     // Leads, no meio das telas do funil.
     ...(canAny("multiatendimento:admin", "multiatendimento:supervisor", "multiatendimento:attendant")
       ? [{ to: "/multiatendimento", label: "Multiatendimento", icon: CrmWhatsAppIcon, contador: naoLidas }] : []),
-    // Só na gaveta: a Agenda mora na barra SUPERIOR, e lá ela sai no celular
-    // para a faixa de 390px parar de amontoar tudo num bloco só. Entra aqui
-    // para não ficar inalcançável -- tirar da barra sem devolver em algum lugar
-    // seria perder a tela, não economizar espaço.
-    ...(sobreposta ? [{ to: "/calendario", label: "Agenda", icon: CalendarDays }] : []),
+    // A Agenda mora na barra SUPERIOR. Ela entra aqui só quando de lá saiu,
+    // por falta de espaço -- tirar da barra sem devolver em algum lugar seria
+    // perder a tela, não economizar espaço. Ver `mostrarAgenda`.
+    ...(mostrarAgenda ? [{ to: "/calendario", label: "Agenda", icon: CalendarDays }] : []),
   ];
 
   /** A dica com o nome de uma tela, só com a barra recolhida. */

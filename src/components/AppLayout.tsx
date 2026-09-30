@@ -76,6 +76,36 @@ export default function AppLayout() {
    */
   const [menuAberto, setMenuAberto] = useState(false);
   useEffect(() => { setMenuAberto(false); }, [pathname]);
+
+  /*
+   * ─── A faixa do topo enxuga por ESPAÇO, não por aparelho ────────────────
+   *
+   * Isto olhava só `telaDeCelular`, que pergunta "o aparelho é um telefone?".
+   * O dono abriu o app numa janela de ~380px no Mac: a resposta era NÃO, a
+   * faixa renderizava inteira, e "Rezult CRM" ficava por baixo do botão
+   * Suporte. A pergunta certa nunca foi qual aparelho -- é quanto espaço
+   * existe. Celular é só o caso mais comum de pouco espaço, não o único.
+   *
+   * A decisão mora AQUI, e não dentro da barra, porque duas peças dependem
+   * dela: a barra, que esconde Agenda e Tutoriais, e a lateral, que passa a
+   * mostrar a Agenda. Se cada uma medisse por si, um desencontro faria a
+   * Agenda sumir das duas ao mesmo tempo.
+   *
+   * 720 é a soma do que a faixa completa ocupa: marca 120 + ferramentas 192 +
+   * divisória + bloco do usuário 224 + respiro, com folga para o vão do meio
+   * não sumir antes de a barra enxugar.
+   */
+  const [larguraDaJanela, setLarguraDaJanela] = useState(() => {
+    try { return window.innerWidth; } catch { return 1440; }
+  });
+  useEffect(() => {
+    const medir = () => setLarguraDaJanela(window.innerWidth);
+    medir();
+    window.addEventListener("resize", medir);
+    return () => window.removeEventListener("resize", medir);
+  }, []);
+  const LARGURA_QUE_COMPORTA_A_FAIXA = 720;
+  const faixaCompacta = emModoCelular || larguraDaJanela < LARGURA_QUE_COMPORTA_A_FAIXA;
   const [planLimitResource, setPlanLimitResource] = useState<string | null>(null);
   const [billingBlockedOpen, setBillingBlockedOpen] = useState(false);
   /** Cartão de planos aberto a pedido da tarja, sem ação barrada por trás. */
@@ -225,7 +255,7 @@ export default function AppLayout() {
         A marca e o botão de recolher seguem na LATERAL: o dono quis a faixa
         atravessando a tela, mas com a assinatura na coluna da esquerda.
       */}
-      <BarraSuperior compacta={emModoCelular} aoAbrirMenu={emModoCelular ? () => setMenuAberto(true) : undefined} />
+      <BarraSuperior compacta={faixaCompacta} aoAbrirMenu={emModoCelular ? () => setMenuAberto(true) : undefined} />
       {/* `recolhida={false}` na gaveta: ela abre com os rótulos. Num telefone
           não há tooltip de mouse, então uma coluna de ícones sem texto seria
           adivinhação. */}
@@ -235,6 +265,7 @@ export default function AppLayout() {
         sobreposta={emModoCelular}
         aberta={menuAberto}
         aoFechar={() => setMenuAberto(false)}
+        mostrarAgenda={faixaCompacta}
       />
       {/*
         As barras SEPARADAS, com a linha atravessando a tela.

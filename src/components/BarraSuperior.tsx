@@ -85,6 +85,21 @@ export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?:
   const email = profile?.email ?? user?.email ?? "";
   const nome = profile?.full_name || email.split("@")[0];
 
+  /*
+   * `compacta` chega pronto do AppLayout, e não é medido aqui.
+   *
+   * Começou olhando `telaDeCelular`, que pergunta "o aparelho é um telefone?".
+   * O dono abriu o app numa janela de ~380px no Mac: a resposta era NÃO, a
+   * faixa renderizava inteira, e "Rezult CRM" ficava por baixo do Suporte. A
+   * pergunta certa nunca foi qual aparelho -- é quanto espaço existe, e um
+   * celular é só o caso mais comum de pouco espaço.
+   *
+   * Medir aqui dentro resolveria esta barra e abriria um buraco: a Agenda sai
+   * daqui quando aperta, e quem a recebe é a lateral. Se cada uma medisse por
+   * si, a Agenda poderia sumir das duas ao mesmo tempo. Por isso quem mede é o
+   * pai, uma vez, e entrega a mesma resposta para as duas.
+   */
+
   const [notifAberto, setNotifAberto] = useState(false);
   const [ajudaAberta, setAjudaAberta] = useState(false);
   const [googleConectado, setGoogleConectado] = useState<boolean | null>(null);
@@ -207,7 +222,11 @@ export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?:
             <Menu size={17} strokeWidth={1.75} />
           </button>
         )}
-        <span className="flex items-center gap-2.5 min-w-0">
+        {/* `shrink-0` no logo e `truncate` no nome: se por algum motivo a
+            faixa apertar mais do que o ponto em que ela enxuga, a marca cede
+            espaço truncando em vez de deixar o botão Suporte passar por cima
+            dela. Era assim que "Rezult CRM" ficava por baixo do Suporte. */}
+        <span className="flex items-center gap-2.5 min-w-0 shrink">
           {/* O MESMO arquivo do favicon, servido de public/: são a mesma marca,
               e duas cópias significam trocar a arte em dois lugares. */}
           <img
@@ -221,7 +240,7 @@ export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?:
               e-mail do usuário na outra ponta -- que fazia a faixa transbordar
               numa tela de 390px. */}
           {!compacta && (
-            <span className="text-[15px] tracking-tight whitespace-nowrap text-[color:var(--text-heading)]">
+              <span className="text-[15px] tracking-tight whitespace-nowrap truncate min-w-0 text-[color:var(--text-heading)]">
               <span className="font-semibold">Rezult</span> <span className="font-normal">CRM</span>
             </span>
           )}
