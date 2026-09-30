@@ -480,16 +480,24 @@ function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, bor
   );
 }
 
-function ChatHeaderBtn({ icon: Icon, label, onClick }: { icon: LucideIcon; label: string; onClick?: () => void }) {
+/**
+ * `soIcone`: usado no celular, onde "Iniciar atendimento" e "Finalizar" lado a
+ * lado, escritos por extenso, sozinhos já passavam da largura do aparelho.
+ * O rótulo continua existindo no `title` e no `aria-label`, então nem quem usa
+ * leitor de tela nem quem passa o dedo perde o nome da ação.
+ */
+function ChatHeaderBtn({ icon: Icon, label, onClick, soIcone = false }: { icon: LucideIcon; label: string; onClick?: () => void; soIcone?: boolean }) {
   const [hover, setHover] = useState(false);
   return (
     <button
       onClick={onClick}
+      title={label}
+      aria-label={label}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
-      style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 100, border: `1px solid ${hover ? "var(--border-accent)" : "var(--border-default)"}`, background: "transparent", color: hover ? "var(--accent-700)" : "var(--text-heading)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
+      style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, padding: soIcone ? 6 : "4px 10px", borderRadius: 100, border: `1px solid ${hover ? "var(--border-accent)" : "var(--border-default)"}`, background: "transparent", color: hover ? "var(--accent-700)" : "var(--text-heading)", fontSize: 12, fontWeight: 600, cursor: "pointer", transition: "all 0.15s" }}
     >
-      <Icon size={12} /> {label}
+      <Icon size={soIcone ? 15 : 12} />{soIcone ? null : <> {label}</>}
     </button>
   );
 }
@@ -4354,14 +4362,24 @@ export default function MultiatendimentoPage() {
                   </button>
                 )}
                 <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={32} fontSize={11} onError={() => refetchAvatar(active.phone, active.instanceId)} />
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-heading)" }}>{convName(active)}</div>
+                <div style={{ minWidth: 0 }}>
+                  {/* Trunca em vez de empurrar. Sem isto um nome comprido
+                      alargava o bloco da esquerda e jogava os botões da direita
+                      para fora da faixa. */}
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{convName(active)}</div>
 
                   {/* A linha de contexto da conversa: por qual NÚMERO ela
                       entrou e de qual DEPARTAMENTO ela é. As duas respondem
                       "onde estou", por isso ficam lado a lado, embaixo do nome
                       de quem está do outro lado. */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                  {/* Sai no celular: o rótulo da instância é longo ("Sem
+                      instância conectada") e, numa faixa de 390px dividida com
+                      avatar, nome e três ações, era ele que empurrava o resto
+                      para fora. É contexto de canal, não do atendimento -- fica
+                      na lista de conversas e no perfil. O custo é não dar para
+                      TROCAR de número pelo celular; a conversa continua saindo
+                      pelo número por onde entrou. */}
+                  <div style={{ display: telaDeCelular ? "none" : "flex", alignItems: "center", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
                   {/* WhatsApp instance selector */}
                   <div style={{ position: "relative" }}>
                     <button
@@ -4440,7 +4458,10 @@ export default function MultiatendimentoPage() {
                           finalizado: "finalizado" }[atendimentoAtivo.status] ?? atendimentoAtivo.status
                       }`
                     : "Atendimento ainda não aberto"}
-                  style={{ fontSize: 12, color: "var(--accent-800)", border: "1px solid var(--border-accent)", borderRadius: 100, padding: "4px 10px", fontWeight: 600 }}
+                  // Sai no celular pelo mesmo motivo do chip de instância:
+                  // é referência para buscar depois, não algo que se consulta
+                  // no meio de uma conversa. Continua no perfil.
+                  style={{ display: telaDeCelular ? "none" : "inline-block", fontSize: 12, color: "var(--accent-800)", border: "1px solid var(--border-accent)", borderRadius: 100, padding: "4px 10px", fontWeight: 600, flexShrink: 0 }}
                 >
                   {atendimentoAtivo ? `#${atendimentoAtivo.numero}` : `#${active.id.slice(0, 4).toUpperCase()}`}
                 </span>
@@ -4470,10 +4491,11 @@ export default function MultiatendimentoPage() {
                     clicar ficava listado em "Não iniciadas" com o botão que o
                     tiraria dali escondido -- 4 conversas reais nesse estado. */}
                 {!cs.answered && !cs.finished && (
-                  <ChatHeaderBtn icon={Eye} label="Iniciar atendimento" onClick={() => markAsRead(activeId)} />
+                  <ChatHeaderBtn icon={Eye} label="Iniciar atendimento" soIcone={telaDeCelular} onClick={() => markAsRead(activeId)} />
                 )}
                 <ChatHeaderBtn
                   icon={Check}
+                  soIcone={telaDeCelular}
                   label={cs.finished ? "Reabrir" : "Finalizar"}
                   onClick={() => {
                     if (cs.finished) { updateCs(activeId, { finished: false }); toast("Conversa reaberta"); }
@@ -4541,7 +4563,15 @@ export default function MultiatendimentoPage() {
                       return (
                         <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0" }}>
                           <div style={{ flex: 1, height: 0.5, background: "var(--neutral-200)" }} />
-                          <span style={{ fontSize: 12, color: "var(--text-muted)", background: "var(--neutral-100)", border: "1px solid var(--border-default)", borderRadius: 100, padding: "4px 12px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 5 }}>
+                          {/* Era `whiteSpace: nowrap` com largura livre: uma
+                              frase longa ("Responsável do negócio atualizado
+                              para Conta Rezult Atendimento") virava uma linha
+                              única mais larga que a conversa e empurrava
+                              rolagem horizontal na área de mensagens. Aparecia
+                              em qualquer largura, mas só incomodava de fato no
+                              celular. Agora quebra e se centra, com teto de
+                              80% para não encostar nos traços dos lados. */}
+                          <span style={{ fontSize: 12, color: "var(--text-muted)", background: "var(--neutral-100)", border: "1px solid var(--border-default)", borderRadius: 100, padding: "4px 12px", maxWidth: "80%", minWidth: 0, textAlign: "center", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "center", gap: 5 }}>
                             <UserCheck size={11} color="var(--text-subtle)" />
                             {m.text}
                             <span style={{ color: "var(--neutral-400)", marginLeft: 2 }}>· {m.time}</span>
@@ -4556,7 +4586,12 @@ export default function MultiatendimentoPage() {
                         {!isAgent && (
                           <ConvAvatar name={convName(active)} avatarUrl={convAvatars[active.phone?.replace(/\D/g, "") ?? ""]} size={28} fontSize={10} style={{ marginRight: 8 }} />
                         )}
-                        <div style={{ maxWidth: "65%" }}
+                        {/* 65% da largura num telefone de 390px são 253px, e
+                            uma frase comum já quebra em quatro linhas. Com a
+                            tela estreita o balão pode ocupar mais: o que ele
+                            deixa livre do outro lado é para o olho distinguir
+                            quem falou, e 15% bastam para isso. */}
+                        <div style={{ maxWidth: telaDeCelular ? "85%" : "65%" }}
                              onMouseEnter={() => setMsgSobreMouse(m.id)}
                              onMouseLeave={() => setMsgSobreMouse(null)}>
                           {/* Nome colorido, hora em cinza. O lado direito é

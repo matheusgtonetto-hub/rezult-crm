@@ -67,6 +67,15 @@ export default function AppLayout() {
    * uma tela de desktop espremida em 390px.
    */
   const emModoCelular = telaDeCelular && ROTAS_COM_LAYOUT_DE_CELULAR.some(r => pathname.startsWith(r));
+
+  /**
+   * A gaveta do menu, só no modo celular.
+   *
+   * Fecha sozinha ao trocar de rota: tocar num item e ficar com a gaveta aberta
+   * por cima da tela nova é o defeito clássico deste padrão.
+   */
+  const [menuAberto, setMenuAberto] = useState(false);
+  useEffect(() => { setMenuAberto(false); }, [pathname]);
   const [planLimitResource, setPlanLimitResource] = useState<string | null>(null);
   const [billingBlockedOpen, setBillingBlockedOpen] = useState(false);
   /** Cartão de planos aberto a pedido da tarja, sem ação barrada por trás. */
@@ -197,7 +206,11 @@ export default function AppLayout() {
         /* A largura ATUAL da barra, para todos que precisam dela: a própria
            barra, a margem do conteúdo e a tarja de plano fixa no rodapé. Uma
            variável só, para as três andarem juntas na animação. */
-        ["--barra-largura" as string]: larguraDaBarra(barraRecolhida),
+        /* Zero no modo celular: ali a barra vira gaveta por cima do conteúdo,
+           e a coluna que ela ocupava devolve os 55px para a conversa. Como a
+           margem e a largura do `<main>` derivam desta variável, os dois
+           acompanham sem precisar de um segundo `if`. */
+        ["--barra-largura" as string]: emModoCelular ? "0px" : larguraDaBarra(barraRecolhida),
       }}
     >
       {/*
@@ -212,8 +225,17 @@ export default function AppLayout() {
         A marca e o botão de recolher seguem na LATERAL: o dono quis a faixa
         atravessando a tela, mas com a assinatura na coluna da esquerda.
       */}
-      <BarraSuperior />
-      <AppSidebar recolhida={barraRecolhida} aoAlternar={alternarBarra} />
+      <BarraSuperior compacta={emModoCelular} aoAbrirMenu={emModoCelular ? () => setMenuAberto(true) : undefined} />
+      {/* `recolhida={false}` na gaveta: ela abre com os rótulos. Num telefone
+          não há tooltip de mouse, então uma coluna de ícones sem texto seria
+          adivinhação. */}
+      <AppSidebar
+        recolhida={emModoCelular ? false : barraRecolhida}
+        aoAlternar={alternarBarra}
+        sobreposta={emModoCelular}
+        aberta={menuAberto}
+        aoFechar={() => setMenuAberto(false)}
+      />
       {/*
         As barras SEPARADAS, com a linha atravessando a tela.
 

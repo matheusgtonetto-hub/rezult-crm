@@ -167,7 +167,23 @@ const ESPACO_DA_SETA = MARGEM_ACIMA_DA_SETA + ALTURA_DA_SETA;
 /** O espaço entre a marca e o primeiro item do menu. */
 const VAO_ANTES_DO_MENU = 12;
 
-export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAlternar: () => void }) {
+/**
+ * `sobreposta`: a barra deixa de ocupar uma coluna e vira uma GAVETA por cima
+ * do conteúdo, aberta pelo botão da barra superior.
+ *
+ * É o modo de celular. A régua de 55px custa 14% da largura de um telefone, e
+ * numa tela de conversa isso é a diferença entre ler a mensagem e ler meia
+ * mensagem. Como gaveta ela não custa nada enquanto está fechada, e quando abre
+ * vem com os rótulos -- num telefone não há tooltip de mouse para explicar um
+ * ícone solto.
+ */
+export function AppSidebar({ recolhida, aoAlternar, sobreposta = false, aberta = false, aoFechar }: {
+  recolhida: boolean;
+  aoAlternar: () => void;
+  sobreposta?: boolean;
+  aberta?: boolean;
+  aoFechar?: () => void;
+}) {
   const { pathname } = useLocation();
   const { canAny } = usePermissions();
   const { tema, alternarTema } = useProfile();
@@ -238,7 +254,10 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
    * fechada. Duas cópias do mesmo botão divergiriam no primeiro ajuste de
    * tamanho ou de cor.
    */
-  const botaoDeRecolher = dica(
+  // Some na gaveta: ali ele recolheria para a régua de ícones DENTRO de uma
+  // gaveta sobreposta, que não é estado nenhum. Quem abre a gaveta a fecha pela
+  // cortina ou escolhendo para onde ir.
+  const botaoDeRecolher = sobreposta ? null : dica(
     recolhida ? "Expandir menu" : "Recolher menu",
     <button
       type="button"
@@ -394,11 +413,33 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
 
   return (
     <TooltipProvider delayDuration={300}>
+      {/* A cortina da gaveta. Fecha ao toque, que é como se sai de uma gaveta
+          em qualquer app de celular, e escurece o conteúdo para deixar claro
+          que ele está atrás e não ao lado. */}
+      {sobreposta && aberta && (
+        <div
+          onClick={aoFechar}
+          aria-hidden
+          style={{ position: "fixed", top: "var(--topbar-h)", left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.4)", zIndex: 45 }}
+        />
+      )}
       <aside
         className="flex flex-col"
         aria-label="Navegação principal"
         style={{
-          width: "var(--barra-largura)",
+          // Como gaveta ela tem largura PRÓPRIA, e não a `--barra-largura`:
+          // aquela está em zero no modo celular, justamente para o conteúdo
+          // ficar com a tela inteira.
+          width: sobreposta ? "var(--sidebar-w-expanded)" : "var(--barra-largura)",
+          ...(sobreposta ? {
+            transform: aberta ? "translateX(0)" : "translateX(-100%)",
+            transition: "transform var(--dur-normal) var(--ease-out)",
+            // 46: por cima do conteúdo e da cortina (45), e ainda abaixo da
+            // cortina dos diálogos (50), para um diálogo aberto continuar
+            // mandando na tela.
+            zIndex: 46,
+            boxShadow: "8px 0 40px rgba(0,0,0,0.18)",
+          } : {}),
           /* Começa ABAIXO da barra superior (dono, 22/09/2026): a régua dela
              atravessa a tela inteira, e esta barra encosta por baixo. Com
              `top: 0` a lateral subiria até o topo e cortaria essa linha em
@@ -411,7 +452,8 @@ export function AppSidebar({ recolhida, aoAlternar }: { recolhida: boolean; aoAl
           top: "var(--topbar-h)",
           left: 0,
           bottom: 0,
-          /* 30: acima do conteúdo, abaixo da cortina dos diálogos (z-50). */
+          /* 30: acima do conteúdo, abaixo da cortina dos diálogos (z-50).
+             Na gaveta este valor é sobrescrito acima. */
           zIndex: 30,
           overflow: "hidden",
           background: "var(--surface-card)",

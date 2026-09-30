@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { NavLink as RouterNavLink, useLocation, useNavigate } from "react-router-dom";
 import {
-  Bell, CalendarDays, ChevronRight, ChevronsUpDown, ExternalLink, GraduationCap, LogOut, Plus, UserCircle,
+  Bell, CalendarDays, ChevronRight, ChevronsUpDown, ExternalLink, GraduationCap, LogOut, Menu, Plus, UserCircle,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useProfile } from "@/context/ProfileContext";
@@ -71,7 +71,12 @@ const BOTAO_REPOUSO =
 const BOTAO_ATIVO = "bg-primary border-[color:var(--accent-500)] text-[color:var(--text-on-accent)]";
 const BOTAO_ABERTO = "bg-[color:var(--surface-hover)] border-[color:var(--border-strong)] text-[color:var(--text-heading)]";
 
-export function BarraSuperior() {
+/**
+ * `aoAbrirMenu`: presente só quando a barra lateral virou gaveta (modo celular).
+ * Sem este botão a gaveta não teria como ser aberta, e a navegação do app
+ * sumiria por completo na tela que a usa.
+ */
+export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?: () => void; compacta?: boolean } = {}) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
@@ -192,6 +197,16 @@ export function BarraSuperior() {
             Dois pesos na mesma palavra composta: "Rezult" em 600 e "CRM" em
             400 (dono). O `tracking-tight` junta as duas o suficiente para
             lerem como um nome e não como duas palavras soltas. */}
+        {aoAbrirMenu && (
+          <button
+            type="button"
+            onClick={aoAbrirMenu}
+            aria-label="Abrir menu"
+            className={`${BOTAO} ${BOTAO_REPOUSO} mr-2`}
+          >
+            <Menu size={17} strokeWidth={1.75} />
+          </button>
+        )}
         <span className="flex items-center gap-2.5 min-w-0">
           {/* O MESMO arquivo do favicon, servido de public/: são a mesma marca,
               e duas cópias significam trocar a arte em dois lugares. */}
@@ -201,9 +216,15 @@ export function BarraSuperior() {
             className="shrink-0 block object-cover"
             style={{ width: 30, height: 30, borderRadius: 8 }}
           />
-          <span className="text-[15px] tracking-tight whitespace-nowrap text-[color:var(--text-heading)]">
-            <span className="font-semibold">Rezult</span> <span className="font-normal">CRM</span>
-          </span>
+          {/* O nome escrito sai no modo compacto (celular). O logo ao lado
+              diz a mesma coisa em 30px, e era este texto -- somado ao nome e ao
+              e-mail do usuário na outra ponta -- que fazia a faixa transbordar
+              numa tela de 390px. */}
+          {!compacta && (
+            <span className="text-[15px] tracking-tight whitespace-nowrap text-[color:var(--text-heading)]">
+              <span className="font-semibold">Rezult</span> <span className="font-normal">CRM</span>
+            </span>
+          )}
         </span>
 
         {/* O vão empurra as ferramentas para a direita. */}
@@ -395,15 +416,22 @@ export function BarraSuperior() {
                   do piso de 12px da matriz, e por isso registrado lá como
                   exceção nomeada. O e-mail é longo, então trunca -- a empresa
                   atual e a troca dela seguem no menu que este botão abre. */}
-              <span className="text-left leading-tight min-w-0 ml-2">
-                <span className="block text-[11px] font-medium text-[color:var(--text-heading)] truncate max-w-[160px]">
-                  {nome}
-                </span>
-                <span className="block text-[10px] text-[color:var(--text-muted)] truncate max-w-[160px]">
-                  {email}
-                </span>
-              </span>
-              <ChevronsUpDown size={13} className="shrink-0 ml-1.5 text-[color:var(--icon-default)]" />
+              {/* No modo compacto sobra só o avatar: ele abre o MESMO menu,
+                  que já traz nome, e-mail e a troca de empresa por extenso.
+                  Nada se perde, e são uns 180px de volta para a faixa. */}
+              {!compacta && (
+                <>
+                  <span className="text-left leading-tight min-w-0 ml-2">
+                    <span className="block text-[11px] font-medium text-[color:var(--text-heading)] truncate max-w-[160px]">
+                      {nome}
+                    </span>
+                    <span className="block text-[10px] text-[color:var(--text-muted)] truncate max-w-[160px]">
+                      {email}
+                    </span>
+                  </span>
+                  <ChevronsUpDown size={13} className="shrink-0 ml-1.5 text-[color:var(--icon-default)]" />
+                </>
+              )}
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" sideOffset={8} className="w-60">
