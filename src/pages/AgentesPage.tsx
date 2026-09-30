@@ -614,10 +614,13 @@ function computeComplexityFactors(s: ComplexitySignals): ComplexityFactor[] {
   return factors;
 }
 
-// Recomenda sempre GPT. O cliente precisa de UMA chave só, a da OpenAI: ela
-// responde as conversas e também gera os embeddings da Base de Conhecimento,
-// que a Anthropic não oferece. Recomendar Claude aqui empurrava a pessoa para
-// uma segunda chave sem necessidade. Claude continua na lista para quem quiser.
+// Recomenda sempre GPT. É a OpenAI que responde as conversas e também gera os
+// embeddings da Base de Conhecimento, que a Anthropic não oferece -- e é da
+// OpenAI a chave da Rezult que o crédito abastece: `resolverChaveDeIa` só tem
+// chave nossa para `openai`. O seletor não oferece outra fornecedora desde
+// 25/09/2026 (ver `IA_ESFORCOS`), e em 30/09/2026 não havia nenhum agente
+// gravado fora da família gpt-5.6 -- então a trava de saldo, que substituiu a
+// trava de chave, não deixa passar agente que o crédito não pague.
 function recommendModel(signals: ComplexitySignals): { modelId: string; reason: string } {
   const factors = computeComplexityFactors(signals);
   const score = factors.reduce((sum, f) => sum + f.weight, 0);
@@ -771,8 +774,22 @@ export default function AgentesPage() {
     return mapa;
   }, [agents]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [hasAnthropicKey, setHasAnthropicKey] = useState(false);
-  const [hasOpenaiKey, setHasOpenaiKey] = useState(false);
+  /*
+   * O saldo de créditos da empresa. É o ÚNICO pré-requisito de cobrança para
+   * ligar um agente (dono, 30/09/2026).
+   *
+   * Antes eram as chaves de API do cliente: a tela lia `company_ai_providers` e
+   * recusava a ativação de quem não tivesse chave própria da OpenAI. Isso ficou
+   * errado quando o crédito entrou no ar -- uma empresa com 5.140 créditos
+   * comprados era barrada por não ter cadastrado uma chave que ela nunca vai
+   * precisar ter. O backend já resolvia certo desde 25/09 (`resolverChaveDeIa`
+   * usa a chave da Rezult para quem tem saldo); era só a trava da tela que
+   * continuava perguntando pela chave.
+   *
+   * `null` = ainda carregando, ou empresa sem conta de crédito (que, para
+   * efeito de ativação, é o mesmo que saldo zero).
+   */
+  const [saldoDeCreditos, setSaldoDeCreditos] = useState<number | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [closerIds, setCloserIds] = useState<string[]>([]);
   const [memberCalendarConnected, setMemberCalendarConnected] = useState<Record<string, boolean>>({});
@@ -892,14 +909,14 @@ export default function AgentesPage() {
   const loadAgents = useCallback(async () => {
     if (!companyId) return;
     setLoading(true);
-    const [{ data: agentsData }, { data: aiProviders }, { data: membersData }, { data: automationsData }, { data: whatsappData }, { data: metaData }, { data: webhookData }] =
+    const [{ data: agentsData }, { data: conta }, { data: membersData }, { data: automationsData }, { data: whatsappData }, { data: metaData }, { data: webhookData }] =
       await Promise.all([
         supabase.from("agents").select("id, type, name, description, avatar, active, model, custom_context, objectives, enabled_tools, behavior_config, activation_tag, contexto_comercial, activated_at, active_seconds_total, draft, wizard_step").eq("company_id", companyId).order("created_at"),
-        // Via RPC, não lendo a tabela: ai_provider_keys é owner-only (o valor
-        // da chave não pode vazar pros membros), então um membro lia zero
-        // linhas e a tela dizia "cadastre sua chave" com a chave cadastrada.
-        // A função devolve só os nomes dos provedores que têm chave ativa.
-        supabase.rpc("company_ai_providers", { p_company_id: companyId }),
+        // O saldo, no lugar dos provedores de chave. A política de leitura de
+        // `credit_accounts` é `is_member_of(company_id)`, então membro comum lê
+        // igual ao dono -- diferente de `ai_provider_keys`, que era owner-only e
+        // por isso precisava de RPC.
+        supabase.from("credit_accounts").select("saldo_creditos").eq("company_id", companyId).maybeSingle(),
         supabase.rpc("get_company_members", { p_company_id: companyId }),
         supabase.from("automations").select("id, name, flow").eq("company_id", companyId).eq("active", true),
         supabase.from("whatsapp_connections").select("id, name, phone, provider, connected").eq("company_id", companyId).order("created_at"),
@@ -907,9 +924,7 @@ export default function AgentesPage() {
         supabase.from("webhook_integrations").select("id, name, type, active").eq("company_id", companyId).order("created_at"),
       ]);
     setAgents(agentsData ?? []);
-    const provedores = new Set(((aiProviders ?? []) as { provider: string }[]).map((p) => p.provider));
-    setHasAnthropicKey(provedores.has("anthropic"));
-    setHasOpenaiKey(provedores.has("openai"));
+    setSaldoDeCreditos(conta ? Number((conta as { saldo_creditos: number }).saldo_creditos) : 0);
     setWhatsappConnections((whatsappData ?? []) as WhatsappConnectionOption[]);
     setMetaConnections((metaData ?? []) as MetaConnectionOption[]);
     setWebhookIntegrations((webhookData ?? []) as WebhookIntegrationOption[]);
@@ -1712,31 +1727,26 @@ export default function AgentesPage() {
   // tanto do card na grade quanto de dentro da tela de edição.
   async function toggleActive(agent: Agent, next: boolean) {
     if (!companyId) return;
-    // Só a chave do provedor DO MODELO escolhido é obrigatória. Antes exigia
-    // as duas, então quem assina só a Anthropic (ou só a OpenAI) não
-    // conseguia ativar nada -- e ninguém contrata os dois provedores pra
-    // usar um.
+    // O pré-requisito de cobrança é SALDO, e só ele. Chave de API do cliente
+    // saiu do produto (dono, 30/09/2026): quem roda os agentes é a chave da
+    // Rezult, e o que a empresa compra é crédito.
     if (next) {
       // Consulta na hora, em vez de usar o estado carregado quando a página
-      // montou: quem cadastra a chave em Configurações e volta pra cá sem
-      // recarregar continuava com a foto velha do banco, e a trava acusava
-      // "cadastre sua chave" com a chave já gravada, sem saída.
-      const { data: provedoresAgora } = await supabase.rpc("company_ai_providers", { p_company_id: companyId });
-      const chaves = new Set(((provedoresAgora ?? []) as { provider: string }[]).map((p) => p.provider));
-      setHasAnthropicKey(chaves.has("anthropic"));
-      setHasOpenaiKey(chaves.has("openai"));
+      // montou: quem acabou de comprar crédito e volta pra cá sem recarregar
+      // continuava com a foto velha do banco, e a trava acusava "sem saldo"
+      // com o saldo já creditado, sem saída. Era o mesmo motivo de antes,
+      // quando a pergunta ainda era sobre chave.
+      const { data: contaAgora } = await supabase
+        .from("credit_accounts").select("saldo_creditos").eq("company_id", companyId).maybeSingle();
+      const saldo = contaAgora ? Number((contaAgora as { saldo_creditos: number }).saldo_creditos) : 0;
+      setSaldoDeCreditos(saldo);
 
-      const provedorDoModelo = (agent.model ?? "").startsWith("gpt-") ? "openai" : "anthropic";
-      if (!chaves.has(provedorDoModelo)) {
-        toast.error(
-          provedorDoModelo === "anthropic"
-            ? "Cadastre sua chave da Anthropic em Configurações antes de ativar o agente."
-            : "Cadastre sua chave da OpenAI em Configurações antes de ativar o agente.",
-        );
+      if (!(saldo > 0)) {
+        toast.error("Sem saldo de créditos. Adicione crédito no cartão Saldo antes de ativar o agente.");
         return;
       }
       // O Operacional não conversa: não tem objetivo nem tag de ativação, e lê
-      // todas as conversas. Só a chave do provedor (checada acima) é exigida.
+      // todas as conversas. Só o saldo (checado acima) é exigido.
       const operacional = agent.type === TIPO_OPERACIONAL;
       if (!operacional && agent.objectives.length === 0) {
         toast.error("Marque pelo menos 1 objetivo na aba Perfil antes de ativar o agente.");
@@ -1755,20 +1765,16 @@ export default function AgentesPage() {
         toast.error("Escolha para quem o agente transfere a conversa (aba Comportamento) antes de ativar.");
         return;
       }
-      // A Base de Conhecimento gera embeddings pela OpenAI mesmo quando o
-      // modelo de chat é Claude. Sem essa chave, os documentos existem mas a
-      // busca devolve vazio e o agente responde como se não houvesse
-      // material nenhum -- em silêncio.
-      if (!chaves.has("openai")) {
-        const { count } = await supabase
-          .from("agent_knowledge_bases")
-          .select("id", { count: "exact", head: true })
-          .eq("agent_id", agent.id).eq("company_id", companyId);
-        if ((count ?? 0) > 0) {
-          toast.error("Este agente tem Base de Conhecimento, que usa a OpenAI para indexar. Cadastre a chave da OpenAI em Configurações antes de ativar.");
-          return;
-        }
-      }
+      /*
+       * Saiu a trava da Base de Conhecimento.
+       *
+       * Ela existia porque os embeddings são sempre da OpenAI, mesmo com o
+       * chat em Claude: sem a chave do cliente a busca devolvia vazio e o
+       * agente respondia como se não houvesse material, em silêncio. Com o
+       * crédito, a indexação usa a chave da Rezult e sai do mesmo saldo que
+       * acabou de ser conferido acima -- não há mais uma segunda condição a
+       * satisfazer.
+       */
     }
     // "Horas ativas" (aba Performance) = tempo de relógio com o toggle
     // ligado -- ao desligar, acumula o intervalo em active_seconds_total; ao
@@ -2689,8 +2695,8 @@ custom_context: customContext,
                       pessoa ter escrito qualquer coisa, e em vermelho de erro
                       sobre algo que ela ainda nem tentou. O aviso volta como
                       popup na hora de ativar, que é quando ele decide algo.
-                      `hasAnthropicKey`/`hasOpenaiKey` seguem carregados, e a aba
-                      Modelo continua usando os dois. */}
+                      O pré-requisito que sobrou é saldo, e `saldoDeCreditos`
+                      segue carregado para a aba Modelo. */}
                   <div>
                     <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Objetivo do agente</h3>
                     <p className="text-[12px] text-[color:var(--text-muted)]">
@@ -3819,7 +3825,7 @@ custom_context: customContext,
                   <div>
                     <h3 className="text-[14px] font-semibold text-[color:var(--text-heading)]">Modelo de IA</h3>
                     <p className="text-[12px] text-[color:var(--text-muted)]">
-                      Escolha o modelo que o agente usa para responder e decidir suas ações. Requer a chave da API do provedor correspondente cadastrada em Configurações.
+                      Escolha o modelo que o agente usa para responder e decidir suas ações. O consumo é descontado do seu saldo de créditos.
                     </p>
                   </div>
                   {(() => {
@@ -3903,16 +3909,16 @@ custom_context: customContext,
                     })()}
                   </div>
                   {(() => {
-                    // Só OpenAI: é a única fornecedora do produto desde
-                    // 25/09/2026. O agente antigo gravado em Claude segue
-                    // rodando, mas a chave que a tela cobra é a da OpenAI,
-                    // porque é para lá que ele vai no próximo salvamento.
-                    if (hasOpenaiKey) return null;
+                    // O aviso mudou de assunto: era "sem chave da OpenAI",
+                    // agora é saldo. É a mesma condição que `toggleActive`
+                    // cobra no clique, dita aqui antes do clique porque esta
+                    // aba é onde a pessoa escolhe o modelo que vai consumir.
+                    if (saldoDeCreditos === null || saldoDeCreditos > 0) return null;
                     return (
                       <div className="flex items-start gap-2.5 p-4 bg-[color:var(--danger-bg)] rounded-lg max-w-[360px]">
                         <AlertTriangle size={16} className="text-[color:var(--danger-fg)] mt-0.5 shrink-0" />
                         <div className="text-[13px] text-[color:var(--danger-fg)]">
-                          Sem chave da OpenAI cadastrada — cadastre em Configurações para o agente conseguir funcionar.
+                          Sem saldo de créditos — adicione crédito no cartão Saldo para o agente conseguir funcionar.
                         </div>
                       </div>
                     );

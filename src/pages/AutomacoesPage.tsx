@@ -5930,7 +5930,7 @@ function IaTranscricaoEditor({ a, updateAction, inputStyle, labelStyle }: { a: I
           {IA_AUDIO_LANGS.map(l => <option key={l.id} value={l.id}>{l.label}</option>)}
         </select>
       </div>
-      <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>Usa a Whisper da OpenAI — requer uma chave da <strong>OpenAI</strong> cadastrada. Resultado em <span style={{ fontFamily: "monospace", color: "var(--text-muted)" }}>{`{{${a.outputVar}.texto}}`}</span>.</p>
+      <p style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.4 }}>Usa a Whisper da OpenAI — o consumo é descontado do seu <strong>saldo de créditos</strong>. Resultado em <span style={{ fontFamily: "monospace", color: "var(--text-muted)" }}>{`{{${a.outputVar}.texto}}`}</span>.</p>
     </div>
   );
 }
@@ -5964,7 +5964,7 @@ function IaPanel({ node, onClose, onDelete, onDuplicate, updateAction, removeAct
             ))}
           </div>
         </div>
-        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0", lineHeight: 1.4 }}>Ações de IA usando a chave do provedor cadastrada em Configurações → Chaves de API.</p>
+        <p style={{ fontSize: 12, color: "var(--text-muted)", margin: "4px 0 0", lineHeight: 1.4 }}>Ações de IA. O consumo é descontado do saldo de créditos da empresa.</p>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: 16, display: "flex", flexDirection: "column", gap: 14 }}>

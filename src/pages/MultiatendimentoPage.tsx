@@ -2731,7 +2731,10 @@ export default function MultiatendimentoPage() {
         // passam por insistência, e mandar o atendente repetir o clique só
         // queima o tempo dele.
         if (result.error === "not_configured") {
-          toast.error("Cadastre a chave da OpenAI em Configurações → Chaves de API para usar a sugestão com IA.");
+          // Dizia "cadastre a chave da OpenAI". A chave do cliente saiu do
+          // produto em 30/09/2026: quem paga a IA é o crédito, e a tela de
+          // Configurações não pede mais chave nenhuma.
+          toast.error("Adicione crédito em Agentes para usar a sugestão com IA.");
         } else if (result.error === "sem_saldo") {
           toast.error("Sem saldo de crédito. Adicione crédito em Agentes para usar a sugestão com IA.");
         } else if (result.error === "teto_diario") {

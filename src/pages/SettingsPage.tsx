@@ -5450,45 +5450,6 @@ function ConexoesSection() {
 }
 
 /* ---------------- API ---------------- */
-interface AiProviderKey {
-  id: string;
-  provider: string;
-  api_key: string;
-  active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-// Provedores de IA suportados (modelo BYOK — o cliente usa a chave da própria conta).
-/**
- * As fornecedoras que o cliente PODE cadastrar. Uma só, desde 25/09/2026.
- *
- * Anthropic e Google saíram junto com a escolha de modelo: o cliente agora
- * escolhe esforço (baixo, médio, alto) e o modelo por trás é sempre da OpenAI.
- * Uma segunda chave passou a ser uma pergunta sem resposta útil -- e, quando o
- * crédito vendido pelo Rezult entrar, o saldo vai ser abastecido por uma conta
- * só (secao 7 do plano do saldo).
- */
-const AI_PROVIDERS: { id: string; name: string; placeholder: string; help: string; agentUsage: string }[] = [
-  {
-    id: "openai", name: "OpenAI (ChatGPT)", placeholder: "sk-...", help: "platform.openai.com/api-keys",
-    agentUsage: "A única chave de que você precisa. Ela responde as conversas dos Agentes de IA, lê os materiais da Base de Conhecimento, atende a sugestão de resposta do Multiatendimento e o Bloco de IA das Automações. O gasto cresce com o volume de conversas atendidas.",
-  },
-];
-
-/**
- * Nomes de fornecedoras que não são mais oferecidas mas ainda têm chave
- * cadastrada por alguém. Sem este mapa, a chave antiga apareceria na lista como
- * "anthropic" cru, e o diálogo de remoção perguntaria "Remover a chave do
- * anthropic?".
- */
-const NOMES_LEGADO: Record<string, string> = {
-  anthropic: "Anthropic (Claude) · não mais utilizada",
-  google:    "Google (Gemini) · não mais utilizada",
-};
-
-// Cadastro das chaves de IA dos clientes (usadas pelo Bloco de IA das automações).
-// Uma chave por provedor por empresa (upsert por company_id+provider).
 interface MetaIntegration {
   id: string;
   name: string;
@@ -5659,183 +5620,28 @@ function MetaAdsCard() {
   );
 }
 
-function AiProviderKeysCard() {
-  const { company } = useCompany();
-  const { user } = useAuth();
-  const [keys, setKeys] = useState<AiProviderKey[]>([]);
-  const [loading, setLoading] = useState(true);
-  // Sem setter: com uma fornecedora só, isto deixou de ser estado e virou
-  // constante. O upsert em ai_provider_keys segue esperando a coluna.
-  const provider = "openai";
-  const [keyInput, setKeyInput] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [visible, setVisible] = useState<Set<string>>(new Set());
-  const [deleteTarget, setDeleteTarget] = useState<AiProviderKey | null>(null);
-
-  const load = useCallback(async () => {
-    if (!company) return;
-    setLoading(true);
-    const { data } = await supabase
-      .from("ai_provider_keys")
-      .select("id, provider, api_key, active, created_at, updated_at")
-      .eq("company_id", company.id)
-      .order("created_at", { ascending: true });
-    setKeys((data as AiProviderKey[]) ?? []);
-    setLoading(false);
-  }, [company]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const providerName = (id: string) =>
-    AI_PROVIDERS.find(p => p.id === id)?.name ?? NOMES_LEGADO[id] ?? id;
-  const current = AI_PROVIDERS.find(p => p.id === provider);
-
-  const handleSave = async () => {
-    if (!company || !user) return;
-    const val = keyInput.trim();
-    if (!val) { toast.error("Cole a API Key."); return; }
-    setSaving(true);
-    const { data, error } = await supabase
-      .from("ai_provider_keys")
-      .upsert(
-        { company_id: company.id, owner_id: user.id, provider, api_key: val, active: true, updated_at: new Date().toISOString() },
-        { onConflict: "company_id,provider" },
-      )
-      .select("id, provider, api_key, active, created_at, updated_at")
-      .single();
-    setSaving(false);
-    if (error) { toast.error("Erro ao salvar a chave."); return; }
-    setKeys(prev => [...prev.filter(k => k.provider !== provider), data as AiProviderKey]);
-    setKeyInput("");
-    toast.success(`Chave do ${providerName(provider)} salva.`);
-  };
-
-  const handleToggle = async (k: AiProviderKey) => {
-    const { error } = await supabase.from("ai_provider_keys").update({ active: !k.active }).eq("id", k.id);
-    if (error) { toast.error("Erro ao atualizar a chave."); return; }
-    setKeys(prev => prev.map(x => x.id === k.id ? { ...x, active: !k.active } : x));
-  };
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return;
-    const { error } = await supabase.from("ai_provider_keys").delete().eq("id", deleteTarget.id);
-    if (error) { toast.error("Erro ao remover a chave."); return; }
-    setKeys(prev => prev.filter(x => x.id !== deleteTarget.id));
-    toast.success("Chave removida.");
-    setDeleteTarget(null);
-  };
-
-  const toggleVisible = (id: string) =>
-    setVisible(prev => { const s = new Set(prev); if (s.has(id)) s.delete(id); else s.add(id); return s; });
-  const maskKey = (key: string) => key.length <= 8 ? "••••••••" : key.slice(0, 4) + "••••••••••••" + key.slice(-4);
-
-  return (
-    <Card>
-      <SectionTitle
-        title="Provedores de IA"
-        subtitle="Cadastre as chaves das IAs que você já possui para liberar o Bloco de IA nas automações. O uso é cobrado diretamente pelo provedor na sua própria conta."
-      />
-
-      <div className="space-y-1.5 mb-4">
-        {AI_PROVIDERS.map(p => (
-          <p key={p.id} className="text-[12px] text-muted-foreground">
-            <span className="font-medium text-foreground">{p.name}:</span> {p.agentUsage}
-          </p>
-        ))}
-      </div>
-
-      {/* Formulário: selecionar provedor + colar chave */}
-      <div className="flex flex-col sm:flex-row gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-        {/* Com uma fornecedora só, um select de uma opção não é escolha, é um
-            clique a mais para chegar no mesmo lugar. Virou rótulo. */}
-        <div className="h-9 flex items-center px-3 text-sm font-medium text-foreground bg-card border border-card-border rounded-md sm:w-52 shrink-0">
-          {AI_PROVIDERS[0].name}
-        </div>
-        <Input
-          type="password"
-          placeholder={`API Key (${current?.placeholder})`}
-          value={keyInput}
-          onChange={e => setKeyInput(e.target.value)}
-          className="border-card-border text-sm h-9 font-mono focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary"
-          onKeyDown={e => e.key === "Enter" && handleSave()}
-        />
-        <Button size="sm" className="bg-primary hover:bg-primary/90 h-9 shrink-0" onClick={handleSave} disabled={saving}>
-          {saving ? "Salvando..." : "Salvar"}
-        </Button>
-      </div>
-      <p className="text-[12px] text-muted-foreground mt-2 mb-4">
-        Obtenha sua chave em <span className="font-mono">{current?.help}</span>. Cadastrar uma chave já existente para o mesmo provedor a substitui.
-      </p>
-
-      {/* Lista de chaves cadastradas */}
-      {loading ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">Carregando...</p>
-      ) : keys.length === 0 ? (
-        <div className="text-center py-8">
-          <Sparkles size={32} className="mx-auto mb-2 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground">Nenhuma chave de IA cadastrada ainda.</p>
-          <p className="text-xs text-muted-foreground/50 mt-1">Selecione o provedor e cole sua API Key acima.</p>
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {keys.map(k => {
-            const vis = visible.has(k.id);
-            return (
-              <div key={k.id} className="flex items-center gap-3 p-3 border border-card-border rounded-lg">
-                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                  <Sparkles size={16} className="text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">{providerName(k.provider)}</p>
-                  <p className="font-mono text-xs text-muted-foreground truncate mt-0.5">{vis ? k.api_key : maskKey(k.api_key)}</p>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button onClick={() => toggleVisible(k.id)} className="p-1.5 rounded hover:bg-muted text-muted-foreground" title={vis ? "Ocultar" : "Mostrar"}>
-                    {vis ? <EyeOff size={13} /> : <Eye size={13} />}
-                  </button>
-                  <Switch checked={k.active} onCheckedChange={() => handleToggle(k)} className="data-[state=checked]:bg-primary scale-75" />
-                  <button onClick={() => setDeleteTarget(k)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive" title="Excluir">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Modal de confirmação de exclusão */}
-      <Dialog open={!!deleteTarget} onOpenChange={v => !v && setDeleteTarget(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Remover chave</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Remover a chave do {deleteTarget ? providerName(deleteTarget.provider) : ""}? As automações que usam o Bloco de IA desse provedor deixarão de funcionar.
-          </p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Cancelar</Button>
-            <Button className="bg-destructive hover:bg-destructive/90" onClick={handleDelete}>Remover</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </Card>
-  );
-}
-
+/*
+ * Saiu o cartão de chaves de IA do cliente (dono, 30/09/2026).
+ *
+ * O produto deixou de ser BYOK: quem paga a IA é o crédito comprado dentro do
+ * Rezult, e as chamadas usam a chave da Rezult (`REZULT_OPENAI_API_KEY`). Pedir
+ * uma chave da OpenAI aqui era oferecer uma segunda forma de pagar a mesma
+ * coisa -- e era ela que barrava a ativação de agente de quem já tinha crédito.
+ *
+ * A seção continua existindo pelo Meta Ads, que é credencial de verdade e não
+ * tem substituto. O nome "Chaves de API" fica: é como as Automações e o
+ * Multiatendimento apontam para cá.
+ */
 function ApiSection() {
   return (
     <>
       <div className="mb-6">
         <h1 className="text-xl font-bold text-foreground">Chaves de API</h1>
-        <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Cadastre as chaves de IA dos seus provedores.</p>
+        <p className="text-[14px] font-normal text-muted-foreground mt-0.5">Credenciais das integrações externas da sua empresa.</p>
       </div>
 
       {/* Meta Ads Conversions API */}
       <MetaAdsCard />
-
-      {/* Provedores de IA (BYOK) */}
-      <AiProviderKeysCard />
     </>
   );
 }
