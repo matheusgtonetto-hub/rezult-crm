@@ -129,7 +129,7 @@ Atualizações: optimistic state + upsert no Supabase.
 | `automation_logs` | Logs de execução por nó (`automation_id`, `company_id`, `lead_id`, `node_id`, `status`, `error_message`, `tokens` int — tokens consumidos pelo nó de IA) — escrito pela Edge Function via service role |
 | `automation_runner_config` | Config interna do motor de automações (`supabase_url`, `automation_secret`) — sem acesso via API (RLS total) |
 | `automation_pending` | Execuções pausadas por blocos Espera (`company_id`, `automation_id`, `lead_id`, `node_ids text[]`, `trigger_payload jsonb`, `resume_after timestamptz`) — sem acesso via API (RLS total); pg_cron chama a Edge Function a cada minuto para retomar |
-| `ai_provider_keys` | Chaves de IA dos clientes (BYOK) (`company_id`, `owner_id`, `provider`, `api_key`, `active`) — uma por provedor por empresa (`unique(company_id, provider)`); RLS: só o dono gerencia. **Desde 30/09/2026 a tela de cadastro NÃO existe mais**: o produto deixou de ser BYOK e a IA é paga pelo saldo de créditos (`credit_accounts`), com a chave da Rezult (`REZULT_OPENAI_API_KEY`). A tabela e o caminho de leitura em `_shared/chave-ia.ts` continuam de pé só pelas linhas já cadastradas antes da mudança |
+| `ai_provider_keys` | Chaves de IA dos clientes (BYOK) (`company_id`, `owner_id`, `provider`, `api_key`, `active`) — uma por provedor por empresa (`unique(company_id, provider)`); RLS: só o dono gerencia. **Desde 30/09/2026 a tela de cadastro NÃO existe mais**: o produto deixou de ser BYOK e a IA é paga pelo saldo de créditos (`credit_accounts`), com a chave da Rezult (`REZULT_OPENAI_API_KEY`). **Nenhum código lê mais a tabela** — `_shared/chave-ia.ts` devolve sempre a chave da Rezult. As linhas antigas seguem no banco porque apagar dado de cliente não é decisão de refactor; se algum caminho voltar a lê-las, é regressão |
 | `subscriptions` | Assinatura Stripe da empresa (`company_id`, `owner_user_id`, `stripe_customer_id`, `stripe_subscription_id`, `stripe_price_id`, `plan_name`, `billing_period`, `status`, `trial_ends_at`, `current_period_start`, `current_period_end`, `canceled_at`) |
 | `disparos` | Execução em massa de uma automação (gatilho `lead_manual`) sobre leads filtrados (`owner_id`, `company_id`, `title`, `automation_id`, `status` criado/agendado/em_andamento/pausado/concluido/erro, `rhythm` normal/turbo/lento/humano, `filters` jsonb, `scheduled_at`, `confirm_filters`, `total_leads`) |
 | `disparo_itens` | Um lead dentro de um disparo (`disparo_id`, `company_id`, `owner_id`, `lead_id`, `lead_name`, `lead_phone`, `status` nao_iniciado/pendente/em_execucao/concluido/erro, `error_message`) — escrito pela Edge Function `disparo-runner` |
@@ -250,13 +250,13 @@ Retomada de esperas (pg_cron — 1x/min)
 | `espera` | Pausa o flow pelo tempo/janela configurada em `espera` |
 | `api` | Executa requisições HTTP definidas em `apiConfig.requests`; resposta vira datasource |
 | `campos` | Operações de campo: `mapeamento` (escreve valor no lead) ou `analise_telefone` (parse de número) |
-| `ia` | Bloco de IA BYOK: executa `iaActions` usando chave do provedor em `ai_provider_keys` |
+| `ia` | Bloco de IA: executa `iaActions` com a chave da Rezult, debitando do saldo de créditos |
 | `randomizador` | Distribui execução entre branches por percentual (`randomBranches`) |
 | `mensagem` | Envia mensagens WhatsApp via `subBlocks`; pode pausar para aguardar resposta |
 
 ### Bloco de IA (`ia`)
 
-Usa a chave BYOK da empresa em `ai_provider_keys`. Cada `IaAction` em `iaActions`:
+Pago pelo saldo de créditos da empresa (`credit_accounts`), com a chave da Rezult. Cada `IaAction` em `iaActions`:
 
 | Tipo | Descrição |
 |------|-----------|
@@ -270,7 +270,7 @@ Usa a chave BYOK da empresa em `ai_provider_keys`. Cada `IaAction` em `iaActions
 
 Resultado disponível como `{{outputVar.resposta}}` nos nós seguintes.
 
-**O cliente escolhe ESFORÇO, não modelo** (decisão do dono, 25/09/2026): baixo → `gpt-5.6-luna`, médio → `gpt-5.6-terra`, alto → `gpt-5.6-sol`. Catálogo em `src/lib/ai-models.ts` (`IA_ESFORCOS`, `MODELO_POR_ESFORCO`, `esforcoDoModelo`). O campo `provider` continua no fluxo porque o runner o lê para escolher a API, e o runner ainda sabe executar `anthropic` e `google` para fluxos antigos — o que saiu foi a escolha, não a capacidade.
+**O cliente escolhe ESFORÇO, não modelo** (decisão do dono, 25/09/2026): baixo → `gpt-5.6-luna`, médio → `gpt-5.6-terra`, alto → `gpt-5.6-sol`. Catálogo em `src/lib/ai-models.ts` (`IA_ESFORCOS`, `MODELO_POR_ESFORCO`, `esforcoDoModelo`). O campo `provider` continua no fluxo porque o runner o lê para escolher a API, e o runner ainda sabe executar `anthropic` e `google` — mas desde 30/09/2026 `resolverChaveDeIa` só entrega chave para `openai`, então um fluxo antigo nesses provedores agora falha com a instrução de reabrir o bloco e salvar o esforço.
 
 **Preço de modelo mora em dois lugares e os dois precisam ter todos:** `supabase/functions/_shared/uso.ts` (`MODEL_PRICING`, fonte de verdade da cobrança) e `src/lib/ai-models.ts` (`IA_MODEL_PRICING`, cópia porque Deno não importa de `src/`). Modelo sem preço é registrado com custo ZERO e ninguém é cobrado; desde 25/09/2026 isso grita no log.
 

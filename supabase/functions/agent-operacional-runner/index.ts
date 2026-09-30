@@ -222,16 +222,16 @@ async function processar(db: Db, fila: Fila): Promise<{ processadoAte: string | 
   const provedor = model.startsWith("gpt-") ? "openai" : "anthropic";
 
   /*
-   * Quem paga esta chamada: a Rezult (empresa com saldo) ou o cliente (chave
-   * própria). O mesmo objeto carrega a chave e a resposta, e o `daRezult` vai
-   * direto para `registrarUso({ debitar })`.
+   * A chave é a da Rezult, e o `daRezult` vai direto para
+   * `registrarUso({ debitar })`. O saldo já foi conferido por `podeGastar`
+   * acima, e desde 30/09/2026 não há chave de cliente como alternativa.
    *
-   * Substituiu uma busca direta em `ai_provider_keys`. Enquanto a escolha da
-   * chave e a decisão de debitar viviam em lugares diferentes, existia o
-   * caminho em que as duas diziam sim e o cliente pagava duas vezes.
+   * `null` só acontece com `provedor` fora do openai (agente antigo gravado em
+   * Claude) ou com a nossa chave fora do ar -- os dois são falha nossa, e
+   * nenhum é recuperável aqui.
    */
   const chave = await resolverChaveDeIa(db, fila.company_id, provedor, "agent-operacional");
-  if (!chave) throw new Error(`empresa sem chave ativa da ${provedor === "openai" ? "OpenAI" : "Anthropic"}`);
+  if (!chave) throw new Error(`sem chave de IA utilizavel para o provedor ${provedor}`);
 
   const { data: conversa } = await db.from("whatsapp_conversations")
     .select("id, name, phone, contact_id")

@@ -9,10 +9,10 @@ import { resolverChaveDeIa } from "../_shared/chave-ia.ts";
 // mensagem do atendente. A chave fica no servidor.
 // Autenticada pelo JWT do usuário logado (verify_jwt = false; validado aqui).
 //
-// OpenAI primeiro, Anthropic como alternativa. O cliente deve precisar de UMA
-// chave só, e a da OpenAI é a única que cobre o produto inteiro (agentes e
-// embeddings da Base de Conhecimento). Quem só cadastrou a Anthropic continua
-// funcionando como antes.
+// Só OpenAI. Dizia "OpenAI primeiro, Anthropic como alternativa", que fazia
+// sentido enquanto o cliente trazia a própria chave; desde 30/09/2026 a chave é
+// a da Rezult e o consumo sai do saldo, então não há segunda fornecedora para
+// onde cair.
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,7 +37,6 @@ type InMsg = { from?: string; text?: string };
  * que e o mesmo motivo de `reasoning_effort: "none"` logo abaixo.
  */
 const MODELO_OPENAI = "gpt-5.6-luna";
-const MODELO_ANTHROPIC = "claude-sonnet-5";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -73,36 +72,27 @@ Deno.serve(async (req) => {
   const veredicto = await podeGastar(db, body.companyId ?? "", "sugestao");
   if (veredicto !== "ok") return json({ error: veredicto }, 200);
 
-  // Chave da EMPRESA (BYOK), o mesmo padrão do agente. As variáveis de ambiente
   /*
    * ─── A chave, e quem paga por ela ─────────────────────────────────────────
    *
-   * `resolverChaveDeIa` devolve a chave da Rezult para quem tem saldo e a do
-   * cliente para quem não tem, e diz qual foi -- é esse `daRezult` que decide
-   * se o consumo é debitado. Enquanto a escolha da chave e a decisão de
-   * debitar viviam em lugares diferentes, quem tinha saldo E chave própria
-   * pagava duas vezes pela mesma sugestão.
+   * Sempre a da Rezult, e o consumo é debitado do saldo (`daRezult`). A trava
+   * de saldo mora antes desta linha e responde `sem_saldo`, que é o erro que a
+   * tela mostra para quem precisa comprar crédito.
    *
-   * OpenAI primeiro, Anthropic como resto de compatibilidade: o produto só
-   * oferece OpenAI desde 25/09/2026, mas quem já tinha chave da Anthropic
-   * cadastrada continua funcionando. Saiu o fallback para variável de
-   * ambiente neste ponto, porque `resolverChaveDeIa` já cuida da chave da
-   * Rezult -- e uma chave de desenvolvimento passando na frente da chave
-   * cadastrada pelo cliente era exatamente o risco documentado aqui antes.
+   * Saiu a segunda tentativa em `anthropic`. Ela existia para quem tinha chave
+   * própria da Anthropic cadastrada, e o BYOK acabou em 30/09/2026 -- hoje ela
+   * só produziria uma segunda chamada garantidamente nula antes do mesmo
+   * `not_configured`.
+   *
+   * Com isso some também a inferência do provedor, que saía de QUAL tentativa
+   * funcionou (nunca do prefixo da chave, que quebraria em silêncio no dia em
+   * que um deles mudasse o formato do token). Com uma tentativa só, não há o
+   * que inferir.
    */
-  // O provedor sai de QUAL tentativa funcionou, e não do formato da chave.
-  // Inferir por prefixo ("sk-ant-") quebraria no dia em que um deles mudar o
-  // padrão dos tokens, e quebraria em silêncio: a chave iria para a API errada.
-  let provedor: "openai" | "anthropic" = "openai";
-  let chave = await resolverChaveDeIa(db, body.companyId ?? "", "openai", "sugestao");
-  if (!chave) {
-    chave = await resolverChaveDeIa(db, body.companyId ?? "", "anthropic", "sugestao");
-    provedor = "anthropic";
-  }
+  const chave = await resolverChaveDeIa(db, body.companyId ?? "", "openai", "sugestao");
   if (!chave) return json({ error: "not_configured" }, 200);
 
-  const openaiKey = provedor === "openai" ? chave.apiKey : "";
-  const anthropicKey = provedor === "anthropic" ? chave.apiKey : "";
+  const openaiKey = chave.apiKey;
 
   const msgs = (body.messages ?? []).filter(m => (m.text ?? "").trim()).slice(-30);
   if (msgs.length === 0) return json({ error: "empty_conversation" }, 400);
@@ -139,76 +129,41 @@ Deno.serve(async (req) => {
   try {
     let suggestion = "";
 
-    if (provedor === "openai") {
-      const res = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${openaiKey}` },
-        // GPT-5.x é modelo de raciocínio: recusa temperature e usa
-        // max_completion_tokens. Raciocínio desligado, como no agente
-        // (agent-sds-qualify), porque aqui é uma frase curta e o tempo de
-        // resposta pesa mais que a deliberação.
-        body: JSON.stringify({
-          model: MODELO_OPENAI,
-          reasoning_effort: "none",
-          max_completion_tokens: 1024,
-          messages: [
-            { role: "system", content: system },
-            { role: "user", content: userContent },
-          ],
-        }),
-      });
-      if (!res.ok) {
-        const detail = await res.text();
-        console.error("[ai-suggest-reply] OpenAI error:", res.status, detail);
-        return json({ error: "ai_request_failed", status: res.status }, 502);
-      }
-      const data = await res.json() as {
-        choices?: { message?: { content?: string } }[];
-        usage?: {
-          prompt_tokens?: number;
-          completion_tokens?: number;
-          prompt_tokens_details?: { cached_tokens?: number };
-        };
-      };
-      suggestion = (data.choices?.[0]?.message?.content ?? "").trim();
-      entrada  = data.usage?.prompt_tokens ?? 0;
-      saida    = data.usage?.completion_tokens ?? 0;
-      cacheada = data.usage?.prompt_tokens_details?.cached_tokens ?? 0;
-      modelo   = MODELO_OPENAI;
-    } else {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": anthropicKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: MODELO_ANTHROPIC,
-          max_tokens: 1024,
-          system,
-          messages: [{ role: "user", content: userContent }],
-        }),
-      });
-      if (!res.ok) {
-        const detail = await res.text();
-        console.error("[ai-suggest-reply] Anthropic error:", res.status, detail);
-        return json({ error: "ai_request_failed", status: res.status }, 502);
-      }
-      const data = await res.json() as {
-        content?: { type: string; text?: string }[];
-        usage?: { input_tokens?: number; output_tokens?: number; cache_read_input_tokens?: number };
-      };
-      entrada  = data.usage?.input_tokens ?? 0;
-      saida    = data.usage?.output_tokens ?? 0;
-      cacheada = data.usage?.cache_read_input_tokens ?? 0;
-      modelo   = MODELO_ANTHROPIC;
-      suggestion = (data.content ?? [])
-        .filter(b => b.type === "text")
-        .map(b => b.text ?? "")
-        .join("")
-        .trim();
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${openaiKey}` },
+      // GPT-5.x é modelo de raciocínio: recusa temperature e usa
+      // max_completion_tokens. Raciocínio desligado, como no agente
+      // (agent-sds-qualify), porque aqui é uma frase curta e o tempo de
+      // resposta pesa mais que a deliberação.
+      body: JSON.stringify({
+        model: MODELO_OPENAI,
+        reasoning_effort: "none",
+        max_completion_tokens: 1024,
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: userContent },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const detail = await res.text();
+      console.error("[ai-suggest-reply] OpenAI error:", res.status, detail);
+      return json({ error: "ai_request_failed", status: res.status }, 502);
     }
+    const data = await res.json() as {
+      choices?: { message?: { content?: string } }[];
+      usage?: {
+        prompt_tokens?: number;
+        completion_tokens?: number;
+        prompt_tokens_details?: { cached_tokens?: number };
+      };
+    };
+    suggestion = (data.choices?.[0]?.message?.content ?? "").trim();
+    entrada  = data.usage?.prompt_tokens ?? 0;
+    saida    = data.usage?.completion_tokens ?? 0;
+    cacheada = data.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+    modelo   = MODELO_OPENAI;
 
     /*
      * Registra o uso mesmo quando a sugestao vem vazia.

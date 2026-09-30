@@ -1890,17 +1890,21 @@ async function getAiKey(
   }
 
   /*
-   * Devolve QUEM PAGA junto com a chave.
+   * A chave é sempre a da Rezult, e o `daRezult` vai direto para
+   * `registrarUso({ debitar })`. O saldo já foi conferido acima.
    *
-   * `resolverChaveDeIa` entrega a chave da Rezult para quem tem saldo e a do
-   * cliente para quem não tem, e o `daRezult` vai direto para
-   * `registrarUso({ debitar })`. Enquanto a escolha da chave e a decisão de
-   * debitar viviam separadas, quem tinha saldo E chave própria pagava duas
-   * vezes pela mesma chamada.
+   * `null` aqui não é mais "cliente sem chave cadastrada": é fluxo antigo
+   * pedindo `anthropic`/`google`, ou a nossa chave fora do ar. Nenhum dos dois
+   * é coisa que o cliente resolva, e por isso a mensagem não manda ele
+   * configurar nada.
    */
   const chave = await resolverChaveDeIa(supabase, companyId, provider, "automation-runner");
   if (!chave) {
-    throw new Error(`Nenhuma chave de API cadastrada para ${provider}. Configure em Configurações → Chaves de API.`);
+    throw new Error(
+      provider === "openai"
+        ? "O bloco de IA está indisponível no momento. Fale com o suporte."
+        : `Este bloco de IA ainda aponta para "${provider}", que saiu do produto. Reabra o bloco e salve o esforço para migrá-lo.`,
+    );
   }
   return chave;
 }

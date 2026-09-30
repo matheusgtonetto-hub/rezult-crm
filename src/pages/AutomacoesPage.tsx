@@ -105,9 +105,10 @@ type ApiRequest = {
 };
 type ApiConfig = { requests: ApiRequest[] };
 
-// Bloco de IA (BYOK): cada nó contém uma lista de ações de IA. Usa a chave do
-// provedor cadastrada em ai_provider_keys. O resultado de cada ação fica disponível
-// para os blocos seguintes como {{<outputVar>.resposta}} (ou campos extraídos).
+// Bloco de IA: cada nó contém uma lista de ações de IA, pagas pelo saldo de
+// créditos da empresa (era BYOK, com a chave do cliente em ai_provider_keys, até
+// 30/09/2026). O resultado de cada ação fica disponível para os blocos seguintes
+// como {{<outputVar>.resposta}} (ou campos extraídos).
 type IaActionType = "assistente_chat" | "gerar_texto" | "invocar_agente" | "transcricao_audio" | "intencao" | "sentimento" | "extrator_params";
 type IaIntencao = { id: string; nome: string; detalhes?: string; exemplos?: string };
 type IaSentimento = { id: string; nome: string; detalhes?: string };

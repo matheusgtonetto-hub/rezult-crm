@@ -1,33 +1,44 @@
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Quem paga a chamada de IA: a Rezult ou o cliente.
+ * A chave que roda a IA do produto. Uma só: a da Rezult.
  *
- * ═══ O defeito que este módulo existe para fechar ═══════════════════════════
+ * ═══ O que mudou em 30/09/2026 ══════════════════════════════════════════════
  *
- * Até 25/09/2026 o débito do saldo acontecia sempre que a empresa tinha conta
- * de crédito, e a chave usada na chamada continuava sendo a DO CLIENTE. Com o
- * checkout no ar, a primeira compra real produziria cobrança dupla: a OpenAI
- * cobrando a chave dele e o nosso saldo caindo pela mesma resposta.
+ * O produto deixou de ser BYOK. A tela de cadastro de chave saiu de
+ * Configurações, a ativação de agente passou a exigir SALDO em vez de chave, e
+ * este módulo parou de ler `ai_provider_keys`.
  *
- * Nenhum cliente foi cobrado duas vezes, porque nenhum tinha conta de crédito
- * de verdade. Mas era questão de uma venda.
- *
- * ═══ A regra ════════════════════════════════════════════════════════════════
+ * O que existia antes era uma bifurcação:
  *
  *   tem saldo  →  chave da REZULT, e o consumo é DEBITADO do saldo
  *   sem saldo  →  chave do CLIENTE, e nada é debitado (ele paga o fornecedor)
  *
- * As duas metades andam juntas, e é isso que impede a cobrança dupla: quem
- * decide se debita é o MESMO código que decide qual chave usar. Enquanto eram
- * decisões separadas, existia o caminho em que uma dizia sim e a outra também.
+ * A segunda metade morreu. Quem não tem saldo não roda IA -- `pode_gastar` já
+ * devolvia `sem_saldo` e todos os chamadores já tratavam esse caso, porque ele
+ * também acontecia com quem tinha saldo e o esgotou no meio do mês. O caminho
+ * do cliente era a exceção, e a exceção virou o caminho único ao contrário:
+ * agora é saldo ou nada.
+ *
+ * ═══ Por que `ai_provider_keys` continua no banco ═══════════════════════════
+ *
+ * Porque a tabela tem chaves de cliente cadastradas antes da mudança, e apagar
+ * dado de cliente não é decisão de refactor. Nada mais LÊ a tabela -- se algum
+ * caminho voltar a lê-la, é regressão.
+ *
+ * ═══ Por que `daRezult` sobrevive ao corte ══════════════════════════════════
+ *
+ * Ele é hoje sempre `true`, e podia sair. Fica porque é ele que `registrarUso`
+ * recebe como `debitar`, em oito pontos de chamada: tirá-lo transformaria uma
+ * mudança de política numa varredura em cinco Edge Functions, e a decisão
+ * "esta chamada é debitada?" continua sendo uma pergunta legítima do domínio.
  */
 
 export type ChaveDeIa = {
   apiKey: string;
   /**
-   * `true` = chave da Rezult, então o consumo sai do saldo comprado.
-   * `false` = chave do cliente, então NADA é debitado.
+   * Sempre `true` desde 30/09/2026: toda chamada de IA sai da chave da Rezult
+   * e é debitada do saldo. Ver a nota do módulo.
    *
    * Vai direto para `registrarUso({ debitar })`.
    */
@@ -48,78 +59,49 @@ function chaveDaRezult(): string {
 }
 
 /**
- * Resolve a chave de IA de uma empresa, e diz quem paga.
+ * Resolve a chave de IA de uma empresa.
  *
- * Devolve `null` quando não há chave nenhuma utilizável -- o chamador decide
- * como reagir, porque a reação certa muda: o agente faz skip silencioso e a
+ * Devolve `null` quando a chamada não pode acontecer -- o chamador decide como
+ * reagir, porque a reação certa muda: o agente faz skip silencioso e a
  * sugestão de resposta mostra erro na tela.
  *
- * @param provider O provedor do modelo escolhido. A chave da Rezult só existe
- *   para `openai`; qualquer outro cai no caminho do cliente, sem débito. Hoje
- *   isso é teórico, porque o produto só oferece OpenAI desde 25/09/2026, mas
- *   existem agentes antigos gravados em Claude.
+ * São dois motivos de `null`, e os dois são falha NOSSA, não do cliente:
+ *
+ *   1. `provider` diferente de `openai`. O catálogo só vende OpenAI desde
+ *      25/09/2026 (ver `IA_ESFORCOS`), e em 30/09/2026 não havia nenhum agente
+ *      gravado fora da família `gpt-5.6`. Um `anthropic` chegando aqui é fluxo
+ *      antigo que ninguém migrou, e agora ele para em vez de cobrar do cliente.
+ *   2. `REZULT_OPENAI_API_KEY` ausente. Antes isso caía na chave do cliente sem
+ *      debitar, que era o menos errado quando existia chave de cliente. Não
+ *      existe mais: o certo é falhar alto, porque é configuração nossa.
+ *
+ * O que este módulo NÃO decide é se há saldo. Quem responde isso é
+ * `pode_gastar`, e todo chamador já pergunta antes. Separado de propósito: são
+ * duas perguntas diferentes ("a chamada pode acontecer?" e "com qual chave?"),
+ * e o teto diário derruba a primeira sem mexer na segunda.
  */
 export async function resolverChaveDeIa(
-  db: any,
+  _db: any,
   companyId: string,
   provider: string,
   origem: string,
 ): Promise<ChaveDeIa | null> {
-  const buscarDoCliente = async (): Promise<string> => {
-    const { data } = await db
-      .from("ai_provider_keys")
-      .select("api_key")
-      .eq("company_id", companyId)
-      .eq("provider", provider)
-      .eq("active", true)
-      .limit(1)
-      .maybeSingle();
-    return (data?.api_key as string) || "";
-  };
-
   if (provider !== "openai") {
-    const doCliente = await buscarDoCliente();
-    return doCliente ? { apiKey: doCliente, daRezult: false } : null;
-  }
-
-  /*
-   * Saldo positivo é o que define o modelo de cobrança da empresa.
-   *
-   * Lido diretamente, e não por `pode_gastar`, porque aqui a pergunta é outra:
-   * `pode_gastar` responde "deixo a chamada acontecer?" (e cobre teto diário);
-   * esta responde "de quem é a conta?". Uma empresa com teto diário atingido
-   * segue sendo cliente de crédito, e amanhã volta a gastar do saldo.
-   */
-  const { data: conta } = await db
-    .from("credit_accounts")
-    .select("saldo_creditos")
-    .eq("company_id", companyId)
-    .maybeSingle();
-
-  const temSaldo = !!conta && Number(conta.saldo_creditos) > 0;
-
-  if (temSaldo) {
-    const daRezult = chaveDaRezult();
-    if (daRezult) return { apiKey: daRezult, daRezult: true };
-
-    /*
-     * Tem saldo, e a nossa chave não está configurada.
-     *
-     * Cai para a chave do cliente SEM debitar. É o menos errado dos caminhos:
-     * ele continua atendido, e não paga duas vezes. O prejuízo é nosso -- ele
-     * comprou crédito que não foi consumido -- e é o lado certo para o erro
-     * cair, porque a falha é de configuração nossa.
-     */
-    const doCliente = await buscarDoCliente();
     console.error(
-      `[${origem}] REZULT_OPENAI_API_KEY ausente e a empresa ${companyId} TEM saldo. ` +
-      (doCliente
-        ? "Usando a chave do cliente SEM debitar: ele nao paga duas vezes, mas o credito dele nao e consumido."
-        : "Sem chave do cliente tambem: a chamada nao acontece."),
+      `[${origem}] provedor "${provider}" pedido pela empresa ${companyId}, e o produto so roda openai desde 30/09/2026. ` +
+      "Chamada recusada: nao existe mais chave de cliente para cair.",
     );
-    return doCliente ? { apiKey: doCliente, daRezult: false } : null;
+    return null;
   }
 
-  const doCliente = await buscarDoCliente();
-  return doCliente ? { apiKey: doCliente, daRezult: false } : null;
+  const daRezult = chaveDaRezult();
+  if (!daRezult) {
+    console.error(
+      `[${origem}] REZULT_OPENAI_API_KEY ausente. A empresa ${companyId} nao roda IA ate isso ser configurado -- ` +
+      "nao ha mais chave de cliente como alternativa.",
+    );
+    return null;
+  }
+
+  return { apiKey: daRezult, daRezult: true };
 }

@@ -890,8 +890,9 @@ async function logAgentUsage(
   // existe no banco. A coluna é nullable justamente para casos assim.
   leadId: string | null,
   success: boolean,
-  // Vem de `resolverChaveDeIa`: só debita quem usou a chave da Rezult. Sem
-  // isso, empresa com saldo E chave própria pagava duas vezes pela resposta.
+  // Vem de `resolverChaveDeIa`, e desde 30/09/2026 é sempre `true`: toda
+  // chamada usa a chave da Rezult e sai do saldo. O parâmetro fica porque
+  // "esta chamada é debitada?" segue sendo pergunta do domínio.
   debitar: boolean,
 ): Promise<void> {
   await registrarUso(db, {

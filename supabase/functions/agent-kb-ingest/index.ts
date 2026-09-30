@@ -188,26 +188,18 @@ Deno.serve(async (req) => {
       throw new Error(`extração para .${ext} não implementada — só .txt, .csv, .json, .html e .pdf por enquanto`);
     }
 
-    // Chave de embeddings: prioriza a chave própria da empresa (ai_provider_keys,
-    // mesmo padrão do agent-sds-qualify pra Anthropic), cai pro fallback global.
-    const { data: companyOpenaiKey } = await db
-      .from("ai_provider_keys")
-      .select("api_key")
-      .eq("company_id", doc.company_id as string)
-      .eq("provider", "openai")
-      .eq("active", true)
-      .maybeSingle();
     /*
-     * A chave, e quem paga por ela. `resolverChaveDeIa` entrega a da Rezult
-     * para quem tem saldo e a do cliente para quem não tem, e o `daRezult`
-     * decide se o consumo é debitado.
+     * A chave dos embeddings: sempre a da Rezult, e o consumo é debitado do
+     * saldo (`daRezult`).
      *
-     * Saiu o fallback direto para `OPENAI_API_KEY`: ele existia como recurso de
-     * desenvolvimento e passava na frente de nada, mas agora a chave da Rezult
-     * tem nome próprio e caminho próprio.
+     * Saiu daqui uma consulta a `ai_provider_keys` que buscava a chave própria
+     * da empresa e não usava o resultado em lugar nenhum -- `resolverChaveDeIa`
+     * já fazia a mesma busca por dentro. Era uma ida ao banco por documento
+     * indexado, sem efeito. Com o fim do BYOK em 30/09/2026 nem a busca de
+     * dentro existe mais.
      */
     const chave = await resolverChaveDeIa(db, doc.company_id as string, "openai", "base_conhecimento");
-    if (!chave) throw new Error("Nenhuma chave da OpenAI configurada para indexar a Base de Conhecimento.");
+    if (!chave) throw new Error("A indexação da Base de Conhecimento está indisponível. Fale com o suporte.");
     const openaiKey = chave.apiKey;
 
     /*
