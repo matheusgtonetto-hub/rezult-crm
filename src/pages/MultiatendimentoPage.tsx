@@ -570,6 +570,32 @@ const GAP_DO_CHAT = 12;
  */
 const TETO_DO_DIALOGO = "calc(100vw - 24px)";
 
+/*
+ * ─── As três colunas, e o piso que elas impõem (dono, 29/09/2026) ───────────
+ *
+ * O dono reportou o chat "muito curto" numa janela de ~940px. A conta explica:
+ * lista e perfil são FIXOS em 350 cada, então eles não encolhem -- quem encolhe
+ * é o chat, que é o `flex: 1`. Com o piso global de 1000px da tela, sobravam
+ * 276px para a conversa, e uma mensagem saía com duas palavras por linha.
+ *
+ * O erro foi ter um piso só para o app inteiro. O piso DESTA tela não é uma
+ * escolha de gosto: é a soma do que as colunas ocupam. Por isso ele é calculado
+ * e não escrito -- mexer em qualquer coluna reajusta o piso sozinho, em vez de
+ * deixar um número velho escondido aqui.
+ *
+ * 480 para o chat porque abaixo disso o balão (65% da largura) fica menor que
+ * 310px, que é onde a frase comum começa a quebrar em quatro linhas.
+ *
+ * Consequência assumida: numa janela mais estreita que a soma, esta tela ganha
+ * rolagem horizontal. É de propósito, e é o que o dono pediu -- ler a conversa
+ * arrastando um pouco é melhor que ler uma coluna de duas palavras.
+ */
+const LARGURA_DA_LISTA = 350;
+const LARGURA_DO_PERFIL = 350;
+const LARGURA_MINIMA_DO_CHAT = 480;
+const LARGURA_MINIMA_DA_TELA =
+  LARGURA_DA_LISTA + LARGURA_DO_PERFIL + LARGURA_MINIMA_DO_CHAT + GAP_DO_CHAT * 2;
+
 export default function MultiatendimentoPage() {
   const { user } = useAuth();
   const { company, whatsappConnections, whatsappConnectionsLoaded, billingBlocked } = useCompany();
@@ -1094,6 +1120,38 @@ export default function MultiatendimentoPage() {
   // `src/lib/telaDeCelular.ts`.
   const telaDeCelular = useTelaDeCelular();
   const [perfilAberto, setPerfilAberto] = useState(false);
+
+  /*
+   * ─── O cabeçalho enxuga quando a conversa estreita ──────────────────────
+   *
+   * Medido no CONTAINER, com ResizeObserver, e não na janela com media query.
+   * A diferença importa: a largura do chat não é a da janela, é o que sobra
+   * dela depois das duas colunas fixas de 350px. Numa janela de 940px o chat
+   * tem 504 -- uma media query de 940 não saberia disso, e uma de 504 nunca
+   * dispararia.
+   *
+   * É também o tipo de responsividade que o dono quis MANTER: reagir ao espaço
+   * que existe, e não decidir "celular ou computador".
+   *
+   * 620 é onde o cabeçalho completo deixa de caber: o bloco da esquerda
+   * (avatar + nome + chip) pede uns 190, e os três botões escritos com o
+   * #número pedem uns 365, mais 32 de respiro.
+   */
+  const refDoChat = useRef<HTMLElement | null>(null);
+  const [larguraDoChat, setLarguraDoChat] = useState(0);
+  useEffect(() => {
+    const el = refDoChat.current;
+    if (!el) return;
+    const observador = new ResizeObserver(entradas => {
+      const largura = entradas[0]?.contentRect.width;
+      if (largura) setLarguraDoChat(largura);
+    });
+    observador.observe(el);
+    return () => observador.disconnect();
+    // O elemento só existe com uma conversa aberta, então o observador é
+    // religado a cada abertura.
+  }, [activeId]);
+  const cabecalhoCompacto = telaDeCelular || (larguraDoChat > 0 && larguraDoChat < 620);
 
   // Trocar de conversa fecha o perfil: ele descreve o lead da conversa
   // anterior, e deixá-lo aberto mostraria os dados de um contato sobre a
@@ -3958,7 +4016,7 @@ export default function MultiatendimentoPage() {
 
   return (
     <div
-      style={{ display: "flex", height: "var(--altura-util)", width: "100%", background: "hsl(var(--background))" }}
+      style={{ display: "flex", height: "var(--altura-util)", width: "100%", minWidth: telaDeCelular ? undefined : LARGURA_MINIMA_DA_TELA, background: "hsl(var(--background))" }}
       onClick={() => { if (instanceOpen) setInstanceOpen(false); if (moreMenuOpen) setMoreMenuOpen(false); if (bulkMenuOpen) setBulkMenuOpen(false); if (deptMenuOpen) setDeptMenuOpen(false); if (deptAssignOpen) { setDeptAssignOpen(false); setDeptEmTransferencia(null); } if (respMenuOpen) setRespMenuOpen(false); }}
     >
       {/* ── COLUNA 1 — LISTA ─────────────────────────────────────────── */}
@@ -3969,7 +4027,7 @@ export default function MultiatendimentoPage() {
         // dentro de 390, então saem todas.
         ...(telaDeCelular
           ? { width: "100%", minWidth: 0, maxWidth: "none", display: activeId ? "none" : "flex", borderRight: "none", boxShadow: "none" }
-          : { width: 350, minWidth: 350, maxWidth: 350, display: "flex", borderRight: "1px solid var(--border-default)", boxShadow: "1px 0 4px rgba(0,0,0,0.04)" }),
+          : { width: LARGURA_DA_LISTA, minWidth: LARGURA_DA_LISTA, maxWidth: LARGURA_DA_LISTA, display: "flex", borderRight: "1px solid var(--border-default)", boxShadow: "1px 0 4px rgba(0,0,0,0.04)" }),
         height: "var(--altura-util)", flexDirection: "column", background: "var(--surface-card)", position: "relative", zIndex: 2, overflow: "hidden",
       }}>
         <div style={{ padding: "12px 12px 8px", borderBottom: "1px solid var(--neutral-100)" }}>
@@ -4324,8 +4382,12 @@ export default function MultiatendimentoPage() {
           `minHeight: 0` no cartão porque ele é filho de flex em coluna: sem
           isso ele não encolhe abaixo do conteúdo, e a área de mensagens, que
           rola por dentro, empurraria o rodapé para fora da tela. */}
-      <section style={{
-        flex: 1, flexDirection: "column", height: "var(--altura-util)", background: "hsl(var(--background))", minWidth: 0,
+      <section ref={refDoChat} style={{
+        // `minWidth` no lugar do `0` que estava aqui: o zero autorizava o flex
+        // a espremer a conversa até o que sobrasse depois das duas colunas
+        // fixas. Era ele que deixava o chat com 276px.
+        flex: 1, flexDirection: "column", height: "var(--altura-util)", background: "hsl(var(--background))",
+        minWidth: telaDeCelular ? 0 : LARGURA_MINIMA_DO_CHAT,
         // No celular a conversa É a tela: sem respiro em volta, e some enquanto
         // nenhuma está aberta para a lista ficar com tudo.
         ...(telaDeCelular
@@ -4384,13 +4446,18 @@ export default function MultiatendimentoPage() {
                   <div style={{ position: "relative" }}>
                     <button
                       onClick={e => { e.stopPropagation(); setInstanceOpen(o => !o); }}
-                      style={{ display: "flex", alignItems: "center", gap: 5, background: instances.length > 0 ? "var(--accent-50)" : "var(--neutral-50)", border: "none", borderRadius: 100, padding: "3px 8px 3px 6px", cursor: "pointer", outline: "none" }}
+                      style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0, maxWidth: "100%", background: instances.length > 0 ? "var(--accent-50)" : "var(--neutral-50)", border: "none", borderRadius: 100, padding: "3px 8px 3px 6px", cursor: "pointer", outline: "none" }}
                     >
                       <svg viewBox="0 0 24 24" width={12} height={12} style={{ flexShrink: 0 }}>
                         <circle cx="12" cy="12" r="12" fill={instances.length > 0 ? "#25D366" : "var(--neutral-300)"} />
                         <path fill="var(--surface-card)" d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
                       </svg>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: instances.length > 0 ? "var(--accent-800)" : "var(--text-muted)" }}>
+                      {/* Trunca em vez de quebrar. "Sem instância conectada"
+                          são 21 caracteres que, numa faixa apertada, viravam
+                          três linhas e esticavam o cabeçalho inteiro para
+                          baixo, desalinhando avatar, nome e botões. O texto
+                          completo fica no menu que este botão abre. */}
+                      <span style={{ fontSize: 12, fontWeight: 600, minWidth: 0, maxWidth: 150, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: instances.length > 0 ? "var(--accent-800)" : "var(--text-muted)" }}>
                         {instances.length > 0 ? (instances.find(i => i.instanceId === selectedInstance)?.label ?? instances[0].label) : "Sem instância conectada"}
                       </span>
                       <ChevronDown size={10} color={instances.length > 0 ? "var(--accent-700)" : "var(--text-muted)"} />
@@ -4438,7 +4505,14 @@ export default function MultiatendimentoPage() {
                 </div>
               </div>
 
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              {/* `flexShrink: 0` no GRUPO, e não só nos filhos.
+                  Sem ele o grupo encolhia abaixo do que os botões ocupam, e os
+                  filhos -- que não encolhem -- passavam a se sobrepor: o
+                  "#1001" ficava por baixo do "Iniciar atendimento". Travado, é
+                  o bloco da esquerda (que tem `minWidth: 0`) que cede, e o nome
+                  do contato trunca, que é perda reversível: o nome inteiro está
+                  na lista ao lado e no perfil. */}
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
                 {/* Número do ATENDIMENTO, não o do negócio.
                     O cabeçalho mostrava #1388, que é o negócio: são coisas
                     diferentes. Um contato pode ter dez atendimentos ao longo do
@@ -4461,7 +4535,7 @@ export default function MultiatendimentoPage() {
                   // Sai no celular pelo mesmo motivo do chip de instância:
                   // é referência para buscar depois, não algo que se consulta
                   // no meio de uma conversa. Continua no perfil.
-                  style={{ display: telaDeCelular ? "none" : "inline-block", fontSize: 12, color: "var(--accent-800)", border: "1px solid var(--border-accent)", borderRadius: 100, padding: "4px 10px", fontWeight: 600, flexShrink: 0 }}
+                  style={{ display: cabecalhoCompacto ? "none" : "inline-block", fontSize: 12, color: "var(--accent-800)", border: "1px solid var(--border-accent)", borderRadius: 100, padding: "4px 10px", fontWeight: 600, flexShrink: 0 }}
                 >
                   {atendimentoAtivo ? `#${atendimentoAtivo.numero}` : `#${active.id.slice(0, 4).toUpperCase()}`}
                 </span>
@@ -4491,11 +4565,11 @@ export default function MultiatendimentoPage() {
                     clicar ficava listado em "Não iniciadas" com o botão que o
                     tiraria dali escondido -- 4 conversas reais nesse estado. */}
                 {!cs.answered && !cs.finished && (
-                  <ChatHeaderBtn icon={Eye} label="Iniciar atendimento" soIcone={telaDeCelular} onClick={() => markAsRead(activeId)} />
+                  <ChatHeaderBtn icon={Eye} label="Iniciar atendimento" soIcone={cabecalhoCompacto} onClick={() => markAsRead(activeId)} />
                 )}
                 <ChatHeaderBtn
                   icon={Check}
-                  soIcone={telaDeCelular}
+                  soIcone={cabecalhoCompacto}
                   label={cs.finished ? "Reabrir" : "Finalizar"}
                   onClick={() => {
                     if (cs.finished) { updateCs(activeId, { finished: false }); toast("Conversa reaberta"); }
@@ -5196,7 +5270,7 @@ export default function MultiatendimentoPage() {
         <aside style={{
           ...(telaDeCelular
             ? { position: "fixed", inset: 0, width: "100%", minWidth: 0, height: "100%", zIndex: 60, borderLeft: "none" }
-            : { width: 350, minWidth: 350, height: "var(--altura-util)", borderLeft: "1px solid var(--border-default)" }),
+            : { width: LARGURA_DO_PERFIL, minWidth: LARGURA_DO_PERFIL, height: "var(--altura-util)", borderLeft: "1px solid var(--border-default)" }),
           overflowY: "auto", background: "var(--surface-card)",
         }}>
           {telaDeCelular && (
