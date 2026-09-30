@@ -23,8 +23,35 @@
  * Mudou a regra aqui? Mude lá. Os dois arquivos apontam um para o outro.
  */
 
-/** Fração descontada. Precisa bater com o `percent_off` do cupom na Stripe. */
-export const DESCONTO_DA_OFERTA = 0.5;
+/*
+ * ─── DESLIGADA em 29/09/2026 (dono) ─────────────────────────────────────────
+ *
+ * "Remover os 50% de desconto nos primeiros 7 dias, manter o valor normal em
+ * todos os planos." A partir daqui todo plano é vendido a preço cheio, em
+ * qualquer caminho e a qualquer momento.
+ *
+ * O arquivo não foi apagado, e nem por preguiça: TODA tela que mostra preço já
+ * perguntava a `ofertaEstaValida` antes de descontar, e já tinha o caminho do
+ * preço cheio escrito e testado. Desligar no interruptor aciona esse caminho em
+ * todas elas de uma vez. Sair arrancando as chamadas seria reescrever seis
+ * trechos de renderização de preço para chegar no mesmo lugar, com seis
+ * chances de errar um.
+ *
+ * O que some sozinho com isto: o selo "50% OFF" no cartão de planos, o passo do
+ * tour que o apresenta, os preços riscados, e a escolha da oferta com desconto
+ * na Ticto (passa a mandar sempre o código `cheia`).
+ *
+ * O que NÃO some sozinho, e foi mudado à mão: o texto da tarja do teste grátis
+ * (`FreePlanBanner`), que anunciava os 50% em string fixa, sem passar por aqui.
+ *
+ * A outra metade da regra também foi desligada, em
+ * `supabase/functions/create-checkout-session` (`OFERTA_LIGADA`). As duas
+ * precisam concordar: a tela anunciar preço cheio e a Stripe cobrar metade
+ * seria dar o desconto de graça; o contrário seria prometer o que não se cumpre.
+ */
+
+/** Fração descontada. Zero enquanto a oferta estiver desligada. */
+export const DESCONTO_DA_OFERTA = 0;
 
 /** Id do cupom correspondente na Stripe, para quem for procurar a outra ponta. */
 export const CUPOM_DA_OFERTA = "primeira-contratacao-50";
@@ -39,8 +66,16 @@ export const CUPOM_DA_OFERTA = "primeira-contratacao-50";
  * Ancorar no teste, e não numa data fixa de campanha, dá a cada cliente os seus
  * próprios sete dias contados de quando ele criou a conta.
  */
-export const ofertaEstaValida = (trialEndsAt: string | null | undefined): boolean =>
-  !!trialEndsAt && new Date(trialEndsAt).getTime() > Date.now();
+export const ofertaEstaValida = (_trialEndsAt: string | null | undefined): boolean => false;
+
+/*
+ * A regra original, guardada para quem for religar:
+ *
+ *   !!trialEndsAt && new Date(trialEndsAt).getTime() > Date.now()
+ *
+ * Ancorava no teste grátis, e não numa data fixa de campanha, para dar a cada
+ * cliente os seus próprios sete dias contados de quando ele criou a conta.
+ */
 
 /** "R$ 1.234,56" -> 1234.56 */
 export const emNumero = (texto: string) =>

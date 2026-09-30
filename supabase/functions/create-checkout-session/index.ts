@@ -26,6 +26,22 @@ const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
  * deploy. Ausente, o checkout simplesmente sai sem desconto -- a venda continua
  * acontecendo, que é melhor do que quebrar por causa de uma variável faltando.
  */
+/*
+ * ─── A Oferta de Primeira Contratação foi desligada (dono, 29/09/2026) ──────
+ *
+ * Eram 50% em qualquer plano enquanto o teste grátis corresse. Agora todo plano
+ * é vendido a preço cheio, em qualquer caminho e a qualquer momento.
+ *
+ * A constante continua existindo e o segredo `STRIPE_COUPON_PRIMEIRA_COMPRA`
+ * continua no ambiente, mas nada aqui os lê mais. Ficam como o caminho de volta:
+ * religar é apagar o `false` abaixo, não reconstruir a lógica.
+ *
+ * O cupom em si NÃO foi apagado na Stripe, de propósito. Apagar invalidaria
+ * assinaturas que já foram criadas com ele e que renovam com o desconto
+ * contratado -- quem comprou com 50% comprou com 50%, e mudar isso agora seria
+ * cobrar de um cliente um valor diferente do que ele aceitou.
+ */
+const OFERTA_LIGADA = false;
 const CUPOM_PRIMEIRA_COMPRA = Deno.env.get("STRIPE_COUPON_PRIMEIRA_COMPRA") ?? "";
 
 /**
@@ -364,7 +380,7 @@ Deno.serve(async (req) => {
      */
     const dentroDaJanela =
       !!co?.trial_ends_at && new Date(co.trial_ends_at as string).getTime() > Date.now();
-    const aplicaCupom = !!CUPOM_PRIMEIRA_COMPRA && dentroDaJanela && semOferta !== true;
+    const aplicaCupom = OFERTA_LIGADA && !!CUPOM_PRIMEIRA_COMPRA && dentroDaJanela && semOferta !== true;
 
     console.log(
       `[create-checkout-session] empresa=${companyId} fim_do_teste=${co?.trial_ends_at ?? "nenhum"}`,
@@ -372,7 +388,8 @@ Deno.serve(async (req) => {
       aplicaCupom
         ? `| cupom ${CUPOM_PRIMEIRA_COMPRA} aplicado`
         : `| sem cupom (${
-            !CUPOM_PRIMEIRA_COMPRA ? "nao configurado"
+            !OFERTA_LIGADA          ? "oferta desligada"
+            : !CUPOM_PRIMEIRA_COMPRA ? "nao configurado"
             : semOferta === true    ? "pedido sem oferta (upgrade)"
             : "fora da janela do teste"
           })`,

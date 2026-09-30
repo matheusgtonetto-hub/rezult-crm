@@ -144,6 +144,10 @@ const Forte = ({ children }: { children: ReactNode }) => (
  * serem IDÊNTICAS -- é o que faz a segunda ser reconhecida como a primeira.
  * Duas cópias soltas divergiriam na primeira edição de texto.
  */
+// NÃO ESTÁ NO AR desde 29/09/2026: a oferta foi desligada em
+// `ofertaDePrimeiraContratacao.ts`, e todo uso desta frase está atrás de
+// `ofertaAtiva`, que hoje é sempre falso. Fica escrita porque religar a oferta
+// é mexer num booleano lá, não reescrever a copy daqui.
 const TITULO_DA_OFERTA = "Oferta Exclusiva - 50% OFF";
 
 const PASSOS_DO_TOUR = [

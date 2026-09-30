@@ -218,8 +218,9 @@ export function FreePlanBanner() {
             background: OFERTA.fundo,
             // Moldura no verde da marca, e não numa linha neutra: aqui ela não
             // serve para delimitar, serve para dizer de quem é o cartão. Com o
-            // preto atrás, ela e o cupom são o que amarra esta peça à tela de
-            // planos, onde a oferta foi apresentada.
+            // preto atrás, ela é o que amarra esta peça à tela de planos, para
+            // onde o botão leva. (Era "ela e o cupom": o selo do cupom saiu com
+            // a oferta, em 29/09/2026.)
             border: `1px solid ${OFERTA.verde}`,
             // Três camadas: a preta descola do fundo claro do CRM, o brilho de
             // fora acende a volta da moldura e o `inset` a projeta para dentro,
@@ -253,15 +254,16 @@ export function FreePlanBanner() {
                * É deliberado abrir mão da urgência aqui: quem encolheu o cartão
                * pediu para ele sair da frente, e insistir com relógio correndo e
                * botão pulsando seria ignorar isso. O preço é que a peça
-               * encolhida convence menos -- e é justamente por isso que ela
-               * ainda mostra o cupom, para o clique de volta valer a pena.
+               * encolhida convence menos -- e é por isso que ela ainda mostra o
+               * selo do teste, para o clique de volta valer a pena. (Era o selo
+               * do cupom, até a oferta sair em 29/09/2026.)
                */
               <div className="min-w-0">
                 <span
                   className="inline-block rounded-[6px] px-2 py-[3px] text-[12px] font-bold tracking-wide whitespace-nowrap"
                   style={{ background: OFERTA.verde, color: OFERTA.sobreVerde }}
                 >
-                  {testeEncerrado ? "Teste grátis finalizado" : "50% OFF - Oferta Exclusiva"}
+                  {testeEncerrado ? "Teste grátis finalizado" : "Teste grátis ativo"}
                 </span>
                 <p
                   className="text-[12px] font-[500] mt-[6px] whitespace-nowrap"
@@ -269,7 +271,7 @@ export function FreePlanBanner() {
                 >
                   {testeEncerrado
                     ? "Escolha um dos planos para voltar a usar o Rezult."
-                    : "Válida durante o seu teste grátis"}
+                    : "Escolha um plano antes que ele termine"}
                 </p>
               </div>
             ) : (
@@ -284,7 +286,7 @@ export function FreePlanBanner() {
                     className="inline-block rounded-[6px] px-2 py-[3px] text-[12px] font-bold tracking-wide whitespace-nowrap"
                     style={{ background: OFERTA.verde, color: OFERTA.sobreVerde }}
                   >
-                    {testeEncerrado ? "Teste grátis finalizado" : "50% OFF - Oferta Exclusiva"}
+                    {testeEncerrado ? "Teste grátis finalizado" : "Teste grátis ativo"}
                   </span>
                   <p
                     className="text-[12px] font-[500] mt-[6px] whitespace-nowrap"
@@ -292,7 +294,7 @@ export function FreePlanBanner() {
                   >
                     {testeEncerrado
                       ? "Escolha um dos planos para voltar a usar o Rezult."
-                      : "Válida durante o seu teste grátis"}
+                      : "Escolha um plano antes que ele termine"}
                   </p>
                 </div>
 
@@ -342,12 +344,13 @@ export function FreePlanBanner() {
                     grátis" da tela de planos: é o mesmo botão levando ao mesmo
                     lugar.
 
-                    Os dois destinos são diferentes de propósito. Durante o teste
-                    o botão leva ao `/setup`, que é onde a oferta de 50% vive e
-                    onde o desconto é aplicado. Encerrado o teste o desconto não
-                    vale mais, e o botão abre o cartão de planos por evento --
-                    assim ele sobe por cima da tela em que a pessoa estiver, sem
-                    tirá-la do lugar. */}
+                    Os dois destinos seguem diferentes, mas por outro motivo
+                    desde que a oferta saiu (29/09/2026). Durante o teste o botão
+                    leva ao `/setup`, a tela cheia de planos, que é onde quem
+                    ainda está decidindo tem a comparação inteira na frente.
+                    Encerrado o teste ele abre o cartão de planos por evento --
+                    assim sobe por cima da tela em que a pessoa estiver, sem
+                    tirá-la do lugar, porque aí a escolha é urgente. */}
                 <Button
                   size="sm"
                   className="h-8 text-xs font-semibold rounded-[8px] shrink-0"
@@ -359,9 +362,15 @@ export function FreePlanBanner() {
                   onClick={() => (testeEncerrado ? emitAbrirOferta() : navigate("/setup"))}
                 >
                   {/* Texto próprio, e não o `rotuloBotao` das outras situações:
-                      lá ele descreve uma obrigação ("Regularizar"), e durante o
-                      teste o clique é para aproveitar uma vantagem. */}
-                  {testeEncerrado ? "Escolher um plano" : "Garantir 50% OFF"}
+                      lá ele descreve uma obrigação ("Regularizar"), e aqui é
+                      uma escolha.
+
+                      Era "Garantir 50% OFF" durante o teste e "Escolher um
+                      plano" depois. Com a oferta desligada (29/09/2026) os dois
+                      momentos passaram a oferecer a mesma coisa, então a frase
+                      é uma só -- um ternário com os dois lados iguais só faria
+                      o próximo leitor procurar a diferença que não existe. */}
+                  Escolher um plano
                 </Button>
               </>
             )}
