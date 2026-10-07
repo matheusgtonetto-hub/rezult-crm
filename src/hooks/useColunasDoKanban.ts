@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef } from "react";
 import { useQueries, useQueryClient, keepPreviousData } from "@tanstack/react-query";
+import type { UseQueryResult } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { dbToLead } from "@/context/CRMContext";
 import { chaves } from "@/lib/chavesDeConsulta";
@@ -104,7 +105,73 @@ export function useColunasDoKanban({
   // o que faria o react-query tratar como consulta nova e buscar de novo.
   const recorte = useMemo(() => ({ filtro, busca, ordem }), [filtro, busca, ordem]);
 
-  const consultas = useQueries({
+  /**
+   * O último resultado bom de cada coluna.
+   *
+   * O `placeholderData: keepPreviousData` das consultas NÃO cobre o "carregar
+   * mais": o limite faz parte da chave, e dentro de `useQueries` as consultas
+   * são casadas por hash de chave -- a do limite novo entra como consulta
+   * inédita, sem predecessora de onde herdar dados.
+   *
+   * O efeito era visível: entre pedir a leva e recebê-la, a coluna ficava com
+   * ZERO cards por um instante. Medido em 21/09/2026: o conteúdo caía de
+   * 4364px para 513px (a altura da área), o navegador zerava o `scrollTop`
+   * porque não havia mais o que rolar, e a pessoa era jogada de volta ao topo
+   * a cada 20 cards.
+   *
+   * Guardando o último resultado, a lista nunca esvazia: ela cresce por baixo,
+   * o scroll fica onde estava e o carregamento aparece só no sentinela.
+   */
+  const ultimoBom = useRef<Record<string, DadosDaColuna>>({});
+
+  /**
+   * Monta o mapa de colunas a partir dos resultados das consultas.
+   *
+   * Vai no `combine` do useQueries e NÃO num useMemo sobre o array devolvido.
+   * A diferença é o que motivou esta mudança: o useQueries monta esse array do
+   * zero a cada render, mesmo sem nenhum dado ter mudado. Um useMemo que
+   * dependesse dele recalcularia sempre, e o objeto novo se propagava para
+   * fora do hook: no board, `filteredColumns` mudava de identidade em todo
+   * render e os efeitos que dependem dela disparavam à toa.
+   *
+   * Isso chegou a virar bug visível. O efeito que busca as fotos dos cards
+   * rodava sem parar e, como as URLs de foto da D-API e da Z-API são assinadas
+   * e mudam a cada chamada, TODAS as fotos do board piscavam juntas. Aquilo foi
+   * corrigido no PipelinePage, nas guardas; isto aqui tira o gatilho.
+   *
+   * O `combine` só roda de novo quando algum resultado muda de verdade, então o
+   * retorno do hook inteiro (mapa, carregando e erro) fica estável entre
+   * renders em que nada aconteceu.
+   *
+   * Depende de colunaIds de propósito: trocar de pipeline troca as colunas, e
+   * aí o mapa TEM que ser remontado.
+   */
+  const combinar = useCallback((resultados: UseQueryResult<DadosDaColuna, Error>[]) => {
+    const mapa: Record<string, DadosDaColuna> = {};
+    colunaIds.forEach((colunaId, i) => {
+      const c = resultados[i];
+      if (c?.data) {
+        ultimoBom.current[colunaId] = c.data;
+        // `carregando` sai do isFetching, e não do isLoading: com dados
+        // anteriores na tela o isLoading já é falso, e o sentinela precisa
+        // saber que ainda tem busca em voo para não pedir a mesma leva duas
+        // vezes.
+        mapa[colunaId] = { ...c.data, carregando: c.isFetching };
+      } else {
+        const anterior = ultimoBom.current[colunaId];
+        mapa[colunaId] = anterior
+          ? { ...anterior, carregando: true }
+          : { ...VAZIA, carregando: c?.isLoading ?? true };
+      }
+    });
+    return {
+      porColuna: mapa,
+      carregando: resultados.some(c => c.isLoading),
+      erro: (resultados.find(c => c.error)?.error ?? null) as Error | null,
+    };
+  }, [colunaIds]);
+
+  const { porColuna, carregando, erro } = useQueries({
     queries: colunaIds.map(colunaId => {
       const limite = POR_PAGINA * (paginas[colunaId] ?? 1);
       return {
@@ -148,47 +215,8 @@ export function useColunasDoKanban({
         },
       };
     }),
+    combine: combinar,
   });
-
-  /**
-   * O último resultado bom de cada coluna.
-   *
-   * O `placeholderData: keepPreviousData` das consultas NÃO cobre o "carregar
-   * mais": o limite faz parte da chave, e dentro de `useQueries` as consultas
-   * são casadas por hash de chave -- a do limite novo entra como consulta
-   * inédita, sem predecessora de onde herdar dados.
-   *
-   * O efeito era visível: entre pedir a leva e recebê-la, a coluna ficava com
-   * ZERO cards por um instante. Medido em 21/09/2026: o conteúdo caía de
-   * 4364px para 513px (a altura da área), o navegador zerava o `scrollTop`
-   * porque não havia mais o que rolar, e a pessoa era jogada de volta ao topo
-   * a cada 20 cards.
-   *
-   * Guardando o último resultado, a lista nunca esvazia: ela cresce por baixo,
-   * o scroll fica onde estava e o carregamento aparece só no sentinela.
-   */
-  const ultimoBom = useRef<Record<string, DadosDaColuna>>({});
-
-  const porColuna = useMemo(() => {
-    const mapa: Record<string, DadosDaColuna> = {};
-    colunaIds.forEach((colunaId, i) => {
-      const c = consultas[i];
-      if (c?.data) {
-        ultimoBom.current[colunaId] = c.data;
-        // `carregando` sai do isFetching, e não do isLoading: com dados
-        // anteriores na tela o isLoading já é falso, e o sentinela precisa
-        // saber que ainda tem busca em voo para não pedir a mesma leva duas
-        // vezes.
-        mapa[colunaId] = { ...c.data, carregando: c.isFetching };
-      } else {
-        const anterior = ultimoBom.current[colunaId];
-        mapa[colunaId] = anterior
-          ? { ...anterior, carregando: true }
-          : { ...VAZIA, carregando: c?.isLoading ?? true };
-      }
-    });
-    return mapa;
-  }, [colunaIds, consultas]);
 
   const carregarMais = useCallback((colunaId: string) => {
     setPaginas(prev => ({ ...prev, [colunaId]: (prev[colunaId] ?? 1) + 1 }));
@@ -242,11 +270,7 @@ export function useColunasDoKanban({
     });
   }, [cliente, empresaId]);
 
-  return {
-    porColuna,
-    carregarMais,
-    moverCard,
-    carregando: consultas.some(c => c.isLoading),
-    erro: (consultas.find(c => c.error)?.error ?? null) as Error | null,
-  };
+  // carregando e erro vêm do combine, pelo mesmo motivo do mapa: calculá-los
+  // aqui sobre o array cru devolveria valores novos a cada render.
+  return { porColuna, carregarMais, moverCard, carregando, erro };
 }
