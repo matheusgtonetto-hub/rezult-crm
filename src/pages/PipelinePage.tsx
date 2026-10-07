@@ -637,20 +637,51 @@ export default function PipelinePage() {
   // ── Avatar dos cards (foto real do WhatsApp, mesmo padrão de
   // LeadDetailPage/Multiatendimento) ────────────────────────────────────
   const [avatarUrls, setAvatarUrls] = useState<Record<string, string>>({});
+  /*
+   * ESPELHO do avatarUrls, só para as guardas de "já tenho essa foto?".
+   *
+   * O fetchCardAvatar é useCallback e NÃO pode depender de avatarUrls: ele
+   * mudaria de identidade a cada foto que chega, e o efeito abaixo dispararia
+   * de novo. Mas sem o avatarUrls nas deps, a closure fica presa no objeto do
+   * primeiro render, que é vazio: as duas guardas liam sempre `undefined` e
+   * nunca barravam nada.
+   *
+   * O resultado era um laço de rebusca contínuo. O useQueries do kanban devolve
+   * um array novo a cada render, o que recalcula porColuna e filteredColumns e
+   * faz o efeito rodar sempre; as guardas deixavam passar; cada busca chamava
+   * setAvatarUrls, que re-renderizava e recomeçava tudo.
+   *
+   * Isso aparecia na tela como TODAS as fotos do board piscando juntas, porque
+   * as URLs de foto de perfil da D-API e da Z-API são assinadas e temporárias:
+   * cada chamada devolve uma string diferente para a mesma imagem, o src muda e
+   * o navegador recarrega. E, fora da tela, era uma chamada por card visível em
+   * repetição enquanto a página estivesse aberta.
+   */
+  const avatarUrlsRef = useRef<Record<string, string>>({});
   const fetchingAvatarsRef = useRef<Set<string>>(new Set());
   const avatarRetriedRef = useRef<Set<string>>(new Set());
 
+  const guardarAvatar = useCallback((p: string, url: string) => {
+    avatarUrlsRef.current[p] = url;
+    // Se a URL não mudou, não re-renderiza: evita acordar o board à toa.
+    setAvatarUrls(prev => (prev[p] === url ? prev : { ...prev, [p]: url }));
+  }, []);
+
   const fetchCardAvatar = useCallback((phone: string | undefined, force = false) => {
     const p = normalizarTelefoneBr(phone);
-    if (!p || fetchingAvatarsRef.current.has(p) || (!force && avatarUrls[p])) return;
+    if (!p || fetchingAvatarsRef.current.has(p) || (!force && avatarUrlsRef.current[p])) return;
     const inst = whatsappConnections.find(c => c.connected && c.active);
     if (!inst) return;
     fetchingAvatarsRef.current.add(p);
     fetchWhatsappAvatar(phone ?? "", inst, force)
-      .then(url => { if (url) setAvatarUrls(prev => ({ ...prev, [p]: url })); })
-      .finally(() => { if (!avatarUrls[p]) fetchingAvatarsRef.current.delete(p); });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [whatsappConnections]);
+      .then(url => { if (url) guardarAvatar(p, url); })
+      .finally(() => {
+        // Só devolve o número para a fila quando a foto NÃO veio. Com sucesso
+        // ele fica reservado de propósito: rebuscar renderia outra URL assinada
+        // para a mesma imagem, trocando o src sem nenhum ganho.
+        if (!avatarUrlsRef.current[p]) fetchingAvatarsRef.current.delete(p);
+      });
+  }, [whatsappConnections, guardarAvatar]);
 
   // Busca só pros primeiros 40 cards visíveis por coluna -- mesmo limite do
   // Multiatendimento, pra não disparar uma rajada de chamadas à D-API/Z-API
@@ -668,6 +699,9 @@ export default function PipelinePage() {
     const p = normalizarTelefoneBr(phone);
     if (!p || avatarRetriedRef.current.has(p)) return;
     avatarRetriedRef.current.add(p);
+    // Limpa o espelho JUNTO com o estado: a guarda nova lê o ref, e sem isso o
+    // retry forçado seria barrado por ele mesmo.
+    delete avatarUrlsRef.current[p];
     setAvatarUrls(prev => { const n = { ...prev }; delete n[p]; return n; });
     fetchingAvatarsRef.current.delete(p);
     fetchCardAvatar(phone, true);
