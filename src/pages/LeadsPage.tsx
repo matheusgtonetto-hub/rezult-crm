@@ -295,21 +295,48 @@ export default function LeadsPage() {
 
   const confirmBulkDelete = () => {
     const count = selectedLeads.length;
-    let contactsKept = 0;
+
+    /*
+     * A decisão de apagar cada contato é tomada ANTES de apagar qualquer
+     * negócio, contra o conjunto do que vai sumir.
+     *
+     * Antes, a checagem rodava dentro do laço e perguntava ao `leads` do
+     * render se havia "outro negócio" para aquele contato. Mas `leads` é
+     * estado: ele não muda no meio do laço. Para um contato com dois negócios
+     * ambos selecionados, a primeira volta via o segundo ainda existindo e
+     * mantinha o contato; depois o segundo era apagado também, e o contato
+     * ficava órfão.
+     *
+     * Em 07/10/2026 isso apareceu ao esvaziar uma base inteira: TODO contato
+     * com mais de um negócio sobreviveu, todos marcados como "Sem negócio".
+     * Não era falha de rede, os negócios foram apagados; o que errou foi a
+     * conta de quem deveria sobrar.
+     */
+    const idsExcluidos = new Set(selectedLeads.map(l => l.id));
+    const paraApagar = new Set<string>();
+    const mantidos = new Set<string>();
+
     selectedLeads.forEach(l => {
-      deleteLead(l.id);
-      if (bulkDelWithContact && l.personId) {
-        const otherDeals = Object.values(leads).some(o => o.id !== l.id && o.personId === l.personId);
-        if (otherDeals) contactsKept++;
-        else deleteContact(l.personId);
-      }
+      if (!bulkDelWithContact || !l.personId) return;
+      // Mantém o contato só se sobrar negócio DEPOIS desta exclusão.
+      const sobraNegocio = Object.values(leads).some(
+        o => !idsExcluidos.has(o.id) && o.personId === l.personId,
+      );
+      // Conjuntos, e não contadores: o mesmo contato chega por vários
+      // negócios, e contá-lo uma vez por negócio inflaria o aviso.
+      if (sobraNegocio) mantidos.add(l.personId);
+      else paraApagar.add(l.personId);
     });
+
+    selectedLeads.forEach(l => deleteLead(l.id));
+    paraApagar.forEach(id => deleteContact(id));
+
     setSelectedIds(new Set());
     setBulkDeleteConfirm(false);
     setBulkDelWithContact(false);
     toast.success(`${count} lead${count > 1 ? "s" : ""} excluído${count > 1 ? "s" : ""}.`);
-    if (bulkDelWithContact && contactsKept > 0) {
-      toast.info(`${contactsKept} contato(s) mantido(s) por ter outro(s) negócio(s) vinculado(s).`);
+    if (bulkDelWithContact && mantidos.size > 0) {
+      toast.info(`${mantidos.size} contato(s) mantido(s) por ter outro(s) negócio(s) vinculado(s).`);
     }
   };
 
@@ -450,10 +477,9 @@ export default function LeadsPage() {
             <TableHeader>
               <TableRow className="border-card-border hover:bg-transparent">
                 <TableHead className="text-muted-foreground" style={{ width: "20%" }}>
-                  {/* `justify-center` no flex, e não `text-center` na célula: o
-                      rótulo divide a linha com a caixa de seleção, e centralizar
-                      o texto sozinho deixaria os dois em pontos diferentes. */}
-                  <div className="flex items-center justify-center gap-2">
+                  {/* O flex existe porque o rótulo divide a linha com a caixa de
+                      seleção; os dois alinham juntos pela esquerda. */}
+                  <div className="flex items-center justify-start gap-2">
                     {someSelected && (
                       <Checkbox
                         checked={allSelected ? true : "indeterminate"}
@@ -464,11 +490,11 @@ export default function LeadsPage() {
                     Nome
                   </div>
                 </TableHead>
-                <TableHead className="text-muted-foreground text-center" style={{ width: "16%" }}>Contato</TableHead>
-                <TableHead className="text-muted-foreground text-center" style={{ width: "18%" }}>Responsável</TableHead>
-                <TableHead className="text-muted-foreground text-center" style={{ width: "16%" }}>Receita</TableHead>
-                <TableHead className="text-muted-foreground text-center" style={{ width: "14%" }}>Tags</TableHead>
-                <TableHead className="text-muted-foreground text-center" style={{ width: "10%" }}>Criado em</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Contato</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "18%" }}>Responsável</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "16%" }}>Receita</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "14%" }}>Tags</TableHead>
+                <TableHead className="text-muted-foreground" style={{ width: "10%" }}>Criado em</TableHead>
                 <TableHead className="text-muted-foreground" style={{ width: "6%" }}></TableHead>
               </TableRow>
             </TableHeader>
@@ -487,26 +513,31 @@ export default function LeadsPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col items-center gap-0.5">
-                      <span className="text-xs text-foreground truncate">
+                    {/* min-w-0 no flex e block w-full nos spans: sem os dois o
+                        `truncate` não tem largura contra a qual cortar. Num flex
+                        em coluna o filho ganha a largura do CONTEÚDO, então um
+                        e-mail longo esticava a célula e invadia a coluna vizinha
+                        em vez de virar reticências. */}
+                    <div className="flex flex-col items-start gap-0.5 min-w-0">
+                      <span className="block w-full text-xs text-foreground truncate">
                         {row.contact.phoneDdi && row.contact.phoneDdi !== "+55" ? `${row.contact.phoneDdi} ` : ""}
                         {row.contact.phone || "—"}
                       </span>
                       {row.contact.email && (
-                        <span className="text-xs text-muted-foreground truncate">{row.contact.email}</span>
+                        <span className="block w-full text-xs text-muted-foreground truncate" title={row.contact.email}>{row.contact.email}</span>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell>
                     <span className="text-[12px] px-2 py-0.5 rounded-full font-medium text-muted-foreground border border-card-border">
                       Sem negócio
                     </span>
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell>
                     <span className="text-xs text-muted-foreground">—</span>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap justify-center gap-1">
+                    <div className="flex flex-wrap justify-start gap-1">
                       {(row.contact.tags ?? []).length === 0
                         ? <span className="text-xs text-muted-foreground">—</span>
                         : (row.contact.tags ?? []).map(tagName => {
@@ -520,7 +551,7 @@ export default function LeadsPage() {
                       }
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-center" style={{ fontSize: 12 }}>
+                  <TableCell className="text-muted-foreground" style={{ fontSize: 12 }}>
                     {(() => {
                       const d = row.contact.createdAt ? new Date(row.contact.createdAt) : null;
                       if (!d || isNaN(d.getTime())) return "—";
@@ -581,24 +612,26 @@ export default function LeadsPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-col items-center gap-0.5">
+                    {/* Ver a nota na mesma célula da linha de contato: min-w-0 e
+                        block w-full são o que faz o truncate funcionar aqui. */}
+                    <div className="flex flex-col items-start gap-0.5 min-w-0">
                       {/* Formatado na hora de mostrar, e não gravado formatado:
                           o banco guarda o número como cada canal entregou, e é
                           esse texto cru que as buscas e comparações usam. */}
-                      <span className="text-xs text-foreground truncate">
+                      <span className="block w-full text-xs text-foreground truncate">
                         {row.lead.whatsapp ? formatarTelefone(row.lead.whatsapp, row.lead.phoneDdi) : "—"}
                       </span>
                       {row.lead.email && (
-                        <span className="text-xs text-muted-foreground truncate">{row.lead.email}</span>
+                        <span className="block w-full text-xs text-muted-foreground truncate" title={row.lead.email}>{row.lead.email}</span>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell className="text-center">
+                  <TableCell>
                     {(() => {
                       const resps = row.lead.responsibles?.length ? row.lead.responsibles : (row.lead.responsible ? [row.lead.responsible] : []);
                       if (resps.length === 0) return <span className="text-xs text-muted-foreground">—</span>;
                       return (
-                        <div className="flex items-center justify-center gap-2">
+                        <div className="flex items-center justify-start gap-2">
                           <div className="flex items-center" style={{ gap: 0 }}>
                             {resps.slice(0, 3).map((name, idx) => {
                               const av = memberAvatars[name];
@@ -632,7 +665,7 @@ export default function LeadsPage() {
                       const total = d?.total ?? 0;
                       const count = d?.count ?? 0;
                       return (
-                        <div className="flex items-start justify-center" style={{ gap: 25 }}>
+                        <div className="flex items-start justify-start" style={{ gap: 25 }}>
                           <div style={{ lineHeight: 1.4 }}>
                             <div style={{ fontSize: 12 }} className="text-muted-foreground">Receita:</div>
                             <div style={{ fontSize: 14 }} className="font-semibold text-foreground">{fmtBRL(total)}</div>
@@ -646,7 +679,7 @@ export default function LeadsPage() {
                     })()}
                   </TableCell>
                   <TableCell>
-                    <div className="flex flex-wrap justify-center gap-1">
+                    <div className="flex flex-wrap justify-start gap-1">
                       {(row.lead.tags ?? []).length === 0
                         ? <span className="text-xs text-muted-foreground">—</span>
                         : (row.lead.tags ?? []).map(tagName => {
@@ -660,7 +693,7 @@ export default function LeadsPage() {
                       }
                     </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-center" style={{ fontSize: 12 }}>
+                  <TableCell className="text-muted-foreground" style={{ fontSize: 12 }}>
                     {(() => {
                       const d = row.lead.created_at ? new Date(row.lead.created_at) : null;
                       if (!d || isNaN(d.getTime())) return "—";
