@@ -936,6 +936,74 @@ function casaPalavraChave(cfg: Record<string, unknown>, corpo: string): boolean 
   });
 }
 
+/*
+ * ─── Atendente: resolver por ID, nunca só por nome ──────────────────────────
+ *
+ * A config de automação nasceu guardando NOME de exibição em `cfg.atendente`.
+ * Nome muda. Em 07/10/2026 um cliente renomeou o próprio perfil e todo lead que
+ * a automação criou passou a sair com um responsável que não existia mais: a
+ * interface não conseguia casar aquele texto com nenhum membro, o avatar sumia,
+ * os filtros por responsável não pegavam o lead e o `responsible_user_id`
+ * ficava nulo.
+ *
+ * A config nova guarda `cfg.atendente_user_id`. O nome passa a ser LIDO do
+ * perfil na hora de executar, então renomear vira invisível para a automação.
+ *
+ * As duas formas são aceitas de propósito: automação salva pela UI antiga
+ * continua funcionando, e a migração das configs existentes pode ser feita sem
+ * janela de indisponibilidade. Quem vier remover o fallback por nome: antes
+ * confira que nenhuma `automations.flow` ainda tem `atendente` sem o par
+ * `atendente_user_id`.
+ */
+async function membrosDaEmpresa(
+  supabase: SupabaseClient,
+  companyId: string,
+): Promise<{ id: string; full_name: string | null }[]> {
+  // Membro = DONO da empresa mais os company_members. É a mesma definição da
+  // RPC get_company_members, reescrita aqui porque aquela filtra por auth.uid()
+  // e o runner roda com service role, sem usuário logado: chamar a RPC daqui
+  // devolveria lista vazia.
+  const { data: comp } = await supabase
+    .from("companies").select("owner_id").eq("id", companyId).maybeSingle();
+  const ids: string[] = [];
+  if (comp?.owner_id) ids.push(comp.owner_id as string);
+  const { data: mem } = await supabase
+    .from("company_members").select("user_id").eq("company_id", companyId);
+  for (const m of (mem ?? []) as { user_id: string }[]) {
+    if (m.user_id && !ids.includes(m.user_id)) ids.push(m.user_id);
+  }
+  if (!ids.length) return [];
+  const { data: profs } = await supabase
+    .from("profiles").select("id, full_name").in("id", ids);
+  return (profs ?? []) as { id: string; full_name: string | null }[];
+}
+
+async function resolverAtendente(
+  supabase: SupabaseClient,
+  companyId: string,
+  cfg: Record<string, unknown>,
+): Promise<{ userId: string | null; nome: string | null }> {
+  const porId = typeof cfg.atendente_user_id === "string" ? cfg.atendente_user_id.trim() : "";
+  const porNome = typeof cfg.atendente === "string" ? cfg.atendente.trim() : "";
+  if (!porId && !porNome) return { userId: null, nome: null };
+
+  const membros = await membrosDaEmpresa(supabase, companyId);
+
+  if (porId) {
+    const m = membros.find(x => x.id === porId);
+    // Sem perfil (usuário saiu da empresa) devolvemos o id mesmo assim: ele é o
+    // dado estável, e quem grava decide o que fazer com o nome ausente.
+    return { userId: porId, nome: m?.full_name ?? null };
+  }
+
+  // Fallback por nome, com a MESMA comparação do idDoResponsavel do frontend
+  // (sem caixa, sem espaço nas pontas), para os dois lados concordarem sobre o
+  // que é "o mesmo atendente".
+  const alvo = porNome.toLowerCase();
+  const m = membros.find(x => (x.full_name ?? "").trim().toLowerCase() === alvo);
+  return { userId: m?.id ?? null, nome: m?.full_name ?? porNome };
+}
+
 async function matchesTriggerConfig(
   supabase: SupabaseClient,
   trigger: TriggerConfig,
@@ -984,14 +1052,18 @@ async function matchesTriggerConfig(
       return names.some((n: string) => tagsRemoved.includes(n));
     }
     case "atend_atribuido": {
-      const cfgAtend = cfg.atendente as string;
-      if (!cfgAtend) return true;
-      return payload.context.new_responsible === cfgAtend;
+      // O contexto do gatilho carrega NOME (new_responsible), então aqui
+      // resolvemos a config para o nome ATUAL do perfil antes de comparar. Com
+      // a config guardando id, um rename deixaria de casar se comparássemos o
+      // texto cru.
+      const { userId, nome } = await resolverAtendente(supabase, payload.company_id, cfg);
+      if (!userId && !nome) return true;
+      return payload.context.new_responsible === nome;
     }
     case "atend_retirado": {
-      const cfgAtend = cfg.atendente as string;
-      if (!cfgAtend) return true;
-      return payload.context.old_responsible === cfgAtend;
+      const { userId, nome } = await resolverAtendente(supabase, payload.company_id, cfg);
+      if (!userId && !nome) return true;
+      return payload.context.old_responsible === nome;
     }
     case "campo_alterado": {
       const field = cfg.field as string;
@@ -2555,9 +2627,13 @@ async function checkCondition(
   if (cat === "negocios") {
     switch (id) {
       case "pos_atend": {
-        const atend = cfg.atendente as string;
-        if (!atend) return !!(lead.responsible || (lead.responsibles as string[] ?? []).length > 0);
-        return lead.responsible === atend || ((lead.responsibles as string[]) ?? []).includes(atend);
+        const { userId, nome } = await resolverAtendente(supabase, payload.company_id, cfg);
+        if (!userId && !nome) return !!(lead.responsible || (lead.responsibles as string[] ?? []).length > 0);
+        // Casa por ID quando os DOIS lados têm id: é o único critério que
+        // sobrevive a um rename. Cai para o nome em lead antigo, criado antes
+        // de o runner passar a gravar responsible_user_id.
+        if (userId && lead.responsible_user_id) return lead.responsible_user_id === userId;
+        return lead.responsible === nome || ((lead.responsibles as string[]) ?? []).includes(nome ?? "");
       }
       case "sem_atend":
         return !lead.responsible && ((lead.responsibles as string[]) ?? []).length === 0;
@@ -2723,9 +2799,10 @@ async function checkCondition(
         return tagNames.some((n: string) => leadTags.includes(n));
       }
       case "pos_atend": {
-        const atend = cfg.atendente as string;
-        if (!atend) return !!(lead.responsible || ((lead.responsibles as string[]) ?? []).length > 0);
-        return lead.responsible === atend || ((lead.responsibles as string[]) ?? []).includes(atend);
+        const { userId, nome } = await resolverAtendente(supabase, payload.company_id, cfg);
+        if (!userId && !nome) return !!(lead.responsible || ((lead.responsibles as string[]) ?? []).length > 0);
+        if (userId && lead.responsible_user_id) return lead.responsible_user_id === userId;
+        return lead.responsible === nome || ((lead.responsibles as string[]) ?? []).includes(nome ?? "");
       }
       case "campo_adicional": {
         const campoId = cfg.campo_id as string;
@@ -2996,11 +3073,22 @@ async function executeAction(
 
     case "transf_atend_neg":
     case "transf_atend_lead": {
-      const atendente = cfg.atendente as string;
-      if (!atendente) return;
+      const { userId, nome } = await resolverAtendente(supabase, company_id, cfg);
+      if (!userId && !nome) return;
+      /*
+       * Grava as TRÊS colunas. O responsible_user_id é o que faltava: até
+       * 07/10/2026 só o frontend o preenchia (CRMContext.idDoResponsavel), e
+       * todo lead criado por automação nascia sem vínculo estável com o
+       * usuário. Quando o nome gravado na config envelhecia, o lead ficava com
+       * um responsável que a interface não conseguia casar com ninguém.
+       *
+       * Com o id gravado, um rename deixa de quebrar o vínculo: o nome vira
+       * texto de exibição e o id continua apontando para a pessoa certa.
+       */
       await supabase.from("leads").update({
-        responsible: atendente,
-        responsibles: [atendente],
+        responsible: nome ?? "",
+        responsibles: nome ? [nome] : [],
+        responsible_user_id: userId,
       }).eq("id", lead_id);
       break;
     }
@@ -3065,9 +3153,13 @@ async function executeAction(
 
     case "remover_atend_neg":
     case "remover_atend_lead": {
+      // O responsible_user_id sai JUNTO. Sem isso o lead ficaria sem nome mas
+      // com o vínculo antigo, e os filtros por responsável continuariam
+      // trazendo ele para a pessoa que acabou de ser removida.
       await supabase.from("leads").update({
         responsible: "",
         responsibles: [],
+        responsible_user_id: null,
       }).eq("id", lead_id);
       break;
     }

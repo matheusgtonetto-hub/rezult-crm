@@ -3735,6 +3735,11 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
   lossReasons: LossReasonType[];
   customFieldGroups: CustomFieldGroup[];
 }) {
+  // memberUserIds vem do contexto e nao por prop: os seletores de atendente
+  // passaram a guardar o ID do usuario (ver a nota em attendantSel), e enfiar
+  // mais uma prop atravessaria varios niveis so para carregar um mapa que o
+  // contexto ja expoe.
+  const { memberUserIds } = useCRM();
   const cfg = trigger.configData ?? {};
   const { whatsappConnections } = useCompany();
 
@@ -3901,9 +3906,21 @@ function TriggerConfigPanel({ trigger, automationId, companyId, automations, onC
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div style={{ fontSize: 12, fontWeight: 600, color: "#0369A1", lineHeight: 1.5 }}>{atendLabel}</div>
-            <select value={(cfg.atendente as string) ?? ""} onChange={e => updateConfig("atendente", e.target.value)} style={tcpSelectStyle}>
+            {/* Mesma regra do attendantSel: guarda o id e leva o nome junto.
+                Ver a nota longa lá, que explica por que os dois campos. */}
+            <select
+              value={(cfg.atendente_user_id as string) || memberUserIds[(cfg.atendente as string) ?? ""] || ""}
+              onChange={e => {
+                const id = e.target.value;
+                const nome = teamMembers.find(m => memberUserIds[m] === id) ?? "";
+                updateConfig("atendente_user_id", id);
+                updateConfig("atendente", nome);
+              }}
+              style={tcpSelectStyle}>
               <option value="">Qualquer atendente</option>
-              {teamMembers.map(m => <option key={m} value={m}>{m}</option>)}
+              {teamMembers.filter(m => memberUserIds[m]).map(m => (
+                <option key={memberUserIds[m]} value={memberUserIds[m]}>{m}</option>
+              ))}
             </select>
           </div>
         );
@@ -5523,6 +5540,11 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
   products: ProductType[];
   customFieldGroups: CustomFieldGroup[];
 }) {
+  // memberUserIds vem do contexto e nao por prop: os seletores de atendente
+  // passaram a guardar o ID do usuario (ver a nota em attendantSel), e enfiar
+  // mais uma prop atravessaria varios niveis so para carregar um mapa que o
+  // contexto ja expoe.
+  const { memberUserIds } = useCRM();
   // Mesmo motivo do painel de ações: a lista vem do hook, sem encanamento de
   // prop por quatro assinaturas.
   const departamentosDaEmpresa = useDepartamentos();
@@ -5563,9 +5585,46 @@ function CondicoesConfigContent({ item, updateItem, pipelines, crmTags, teamMemb
     </div>
   );
 
-  const attendantSel = (key: string, hint: string) => (
-    <>{lbl(hint)}{selInp(key, teamMembers.map(m => ({ value: m, label: m })))}</>
-  );
+  /*
+   * O seletor de atendente guarda o ID do usuário, não o nome.
+   *
+   * Até 07/10/2026 guardava só o nome de exibição, e nome muda: quando um
+   * cliente se renomeou, toda automação que o citava passou a atribuir leads a
+   * alguém que não existia mais. O id não muda.
+   *
+   * Grava os DOIS campos de propósito. O `atendente_user_id` é o que o runner
+   * usa; o `atendente` vai junto porque frontend e edge function fazem deploy
+   * separados e em qualquer ordem: um runner ainda não atualizado continua
+   * lendo o nome e funcionando. Também deixa o flow legível para quem abrir o
+   * JSON no banco.
+   *
+   * O `key` recebido é ignorado (as três chamadas passam "atendente"): o par de
+   * campos é fixo, e deixar o nome do campo variável convidaria a config a ter
+   * dois formatos diferentes no mesmo lugar.
+   */
+  const attendantSel = (_key: string, hint: string) => {
+    // Automação antiga não tem o id: resolve pelo nome para o select já abrir
+    // com a pessoa certa selecionada, em vez de aparecer vazio.
+    const idAtual = (cfg.atendente_user_id as string) || memberUserIds[(cfg.atendente as string) ?? ""] || "";
+    return (
+      <>
+        {lbl(hint)}
+        <select
+          value={idAtual}
+          onChange={e => {
+            const id = e.target.value;
+            const nome = teamMembers.find(m => memberUserIds[m] === id) ?? "";
+            updateItem({ atendente_user_id: id, atendente: nome });
+          }}
+          style={{ width: "100%", padding: "8px 10px", border: "1px solid var(--border-default)", borderRadius: 6, fontSize: 12, outline: "none", background: "var(--surface-card)", boxSizing: "border-box" as const }}>
+          <option value="">Selecionar</option>
+          {teamMembers.filter(m => memberUserIds[m]).map(m => (
+            <option key={memberUserIds[m]} value={memberUserIds[m]}>{m}</option>
+          ))}
+        </select>
+      </>
+    );
+  };
 
   const customFields = customFieldGroups.flatMap(g => g.items.map(f => ({ value: f.id, label: `${g.name} — ${f.label}` })));
   const campoAdicionalBlock = (entity: string) => (
