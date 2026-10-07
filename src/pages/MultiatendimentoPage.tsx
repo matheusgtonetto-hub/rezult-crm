@@ -53,6 +53,7 @@ import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
 import { ConvAvatar } from "@/components/ConvAvatar";
 import { MenuDaMensagem, menuAbreParaCima } from "@/components/MenuDaMensagem";
 import { corDoTexto, iniciais } from "@/lib/iniciais";
+import { executarAutomacaoNoLead, fetchLeadManualAutomations, type AutomationOption } from "@/data/disparos";
 import {
   Select,
   SelectContent,
@@ -767,6 +768,8 @@ export default function MultiatendimentoPage() {
   // Execução manual de automação: lista de conversas-alvo (null = modal fechado)
   const [autoModalConvs, setAutoModalConvs] = useState<string[] | null>(null);
   const [runningAutomation, setRunningAutomation] = useState(false);
+  /** Automação já escolhida ao abrir o wizard (vem do menu "/" ou do raio). */
+  const [autoModalAutomacao, setAutoModalAutomacao] = useState<string | null>(null);
 
   // nova conversa
   const [newConvOpen, setNewConvOpen] = useState(false);
@@ -1220,9 +1223,52 @@ export default function MultiatendimentoPage() {
   const qmAudioPreview = useMemo(() => (qmAudio ? URL.createObjectURL(qmAudio.blob) : null), [qmAudio]);
   useEffect(() => () => { if (qmAudioPreview) URL.revokeObjectURL(qmAudioPreview); }, [qmAudioPreview]);
 
+  /**
+   * Atalho no formato que a conversa reconhece: sempre com a barra na frente,
+   * nunca com espaço no meio.
+   *
+   * A barra não é enfeite: o campo de mensagem só abre a lista de atalhos
+   * quando o texto COMEÇA com "/" (ver `shortcutSuggestions`), então um atalho
+   * salvo sem ela é um atalho que nunca vai ser chamado.
+   *
+   * Espaço vira hífen pelo mesmo motivo: o que a pessoa digita no chat é uma
+   * palavra só até o espaço, e um atalho "ola bom dia" nunca casaria inteiro.
+   *
+   * Devolve "" quando sobra só a barra, para o campo poder ser esvaziado em
+   * vez de ficar preso num "/" que não dá para apagar.
+   */
+  const normalizarAtalho = (valor: string) => {
+    const corpo = valor.trim().replace(/^\/+/, "").replace(/\s+/g, "-");
+    return corpo ? `/${corpo}` : "";
+  };
+
   /** mm:ss, para o rótulo do áudio. */
   const duracaoEmTexto = (segundos: number) =>
     `${String(Math.floor(segundos / 60)).padStart(2, "0")}:${String(segundos % 60).padStart(2, "0")}`;
+
+  /**
+   * Duração de um arquivo de áudio escolhido do computador, em segundos.
+   *
+   * O arquivo não passa pelo cronômetro da gravação, então sem isto ele era
+   * salvo com zero e a lista mostrava 00:00 em todos -- foi assim que os
+   * quarenta e cinco áudios do primeiro cliente a usar o recurso ficaram.
+   *
+   * Lê pelo próprio navegador, com um <audio> que só carrega os metadados. Em
+   * alguns ogg e webm gravados em fluxo o `duration` vem Infinity porque o
+   * cabeçalho não traz o tamanho total; nesse caso devolve 0, que é o que a
+   * tela já sabia mostrar. Erro de leitura também cai em 0: a duração é um
+   * rótulo, nunca um motivo para impedir de salvar o áudio.
+   */
+  const duracaoDoArquivoDeAudio = (arquivo: File) =>
+    new Promise<number>(resolve => {
+      const url = URL.createObjectURL(arquivo);
+      const el = document.createElement("audio");
+      const terminar = (segundos: number) => { URL.revokeObjectURL(url); resolve(segundos); };
+      el.preload = "metadata";
+      el.onloadedmetadata = () => terminar(Number.isFinite(el.duration) ? Math.round(el.duration) : 0);
+      el.onerror = () => terminar(0);
+      el.src = url;
+    });
 
   /** O que aparece na prévia de uma linha da lista, seja qual for o tipo. */
   const resumoDaMensagemRapida = (q: QuickMessage) =>
@@ -1243,6 +1289,45 @@ export default function MultiatendimentoPage() {
   };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadQuickMessages(); }, [company?.owner_id]);
+
+  // ── automações manuais no mesmo lugar das mensagens rápidas ───────────
+  //
+  // Pedido do primeiro cliente a usar mensagens rápidas: ao digitar "/" na
+  // conversa, aparecerem também as automações de execução manual. São a mesma
+  // ação do ponto de vista de quem atende -- "mandar aquilo que já está
+  // pronto" -- e estavam a três cliques de distância, no menu de seleção de
+  // conversas, enquanto a mensagem rápida estava a um.
+  //
+  // Mesma função que a tela de disparos e o wizard usam, para "automação
+  // manual" continuar querendo dizer a mesma coisa nos três lugares.
+  const [automacoesManuais, setAutomacoesManuais] = useState<AutomationOption[]>([]);
+  useEffect(() => {
+    const cid = company?.id;
+    if (!cid) { setAutomacoesManuais([]); return; }
+    let valeu = true;
+    fetchLeadManualAutomations(cid)
+      // Só as ativas: a execução aqui é agora, e oferecer o que não vai rodar
+      // é convidar a clicar e não entender nada. Mesmo critério do wizard.
+      .then(lista => { if (valeu) setAutomacoesManuais(lista.filter(a => a.active)); })
+      .catch(() => { if (valeu) setAutomacoesManuais([]); });
+    return () => { valeu = false; };
+  }, [company?.id]);
+
+  /**
+   * Abre a conferência da automação já escolhida, na conversa aberta.
+   *
+   * Não dispara direto. O wizard existe porque o popup antigo disparava no
+   * primeiro clique: com a conversa errada em foco, a mensagem saía para o
+   * cliente errado e não havia como voltar atrás. Aqui ele abre no passo 2,
+   * com o nome e o telefone de quem vai receber à vista, e a execução fica a
+   * um clique.
+   */
+  const usarAutomacaoManual = (a: AutomationOption) => {
+    setQmPickerOpen(false);
+    if (!activeId) return;
+    setAutoModalAutomacao(a.id);
+    setAutoModalConvs([activeId]);
+  };
 
   /** Solta a gravação em curso sem salvar nada. Usado ao fechar o modal. */
   const descartarGravacaoDaMensagemRapida = () => {
@@ -1321,6 +1406,19 @@ export default function MultiatendimentoPage() {
     if (!oid || !user) return;
     if (!qmTitle.trim()) { toast.error("Preencha o título."); return; }
 
+    // O atalho deixou de ser opcional (dono, 07/10/2026). Ele é a razão de a
+    // mensagem rápida existir: sem atalho ela só aparece pelo ícone do raio, e
+    // quem cria uma dúzia delas para usar no meio da conversa não vai abrir
+    // uma lista toda vez. Sem a obrigação, o primeiro cliente a usar o recurso
+    // salvou duas das quarenta e sete sem atalho e digitou a barra no campo
+    // Título numa terceira.
+    const atalho = normalizarAtalho(qmShortcut);
+    if (!atalho) { toast.error("Defina o atalho. Ele começa com / e é por ele que a mensagem é chamada na conversa."); return; }
+    const repetido = qmList.find(q => q.id !== qmEditing?.id && (q.shortcut ?? "").toLowerCase() === atalho.toLowerCase());
+    // Dois atalhos iguais não quebram nada (a lista mostra os dois), mas o Tab
+    // escolhe um deles e a pessoa não tem como saber qual.
+    if (repetido) { toast.error(`O atalho ${atalho} já é de "${repetido.title}".`); return; }
+
     // Uma validação por tipo, espelhando a checagem do banco
     // (quick_messages_conteudo_coerente). Aqui ela existe para dizer o que
     // falta; lá, para impedir que falte.
@@ -1341,8 +1439,20 @@ export default function MultiatendimentoPage() {
 
     if (novoConteudo) {
       const ehAudio = qmTipo === "audio";
-      const nome = ehAudio ? `audio-${Date.now()}.ogg` : (qmArquivo?.name ?? "arquivo");
-      const mime = ehAudio ? "audio/ogg" : (qmArquivo?.type || "application/octet-stream");
+      // Gravação do modal é sempre Ogg/Opus e sai com esse nome. Arquivo
+      // ESCOLHIDO mantém a extensão e o mime dele.
+      //
+      // Antes todo áudio era rotulado `audio-....ogg` + `audio/ogg`, inclusive
+      // um mp3 vindo do computador: o storage passava a anunciar um formato
+      // que o arquivo não tinha, e quem fosse ler pelo cabeçalho recebia uma
+      // informação errada. Quem grava pelo microfone não muda de nada.
+      const arquivoEscolhido = novoConteudo instanceof File ? novoConteudo : null;
+      const nome = ehAudio
+        ? (arquivoEscolhido?.name ?? `audio-${Date.now()}.ogg`)
+        : (qmArquivo?.name ?? "arquivo");
+      const mime = ehAudio
+        ? (arquivoEscolhido?.type || "audio/ogg")
+        : (qmArquivo?.type || "application/octet-stream");
       const nomeSeguro = nome.replace(/[^\w.-]+/g, "_");
       const caminho = `${user.id}/mensagens-rapidas/${crypto.randomUUID()}-${nomeSeguro}`;
       const { error: erroUpload } = await supabase.storage
@@ -1364,7 +1474,7 @@ export default function MultiatendimentoPage() {
 
     const payload = {
       title: qmTitle.trim(),
-      shortcut: qmShortcut.trim() || null,
+      shortcut: atalho,
       // Áudio não carrega texto. Gravar string vazia faria a prévia da lista
       // mostrar uma linha em branco embaixo do título.
       content: qmTipo === "audio" ? null : (qmContent.trim() || null),
@@ -1437,23 +1547,45 @@ export default function MultiatendimentoPage() {
     }
   };
 
-  // Autocomplete por atalho: enquanto o texto digitado for só um atalho (ex: "/ola"),
-  // sugere as mensagens cujo atalho começa com o que foi digitado.
-  const shortcutSuggestions = useMemo<QuickMessage[]>(() => {
+  /**
+   * O que a barra oferece: mensagem rápida por atalho, e automação por nome.
+   *
+   * Os dois critérios são diferentes de propósito. A mensagem casa pelo
+   * ATALHO, que é literal e começa com a barra, porque foi escolhido para ser
+   * digitado. A automação casa pelo NOME e por qualquer pedaço dele, porque
+   * ninguém batiza automação pensando em digitá-la depois: "/up" precisa achar
+   * "UP 12M".
+   *
+   * Com a barra sozinha, aparecem todas as duas listas -- é o índice do que dá
+   * para fazer ali sem sair do campo.
+   */
+  type SugestaoDaBarra =
+    | { tipo: "mensagem"; chave: string; q: QuickMessage }
+    | { tipo: "automacao"; chave: string; a: AutomationOption };
+  const shortcutSuggestions = useMemo<SugestaoDaBarra[]>(() => {
     const v = inputValue.trim().toLowerCase();
     if (!v.startsWith("/")) return [];
-    return qmList.filter(q => q.shortcut && q.shortcut.toLowerCase().startsWith(v));
-  }, [inputValue, qmList]);
+    const termo = v.slice(1);
+    const mensagens = qmList
+      .filter(q => q.shortcut && q.shortcut.toLowerCase().startsWith(v))
+      .map(q => ({ tipo: "mensagem" as const, chave: `m-${q.id}`, q }));
+    const automacoes = automacoesManuais
+      .filter(a => a.name.toLowerCase().includes(termo))
+      .map(a => ({ tipo: "automacao" as const, chave: `a-${a.id}`, a }));
+    return [...mensagens, ...automacoes];
+  }, [inputValue, qmList, automacoesManuais]);
 
-  // Expande um atalho substituindo o texto digitado pelo conteúdo da mensagem.
+  // Usa a sugestão escolhida e limpa o atalho do campo.
   //
-  // Em arquivo e áudio não há texto para substituir: o atalho some do campo e a
-  // mídia sai. Deixar o "/audio" digitado no campo depois do envio faria a
-  // próxima mensagem começar com ele.
-  const expandShortcut = (q: QuickMessage) => {
-    if (q.tipo === "texto") { setInputValue(q.content ?? ""); return; }
+  // Em texto o atalho dá lugar ao conteúdo, que ainda é editado antes de
+  // enviar. Em arquivo, áudio e automação não há texto para substituir: o
+  // atalho some e a ação acontece. Deixar o "/audio" digitado faria a próxima
+  // mensagem começar com ele.
+  const expandShortcut = (s: SugestaoDaBarra) => {
+    if (s.tipo === "automacao") { setInputValue(""); usarAutomacaoManual(s.a); return; }
+    if (s.q.tipo === "texto") { setInputValue(s.q.content ?? ""); return; }
     setInputValue("");
-    void usarMensagemRapida(q);
+    void usarMensagemRapida(s.q);
   };
 
   // ── toolbar states ────────────────────────────────────────────────────
@@ -1624,6 +1756,21 @@ export default function MultiatendimentoPage() {
   // hasNegocio distingue "resolveu pra um negócio de verdade" de "resolveu
   // só pro Lead solto", o que effectiveLead sozinho não garante.
   const hasNegocio      = !!effectiveLead?.pipelineId;
+
+  /**
+   * As sugestões da barra que cabem NESTA conversa.
+   *
+   * Automação age sobre o negócio: sem negócio vinculado ela não tem em que
+   * rodar, e oferecê-la seria oferecer um erro. Mensagem rápida não depende
+   * de nada disso e continua aparecendo sempre.
+   *
+   * Mora aqui, e não junto da montagem da lista, porque `effectiveLead` só
+   * existe depois de `resolveLeadForConv`, bem abaixo dela.
+   */
+  const sugestoesDaBarra = useMemo(
+    () => (effectiveLead ? shortcutSuggestions : shortcutSuggestions.filter(s => s.tipo === "mensagem")),
+    [shortcutSuggestions, effectiveLead],
+  );
 
   // Perfil/Endereço/Campos (painel de detalhes) -- mesma fonte de dado do
   // Telefone logo abaixo: sem negócio vinculado, só mostra o que já está na
@@ -2653,17 +2800,33 @@ export default function MultiatendimentoPage() {
           throw new Error(errText.slice(0, 120) || String(r.status));
         }
       } else {
-        // ── Z-API /send-audio espera base64 puro (sem o prefixo data:audio/...;base64,) ──
-        const dataUri = await new Promise<string>((res, rej) => {
-          const reader = new FileReader();
-          reader.onload = () => res(reader.result as string);
-          reader.onerror = rej;
-          reader.readAsDataURL(blob);
-        });
-        const base64 = dataUri.split(",")[1]; // strip data URI prefix
+        // ── Z-API /send-audio: URL quando temos, base64 só como plano B ──
+        //
+        // O campo `audio` aceita as duas formas ("Link do áudio ou seu Base64"),
+        // e aqui a URL é a melhor delas por dois motivos. É o caminho que as
+        // automações já usam em produção (whatsapp-send.ts), e evita subir o
+        // áudio inteiro de novo em base64, que pesa um terço a mais que o
+        // arquivo e sai do navegador do atendente a cada envio.
+        //
+        // O base64 precisa da URI COMPLETA, com o prefixo data:audio/...;base64.
+        // Esta linha mandava só a parte depois da vírgula, e a Z-API devolvia
+        // "Message was not sent to queue [Base64/Url could not be read]" --
+        // nenhum áudio do chat chegava ao contato. O envio de arquivo, no
+        // mesmo repositório, sempre mandou a URI completa (enviarArquivoWhatsapp.ts)
+        // e sempre funcionou; eram dois caminhos dizendo o oposto sobre o
+        // mesmo provedor.
+        let audio = mediaUrl;
+        if (!audio) {
+          audio = await new Promise<string>((res, rej) => {
+            const reader = new FileReader();
+            reader.onload = () => res(reader.result as string);
+            reader.onerror = rej;
+            reader.readAsDataURL(blob);
+          });
+        }
         const r = await fetch(
           `https://api.z-api.io/instances/${inst.instanceId}/token/${inst.token}/send-audio`,
-          { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify({ phone: cleanPhone, audio: base64 }) }
+          { method: "POST", headers: { "Content-Type": "application/json", ...(inst.clientToken ? { "Client-Token": inst.clientToken } : {}) }, body: JSON.stringify({ phone: cleanPhone, audio }) }
         );
         if (!r.ok) {
           const errBody = await r.json().catch(() => ({}));
@@ -3885,27 +4048,30 @@ export default function MultiatendimentoPage() {
     // "sem negócio vinculado" nos dois casos. Foi o que escondeu por completo
     // um erro de CORS: a automação não rodava, e a tela dizia que o problema
     // era o cadastro do cliente.
-    let ok = 0, semNegocio = 0, falhou = 0;
-    let ultimoErro = "";
+    let semNegocio = 0;
+    const alvos: string[] = [];
     for (const convId of convIds) {
       const c = convList.find(x => x.id === convId);
       const leadId = c ? convLead(c)?.id : undefined;
-      if (!leadId) { semNegocio++; continue; }
-      const { error } = await supabase.functions.invoke("automation-runner/manual", {
-        body: { company_id: cid, lead_id: leadId, automation_id: automationId },
-      });
-      if (error) {
-        falhou++;
-        ultimoErro = error.message ?? String(error);
-        console.error("[multiatendimento] automação manual:", error);
-      } else { ok++; }
+      if (leadId) alvos.push(leadId); else semNegocio++;
     }
+    // Em paralelo, e não mais um `await` por vez. A chamada agora só confere o
+    // cadastro e responde (a execução segue no servidor), então a fila serial
+    // só somava idas e voltas de rede: vinte conversas eram vinte esperas
+    // encadeadas com o diálogo aberto.
+    const erros = (await Promise.all(alvos.map(leadId => executarAutomacaoNoLead(cid, leadId, automationId))))
+      .filter((e): e is string => e !== null);
     setRunningAutomation(false);
     setAutoModalConvs(null);
+    setAutoModalAutomacao(null);
     if (selectionMode) setSelectedConvs([]);
-    if (ok > 0) toast.success(`Automação executada em ${ok} conversa(s).`);
+    const ok = alvos.length - erros.length;
+    // "Iniciada", não "executada": quando este aviso aparece a automação está
+    // começando no servidor, e dizer que terminou seria mentira numa que tem
+    // atraso entre mensagens.
+    if (ok > 0) toast.success(`Automação iniciada em ${ok} conversa(s). O andamento fica no histórico da automação.`);
     if (semNegocio > 0) toast.error(`${semNegocio} conversa(s) sem negócio vinculado foram ignoradas.`);
-    if (falhou > 0) toast.error(`Falha ao executar em ${falhou} conversa(s). ${ultimoErro}`);
+    if (erros.length > 0) toast.error(`Falha ao iniciar em ${erros.length} conversa(s). ${erros[0]}`);
   };
 
   // Seção de checklist (multi-seleção) do painel de filtros
@@ -5063,7 +5229,7 @@ export default function MultiatendimentoPage() {
                   </div>
                 )}
                 <div style={{ position: "relative", display: "inline-flex" }}>
-                  <span title="Mensagens rápidas" onClick={() => { if (!cs.finished) { setQmPickerOpen(v => !v); setShowEmoji(false); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
+                  <span title="Mensagens rápidas e automações" onClick={() => { if (!cs.finished) { setQmPickerOpen(v => !v); setShowEmoji(false); setShowFiles(false); } }} style={{ display: "inline-flex", cursor: cs.finished ? "not-allowed" : "pointer" }}>
                     <Zap size={18} color={cs.finished ? "var(--neutral-300)" : "var(--accent-700)"} />
                   </span>
                   {qmPickerOpen && (
@@ -5076,18 +5242,53 @@ export default function MultiatendimentoPage() {
                       <div style={{ position: "absolute", bottom: "calc(100% + 8px)", left: 0, width: 320, background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, overflow: "hidden" }}>
                         <div style={{ padding: "12px 14px 10px" }}>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Mensagens rápidas</span>
+                            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text-heading)" }}>Ações rápidas</span>
                             {qmList.length > 0 && (
                               <span style={{ fontSize: 12, color: "var(--text-muted)", background: "var(--neutral-50)", borderRadius: 20, padding: "1px 8px" }}>{qmList.length}</span>
                             )}
                           </div>
                           <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 3, lineHeight: 1.4 }}>
-                            Respostas prontas suas. Texto vai para o campo de digitação e você edita antes de enviar; arquivo e áudio saem na hora.
+                            Respostas prontas suas. Texto vai para o campo de digitação e você edita antes de enviar; arquivo e áudio saem na hora. Digite / na conversa para chamar pelo atalho.
                           </p>
                         </div>
                         <div style={{ height: 1, background: "var(--neutral-100)" }} />
 
                         <div style={{ maxHeight: 240, overflowY: "auto", padding: 6 }}>
+                          {/* As automações manuais vêm no MESMO painel, e não
+                              num menu próprio: para quem atende, mandar o
+                              áudio de sempre e disparar a sequência de sempre
+                              são a mesma intenção. Separadas, uma delas ficava
+                              a três cliques, dentro do menu de seleção de
+                              conversas. */}
+                          {automacoesManuais.length > 0 && (
+                            <>
+                              <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 10px 6px" }}>Automações</div>
+                              {automacoesManuais.map(a => (
+                                <button
+                                  key={a.id}
+                                  // Sem negócio vinculado a automação não tem
+                                  // em que rodar. Fica visível e desligada, em
+                                  // vez de sumir: some, o atendente procura o
+                                  // que não está lá; desligada com o motivo, ele
+                                  // sabe que falta vincular o negócio.
+                                  disabled={!effectiveLead}
+                                  title={effectiveLead ? undefined : "Vincule um negócio à conversa para executar automações"}
+                                  onClick={() => usarAutomacaoManual(a)}
+                                  style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: effectiveLead ? "pointer" : "not-allowed", opacity: effectiveLead ? 1 : 0.5, padding: "8px 10px", borderRadius: 8, display: "block" }}
+                                  onMouseEnter={e => { if (effectiveLead) e.currentTarget.style.background = "var(--neutral-50)"; }}
+                                  onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                                >
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    <Zap size={12} color="var(--laranja-acao)" style={{ flexShrink: 0 }} />
+                                    <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</span>
+                                  </div>
+                                  <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Executar nesta conversa</div>
+                                </button>
+                              ))}
+                              <div style={{ height: 1, background: "var(--neutral-100)", margin: "6px 4px" }} />
+                              <div style={{ fontSize: 11.5, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 10px 6px" }}>Mensagens rápidas</div>
+                            </>
+                          )}
                           {qmList.length === 0 ? (
                             <div style={{ padding: "18px 12px", textAlign: "center", fontSize: 12, color: "var(--text-muted)", lineHeight: 1.5 }}>
                               Nenhuma mensagem rápida ainda.<br />Crie a primeira para responder o de sempre em um clique.
@@ -5146,21 +5347,52 @@ export default function MultiatendimentoPage() {
                 </div>
               ) : (
                 <div style={{ display: "flex", alignItems: "flex-end", gap: 8, position: "relative" }}>
-                  {shortcutSuggestions.length > 0 && (
+                  {sugestoesDaBarra.length > 0 && (
                     <div style={{ position: "absolute", bottom: "calc(100% + 6px)", left: 0, width: 300, maxHeight: 220, overflowY: "auto", background: "var(--surface-card)", border: "1px solid var(--border-default)", borderRadius: 12, boxShadow: "0 12px 40px rgba(0,0,0,0.16)", zIndex: 41, padding: 6 }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", padding: "4px 8px 6px" }}>Mensagens rápidas · Tab para usar</div>
-                      {shortcutSuggestions.map(q => (
-                        <button key={q.id} onMouseDown={e => { e.preventDefault(); expandShortcut(q); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
-                          onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
-                          onMouseLeave={e => (e.currentTarget.style.background = "none")}
-                        >
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)", background: "var(--accent-50)", borderRadius: 6, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>
-                            <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
+                      {sugestoesDaBarra.map((s, i) => {
+                        // O título de cada grupo sai na PRIMEIRA linha dele, em
+                        // vez de dois blocos montados à parte: a lista já vem
+                        // com as mensagens antes das automações, e assim um
+                        // grupo vazio não deixa um título órfão para trás.
+                        const primeiraDoGrupo = i === 0 || sugestoesDaBarra[i - 1].tipo !== s.tipo;
+                        const titulo = s.tipo === "mensagem" ? "Mensagens rápidas · Tab para usar" : "Automações";
+                        const cabecalho = primeiraDoGrupo && (
+                          <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", padding: i === 0 ? "4px 8px 6px" : "10px 8px 6px" }}>{titulo}</div>
+                        );
+                        if (s.tipo === "automacao") {
+                          return (
+                            <div key={s.chave}>
+                              {cabecalho}
+                              <button onMouseDown={e => { e.preventDefault(); expandShortcut(s); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
+                                onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
+                                onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                              >
+                                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                  <Zap size={12} color="var(--laranja-acao)" style={{ flexShrink: 0 }} />
+                                  <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.a.name}</span>
+                                </div>
+                                <div style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>Executar nesta conversa</div>
+                              </button>
+                            </div>
+                          );
+                        }
+                        const q = s.q;
+                        return (
+                          <div key={s.chave}>
+                            {cabecalho}
+                            <button onMouseDown={e => { e.preventDefault(); expandShortcut(s); }} style={{ width: "100%", textAlign: "left", background: "none", border: "none", cursor: "pointer", padding: "8px 10px", borderRadius: 8, display: "block" }}
+                              onMouseEnter={e => (e.currentTarget.style.background = "var(--neutral-50)")}
+                              onMouseLeave={e => (e.currentTarget.style.background = "none")}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--accent-800)", background: "var(--accent-50)", borderRadius: 6, padding: "1px 6px", flexShrink: 0 }}>{q.shortcut}</span>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{q.title}</span>
+                              </div>
+                              <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{resumoDaMensagemRapida(q)}</div>
+                            </button>
                           </div>
-                          <div style={{ fontSize: 12, color: "var(--text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{resumoDaMensagemRapida(q)}</div>
-                        </button>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                   {/* Caixa que cresce em vez de campo de uma linha só. Antes
@@ -5175,11 +5407,14 @@ export default function MultiatendimentoPage() {
                     value={inputValue}
                     onChange={e => { setInputValue(e.target.value); handleTypingActivity(); }}
                     onKeyDown={e => {
-                      if ((e.key === "Tab" || e.key === "Enter") && !e.shiftKey && shortcutSuggestions.length > 0) {
+                      if ((e.key === "Tab" || e.key === "Enter") && !e.shiftKey && sugestoesDaBarra.length > 0) {
                         e.preventDefault();
                         const v = inputValue.trim().toLowerCase();
-                        const exact = shortcutSuggestions.find(q => q.shortcut?.toLowerCase() === v);
-                        expandShortcut(exact ?? shortcutSuggestions[0]);
+                        // Atalho digitado por inteiro ganha de qualquer outro
+                        // candidato: quem escreveu "/ola" quer "/ola", mesmo
+                        // que "/olataluda" também esteja na lista.
+                        const exata = sugestoesDaBarra.find(s => s.tipo === "mensagem" && s.q.shortcut?.toLowerCase() === v);
+                        expandShortcut(exata ?? sugestoesDaBarra[0]);
                         return;
                       }
                       if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); setShowEmoji(false); }
@@ -6549,8 +6784,14 @@ export default function MultiatendimentoPage() {
                 <input value={qmTitle} onChange={e => setQmTitle(e.target.value)} placeholder="Ex: Saudação inicial" style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "var(--text-heading)", outline: "none", boxSizing: "border-box" }} />
               </div>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Atalho <span style={{ color: "var(--text-muted)", fontWeight: 400 }}>(opcional)</span></label>
-                <input value={qmShortcut} onChange={e => setQmShortcut(e.target.value)} placeholder="Ex: /ola" style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "var(--text-heading)", outline: "none", boxSizing: "border-box" }} />
+                <label style={{ fontSize: 12, fontWeight: 600, color: "#444", display: "block", marginBottom: 6 }}>Atalho</label>
+                {/* A barra entra sozinha ao digitar, em vez de ser cobrada
+                    depois com uma mensagem de erro: o campo mostra o formato
+                    certo enquanto a pessoa escreve. */}
+                <input value={qmShortcut} onChange={e => setQmShortcut(normalizarAtalho(e.target.value))} placeholder="Ex: /ola" style={{ width: "100%", border: "1px solid var(--border-default)", borderRadius: 8, padding: "9px 11px", fontSize: 13, color: "var(--text-heading)", outline: "none", boxSizing: "border-box" }} />
+                <p style={{ fontSize: 11.5, color: "var(--text-muted)", margin: "5px 0 0", lineHeight: 1.4 }}>
+                  Digite o atalho na conversa para chamar esta mensagem.
+                </p>
               </div>
               {/* ── O que esta mensagem é (dono, 29/09/2026) ──────────────────
                   Três estados excludentes, não três campos opcionais: a linha
@@ -6680,11 +6921,11 @@ export default function MultiatendimentoPage() {
                           onChange={e => {
                             const f = e.target.files?.[0];
                             e.target.value = "";
-                            // Duração 0: o arquivo escolhido não passa pelo
-                            // cronômetro da gravação. O balão mostra 00:00 até
-                            // o áudio tocar, e o WhatsApp lê a duração real do
-                            // próprio arquivo.
-                            if (f) setQmAudio({ blob: f, segundos: 0 });
+                            // A duração vem do próprio arquivo. Ela é só o
+                            // rótulo da lista (o WhatsApp lê a dele), mas um
+                            // 00:00 em toda mensagem de áudio parece defeito
+                            // de gravação e foi relatado como tal.
+                            if (f) void duracaoDoArquivoDeAudio(f).then(segundos => setQmAudio({ blob: f, segundos }));
                           }}
                         />
                       </>
@@ -6834,8 +7075,9 @@ export default function MultiatendimentoPage() {
           e não havia como voltar atrás. */}
       <ExecutarAutomacaoWizard
         open={autoModalConvs !== null}
-        onOpenChange={aberto => { if (!aberto) setAutoModalConvs(null); }}
+        onOpenChange={aberto => { if (!aberto) { setAutoModalConvs(null); setAutoModalAutomacao(null); } }}
         executando={runningAutomation}
+        automacaoInicial={autoModalAutomacao}
         conversas={(autoModalConvs ?? []).map(id => {
           const c = convList.find(x => x.id === id);
           return {

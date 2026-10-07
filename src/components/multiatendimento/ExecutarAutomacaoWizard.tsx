@@ -113,6 +113,7 @@ const LIMITE_EXECUCAO = 1000;
 
 export function ExecutarAutomacaoWizard({
   open, onOpenChange, conversas, executando, onExecutar, termo = TERMO_PADRAO, opcoes, acaoFiltro, filtroVazio = true,
+  automacaoInicial = null,
 }: {
   open: boolean;
   onOpenChange: (o: boolean) => void;
@@ -154,6 +155,17 @@ export function ExecutarAutomacaoWizard({
    * critério vem tudo que ele trouxe.
    */
   filtroVazio?: boolean;
+  /**
+   * Automação já escolhida por quem abriu, quando ela foi escolhida fora daqui.
+   *
+   * É o caso do menu "/" do chat, que lista as automações manuais junto das
+   * mensagens rápidas: lá a escolha já aconteceu, e reabrir o passo 1 pediria
+   * a mesma decisão duas vezes. O wizard abre direto na conferência.
+   *
+   * O passo 1 continua alcançável pelo trilho da esquerda, para trocar de
+   * automação sem fechar e abrir de novo.
+   */
+  automacaoInicial?: string | null;
 }) {
   const { company } = useCompany();
   const [passo, setPasso] = useState<Passo>(1);
@@ -174,7 +186,9 @@ export function ExecutarAutomacaoWizard({
 
   useEffect(() => {
     if (!open) return;
-    setPasso(1); setAutomacaoId(null); setBusca(""); setBuscaAlvo("");
+    setPasso(automacaoInicial ? 2 : 1);
+    setAutomacaoId(automacaoInicial);
+    setBusca(""); setBuscaAlvo("");
     if (!company) return;
     setCarregando(true);
     fetchLeadManualAutomations(company.id)
@@ -185,7 +199,7 @@ export function ExecutarAutomacaoWizard({
     // cada recarga do contexto e refaria a busca sem nada ter mudado. Mesmo
     // padrão do CreateDisparoWizard.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, company?.id]);
+  }, [open, company?.id, automacaoInicial]);
 
   // Só automações ativas. Uma inativa aparece na tela de disparos porque lá o
   // disparo pode ser agendado para depois; aqui a execução é agora, e oferecer

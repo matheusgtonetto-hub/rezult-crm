@@ -359,12 +359,18 @@ export async function fetchLeadManualAutomations(companyId: string): Promise<Aut
 }
 
 /**
- * Executa UMA automação manual em UM lead, agora.
+ * INICIA uma automação manual em UM lead.
  *
  * Mora aqui junto de `fetchLeadManualAutomations` porque é a outra metade da
  * mesma operação, e porque agora tem dois chamadores: o Multiatendimento
  * (partindo da conversa) e a lista de leads (partindo do lead). Duas cópias
  * desta chamada divergiriam no dia em que a rota ou o corpo mudassem.
+ *
+ * Inicia, e não executa: desde 07/10/2026 a função responde 202 assim que
+ * confere o que dá para conferir rápido (empresa em dia, automação existente,
+ * ativa e com gatilho manual) e segue executando o fluxo no servidor. O que
+ * volta aqui é "deu para começar", não "terminou" -- o andamento fica no
+ * histórico da automação, que atualiza em tempo real.
  *
  * Devolve a mensagem de erro quando falha, e null quando deu certo. Não engole
  * nem lança: quem chama está sempre num laço sobre vários alvos e precisa
@@ -380,5 +386,12 @@ export async function executarAutomacaoNoLead(
   });
   if (!error) return null;
   console.error("[automacao-manual] falha ao executar:", error);
-  return error.message ?? String(error);
+  // `error.message` de uma resposta não-2xx é sempre a mesma frase genérica
+  // ("Edge Function returned a non-2xx status code"), que não diz nada a quem
+  // clicou. O motivo real vem no corpo, que o cliente guarda em `context`:
+  // "Automação desativada", "Empresa com pagamento pendente", e assim por
+  // diante. Sem isto, as mensagens que a função ganhou não chegariam à tela.
+  const resposta = (error as { context?: Response }).context;
+  const corpo = typeof resposta?.text === "function" ? await resposta.text().catch(() => "") : "";
+  return corpo.trim() || error.message || String(error);
 }

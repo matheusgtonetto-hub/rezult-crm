@@ -11,6 +11,15 @@ import { registrarUso, custoDeAudio } from "../_shared/uso.ts";
 import { podeGastar } from "../_shared/credito.ts";
 import { resolverChaveDeIa } from "../_shared/chave-ia.ts";
 
+/**
+ * Trabalho que continua depois da resposta HTTP.
+ *
+ * É global do runtime das Edge Functions (Deno Deploy) e não vem nos tipos do
+ * `npm:@supabase/supabase-js`, por isso a declaração. Usado na execução manual,
+ * que responde na hora e segue executando o fluxo no servidor.
+ */
+declare const EdgeRuntime: { waitUntil(promessa: Promise<unknown>): void };
+
 // Deve espelhar o tipo LeadOrigin (src/data/mockData.ts) e a constraint leads_origin_check do banco
 const VALID_LEAD_ORIGINS = ["Instagram", "Facebook Ads", "Google Ads", "Meta Ads", "TikTok Ads", "LinkedIn Ads", "YouTube Ads", "Email Marketing", "Orgânico", "WhatsApp", "Evento", "Indicação", "Site", "Outro"];
 
@@ -475,13 +484,50 @@ async function handleManual(supabase: SupabaseClient, req: Request): Promise<Res
   }
   if (!allowed) return erro("Forbidden", 403);
 
+  // ── O que ainda é conferido ANTES de responder ───────────────────────────
+  //
+  // São três consultas rápidas, e cada uma evita um "automação iniciada" que
+  // seria mentira: empresa bloqueada não executa nada, automação desligada
+  // tampouco, e automação de outro gatilho simplesmente não casa e termina
+  // sem fazer nada. Todas as três são erros de configuração, aparecem na
+  // mesma hora para quem clicou e não dependem de ninguém ir ao histórico.
+  if (await empresaBloqueada(supabase, company_id)) {
+    return erro("Empresa com pagamento pendente: as automações estão pausadas.", 409);
+  }
+  const { data: aut } = await supabase
+    .from("automations").select("active, flow")
+    .eq("id", automation_id).eq("company_id", company_id).maybeSingle();
+  if (!aut) return erro("Automação não encontrada nesta empresa.", 404);
+  if (!aut.active) return erro("Automação desativada. Ative-a para poder executar.", 409);
+  if (!gatilhosDoFluxo(aut.flow as AutomationFlow | null).some(g => g.triggerId === "lead_manual")) {
+    return erro("Esta automação não tem o gatilho de execução manual.", 409);
+  }
+
+  // ── E o que passa a rodar depois da resposta ─────────────────────────────
+  //
+  // `executeFlow` espera INLINE os atrasos de até 90 s e mais 600 ms entre
+  // cada parte de mensagem. Enquanto isso era aguardado aqui, a tela ficava
+  // com o diálogo travado em "Executando...", sem poder fazer mais nada, pelo
+  // tempo inteiro da automação -- numa com três mensagens e um atraso de um
+  // minuto, mais de um minuto parado olhando.
+  //
+  // `EdgeRuntime.waitUntil` mantém a execução viva depois do `return`: a
+  // resposta sai agora e o fluxo segue no servidor, inclusive se quem clicou
+  // fechar a aba. Sem ele, soltar a promessa deixaria o trabalho à mercê do
+  // encerramento da instância assim que a resposta fosse entregue.
+  //
+  // O que se perde é o relatório de falha de EXECUÇÃO na tela. Ele não some:
+  // cada nó continua gravando em `automation_logs`, que o painel da automação
+  // lê e acompanha em tempo real.
   const payload: TriggerPayload = { trigger_type: "lead_manual", company_id, lead_id, automation_id, context: {} };
-  const resposta = await runTrigger(supabase, payload);
-  // runTrigger é compartilhado com as rotas de servidor e não conhece CORS.
-  // Recria a resposta com os cabeçalhos, preservando corpo e status.
-  const headers = new Headers(resposta.headers);
-  for (const [k, v] of Object.entries(cors)) headers.set(k, v);
-  return new Response(resposta.body, { status: resposta.status, headers });
+  EdgeRuntime.waitUntil(
+    runTrigger(supabase, payload).catch(e =>
+      console.error(`[manual] automação ${automation_id} lead ${lead_id} falhou:`, e)),
+  );
+  return new Response(JSON.stringify({ started: true, automation_id, lead_id }), {
+    status: 202,
+    headers: { ...cors, "Content-Type": "application/json" },
+  });
 }
 
 // ─── Webhook handler ──────────────────────────────────────────────────────────
