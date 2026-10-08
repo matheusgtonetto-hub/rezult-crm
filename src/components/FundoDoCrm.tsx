@@ -269,7 +269,7 @@ function BoardDesenhado() {
           style={{ width: 52, background: "hsl(var(--primary))", paddingTop: 12, paddingBottom: 12 }}
         >
           <img
-            src="/favicon.png?v=4"
+            src="/favicon.png?v=5"
             alt=""
             style={{ width: 35, height: 35, borderRadius: 8, marginBottom: 8, objectFit: "cover" }}
           />

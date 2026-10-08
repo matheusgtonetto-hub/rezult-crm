@@ -230,7 +230,7 @@ export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?:
           {/* O MESMO arquivo do favicon, servido de public/: são a mesma marca,
               e duas cópias significam trocar a arte em dois lugares. */}
           <img
-            src="/favicon.png?v=4"
+            src="/favicon.png?v=5"
             alt="Rezult"
             className="shrink-0 block object-cover"
             style={{ width: 30, height: 30, borderRadius: 8 }}
@@ -240,8 +240,16 @@ export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?:
               e-mail do usuário na outra ponta -- que fazia a faixa transbordar
               numa tela de 390px. */}
           {!compacta && (
-              <span className="text-[15px] tracking-tight whitespace-nowrap truncate min-w-0 text-[color:var(--text-heading)]">
-              <span className="font-semibold">Rezult</span> <span className="font-normal">CRM</span>
+              /* "Rezult" em 18px e "CRM" em 16px (dono, 08/10/2026). O site
+                 usa 20/18 na navbar dele; aqui a faixa divide espaço com o
+                 botão Suporte, as ferramentas e o nome do usuário, e o par
+                 menor é o que cabe sem apertar os vizinhos.
+
+                 O tamanho do bloco é o do "CRM": as duas palavras dividem o
+                 `line-height` herdado daqui, então subir o pai moveria a linha
+                 de base das duas juntas. */
+              <span className="text-[16px] tracking-tight whitespace-nowrap truncate min-w-0 text-[color:var(--text-heading)]">
+              <span className="font-semibold text-[18px]">Rezult</span> <span className="font-normal">CRM</span>
             </span>
           )}
         </span>

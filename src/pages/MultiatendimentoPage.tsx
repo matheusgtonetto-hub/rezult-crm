@@ -62,7 +62,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { tintaSobre, tintaDeChip } from "@/lib/contraste";
+import { tintaSobre } from "@/lib/contraste";
 import { ACT_META } from "@/lib/atividades";
 
 /* ── helpers ──────────────────────────────────────────────────────────── */
@@ -411,9 +411,26 @@ function Section({ title, children, defaultOpen = false, action, bordaNoTopo = f
  * número, mesmo aceso. Não é fila de trabalho, é arquivo -- e o espaço que ele
  * economiza é justamente o que os outros três usam para escrever o nome.
  */
-function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, borderColor, iconOnly }: { Icon: LucideIcon; count: number | null; isActive: boolean; onClick: () => void; label?: string; color: string; colorBg: string; borderColor: string; iconOnly?: boolean }) {
+function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, iconOnly }: { Icon: LucideIcon; count: number | null; isActive: boolean; onClick: () => void; label?: string; color: string; colorBg: string; iconOnly?: boolean }) {
   const [hovered, setHovered] = useState(false);
-  const border = isActive ? `1px solid ${borderColor}` : "1px solid var(--border-default)";
+  /*
+   * O chip aceso é PREENCHIDO, e os quatro acendem da mesma cor (dono,
+   * 08/10/2026).
+   *
+   * Antes cada um tinha a sua borda colorida -- cinza em Todos, âmbar em Não
+   * lidas, azul em Aguardando, verde em Finalizadas -- e o fundo nunca mudava.
+   * Quatro cores para dizer a mesma coisa ("é esta a caixa aberta"), e a cor
+   * variava com o chip em vez de variar com o estado: a única informação que a
+   * fileira precisa passar é QUAL está aceso.
+   *
+   * Sai de `--surface-accent`, que é a superfície de ação do sistema, e por
+   * isso atende o pedido sem nenhum `if` de tema: no claro ela é o charcoal
+   * #1D1D1D, no escuro continua o menta. A tinta vem de `--text-on-accent`,
+   * que acompanha (branco no claro, verde-escuro no escuro).
+   */
+  const fundo = isActive ? "var(--surface-accent)" : "var(--surface-card)";
+  const tinta = isActive ? "var(--text-on-accent)" : "var(--text-heading)";
+  const border = `1px solid ${isActive ? "var(--surface-accent)" : "var(--border-default)"}`;
   const mostrarRotulo = !iconOnly && !!label;
   return (
     /*
@@ -458,7 +475,7 @@ function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, bor
           display: "flex", alignItems: "center", gap: 4,
           justifyContent: iconOnly ? "flex-start" : "space-between",
           width: iconOnly ? undefined : "100%",
-          background: "var(--surface-card)", border, borderRadius: 6,
+          background: fundo, border, borderRadius: 6,
           padding: iconOnly ? "4px 6px 4px 4px" : "4px 6px",
           fontSize: 11, cursor: "pointer", minWidth: 0,
         }}
@@ -471,11 +488,11 @@ function FilterChip({ Icon, count, isActive, onClick, label, color, colorBg, bor
           </span>
         )}
         {mostrarRotulo && (
-          <span style={{ color: "var(--text-heading)", fontWeight: isActive ? 600 : 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ color: tinta, fontWeight: isActive ? 600 : 500, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {label}
           </span>
         )}
-        {count !== null && <span style={{ color: "var(--text-heading)", fontWeight: 300, flexShrink: 0 }}>{count}</span>}
+        {count !== null && <span style={{ color: tinta, fontWeight: 300, flexShrink: 0 }}>{count}</span>}
       </button>
     </div>
   );
@@ -4158,10 +4175,10 @@ export default function MultiatendimentoPage() {
       : visibleConvList;
 
   const filters = [
-    { id: "",        icon: Inbox,         label: "Todos",       count: convsDoDepartamento.filter(c => !convStates[c.id]?.finished).length,                                                                                                        color: "var(--text-heading)", colorBg: "var(--neutral-50)", borderColor: "var(--border-strong)" },
-    { id: "unread",  icon: Clock,         label: "Não lidas",   count: convsDoDepartamento.filter(c => !convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,       color: "var(--warning-fg)", colorBg: "var(--warning-bg)", borderColor: "rgba(246, 176, 54, 0.52)" },
-    { id: "pending", icon: MessageCircle, label: "Aguardando",  count: convsDoDepartamento.filter(c => !!convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,      color: "var(--info-fg)", colorBg: "var(--info-bg)", borderColor: "rgba(65, 121, 219, 0.52)" },
-    { id: "done",    icon: CheckCircle2,  label: "Finalizadas", count: convsDoDepartamento.filter(c => convStates[c.id]?.finished).length,                                                                 color: "var(--accent-700)", colorBg: "var(--accent-50)", borderColor: "rgba(34, 197, 94, 0.6)" },
+    { id: "",        icon: Inbox,         label: "Todos",       count: convsDoDepartamento.filter(c => !convStates[c.id]?.finished).length,                                                                                                        color: "var(--text-heading)", colorBg: "var(--neutral-50)" },
+    { id: "unread",  icon: Clock,         label: "Não lidas",   count: convsDoDepartamento.filter(c => !convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,       color: "var(--warning-fg)", colorBg: "var(--warning-bg)" },
+    { id: "pending", icon: MessageCircle, label: "Aguardando",  count: convsDoDepartamento.filter(c => !!convStates[c.id]?.read && !convStates[c.id]?.finished && isConvInstanceConnected(c)).length,      color: "var(--info-fg)", colorBg: "var(--info-bg)" },
+    { id: "done",    icon: CheckCircle2,  label: "Finalizadas", count: convsDoDepartamento.filter(c => convStates[c.id]?.finished).length,                                                                 color: "var(--accent-700)", colorBg: "var(--accent-50)" },
   ];
   const activeFilterMeta = filters.find(f => f.id === activeFilter);
   /*
@@ -4366,7 +4383,7 @@ export default function MultiatendimentoPage() {
                * dizia por quê. Com "Todos" visível, sair do filtro é clicar
                * nele, que é o que qualquer pessoa tenta primeiro.
                */
-              <FilterChip key={f.id || "todos"} Icon={f.icon} count={f.count} label={f.label} color={f.color} colorBg={f.colorBg} borderColor={f.borderColor} iconOnly={f.id === "done"} isActive={activeFilter === f.id} onClick={() => setActiveFilter(f.id)} />
+              <FilterChip key={f.id || "todos"} Icon={f.icon} count={f.count} label={f.label} color={f.color} colorBg={f.colorBg} iconOnly={f.id === "done"} isActive={activeFilter === f.id} onClick={() => setActiveFilter(f.id)} />
             ))}
           </div>
         </div>
@@ -4478,49 +4495,31 @@ export default function MultiatendimentoPage() {
                       direita já mostra a lista inteira -- e lá elas são
                       clicáveis, o que aqui nunca foram.
 
-                      Sobram nesta linha os estados da CONVERSA, que não
-                      existem em lugar nenhum além dela: se ninguém da casa
-                      respondeu ainda, se o atendimento foi encerrado e se a
-                      linha que a recebeu está fora do ar. */}
+                      O DEPARTAMENTO é a etiqueta desta linha. Antes dividia o
+                      espaço com "1º contato", que marcava conversa que ninguém
+                      da casa tinha respondido: duas etiquetas em quase todo
+                      card, e a que importa para distribuir atendimento ficava
+                      em segundo lugar. Saiu a pedido do dono em 08/10/2026. O
+                      estado continua no produto, no chip "Não lidas" da fila.
+
+                      Encerrada e desconectada ficam, porque não são etiqueta de
+                      rotina: aparecem só quando o caso acontece.
+
+                      As quatro passaram a usar o `TagPill`, que é a etiqueta do
+                      sistema (10px, raio 50) e a mesma dos cards de /pipeline e
+                      /leads. Aqui elas eram desenhadas à mão com 12px e raio 6,
+                      que é exatamente a divergência que aquele componente foi
+                      criado para encerrar. */}
                   <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {/*
-                      "1º contato": ninguém da empresa respondeu esta conversa
-                      NENHUMA vez (`answered`).
-
-                      Era o chip "Não iniciadas", que saiu quando os filtros
-                      passaram a perguntar só se há mensagem esperando. Virou
-                      etiqueta porque é uma característica da conversa, não uma
-                      caixa -- e assim aparece em qualquer filtro, inclusive
-                      depois de alguém abrir a conversa sem responder, que é
-                      justamente quando ela sairia do radar.
-
-                      Não aparece em conversa encerrada: lá o primeiro contato
-                      já virou história, e a etiqueta de Finalizada é a que
-                      importa. */}
-                    {!cState?.answered && !cState?.finished && (
-                      <span style={{ fontSize: 12, fontWeight: 600, background: "#FFF7ED", color: "#C2410C", padding: "2px 6px", borderRadius: 6 }}>1º contato</span>
-                    )}
-                    {/*
-                      O departamento da conversa, com a cor escolhida no
-                      cadastro. Só com DOIS ou mais departamentos: com um só,
-                      todas as conversas teriam a mesma etiqueta, que é ruído.
-
-                      A cor entra como fundo esmaecido e a tinta vem de
-                      `tintaDeChip`, que decide entre escuro e claro pelo
-                      contraste -- as cores de departamento vão de amarelo a
-                      azul-marinho, e um branco fixo sumiria em metade delas. */}
+                    {/* Só com DOIS ou mais departamentos: com um só, todas as
+                        conversas teriam a mesma etiqueta, que é ruído. */}
                     {muDepts.length > 1 && cState?.departmentId && (() => {
                       const d = muDepts.find(x => x.id === cState.departmentId);
                       if (!d) return null;
-                      const cor = d.color ?? "var(--neutral-300)";
-                      return (
-                        <span style={{ fontSize: 12, fontWeight: 600, background: d.color ? `${d.color}22` : "var(--neutral-50)", color: d.color ? tintaDeChip(cor) : "var(--text-muted)", padding: "2px 6px", borderRadius: 6 }}>
-                          {d.name}
-                        </span>
-                      );
+                      return <TagPill cor={d.color}>{d.name}</TagPill>;
                     })()}
-                    {cState?.finished && <span style={{ fontSize: 12, fontWeight: 600, background: "var(--accent-50)", color: "var(--accent-800)", padding: "2px 6px", borderRadius: 6 }}>✓ Finalizada</span>}
-                    {!isConvInstanceConnected(c) && <span style={{ fontSize: 12, fontWeight: 600, background: "var(--neutral-50)", color: "var(--text-muted)", padding: "2px 6px", borderRadius: 6 }}>Desconectada</span>}
+                    {cState?.finished && <TagPill>✓ Finalizada</TagPill>}
+                    {!isConvInstanceConnected(c) && <TagPill>Desconectada</TagPill>}
                   </div>
                 </div>
               </div>

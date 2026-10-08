@@ -18,7 +18,7 @@ export function MarcaRezult({ className }: { className?: string }) {
   return (
     <span className={`inline-flex items-center gap-2.5 ${className ?? ""}`}>
       <img
-        src="/favicon.png?v=4"
+        src="/favicon.png?v=5"
         alt=""
         aria-hidden="true"
         className="shrink-0 block object-cover"

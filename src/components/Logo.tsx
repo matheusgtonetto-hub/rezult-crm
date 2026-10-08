@@ -18,7 +18,7 @@ export function Logo({ size = "md", showIcon = false }: { size?: "sm" | "md" | "
     <div className="inline-flex items-center" style={{ gap: "11px" }}>
       {showIcon && (
         <img
-          src="/favicon.png?v=4"
+          src="/favicon.png?v=5"
           alt=""
           aria-hidden="true"
           className="flex-shrink-0 block object-cover"
