@@ -419,7 +419,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
 
               {/* Value */}
               {!!lead.value && (
-                <p style={{ fontSize: 13, fontWeight: 700, color: "var(--accent-700)", marginTop: 8 }}>{formatBRL(lead.value)}</p>
+                <p style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--success))", marginTop: 8 }}>{formatBRL(lead.value)}</p>
               )}
 
               {/* Action buttons */}
@@ -438,7 +438,7 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
                 </button>
                 <button
                   onClick={() => { markLeadWon(leadId); toast.success("Negócio ganho!"); onClose(); }}
-                  style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "var(--text-on-accent)", border: "none", borderRadius: 8, padding: "7px 0", background: "var(--surface-accent)", cursor: "pointer" }}
+                  style={{ flex: 1, fontSize: 12, fontWeight: 600, color: "hsl(var(--success-foreground))", border: "none", borderRadius: 8, padding: "7px 0", background: "hsl(var(--success))", cursor: "pointer" }}
                 >
                   ✓ Ganho
                 </button>

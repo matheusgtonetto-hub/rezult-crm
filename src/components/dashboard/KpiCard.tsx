@@ -1,6 +1,7 @@
 import { Minus, ArrowUpRight, ArrowDownRight, type LucideIcon } from "lucide-react";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import type { Variacao } from "./useDashboardHelpers";
+import { useCorDaMarcaNoGrafico } from "./useDashboardHelpers";
 
 /**
  * Famílias de cor do cartão.
@@ -8,11 +9,18 @@ import type { Variacao } from "./useDashboardHelpers";
  * Cada KPI ganha a sua, e ela vale para o ícone e para o sparkline ao mesmo
  * tempo. São hexadecimais e não tokens do tema porque o Recharts pinta em SVG,
  * onde `hsl(var(--primary))` não resolve: o SVG não enxerga a variável CSS do
- * elemento pai. Os valores são os do Rezult CRM Design System: esmeralda 400,
- * esmeralda 700, vermelho de decadência e âmbar de alerta.
+ * elemento pai. Os valores são os do Rezult CRM Design System: charcoal da
+ * marca, verde de sucesso, vermelho de decadência e âmbar de alerta.
+ *
+ * `primary` virou charcoal em 08/10/2026 junto com a marca. `success` NÃO foi
+ * junto: ele é semântico, diz "deu certo" como o vermelho diz "deu errado", e
+ * em preto deixaria de dizer qualquer coisa.
  */
 const TONS = {
-  primary: "#01D8A4",
+  /* Substituído em tempo de render por `useCorDaMarcaNoGrafico`: a marca é
+     charcoal no claro e menta no escuro, e um hex só não serve aos dois. O
+     valor aqui é o do tema claro, que é o que vale quando nada troca. */
+  primary: "#1D1D1D",
   success: "#008762",
   danger: "#FD5555",
   amber: "#F7B32B",
@@ -116,7 +124,10 @@ function Sparkline({ serie, cor, id }: { serie: number[]; cor: string; id: strin
 }
 
 export function KpiCard({ label, value, sub, deltaPct, destaqueNoSub, sufixo, variacao, icone: Icone, tom = "primary", serie, aoAbrir, rotuloDeAbrir }: KpiCardProps) {
-  const cor = TONS[tom];
+  // `primary` é a marca e muda com o tema; os outros três são semânticos
+  // (sucesso, erro, alerta) e valem igual nos dois.
+  const corDaMarca = useCorDaMarcaNoGrafico();
+  const cor = tom === "primary" ? corDaMarca : TONS[tom];
   // Id único por cartão: dois `linearGradient` com o mesmo id na página fazem o
   // segundo herdar o primeiro, e os sparklines sairiam todos da mesma cor.
   const gradId = `spark-${tom}-${label.replace(/\W+/g, "-").toLowerCase()}`;

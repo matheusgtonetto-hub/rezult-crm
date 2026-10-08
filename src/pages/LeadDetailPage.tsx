@@ -245,7 +245,7 @@ function CityField({ value, onSave }: { value?: string; onSave: (v: string) => v
 
   return (
     <div ref={wrapRef} className="group">
-      <label className="block mb-1" style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>Cidade</label>
+      <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--success))", fontWeight: 600 }}>Cidade</label>
       {editing ? (
         <input
           ref={inputRef}
@@ -357,7 +357,7 @@ function EditableField({
 
   return (
     <div className="group">
-      <label className="block mb-1" style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>{label}</label>
+      <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--success))", fontWeight: 600 }}>{label}</label>
       {editing ? (
         <Input
           ref={inputRef}
@@ -1125,7 +1125,7 @@ export default function LeadDetailPage() {
               <button
                 onClick={handleWon}
                 className="flex items-center gap-1.5 text-xs font-semibold"
-                style={{ background: "var(--surface-accent)", color: "var(--text-on-accent)", borderRadius: 10, padding: "4px 12px" }}
+                style={{ background: "hsl(var(--success))", color: "hsl(var(--success-foreground))", borderRadius: 10, padding: "4px 12px" }}
               >
                 Ganho
               </button>
@@ -1334,9 +1334,9 @@ export default function LeadDetailPage() {
               <button
                 onClick={() => toggleSection(key)}
                 className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[#F0FAF6] transition-colors rounded-t-[10px]"
-                style={{ borderLeft: "3px solid var(--border-accent)", paddingLeft: 8 }}
+                style={{ borderLeft: "3px solid hsl(var(--success))", paddingLeft: 8 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-700)", letterSpacing: 0.4, textTransform: "uppercase" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--success))", letterSpacing: 0.4, textTransform: "uppercase" }}>
                   {SECTION_TITLES[key]}
                 </span>
                 <ChevronDown
@@ -1390,7 +1390,7 @@ export default function LeadDetailPage() {
                           o valor do negócio com o preço de tabela. */}
                       <ItensDoNegocio leadId={lead.id} itens={lead.itens ?? []} />
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>Pipeline</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--success))", fontWeight: 600 }}>Pipeline</label>
                         <p style={{ fontSize: 13, color: "var(--text-heading)" }}>{pipeline?.name ?? "Sem negócio ainda"}</p>
                       </div>
                       {/* Os responsáveis saíram daqui. O seletor do cabeçalho,
@@ -1400,13 +1400,13 @@ export default function LeadDetailPage() {
                           mesmo dado na mesma tela só rendem dúvida sobre qual
                           deles vale. */}
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>Data de entrada</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--success))", fontWeight: 600 }}>Data de entrada</label>
                         <p style={{ fontSize: 13, color: "var(--text-heading)" }}>
                           {new Date(lead.entryDate).toLocaleDateString("pt-BR")}
                         </p>
                       </div>
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "var(--accent-700)", fontWeight: 600 }}>Próxima atividade</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--success))", fontWeight: 600 }}>Próxima atividade</label>
                         <p style={{ fontSize: 13, color: "var(--text-heading)" }}>
                           {(() => {
                             const next = (lead.activities ?? [])
@@ -1449,7 +1449,7 @@ export default function LeadDetailPage() {
                       />
                       {/* Multi-email */}
                       <div>
-                        <label className="block mb-1" style={{ fontSize: 12, color: "var(--accent-800)", fontWeight: 600 }}>E-mail</label>
+                        <label className="block mb-1" style={{ fontSize: 12, color: "hsl(var(--success))", fontWeight: 600 }}>E-mail</label>
                         {(lead.emails ?? (lead.email ? [lead.email] : [])).map((em, idx) => (
                           <div key={idx} className="group flex items-center justify-between gap-2 rounded-md px-2 py-1.5 -mx-2 hover:bg-[color:var(--neutral-50)] transition-colors">
                             <span style={{ fontSize: 13, color: "var(--text-heading)" }}>{em}</span>
@@ -1660,9 +1660,9 @@ export default function LeadDetailPage() {
               <button
                 onClick={() => toggleSection(g.id)}
                 className="w-full flex items-center justify-between py-2.5 pr-3 hover:bg-[#F0FAF6] transition-colors rounded-t-[10px]"
-                style={{ borderLeft: "3px solid var(--border-accent)", paddingLeft: 8 }}
+                style={{ borderLeft: "3px solid hsl(var(--success))", paddingLeft: 8 }}
               >
-                <span style={{ fontSize: 11, fontWeight: 700, color: "var(--accent-700)", letterSpacing: 0.4, textTransform: "uppercase" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "hsl(var(--success))", letterSpacing: 0.4, textTransform: "uppercase" }}>
                   {g.name}
                 </span>
                 <ChevronDown
@@ -2246,7 +2246,7 @@ export default function LeadDetailPage() {
                     : item.type === "transfer"
                     ? { c: "#8B5CF6", I: ArrowRightLeft }
                     : item.type === "won"
-                    ? { c: "var(--accent-700)", I: Trophy }
+                    ? { c: "hsl(var(--success))", I: Trophy }
                     : { c: "#E24B4A", I: XCircle };
                   const Icon = meta.I;
                   return (
@@ -2893,7 +2893,7 @@ export default function LeadDetailPage() {
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Trophy size={16} style={{ color: "var(--accent-700)" }} />
+            <Trophy size={16} style={{ color: "hsl(var(--success))" }} />
             Confirmar ganho
           </DialogTitle>
         </DialogHeader>
@@ -2948,7 +2948,7 @@ export default function LeadDetailPage() {
             // Pelo menos um produto: é o que a atividade de ganho registra, e
             // sem ele o histórico não diz o que foi vendido.
             disabled={(lead.itens?.length ?? 0) === 0}
-            style={{ background: "var(--surface-accent)", color: "var(--text-on-accent)" }}
+            style={{ background: "hsl(var(--success))", color: "hsl(var(--success-foreground))" }}
             onClick={handleConfirmWon}
           >
             <Trophy size={14} className="mr-1.5" />

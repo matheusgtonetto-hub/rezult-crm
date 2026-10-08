@@ -1478,7 +1478,7 @@ export default function PipelinePage() {
 
                                             {/* Value */}
                                             <div className="mt-2">
-                                              <span className="text-sm font-semibold text-primary">
+                                              <span className="text-sm font-semibold text-[color:hsl(var(--success))]">
                                                 {formatCurrency(lead.value)}
                                               </span>
                                             </div>
@@ -1763,7 +1763,7 @@ export default function PipelinePage() {
             const falhas = ids.length - ok;
             setExecutandoAutomacao(false);
             setAutomacaoAberta(false);
-            if (ok > 0) toast.success(`Automação executada em ${ok} lead(s).`);
+            if (ok > 0) toast.success(`Automação iniciada em ${ok} lead(s). O andamento fica no histórico da automação.`);
             if (falhas > 0) toast.error(`Falha em ${falhas} lead(s). ${ultimoErro}`);
           }}
         />

@@ -1,6 +1,6 @@
 import { Fragment, useState, type ReactElement } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
-import { tooltip, PALETA } from "./useDashboardHelpers";
+import { tooltip, usePaleta } from "./useDashboardHelpers";
 import { MOLDURA } from "./TabelaPainel";
 import { CaixaTooltip, type LinhaTooltip } from "./CaixaTooltip";
 
@@ -136,15 +136,18 @@ export function Anel({
   // ─── As camadas do anel ────────────────────────────────────────────────
   //
   // Ver a nota grande acima deste componente: a maior fatia é o círculo de
-  // base e as outras assentam em cima dela, cada uma terminando numa ponta
-  // redonda que pousa na camada debaixo.
+  // base e as outras assentam em cima dela.
   //
-  // O raio da ponta é 13% do raio do painel, metade exata da faixa do anel
-  // (62% a 88% do raio): a meia-lua perfeita. Fatia curta demais para
-  // comportá-lo receberia um canto deformado, então o raio cede ao arco da
-  // menor camada quando precisa.
-  const raioDoPainel = altura / 2;
-  const meiaFaixa = raioDoPainel * 0.13;
+  // As pontas eram REDONDAS, e cada camada terminava numa meia-lua que pousava
+  // na de baixo. Saíram em 08/10/2026 a pedido do dono, junto com a virada do
+  // design system: o site não arredonda nada além dos cantos de cartão, e o
+  // anel era o único lugar do CRM com ponta de capsula.
+  //
+  // O EMPILHAMENTO ficou, apesar de sem o arredondado ele desenhar o mesmo que
+  // um Pie comum com várias Cells. Não é inércia: é dele que saem o acerto do
+  // clique e o payload do tooltip (ver a nota em `dados`), e trocar a estrutura
+  // para economizar camadas colocaria em risco um comportamento que já custou
+  // uma tela branca para acertar.
 
   const totalDasFatias = dados.reduce((soma, f) => soma + f.valor, 0) || 1;
   const porTamanho = [...dados].sort((a, b) => b.valor - a.valor);
@@ -156,12 +159,8 @@ export function Anel({
   // mais longa para a mais curta, que é a ordem em que o Recharts pinta e,
   // portanto, a ordem de empilhamento.
   //
-  // O canto de cada uma sai do arco DELA: medido no meio da faixa (75% do
-  // raio), um canto maior que metade do arco deforma o setor. Por camada, e
-  // não global, senão uma fatia de 1% apagaria o arredondado do anel inteiro.
   const camadas = acimaDaBase.map((f, i) => {
     const fracao = acimaDaBase.slice(i).reduce((soma, g) => soma + g.valor, 0) / totalDasFatias;
-    const arco = fracao * 2 * Math.PI * (raioDoPainel * 0.75);
     return {
       /**
        * A fatia INTEIRA, e não uma cópia com nome, cor e valor.
@@ -177,7 +176,6 @@ export function Anel({
       cor: f.cor,
       valor: f.valor,
       fracao,
-      ponta: Math.max(0, Math.round(Math.min(meiaFaixa, arco / 2))),
     };
   });
 
@@ -199,9 +197,7 @@ export function Anel({
       <div className="relative" style={{ height: altura, width: altura }}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
-            {/* A base: círculo inteiro na cor da maior fatia. Sem canto,
-                porque um arco de 360 graus não tem ponta à vista e o canto só
-                beliscaria o encontro. */}
+            {/* A base: círculo inteiro na cor da maior fatia. */}
             <Pie
               /* A fatia inteira: o tooltip lê campos que uma cópia perderia. */
               data={[base]}
@@ -249,7 +245,7 @@ export function Anel({
                 endAngle={90 - 360 * c.fracao}
                 innerRadius="62%"
                 outerRadius="88%"
-                cornerRadius={c.ponta}
+                cornerRadius={0}
                 fill={c.cor}
                 stroke="none"
                 isAnimationActive={false}
@@ -433,6 +429,9 @@ export function DonutDistribuicao({
   dados, rotuloCentro, total, altura = 190, inverso, empilhado,
   formatarValor, colunas, anelSecundario, rodape,
 }: Props) {
+  // A paleta vem por hook porque muda com o tema: a clara é de cinzas e a
+  // escura continua no verde. Ver `usePaleta` em useDashboardHelpers.
+  const PALETA = usePaleta();
   const soma = dados.reduce((s, d) => s + d.valor, 0);
   const fatias = dados.map((d, i) => ({ ...d, cor: d.cor ?? PALETA[i % PALETA.length] }));
 

@@ -31,7 +31,13 @@
 export const MEDALHAS = ["#F2CE63", "#CBD0D7", "#D48F55"] as const;
 
 /**
- * Fundo da quarta posição em diante: o verde fechado da marca (`--accent-700`).
+ * Fundo da quarta posição em diante: o verde fechado.
+ *
+ * Chegou a virar charcoal na virada de 08/10/2026 e voltou no mesmo dia. Ele
+ * acompanha as três medalhas acima, que são cores de METAL, e não a cor da
+ * marca: trocá-lo por preto transformava o pódio inteiro numa lista com três
+ * exceções coloridas no topo. E ele precisa funcionar nos dois temas, o que o
+ * charcoal não faz sobre o cartão escuro.
  *
  * Hex e não token porque em parte dos usos ele vai para `background` de um
  * elemento que o `tintaSobre` também mede, e porque acompanha as medalhas, que

@@ -147,8 +147,18 @@ export default function PlanosPage() {
     );
   }
 
+  /*
+   * `tema-menta` na raiz: esta tela NÃO entrou na virada para charcoal de
+   * 08/10/2026 e segue no verde, a pedido do dono. Ali o verde não era
+   * decoração -- marcava o plano recomendado, o desconto e o preço -- e em
+   * preto tudo isso virava peso igual ao resto do cartão.
+   *
+   * A classe redefine a rampa para a subárvore inteira, então cartões,
+   * etiquetas e botões daqui voltam à cor antiga sem ajuste um a um.
+   * Definição em src/index.css.
+   */
   return (
-    <div className="min-h-screen flex flex-col items-center px-6 pt-6 pb-12" style={{ background: "var(--neutral-50)" }}>
+    <div className="tema-menta min-h-screen flex flex-col items-center px-6 pt-6 pb-12" style={{ background: "var(--neutral-50)" }}>
       {/* Header */}
       <div className="w-full max-w-7xl flex items-center justify-between mb-8">
         <Logo size="md" showIcon />

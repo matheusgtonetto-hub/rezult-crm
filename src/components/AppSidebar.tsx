@@ -97,7 +97,11 @@ const ITEM_BASE =
   "focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]";
 const ITEM_REPOUSO =
   "text-[color:var(--text-muted)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--text-heading)]";
-const ITEM_ATIVO = "bg-primary text-[color:var(--text-on-accent)] font-medium";
+/* Cinza, e não o charcoal que o `bg-primary` virou em 08/10/2026: a seleção
+   diz ONDE a pessoa está, não é uma ação para clicar, e em preto ela seria o
+   elemento mais pesado da tela. No tema escuro os tokens voltam ao emerald
+   sólido de sempre. Ver --selecao-barra-* em src/index.css. */
+const ITEM_ATIVO = "bg-[color:var(--selecao-barra)] text-[color:var(--selecao-barra-tinta)] font-medium";
 
 /**
  * Linha com o painel ABERTO (Tutoriais, Notificações). Não é o emerald do item
@@ -321,7 +325,7 @@ export function AppSidebar({ recolhida, aoAlternar, sobreposta = false, aberta =
           <span
             className="rounded-full px-[7px] py-[2px] text-[11px] font-medium leading-none"
             style={active
-              ? { background: "rgba(45,47,51,.14)", color: "var(--text-on-accent)" }
+              ? { background: "var(--selecao-barra-badge)", color: "var(--selecao-barra-tinta)" }
               : { background: "var(--accent-100)", color: "var(--accent-800)" }}
           >
             IA

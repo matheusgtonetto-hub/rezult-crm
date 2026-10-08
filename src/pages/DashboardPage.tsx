@@ -27,7 +27,7 @@ import { HorariosPanel } from "@/components/dashboard/HorariosPanel";
 import { TooltipSeries } from "@/components/dashboard/CaixaTooltip";
 import { RankingPanel } from "@/components/dashboard/RankingPanel";
 import { MultiatendimentoPanel } from "@/components/dashboard/MultiatendimentoPanel";
-import { fmt, parseEntryDate, tooltip, usePriorPeriod, variacao, meioDoPeriodo, ORIGIN_COLORS, PALETA, receitaDoGanho } from "@/components/dashboard/useDashboardHelpers";
+import { fmt, parseEntryDate, tooltip, usePriorPeriod, variacao, meioDoPeriodo, ORIGIN_COLORS, usePaleta, receitaDoGanho } from "@/components/dashboard/useDashboardHelpers";
 import { MEDALHAS, VERDE_DEMAIS, tintaDaMedalha } from "@/components/dashboard/medalhas";
 import { TabelaDoPainel, LINHA_CORPO, LINHA_PE } from "@/components/dashboard/TabelaPainel";
 import { tintaSobre } from "@/lib/contraste";
@@ -545,6 +545,10 @@ export default function DashboardPage() {
    * linhas numa coluna de 1/3 da tela. O resto vira uma linha em vez de sumir,
    * senão a soma das sub-linhas não fecharia com o número da origem.
    */
+  // Por hook: a paleta muda com o tema (cinzas no claro, verde no escuro), e
+  // por isso ela entra também nas dependências do useMemo abaixo -- sem isso
+  // a cor dos motivos só viraria no próximo recarregamento.
+  const PALETA = usePaleta();
   const lossByOriginData = useMemo(() => {
     const map = new Map<string, { nome: string; total: number; motivos: Map<string, number> }>();
     lostInPeriod.forEach(l => {
@@ -606,7 +610,7 @@ export default function DashboardPage() {
       porOrigem,
       porMotivo: motivosGlobais.map(m => ({ ...m, cor: corDoMotivo.get(m.nome) })),
     };
-  }, [lostInPeriod, lossReasons]);
+  }, [lostInPeriod, lossReasons, PALETA]);
 
   // Considera responsibles[] (múltiplos responsáveis) quando presente, com fallback para
   // o campo singular responsible — antes só o singular era considerado, o que sub-contava
@@ -1850,6 +1854,9 @@ export default function DashboardPage() {
                         name: "Ganhos",
                         leads: pWon.length,
                         stageId: "ganhos",
+                        // Verde porque GANHO é semântico, como sucesso: diz o
+                        // desfecho, não a marca. Chegou a virar charcoal na
+                        // virada de 08/10/2026 e voltou no mesmo dia.
                         color: "#008762",
                         isGanhos: true,
                       },

@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { DateRangeValue } from "@/components/ui/date-range-picker";
+import { useTemaAtual } from "@/lib/tema";
 
 export const fmt = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
@@ -39,22 +40,52 @@ export const ORIGIN_COLORS: Record<string, string> = {
  * As cores das fatias e das barras, na ordem em que entram.
  *
  * É a rampa da MARCA, e não o arco-íris de antes (azul, âmbar, roxo, rosa,
- * teal, vermelho), que vinha de um tema genérico e punha um roxo no meio de um
- * dashboard verde. O material chama isso de `--chart-1..6` e usa exatamente
- * esta ideia: dois verdes e um charcoal fazem o grosso do trabalho, os cinzas
- * seguram a cauda, e nenhuma cor de fora da marca entra.
+ * teal, vermelho), que vinha de um tema genérico e punha um roxo no meio do
+ * dashboard. Nenhuma cor de fora do sistema entra.
  *
- * A ordem importa: as três primeiras fatias são as maiores em quase todo
- * painel, e é nelas que a distinção precisa ser mais forte. Emerald da marca,
- * charcoal e emerald escuro se separam bem até para quem não distingue
- * vermelho de verde, porque também diferem em LUMINOSIDADE.
+ * MONOCROMÁTICA desde 08/10/2026, quando a marca deixou de ser o menta. Antes
+ * ela alternava verdes e cinzas, e era a troca de MATIZ que separava uma fatia
+ * da vizinha. Com um tom só, quem faz esse trabalho sozinho é a LUMINOSIDADE,
+ * e por isso a ordem não é a rampa do mais escuro ao mais claro: ela pula de
+ * uma ponta à outra a cada passo.
+ *
+ * Os números entre parênteses são a luminosidade de cada tom. Nenhum par
+ * vizinho fica a menos de 29 pontos um do outro, e as três primeiras fatias
+ * (as maiores em quase todo painel) abrem com 60 e 39 pontos de distância.
+ *
+ * Uma consequência honesta da escolha: oito tons de cinza se separam menos que
+ * oito matizes. Até a quinta fatia a leitura é limpa; da sexta em diante ela
+ * depende mais da legenda do que dependia antes. Painel que precise distinguir
+ * oito séries de uma olhada pede outra forma de gráfico, não outra cor.
  *
  * Oito entradas porque é quanto os painéis chegam a pedir (responsáveis, tags,
- * origens); passando disso o índice dá a volta, e aí a repetição já é menos
- * grave que inventar uma nona cor fora do sistema.
+ * origens); passando disso o índice dá a volta.
  */
-export const PALETA = [
-  "#01D8A4", // accent-400, a cor da marca
+const PALETA_CLARA = [
+  "#1D1D1D", // (11) a cor da marca
+  "#B4B4B7", // (71) neutral-400
+  "#525154", // (32) neutral-700
+  "#D5D5D5", // (84) neutral-300
+  "#3A3A3E", // (23) neutral-800
+  "#8A8A8E", // (55) neutral-500
+  "#E7E7E7", // (91) neutral-200
+  "#6C6C6C", // (42) neutral-600
+];
+
+/**
+ * A paleta do tema ESCURO: o verde de sempre, intocado.
+ *
+ * Duas razões, e as duas importam. A virada para charcoal foi só da versão
+ * clara, então no escuro a marca continua sendo o menta. E, mais grave, a
+ * paleta clara não SOBREVIVE aqui: ela abre em #1D1D1D e o cartão escuro é
+ * #1A1D21, três pontos de distância. A maior fatia de cada rosca desenhava
+ * preto sobre preto e o gráfico parecia vazado -- foi exatamente o que o dono
+ * viu ao trocar de tema em 08/10/2026.
+ *
+ * É a lista que existia antes da virada, na ordem em que existia.
+ */
+const PALETA_ESCURA = [
+  "#01D8A4", // accent-400, a cor da marca no escuro
   "#2D2F33", // charcoal
   "#00A879", // accent-600
   "#B4B4B7", // neutral-400
@@ -63,6 +94,29 @@ export const PALETA = [
   "#6C6C6C", // neutral-600
   "#A5F3D9", // accent-200
 ];
+
+/**
+ * A paleta do tema que está na tela.
+ *
+ * É hook e não constante porque a cor de gráfico não passa por custom
+ * property: o Recharts pinta no atributo `fill`, que não aceita `var()`. Quem
+ * escolhe o hex é o componente, e para isso ele precisa saber o tema. Ver
+ * `useTemaAtual` em src/lib/tema.ts.
+ */
+export function usePaleta(): string[] {
+  return useTemaAtual() === "dark" ? PALETA_ESCURA : PALETA_CLARA;
+}
+
+/**
+ * A cor da MARCA dentro de um gráfico, uma só, pelo mesmo motivo acima.
+ *
+ * Usada onde existe uma série só (o traço do KPI, as barras de horário, o
+ * fundo da medalha, o "Ganhos" do funil). Charcoal no claro, menta no escuro:
+ * é a mesma regra dos tokens, trazida para onde token não chega.
+ */
+export function useCorDaMarcaNoGrafico(): string {
+  return useTemaAtual() === "dark" ? "#01D8A4" : "#1D1D1D";
+}
 
 /**
  * A receita de um negócio GANHO.

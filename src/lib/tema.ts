@@ -16,6 +16,8 @@
  * aqui, e ninguém mais as escreve.
  */
 
+import { useEffect, useState } from "react";
+
 export type Tema = "light" | "dark";
 
 export const CHAVE_TEMA = "rezult:tema";
@@ -83,4 +85,40 @@ export function aplicarTema(tema?: Tema, lembrar = true): void {
   } catch {
     /* sem armazenamento: vale só nesta aba, que é melhor do que não trocar */
   }
+}
+
+/**
+ * O tema que está DESENHADO na tela agora, reagindo à troca.
+ *
+ * Existe por causa do SVG. Toda a cor do app sai de custom property, e trocar
+ * de tema é trocar o valor dela: nenhum componente precisa saber de nada.
+ * Gráfico é a exceção, porque o Recharts pinta com o atributo `fill`, e
+ * atributo não aceita `var(--token)`. Lá a cor precisa chegar como hex, e para
+ * escolher o hex certo o componente precisa saber em que tema está.
+ *
+ * Lê a classe do `<html>`, que é onde `aplicarTema` escreve, e não o perfil:
+ * o perfil tem "system", que não diz qual dos dois está na tela. Quem resolve
+ * "system" é o `aplicarTema`, e o resultado dele é justamente esta classe.
+ *
+ * O MutationObserver é o que faz a cor virar junto com o clique no botão de
+ * tema. Sem ele, o gráfico só se corrigiria no próximo recarregamento.
+ */
+export function useTemaAtual(): Tema {
+  const lerDoDocumento = (): Tema =>
+    document.documentElement.classList.contains("dark") ? "dark" : "light";
+
+  const [tema, setTema] = useState<Tema>(lerDoDocumento);
+
+  useEffect(() => {
+    const alvo = document.documentElement;
+    const observador = new MutationObserver(() =>
+      setTema(alvo.classList.contains("dark") ? "dark" : "light"));
+    observador.observe(alvo, { attributes: true, attributeFilter: ["class"] });
+    // Uma leitura na montagem: entre o estado inicial e o observador entrar no
+    // ar cabe uma troca de tema, e ela passaria despercebida.
+    setTema(alvo.classList.contains("dark") ? "dark" : "light");
+    return () => observador.disconnect();
+  }, []);
+
+  return tema;
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CaixaTooltip } from "./CaixaTooltip";
+import { useCorDaMarcaNoGrafico } from "./useDashboardHelpers";
 
 /**
  * Ranking das faixas do dia ou da semana que mais geram negócio, em barras.
@@ -42,6 +43,9 @@ function TooltipFaixa({
   payload?: { payload: FaixaDoCiclo }[];
   total?: number;
 }) {
+  // Charcoal no claro, menta no escuro: a marca não tem um hex só, e gráfico
+  // não lê custom property. Ver `useCorDaMarcaNoGrafico`.
+  const corDaMarca = useCorDaMarcaNoGrafico();
   const d = payload?.[0]?.payload;
   if (!active || !d) return null;
 
@@ -51,7 +55,8 @@ function TooltipFaixa({
   return (
     <CaixaTooltip
       titulo={d.rotulo}
-      cor="#008762"
+      /* Acompanha a barra: charcoal no claro, menta no escuro. */
+      cor={corDaMarca}
       linhas={[
         { rotulo: "Negócios", valor: String(d.negocios), destaque: true },
         { rotulo: "Ganhos", valor: String(d.ganhos) },
@@ -157,6 +162,7 @@ export function HorariosPanel({
   dias: FaixaDoCiclo[];
   className?: string;
 }) {
+  const corDaMarca = useCorDaMarcaNoGrafico();
   /**
    * Nasce em dias, igual ao painel ao lado.
    *
@@ -308,7 +314,7 @@ export function HorariosPanel({
                 base, medindo faixas que não existem. */}
             <Bar
               dataKey="negocios"
-              fill="#01D8A4"
+              fill={corDaMarca}
               radius={[6, 6, 0, 0]}
               maxBarSize={22}
               label={vazio ? undefined : <ValorDaBarra />}

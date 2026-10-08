@@ -64,12 +64,24 @@ export const VENDA = {
   superficie2: "#131A1E",
 
   /**
-   * O emerald do sistema. 9,32:1 sobre superfície escura.
+   * O emerald, 9,32:1 sobre a superfície escura.
    *
-   * Este pode continuar sendo token: `--accent-400` é um dos poucos que NÃO é
-   * redefinido no tema escuro. Ver a nota "Token aqui só se não inverter".
+   * VOLTOU A SER HEX em 08/10/2026, e a regra desta paleta explica por quê.
+   * Ele era `var(--accent-400)` porque aquele token valia o mesmo nos dois
+   * temas -- e a condição para usar token aqui é exatamente essa. Na virada do
+   * CRM para charcoal, o --accent-400 virou #1D1D1D no tema CLARO e continuou
+   * menta no escuro, ou seja, deixou de cumprir a condição.
+   *
+   * O estrago era invisível no escuro e total no claro: esta superfície é
+   * preta nos DOIS temas, então no claro o botão do plano recomendado, o selo
+   * e os vistos passaram a ser #1D1D1D sobre #0C1115. Preto sobre preto, 1,2:1.
+   * A tela de venda ficava sem nenhum verde e sem o botão principal.
+   *
+   * Não é exceção à virada: a virada é do app, e estas três telas (oferta,
+   * cadastro e tour) são a superfície de VENDA, que seguiu no menta por
+   * decisão do dono junto com a /planos.
    */
-  verde: "var(--accent-400)",
+  verde: "#01D8A4",
 
   /** Tinta sobre o emerald: charcoal, como manda a decisão D2. */
   sobreVerde: "#2D2F33",

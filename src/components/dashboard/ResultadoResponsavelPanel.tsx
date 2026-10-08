@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { PainelAnel, type FatiaAnel } from "./PainelAnel";
-import { fmt, PALETA } from "./useDashboardHelpers";
+import { fmt, usePaleta } from "./useDashboardHelpers";
 
 /**
  * Resultado do período repartido por responsável.
@@ -40,6 +40,9 @@ export function ResultadoResponsavelPanel({
   dados: ResultadoDeResponsavel[];
   className?: string;
 }) {
+  // Por hook porque a paleta muda com o tema: cinzas no claro, o verde de
+  // sempre no escuro. Ver `usePaleta` em useDashboardHelpers.
+  const PALETA = usePaleta();
   /**
    * Quantidade x Receita, o mesmo par do "Resultado no período".
    *
