@@ -11,6 +11,23 @@ import { useCRM } from "@/context/CRMContext";
 import { useCompany } from "@/context/CompanyContext";
 import { useProfile } from "@/context/ProfileContext";
 import { TUTORIAIS, type Tutorial } from "@/data/tutoriais";
+
+/*
+ * Interruptor dos Tutoriais (dono, 11/10/2026).
+ *
+ * Os vídeos ainda não foram gravados e o CRM começa a receber cliente. Uma aba
+ * que promete nove tutoriais e entrega capas sem vídeo é pior do que não ter a
+ * aba.
+ *
+ * Em `false`: o seletor de abas some (com uma opção só ele não é escolha), o
+ * painel passa a se chamar "Primeiros passos" e a aba de tutoriais não é
+ * alcançável, nem pelo padrão de quem já concluiu a trilha.
+ *
+ * Para religar, basta trocar para `true`. Nada mais foi removido: a grade dos
+ * cartões, o CardTutorial e a lista em src/data/tutoriais.ts continuam
+ * inteiros e no lugar.
+ */
+const TUTORIAIS_NO_AR = false;
 import iconeWhatsApp from "@/assets/whatsapp.png";
 import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
 import { toast } from "sonner";
@@ -564,7 +581,9 @@ export default function InicioPage() {
    * e ele também precisaria de uma trava para não desfazer o clique da pessoa a
    * cada nova renderização.
    */
-  const abaAtiva = aba ?? (trilhaCompleta ? "tutoriais" : "passos");
+  const abaAtiva = !TUTORIAIS_NO_AR
+    ? "passos"
+    : aba ?? (trilhaCompleta ? "tutoriais" : "passos");
 
   return (
     // Mesmo enquadramento do dashboard: 40px no topo, 30px nos outros lados e
@@ -663,12 +682,18 @@ export default function InicioPage() {
             direita continua ocupando lugar mesmo com a pontuação escondida na
             aba de tutoriais, senão as abas escorregariam ao trocar de aba. */}
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 mb-4">
-          <h2 className="text-lg font-semibold text-foreground">Tutoriais</h2>
+          <h2 className="text-lg font-semibold text-foreground">{TUTORIAIS_NO_AR ? "Tutoriais" : "Primeiros passos"}</h2>
           {/* Abas como botões, no mesmo par que o dashboard usa: são duas
               opções, e um dropdown esconderia metade da escolha atrás de um
               clique. O contador de cada aba vai no rótulo, então dá para ver o
               tamanho do outro lado sem trocar de aba. */}
-          <div className="inline-flex rounded-lg border border-card-border p-0.5 bg-[color:var(--neutral-100)]">
+          {/* A coluna do meio continua existindo mesmo sem o seletor: é ela
+              que equilibra a grade de três colunas e segura o progresso na
+              direita. Sem ela, o título escorregaria para o centro. */}
+          <div
+            className="inline-flex rounded-lg border border-card-border p-0.5 bg-[color:var(--neutral-100)]"
+            hidden={!TUTORIAIS_NO_AR}
+          >
             {([
               { id: "passos", rotulo: `Primeiros passos (${feitas.length}/${missoes.length})` },
               { id: "tutoriais", rotulo: `Tutoriais (${TUTORIAIS.length})` },
