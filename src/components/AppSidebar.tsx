@@ -97,10 +97,10 @@ const ITEM_BASE =
   "focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]";
 const ITEM_REPOUSO =
   "text-[color:var(--text-muted)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--text-heading)]";
-/* Cinza, e não o charcoal que o `bg-primary` virou em 08/10/2026: a seleção
-   diz ONDE a pessoa está, não é uma ação para clicar, e em preto ela seria o
-   elemento mais pesado da tela. No tema escuro os tokens voltam ao emerald
-   sólido de sempre. Ver --selecao-barra-* em src/index.css. */
+/* Verde nos dois temas desde 11/10/2026: o #0F7A5B no claro e o emerald no
+   escuro, os dois pelo --accent-400. Foi cinza por quatro dias, enquanto a
+   ação do tema claro era charcoal e uma seleção preta teria virado o elemento
+   mais pesado da tela. Ver --selecao-barra-* em src/index.css. */
 const ITEM_ATIVO = "bg-[color:var(--selecao-barra)] text-[color:var(--selecao-barra-tinta)] font-medium";
 
 /**

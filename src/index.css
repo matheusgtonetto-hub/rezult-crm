@@ -77,9 +77,25 @@
     --accent-50:  #F7F7F7;
     --accent-100: #F2F2F2;
     --accent-200: #E7E7E7;
-    --accent-300: #3A3A3E;   /* hover: a superfície escura CLAREIA */
-    --accent-400: #1D1D1D;   /* A COR DA MARCA */
-    --accent-500: #0D0D0D;   /* press */
+    /* ── A AÇÃO É VERDE #0F7A5B desde 11/10/2026 ───────────────────────
+       Pedido do dono: refazer a virada dos botões pretos, sem voltar ao menta.
+       O #0F7A5B é o MESMO verde dos títulos do site (lá ele é o
+       --verde-tinta-forte), então a ação do app e a ênfase do site passam a
+       falar a mesma cor.
+
+       Só a SUPERFÍCIE virou. As tintas de acento (700, 800) e o ícone (600)
+       seguem em charcoal, por decisão de alcance: texto pequeno em #0F7A5B dá
+       5,31:1 sobre branco, passa no AA mas perde nitidez contra os 15:1 do
+       charcoal. Quem mudar isso depois mexe nos três juntos.
+
+       O hover agora ESCURECE de novo. Enquanto a ação era quase preta ele
+       precisava clarear, porque preto não tem para onde escurecer; com um
+       verde médio o caminho natural volta a ser fechar o tom, e fechar também
+       melhora o contraste do texto branco em cima (5,37:1 no repouso, 7,15:1
+       no hover, 8,90:1 no press). */
+    --accent-300: #0C6349;   /* hover: ESCURECE */
+    --accent-400: #0F7A5B;   /* A COR DA AÇÃO */
+    --accent-500: #0A5440;   /* press */
     --accent-600: #525154;   /* ícone sobre claro */
     --accent-700: #1D1D1D;   /* TINTA sobre cartão, 16,8:1 */
     --accent-800: #1D1D1D;   /* TINTA sobre canvas, 15,2:1 */
@@ -91,8 +107,8 @@
        o cartão escuro, e o fundo precisa continuar verde fechado para o branco
        em cima dele continuar legível. Enquanto foi um token só, inverter
        quebrava metade dos usos, e não inverter quebrava a outra metade. */
-    --surface-accent-strong: #1D1D1D;  /* fundo sólido, tinta branca em cima */
-    --border-accent:         #1D1D1D;  /* borda/realce */
+    --surface-accent-strong: #0F7A5B;  /* fundo sólido, tinta branca em cima */
+    --border-accent:         #0F7A5B;  /* borda/realce */
 
     /* ── Neutros. Charcoal faz o trabalho do preto; #000 não aparece ── */
     --neutral-0:   #FFFFFF;
@@ -198,32 +214,38 @@
     --surface-accent:   var(--accent-400);
     --surface-inverse:  var(--neutral-950);
 
-    /* ── O item selecionado da barra lateral (dono, 07/10/2026) ──
-       Cinza, e não o charcoal dos botões: a seleção diz ONDE a pessoa está, e
-       não é uma ação para clicar. Em #1D1D1D ela viraria o elemento mais
-       pesado da tela, competindo com o conteúdo.
+    /* ── O item selecionado da barra lateral ──
+       VERDE desde 11/10/2026, por pedido do dono, junto com a virada da ação
+       para #0F7A5B. Ele foi cinza entre 07/10 e 11/10, quando a ação era
+       charcoal: ali a seleção em preto viraria o elemento mais pesado da tela.
+       Com a ação em verde médio esse risco acaba, e a barra volta a marcar a
+       página atual com a cor da marca, como o tema escuro sempre fez.
+
+       Lê o --accent-400, e não um hex: é o mesmo desenho do bloco escuro logo
+       abaixo, então os dois temas passam a ter uma linha só de diferença, que
+       é a tinta.
 
        Não sai do --surface-selected, que é o token irmão para "item escolhido"
-       em tabela e dropdown, porque os dois divergem no tema ESCURO: lá a barra
-       continua com o menta sólido, e o --surface-selected é uma superfície
-       esverdeada discreta. Mesma intenção, desenhos diferentes.
+       em tabela e dropdown: aquele segue CINZA. Linha de tabela marcada é
+       estado de leitura, e em verde sólido competiria com o conteúdo da
+       própria linha.
 
-       O 150 e não o 50 do hover porque os dois convivem na mesma barra branca:
-       passar o mouse (#F7F7F7) precisa pesar menos que estar ali (#EBEBEB).
+       Branco na tinta: 5,37:1 sobre o #0F7A5B, acima do 4,5:1 do AA para os
+       14px do item.
 
        A pastilha "IA" tem fundo próprio por morar DENTRO do item selecionado.
-       Era um cinza translúcido, escolhido para não somar dois verdes sobre o
-       emerald; sobre o cinza novo ele sumiria, então no claro ela fica branca
-       e se define pelo contraste. */
-    --selecao-barra:       var(--neutral-150);
-    --selecao-barra-tinta: #1D1D1D;
-    --selecao-barra-badge: var(--neutral-0);
+       Branca a 18% para se apoiar no verde sem somar uma terceira cor, que é o
+       mesmo recurso do tema escuro, lá em translúcido escuro sobre o emerald
+       claro. */
+    --selecao-barra:       var(--accent-400);
+    --selecao-barra-tinta: #FFFFFF;
+    --selecao-barra-badge: rgba(255, 255, 255, .18);
 
     --text-heading:   var(--neutral-900);
     --text-body:      var(--neutral-800);
     --text-muted:     var(--neutral-600);
     --text-subtle:    var(--neutral-500);
-    --text-on-accent: #FFFFFF;              /* branco sobre o charcoal: 16,8:1 */
+    --text-on-accent: #FFFFFF;              /* branco sobre o #0F7A5B: 5,37:1 */
     /* Tinta sobre --surface-inverse (tooltip, botão escuro do KPI). Existia no
        material e não aqui: quem escrevia `var(--text-inverse)` ficava sem cor
        nenhuma e herdava a do pai -- foi assim que a seta do cartão de KPI saiu
@@ -241,7 +263,7 @@
        campo ou filtro. Agora é o charcoal a 25%: mais fechado porque preto a
        45% viraria uma sombra pesada em volta de cada campo, enquanto o verde
        claro precisava da opacidade alta para existir. */
-    --ring-focus-color: rgba(29, 29, 29, .25);
+    --ring-focus-color: rgba(15, 122, 91, .25);
     --icon-default:   var(--neutral-600);
     --icon-strong:    var(--neutral-900);
 
@@ -350,10 +372,10 @@
     --altura-util: calc(100vh - var(--topbar-h));
 
     /* ═══ Aliases HSL para Tailwind e shadcn. Mesmos valores da rampa ═══ */
-    --primary: 0 0% 11.37%;                 /* --accent-400 #1D1D1D */
-    --primary-foreground: 0 0% 100%;        /* branco sobre o charcoal */
-    --primary-hover: 240 3.3% 23.5%;        /* --accent-300 #3A3A3E, CLAREIA */
-    --ring: 0 0% 11.37%;
+    --primary: 162.6 78.1% 26.9%;           /* --accent-400 #0F7A5B */
+    --primary-foreground: 0 0% 100%;        /* branco sobre o verde: 5,37:1 */
+    --primary-hover: 162.1 78.4% 21.8%;     /* --accent-300 #0C6349, ESCURECE */
+    --ring: 162.6 78.1% 26.9%;
 
     /* `accent` no shadcn é superfície de hover de item, e no sistema ela é
        neutra. O verde de hover vive em --accent-300, não aqui. */
@@ -397,12 +419,12 @@
     /* ── Barra lateral: branca, régua de 1px, ativo em pílula emerald ── */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 0 0% 42.35%;
-    --sidebar-primary: 0 0% 11.37%;
+    --sidebar-primary: 162.6 78.1% 26.9%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 94.90%;
     --sidebar-accent-foreground: 220 6.25% 18.82%;
     --sidebar-border: 0 0% 90.59%;
-    --sidebar-ring: 0 0% 11.37%;
+    --sidebar-ring: 162.6 78.1% 26.9%;
   }
 
   /* ── Tema ESCURO ──

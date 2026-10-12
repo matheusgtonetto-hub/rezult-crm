@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Check, Zap, TriangleAlert, ChevronLeft, ChevronRight } from "lucide-react";
 import { emitAbrirOferta } from "@/lib/abrirOfertaEvent";
+import { VENDA } from "@/lib/superficie-de-venda";
 
 type BillingTab = "mensal" | "semestral" | "anual";
 
@@ -47,9 +48,25 @@ export const BANNER_HEIGHT = 50;
  * se destaca do resto --, só que agora com os valores da matriz. */
 const OFERTA = {
   fundo:         "var(--surface-inverse)",
-  verde:         "var(--accent-400)",
-  verdeFechado:  "var(--accent-700)",
-  sobreVerde:    "var(--text-on-accent)",
+  /* ── Os três verdes voltaram a ser fixos, em 11/10/2026 ──────────────────
+   *
+   * Eram `var(--accent-400)`, `var(--accent-700)` e `var(--text-on-accent)`.
+   * A condição para um token servir aqui é valer o mesmo nos dois temas, e na
+   * virada do CRM para charcoal os três deixaram de valer: no tema CLARO o
+   * --accent-400 e o --accent-700 viraram #1D1D1D e o --text-on-accent virou
+   * branco.
+   *
+   * O resultado é o que o dono viu na tela: esta faixa é escura no tema claro,
+   * então o selo "Teste grátis ativo" e o botão passaram a ser #1D1D1D sobre
+   * #0A0A0B, 1,1:1. Sumiram os dois, e a tarja ficou sem nenhum verde.
+   *
+   * Nenhum commit mexeu neste arquivo: a quebra entrou pelo CSS. A mesma coisa
+   * aconteceu com a paleta VENDA em 08/10/2026, e a correção é a de lá, por
+   * isso estes três campos agora LEEM dela, em vez de repetir o hex. Um verde
+   * só para as superfícies de venda, num lugar só. */
+  verde:         VENDA.verde,
+  verdeFechado:  VENDA.verdeFechado,
+  sobreVerde:    VENDA.sobreVerde,
   // Sem halo: a seção 3.5 não tem sombra colorida. O destaque vem do contraste
   // entre a faixa escura e o canvas claro.
   brilho:        "transparent",
