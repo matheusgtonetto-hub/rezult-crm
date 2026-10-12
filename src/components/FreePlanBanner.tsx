@@ -47,23 +47,38 @@ export const BANNER_HEIGHT = 50;
  * O banner continua sendo a única faixa escura do app -- ele vende, e por isso
  * se destaca do resto --, só que agora com os valores da matriz. */
 const OFERTA = {
-  fundo:         "var(--surface-inverse)",
-  /* ── Os três verdes voltaram a ser fixos, em 11/10/2026 ──────────────────
+  /* ── A faixa e escura NOS DOIS temas, desde 11/10/2026 ───────────────────
+   *
+   * Era `var(--surface-inverse)`, e esse token quer dizer "o oposto do tema":
+   * #1B1B1B no claro e #F4F6F7 no ESCURO. No tema escuro a faixa virava um
+   * cartao BRANCO no meio do app preto, que foi o que o dono viu.
+   *
+   * A intencao nunca foi inverter. Ela e a unica peca de venda dentro do app e
+   * se destaca por ser escura contra o canvas claro; no tema escuro perde esse
+   * contraste, e quem a separa do fundo passa a ser a moldura verde.
+   *
+   * Os tres hexes abaixo sao exatamente o que estes tokens valiam no tema
+   * CLARO (--neutral-950, --neutral-0 e --neutral-400), para o claro nao mudar
+   * nada: o pedido foi o escuro ficar igual ao claro, nao o contrario. */
+  fundo:         "#1B1B1B",
+  /* ── Os três verdes são fixos, e vêm do VENDA ───────────────────────────
    *
    * Eram `var(--accent-400)`, `var(--accent-700)` e `var(--text-on-accent)`.
-   * A condição para um token servir aqui é valer o mesmo nos dois temas, e na
-   * virada do CRM para charcoal os três deixaram de valer: no tema CLARO o
-   * --accent-400 e o --accent-700 viraram #1D1D1D e o --text-on-accent virou
-   * branco.
+   * Token aqui só serve se valer o mesmo nos dois temas, e na virada do CRM
+   * para charcoal o --accent-400 virou #1D1D1D no claro. Como esta faixa é
+   * escura, o selo "Teste grátis ativo" e o botão viraram #1D1D1D sobre
+   * #1B1B1B, 1,1:1, e sumiram os dois. Nenhum commit tocou este arquivo: a
+   * quebra entrou pelo CSS, igual ao que aconteceu com o VENDA em 08/10/2026.
    *
-   * O resultado é o que o dono viu na tela: esta faixa é escura no tema claro,
-   * então o selo "Teste grátis ativo" e o botão passaram a ser #1D1D1D sobre
-   * #0A0A0B, 1,1:1. Sumiram os dois, e a tarja ficou sem nenhum verde.
+   * Leem do VENDA, e não repetem hex, porque a faixa é a peça de VENDA que
+   * mora dentro do app: o menta dela é o mesmo das telas de planos, cadastro e
+   * tour, e um verde só num lugar só evita que a próxima virada desencontre
+   * um do outro.
    *
-   * Nenhum commit mexeu neste arquivo: a quebra entrou pelo CSS. A mesma coisa
-   * aconteceu com a paleta VENDA em 08/10/2026, e a correção é a de lá, por
-   * isso estes três campos agora LEEM dela, em vez de repetir o hex. Um verde
-   * só para as superfícies de venda, num lugar só. */
+   * Chegou a ser o #0F7A5B da ação do app por um turno, em 11/10/2026, com a
+   * tinta em branco porque charcoal sobre aquele verde dá 2,46:1. O dono
+   * preferiu o menta de volta. Quem for refazer precisa trocar os dois juntos:
+   * o verde e a tinta. */
   verde:         VENDA.verde,
   verdeFechado:  VENDA.verdeFechado,
   sobreVerde:    VENDA.sobreVerde,
@@ -71,8 +86,8 @@ const OFERTA = {
   // entre a faixa escura e o canvas claro.
   brilho:        "transparent",
   borda:         "var(--border-inverse, rgba(255,255,255,.14))",
-  texto:         "var(--neutral-0)",
-  textoSuave:    "var(--neutral-400)",
+  texto:         "#FFFFFF",
+  textoSuave:    "#B4B4B7",
 } as const;
 
 export function FreePlanBanner() {
