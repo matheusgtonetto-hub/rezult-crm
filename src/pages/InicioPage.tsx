@@ -254,21 +254,6 @@ function BotaoDeArquivo({ tipo, rotulo, feita }: { tipo: "logo" | "foto"; rotulo
 }
 
 /**
- * O cumprimento da hora, com o ícone que acompanha cada faixa.
- *
- * Texto e ícone saem juntos, do mesmo lugar. Separados em duas funções, ou o
- * ícone escolhido no JSX por um segundo `if` da hora, as duas leituras do
- * relógio poderiam cair em faixas diferentes na virada do horário -- e a tela
- * diria "Boa tarde" ao lado de um sol.
- */
-const saudacao = () => {
-  const h = new Date().getHours();
-  if (h < 12) return { texto: "Bom dia", icone: "☀️" };
-  if (h < 18) return { texto: "Boa tarde", icone: "☕️" };
-  return { texto: "Boa noite", icone: "🌃" };
-};
-
-/**
  * Card de vídeo com a capa e o play, no formato do YouTube.
  *
  * A capa é imagem, não iframe: um iframe por card faria a aba abrir com nove
@@ -345,12 +330,6 @@ export default function InicioPage() {
   const { leads, pipelines, teamMembers, crmTags } = useCRM();
   const { company, whatsappConnections } = useCompany();
   const { profile } = useProfile();
-
-  const primeiroNome = (profile?.full_name ?? "").trim().split(" ")[0];
-  // Uma leitura só do relógio por render. Chamada duas vezes no JSX (uma para o
-  // texto, outra para o ícone), a virada da hora entre as duas faria a linha
-  // sair com o cumprimento de uma faixa e o ícone da outra.
-  const cumprimento = saudacao();
 
   /**
    * Aba do painel de baixo.
@@ -592,127 +571,88 @@ export default function InicioPage() {
     // teto de 1280px, para as duas telas começarem na mesma linha.
     <div className="pt-[40px] px-[30px] pb-[30px] max-w-7xl mx-auto space-y-6">
 
-      {/* ── Boas-vindas ──────────────────────────────────────────────────
-          Duas metades: texto de um lado, ilustração do outro.
+      {/* ── Ajuda ────────────────────────────────────────────────────── */}
+      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-6">
+        <h2 className="text-lg font-semibold text-foreground mb-4">Precisa de ajuda?</h2>
 
-          Grade de duas colunas iguais, e não flex: com `1fr 1fr` a divisão sai
-          do cartão e não do conteúdo, então o corte fica no mesmo lugar
-          independentemente do tamanho do nome da empresa. Num flex, um nome
-          longo comeria o espaço da imagem.
+        {/* Meio a meio: os dois caminhos valem o mesmo, e dar destaque a um
+            deles empurraria todo mundo para lá. Empilha no celular. */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-lg border border-card-border p-5 flex flex-col">
+            {/* A marca do WhatsApp, e não um ícone genérico de mensagem: o
+                cartão promete atendimento NAQUELE aplicativo, e é o símbolo
+                dele que a pessoa reconhece antes de ler o título.
 
-          `items-center` põe as duas metades no centro vertical uma da outra: o
-          texto ocupa umas três linhas e a imagem 250px, e alinhar pelo topo
-          deixaria o texto colado na borda de cima com um vazio embaixo.
-
-          Abaixo de 768px vira uma coluna só, com o texto em cima.
-
-          `py-[40px]` depois do `p-6`: o respiro lateral continua em 24px e só o
-          vertical sobe para 40. Vem depois na classe porque o Tailwind resolve
-          empate de especificidade pela ordem em que as regras entram no CSS, e
-          `py` é mais específico que `p` nesta folha. */}
-      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-6 py-[40px] grid grid-cols-1 md:grid-cols-2 items-center gap-6">
-        {/*
-          Título e texto mudam com o estado da conta, porque a pergunta que a
-          pessoa traz muda.
-
-          Antes era "Bem-vindo ao {empresa}", fixo, com dois defeitos. Repetia o
-          cumprimento que a linha logo acima já dá ("Bom dia, Matheus"), e não
-          envelhecia: `/inicio` é a tela padrão de todo acesso, então na
-          quinquagésima vez o CRM ainda tratava um veterano como visitante.
-
-          Também não vira frase de marketing. Quem lê isto já é cliente, e lê
-          todo dia; uma promessa de venda aqui é anúncio para quem já comprou.
-        */}
-        <div className="min-w-0">
-          {/* O nome vem primeiro e a hora depois: quem lê reconhece a própria
-              linha pelo nome, e a saudação passa a ser o complemento. Sem nome
-              cadastrado, sobra "Olá! Boa noite", que ainda fecha como frase --
-              por isso a exclamação acompanha o nome em vez de ficar solta.
-
-              Saiu por algumas horas em 19/09, quando uma barra superior
-              cumprimentava em toda tela. A barra foi revertida, e o
-              cumprimento voltou para cá, que é onde ele sempre morou. */}
-          <p className="text-[14px] text-muted-foreground">
-            Olá{primeiroNome ? `, ${primeiroNome}` : ""}! {cumprimento.texto} {cumprimento.icone}
-          </p>
-          {/* 8px acima e 2px abaixo: o título se descola do cumprimento e cola
-              na descrição. As duas frases que falam do produto leem como um
-              bloco, e a linha que cumprimenta a pessoa fica por fora dele. */}
-          <h1 className="text-[24px] font-semibold text-foreground mt-2 leading-tight">
-            {trilhaCompleta ? "Seu CRM está pronto" : "O Rezult está quase pronto..."}
-          </h1>
-          {/*
-            O texto do segundo estado descreve o que ESTÁ na tela: tutoriais e
-            suporte. Não promete um resumo do dia, que ainda não existe -- seria
-            trocar uma frase envelhecida por uma frase falsa.
-          */}
-          {/* 15px de respiro até o título, e a margem é só uma parte disso.
-              Cada bloco carrega metade da própria entrelinha: o título de 28px
-              em `leading-tight` (1.25) deixa 3,5px abaixo da caixa da letra, e
-              este de 15px em `leading-[1.4]` deixa 3px acima. Sobram os 8,5px
-              daqui.
-
-              A margem anda junto com a entrelinha. Fechar o `leading` encolhe
-              também a folga que este bloco carrega acima de si, e sem
-              compensar aqui o respiro cairia sozinho -- o alvo é o espaço
-              VISTO, não o número da propriedade.
-
-              Escrito como valor arbitrário pelo mesmo motivo, e o comentário
-              guarda a conta: mexer no `leading` de qualquer um dos dois a
-              refaz. */}
-          <p className="text-[14px] text-muted-foreground mt-[8.5px] leading-[1.4]">
-            {trilhaCompleta
-              ? "Configuração concluída. Aqui ficam os tutoriais e o suporte, sempre que precisar."
-              : 'Siga a trilha "Primeiros passos" abaixo para finalizar a configuração da sua conta e extrair o melhor da ferramenta.'}
-          </p>
-        </div>
-
-        {/*
-          O logo é o que faz a tela parecer da empresa, e não do produto. Sem
-          ele, a inicial no quadrado verde cumpre o mesmo papel.
-
-          Este lugar já foi de uma ilustração de produto, que segue guardada em
-          `src/assets/banner-inicio.png` para voltar. Ela não está importada, e
-          por isso não entra no bundle -- o arquivo só ocupa espaço no
-          repositório. Não apague achando que sobrou de alguma limpeza.
-
-          `max-h` em vez de `h`: logo é arquivo de terceiro e vem em qualquer
-          tamanho. Com altura fixa, um arquivo pequeno seria esticado e chegaria
-          borrado na tela -- e logo borrado passa a impressão de descuido
-          justamente na marca do cliente. Assim ele cresce até o teto e para.
-
-          `ml-auto` empurra para a direita da coluna, encostado na borda interna
-          do cartão. A folga que sobra vai toda para o meio, entre o logo e o
-          texto, que é o que separa visualmente as duas metades.
-        */}
-        {company?.logo_url ? (
-          /* `rounded-[10px]`, o mesmo raio do resto da tela. Vale para o
-             arquivo que vier com fundo próprio -- uma imagem quadrada e opaca
-             encostava as quatro quinas no cartão arredondado ao redor. Logo em
-             PNG transparente não muda nada, porque não há fundo para recortar.
-
-             `overflow-hidden` junto: o raio na tag <img> recorta a caixa, mas
-             sem ele um `object-contain` que sobrasse dos limites passaria por
-             cima da curva. */
-          <img
-            src={company.logo_url}
-            alt={company.name ?? "Logo"}
-            className="max-h-[140px] w-auto max-w-full object-contain ml-auto rounded-[10px] overflow-hidden"
-          />
-        ) : (
-          /* A inicial cresceu junto com a caixa: os 64px de antes eram o certo
-             ao lado de um bloco de texto estreito, mas numa metade de cartão
-             ficariam perdidos no vazio.
-
-             Mesmo raio de 10px do logo ao lado: os dois ocupam o mesmo lugar e
-             se alternam conforme a conta tem ou não arquivo, e cantos diferentes
-             fariam a caixa mudar de forma sem motivo aparente. */
-          <div className="w-24 h-24 rounded-[10px] bg-primary/10 flex items-center justify-center ml-auto shrink-0">
-            <span className="text-4xl font-bold text-primary">
-              {(company?.name ?? "R")[0].toUpperCase()}
-            </span>
+                Sem o quadrado verde-claro por trás, ao contrário do cartão
+                vizinho: a arte já vem com fundo próprio, e um fundo sobre o
+                outro deixaria uma moldura clara em volta. */}
+            <img
+              src={iconeWhatsApp}
+              alt=""
+              className="w-[50px] h-[50px] rounded-lg shrink-0 mb-3"
+            />
+            <h3 className="text-base font-semibold text-foreground">Suporte Oficial no WhatsApp</h3>
+            <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
+              Fale com nosso time de especialistas, receba ajuda e dicas para usar melhor os
+              recursos do Rezult CRM.
+            </p>
+            {/* `mt-auto` para os botões dos dois cartões ficarem na mesma altura
+                mesmo com descrições de tamanhos diferentes. */}
+            {/* O `mt-auto` fica num invólucro, e não no próprio botão: aplicado
+                nele, a margem empurraria também o fundo verde, e o botão
+                cresceria até o pé do cartão em vez de ficar do tamanho do
+                texto. */}
+            <div className="mt-auto pt-4">
+              <a
+                href={linkDoSuporte()}
+                target="_blank"
+                rel="noopener noreferrer"
+                // Cor no estilo, e não em classe: `bg-[#29A71A]` funcionaria,
+                // mas o hover exigiria uma segunda classe arbitrária com a cor
+                // escurecida escrita à mão. Com `filter`, o estado de hover sai
+                // da mesma cor, sem um segundo hex para manter em dia.
+                className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 transition-[filter] hover:brightness-90"
+                style={{ background: VERDE_WHATSAPP, borderRadius: 6 }}
+              >
+                {/* Mesmo ícone do Multiatendimento na barra lateral, à
+                    esquerda do texto: ali ele já significa "conversa de
+                    WhatsApp", e repetir o símbolo faz o botão dizer para onde
+                    leva antes de a frase ser lida. Herda o branco do texto pelo
+                    `currentColor` do próprio componente. */}
+                <CrmWhatsAppIcon size={14} /> Falar com suporte
+              </a>
+            </div>
           </div>
-        )}
+
+          <div className="rounded-lg border border-card-border p-5 flex flex-col">
+            {/* Fundo no mesmo azul a 12%, para o quadrado acompanhar o botão
+                sem competir com ele. */}
+            <span
+              className="w-[50px] h-[50px] rounded-lg flex items-center justify-center shrink-0 mb-3"
+              style={{ background: `${AZUL_CENTRAL}1F` }}
+            >
+              <BookOpen size={22} style={{ color: AZUL_CENTRAL }} />
+            </span>
+            <h3 className="text-base font-semibold text-foreground">Central de ajuda</h3>
+            <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
+              Artigos e passo a passo de cada recurso, para consultar na hora da dúvida sem
+              precisar esperar atendimento.
+            </p>
+            <div className="mt-auto pt-4">
+              <a
+                href={CENTRAL_DE_AJUDA}
+                target="_blank"
+                rel="noopener noreferrer"
+                // Mesmo tratamento do botão de suporte: cor no estilo e hover
+                // por `brightness`, sem um segundo hex escurecido para manter.
+                className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 transition-[filter] hover:brightness-90"
+                style={{ background: AZUL_CENTRAL, borderRadius: 6 }}
+              >
+                <BookOpen size={14} /> Abrir central
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* ── Trilha ───────────────────────────────────────────────────── */}
@@ -886,90 +826,6 @@ export default function InicioPage() {
             {TUTORIAIS.map(t => <CardTutorial key={t.id} t={t} />)}
           </div>
         )}
-      </div>
-
-      {/* ── Ajuda ────────────────────────────────────────────────────── */}
-      <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-6">
-        <h2 className="text-lg font-semibold text-foreground mb-4">Precisa de ajuda?</h2>
-
-        {/* Meio a meio: os dois caminhos valem o mesmo, e dar destaque a um
-            deles empurraria todo mundo para lá. Empilha no celular. */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-lg border border-card-border p-5 flex flex-col">
-            {/* A marca do WhatsApp, e não um ícone genérico de mensagem: o
-                cartão promete atendimento NAQUELE aplicativo, e é o símbolo
-                dele que a pessoa reconhece antes de ler o título.
-
-                Sem o quadrado verde-claro por trás, ao contrário do cartão
-                vizinho: a arte já vem com fundo próprio, e um fundo sobre o
-                outro deixaria uma moldura clara em volta. */}
-            <img
-              src={iconeWhatsApp}
-              alt=""
-              className="w-[50px] h-[50px] rounded-lg shrink-0 mb-3"
-            />
-            <h3 className="text-base font-semibold text-foreground">Suporte Oficial no WhatsApp</h3>
-            <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
-              Fale com nosso time de especialistas, receba ajuda e dicas para usar melhor os
-              recursos do Rezult CRM.
-            </p>
-            {/* `mt-auto` para os botões dos dois cartões ficarem na mesma altura
-                mesmo com descrições de tamanhos diferentes. */}
-            {/* O `mt-auto` fica num invólucro, e não no próprio botão: aplicado
-                nele, a margem empurraria também o fundo verde, e o botão
-                cresceria até o pé do cartão em vez de ficar do tamanho do
-                texto. */}
-            <div className="mt-auto pt-4">
-              <a
-                href={linkDoSuporte()}
-                target="_blank"
-                rel="noopener noreferrer"
-                // Cor no estilo, e não em classe: `bg-[#29A71A]` funcionaria,
-                // mas o hover exigiria uma segunda classe arbitrária com a cor
-                // escurecida escrita à mão. Com `filter`, o estado de hover sai
-                // da mesma cor, sem um segundo hex para manter em dia.
-                className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 transition-[filter] hover:brightness-90"
-                style={{ background: VERDE_WHATSAPP, borderRadius: 6 }}
-              >
-                {/* Mesmo ícone do Multiatendimento na barra lateral, à
-                    esquerda do texto: ali ele já significa "conversa de
-                    WhatsApp", e repetir o símbolo faz o botão dizer para onde
-                    leva antes de a frase ser lida. Herda o branco do texto pelo
-                    `currentColor` do próprio componente. */}
-                <CrmWhatsAppIcon size={14} /> Falar com suporte
-              </a>
-            </div>
-          </div>
-
-          <div className="rounded-lg border border-card-border p-5 flex flex-col">
-            {/* Fundo no mesmo azul a 12%, para o quadrado acompanhar o botão
-                sem competir com ele. */}
-            <span
-              className="w-[50px] h-[50px] rounded-lg flex items-center justify-center shrink-0 mb-3"
-              style={{ background: `${AZUL_CENTRAL}1F` }}
-            >
-              <BookOpen size={22} style={{ color: AZUL_CENTRAL }} />
-            </span>
-            <h3 className="text-base font-semibold text-foreground">Central de ajuda</h3>
-            <p className="text-[13px] text-muted-foreground mt-1 leading-relaxed">
-              Artigos e passo a passo de cada recurso, para consultar na hora da dúvida sem
-              precisar esperar atendimento.
-            </p>
-            <div className="mt-auto pt-4">
-              <a
-                href={CENTRAL_DE_AJUDA}
-                target="_blank"
-                rel="noopener noreferrer"
-                // Mesmo tratamento do botão de suporte: cor no estilo e hover
-                // por `brightness`, sem um segundo hex escurecido para manter.
-                className="inline-flex items-center gap-1.5 text-white text-sm font-semibold px-4 py-2 transition-[filter] hover:brightness-90"
-                style={{ background: AZUL_CENTRAL, borderRadius: 6 }}
-              >
-                <BookOpen size={14} /> Abrir central
-              </a>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
