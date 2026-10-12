@@ -675,14 +675,27 @@ export function AppSidebar({ recolhida, aoAlternar, sobreposta = false, aberta =
             o realce de ativo, a dica com a barra recolhida e o mesmo tamanho de
             alvo. É navegação como as outras, só que separada por assunto. */}
         <div className={`shrink-0 pb-3 ${recolhida ? "px-1" : "px-3"}`}>
+          {/* Tema ACIMA da régua (dono, 11/10/2026). Ele esteve abaixo dela,
+              colado em Configurações, desde 23/09; o pedido é que suba, sem
+              virar o último item do menu.
+
+              Daí o `pt-1` em cima e o `mb-2` embaixo. Os 4px do `pt-1` somam
+              aos 12px do `pb-3` da área que rola e afastam o botão da última
+              tela da navegação, que hoje é o Multiatendimento, e os 8px do
+              `mb-2` o separam da régua. Ele fica numa faixa própria: não é
+              navegação, e também não é o par de Configurações.
+
+              Fora da área que rola, como o resto deste bloco: o endereço dele
+              é o canto inferior, e não uma posição que muda com o tamanho do
+              menu. */}
+          <div className="pt-1 mb-2">
+            {botaoDeTema()}
+          </div>
           {/* Sem margem lateral: o recuo do bloco já afasta a linha das
               bordas, e somar os dois deixaria esta régua mais curta que a de
               cima, que é sua par visual. */}
           <div className={`${REGUA_BASE} mb-2`} />
-          {/* Tema acima de Configurações (dono, 23/09/2026): é preferência de
-              aparência, vizinha de assunto, e fica no mesmo canto fixo. */}
           <div className="flex flex-col gap-0.5">
-            {botaoDeTema()}
             {renderNav({ to: "/configuracoes", label: "Configurações", icon: Cog })}
           </div>
         </div>
