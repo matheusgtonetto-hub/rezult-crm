@@ -14,9 +14,19 @@
  * inverte sozinha, é a mesma marca dos dois lados do login, e a arte continua
  * morando num arquivo só.
  */
-export function MarcaRezult({ className }: { className?: string }) {
+/*
+ * `style` existe por causa das superfícies de venda (SetupPage e
+ * OfertaDeContratacao), que são escuras NOS DOIS temas. Lá o
+ * `--text-heading` do tema claro sairia quase preto sobre o cartão preto, então
+ * quem chama passa a cor. Por isso a tinta mora no span de fora e as palavras
+ * herdam: assim um `color` do chamador vence sem precisar de `!important`.
+ */
+export function MarcaRezult({ className, style }: { className?: string; style?: React.CSSProperties }) {
   return (
-    <span className={`inline-flex items-center gap-2.5 ${className ?? ""}`}>
+    <span
+      className={`inline-flex items-center gap-2.5 text-[color:var(--text-heading)] ${className ?? ""}`}
+      style={style}
+    >
       <img
         src="/favicon.png?v=5"
         alt=""
@@ -24,10 +34,15 @@ export function MarcaRezult({ className }: { className?: string }) {
         className="shrink-0 block object-cover"
         style={{ width: 34, height: 34, borderRadius: 9 }}
       />
-      {/* O nome é uma palavra só, com as duas metades em pesos diferentes, como
-          na arte original: "Rez" forte e "ult" no verde da marca. */}
-      <span className="text-[26px] font-bold leading-none tracking-tight text-[color:var(--text-heading)]">
-        Rez<span className="text-[color:var(--text-link)]">ult</span>
+      {/* "Rezult CRM", igual à navbar do site (dono, 11/10/2026). Era "Rezult"
+          numa palavra só, com "ult" em verde, herdado da arte antiga.
+
+          Os tamanhos são os do site: 20px no "Rezult" em 600 e 18px no "CRM"
+          em 400. O 18 mora no pai porque as duas palavras dividem o
+          `line-height` dele; subir o pai moveria a linha de base das duas. E a
+          cor é uma só, sem o verde, porque o site também é de uma cor só. */}
+      <span className="text-[18px] font-normal leading-none tracking-tight">
+        <span className="text-[20px] font-semibold">Rezult</span> CRM
       </span>
     </span>
   );

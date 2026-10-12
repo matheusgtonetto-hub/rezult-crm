@@ -34,6 +34,7 @@ import {
   CircleCheck,
 } from "lucide-react";
 import { VENDA } from "@/lib/superficie-de-venda";
+import { MarcaRezult } from "@/components/MarcaRezult";
 
 type Step = 1;
 type BillingTab = "mensal" | "semestral" | "anual";
@@ -784,6 +785,16 @@ export default function SetupPage() {
                     Sem contador de etapas nem barra de progresso: com uma etapa,
                     um diria "1/1" e a outra estaria sempre cheia. */}
                 <div className="flex items-center gap-3 mb-1">
+                  {/* A marca abre a linha (dono, 11/10/2026). Até então o canto
+                      esquerdo era do selo de desconto, e quando a oferta saiu a
+                      linha ficou com o botão verde sozinho, encostado na
+                      direita, sem nada para equilibrar.
+
+                      A cor vem do VENDA.texto e não do token de título: este
+                      cartão é escuro NOS DOIS temas, e no claro o
+                      `--text-heading` sairia quase preto sobre o preto. */}
+                  <MarcaRezult className="shrink-0" style={{ color: VENDA.texto }} />
+
                   {/* Envolve o selo para o balão poder nascer colado nele.
                       `z-50` só no passo dele: fora disso o elemento não precisa
                       subir de camada, e subir sem motivo cria empilhamento que
