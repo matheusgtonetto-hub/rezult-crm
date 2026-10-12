@@ -546,7 +546,6 @@ export default function CompanyRegisterPage() {
                 const num = i + 1;
                 const isActive = step === num;
                 const isDone   = step > num;
-                const ehUltima = num === TOTAL_DE_ETAPAS;
                 return (
                   <div key={num} className="relative flex items-center gap-2.5">
                     {/* Concluída troca o número pelo visto: depois de feita, o
@@ -562,43 +561,6 @@ export default function CompanyRegisterPage() {
                     )}>
                       {isDone ? <Check size={12} strokeWidth={3} /> : num}
                     </div>
-
-                    {/* Trilho que liga esta bolinha à de baixo.
-                        Verde de cima para baixo conforme as etapas avançam:
-                        pintado é o caminho já percorrido, cinza é o que falta.
-                        Quem manda é `isDone`, que vale para a etapa DESTE
-                        trecho -- o segmento entre 2 e 3 fica verde quando a
-                        etapa 2 terminou, ou seja, no instante em que a pessoa
-                        chega na 3.
-
-                        Fica DENTRO da linha da etapa, posicionado a partir do
-                        centro do círculo, e não como elemento próprio entre as
-                        etapas: assim vai do fim de um círculo ao começo do
-                        próximo, acompanhando ESPACO_ENTRE_ETAPAS. A última não
-                        tem trilho, porque não há o que ligar depois dela. */}
-                    {!ehUltima && (
-                      <span
-                        aria-hidden="true"
-                        className={cn(
-                          // 2px nos dois estados, e não só no verde: espessura
-                          // que muda no meio do caminho deixa um degrau visível
-                          // onde o cinza encontra o verde. Também é a mesma
-                          // espessura da borda das bolinhas.
-                          "absolute w-0.5 transition-colors",
-                          isDone ? "bg-primary" : "bg-muted-foreground/20"
-                        )}
-                        style={{
-                          // 22px de círculo, então o centro está em 11; menos
-                          // metade da espessura da linha (1px de 2) para ela
-                          // nascer centrada, e não deslocada à direita.
-                          left: 10,
-                          top: 22,
-                          // Exatamente o vão entre uma etapa e outra: é o que
-                          // o trilho tem que vencer para encostar na próxima.
-                          height: ESPACO_ENTRE_ETAPAS,
-                        }}
-                      />
-                    )}
 
                     <span className={cn(
                       "text-[12px] leading-tight",
@@ -659,7 +621,7 @@ export default function CompanyRegisterPage() {
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleNext()}
-                    className={cn("h-auto rounded-[6px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(fullName))}
+                    className={cn("h-auto py-[9px] text-[13px] rounded-[6px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(fullName))}
                     autoFocus
                   />
                 </div>
@@ -794,7 +756,7 @@ export default function CompanyRegisterPage() {
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleNext()}
-                    className={cn("h-auto rounded-[6px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(companyName))}
+                    className={cn("h-auto py-[9px] text-[13px] rounded-[6px] focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary", bordaDePreenchido(companyName))}
                     autoFocus
                   />
                 </div>
