@@ -72,7 +72,7 @@ export default function LoginPage() {
 
   if (screen === "forgot") {
     return (
-      <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "var(--fundo-entrada)" }}>
+      <div className="relative min-h-[100dvh] flex flex-col px-4" style={{ background: "var(--fundo-entrada)" }}>
         {/* Preso ao canto da tela, fora do cartão: a escolha vale para a página
             inteira, e dentro do cartão ela viraria mais um campo do
             formulário. `absolute` sobre o `relative` do fundo. */}
@@ -150,8 +150,15 @@ export default function LoginPage() {
   // colado no fim da tela. O `flex-1` do bloco do meio é o que empurra o rodapé
   // para baixo -- centralizar tudo junto deixaria o rodapé grudado no cartão,
   // no meio da tela.
+  //
+  // `min-h-[100dvh]` e não `h-screen overflow-hidden` (11/10/2026): com a
+  // largura do aparelho em vigor nesta rota, o cartão ocupa altura real de
+  // celular, e num aparelho curto ou em paisagem o `overflow-hidden` cortava o
+  // botão de entrar sem deixar rolar. O `min-h` preserva o rodapé no fim da
+  // tela quando sobra espaço, que era o papel do `h-screen`. O `dvh` em vez de
+  // `vh` porque no celular a barra do navegador entra na conta do `vh`.
   return (
-    <div className="relative h-screen overflow-hidden flex flex-col px-4" style={{ background: "var(--fundo-entrada)" }}>
+    <div className="relative min-h-[100dvh] flex flex-col px-4" style={{ background: "var(--fundo-entrada)" }}>
       <div className="absolute top-5 right-5 z-10 flex items-center gap-2"><SeletorDeIdioma /><SeletorDeTema /></div>
       <div className="flex-1 flex items-center justify-center py-6">
       <div className="relative w-full max-w-[380px] rounded-[var(--radius-card)] p-[1px] overflow-hidden shadow-elev-3">

@@ -24,6 +24,13 @@
       meta precisa voltar a ser `device-width` NAQUELA rota -- senão o layout de
       celular nunca será acionado, já que a página continuará se achando com
       1100px de largura.
+
+      ESTE VALOR JÁ NÃO VALE PARA TODA ROTA (11/10/2026). As telas de entrada
+      (/login, /register, /verify-2fa, /reset-password) são um cartão de 380px
+      que já nasce responsivo, e dentro de 1100px virtuais ele saía com um terço
+      da largura do celular, ilegível. Em `src/lib/viewport.ts` a meta passou a
+      ser trocada por rota: aparelho na entrada, 1100 no app. Quem mexer aqui
+      precisa mexer lá, porque o valor do app está escrito nos dois lugares.
     -->
     <meta name="viewport" content="width=1100" />
     <title>Rezult CRM</title>

@@ -81,11 +81,18 @@ export default function RegisterPage() {
     navigate("/verify-2fa", { state: { email } });
   };
 
-  // Mesma coluna do login: cartão no bloco que cresce, rodapé no fim. Aqui o
-  // container ainda rola, porque o formulário é alto -- e nesse caso o rodapé
-  // aparece ao terminar de rolar, que é onde se espera encontrá-lo.
+  // Mesma coluna do login: cartão no bloco que cresce, rodapé no fim. O
+  // formulário é alto e a página rola, então o rodapé aparece ao terminar de
+  // rolar, que é onde se espera encontrá-lo.
+  //
+  // A rolagem é da PÁGINA e não deste container (11/10/2026, junto da troca de
+  // viewport por rota). Era `h-screen overflow-y-auto`: no iOS o `100vh` conta
+  // a altura com a barra do navegador recolhida, então o fim do container ficava
+  // por baixo da barra, e rolar dentro de uma caixa de altura fixa não recolhe
+  // a barra. Com `min-h-[100dvh]` quem rola é a página, a barra sai do caminho
+  // e o rodapé continua no fim da tela quando o formulário é curto.
   return (
-    <div className="relative h-screen overflow-y-auto flex flex-col px-4" style={{ background: "var(--fundo-entrada)" }}>
+    <div className="relative min-h-[100dvh] flex flex-col px-4" style={{ background: "var(--fundo-entrada)" }}>
       {/* Mesmo canto do login: quem escolheu o idioma lá chega aqui pelo botão
           "Criar uma conta", e o seletor precisa continuar onde a pessoa
           acabou de vê-lo. */}

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes, Navigate, useNavigate } from "react-router-dom";
+import { BrowserRouter, Route, Routes, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
@@ -35,6 +35,7 @@ import NotFound from "./pages/NotFound";
 import GoogleOAuthCallback from "./pages/configuracoes/GoogleOAuthCallback";
 import PlanosPage from "./pages/Planos";
 import CheckoutSuccessPage from "./pages/CheckoutSuccess";
+import { ajustarViewport } from "./lib/viewport";
 
 /*
   Padrões do cache de consulta.
@@ -93,6 +94,13 @@ function SmartRedirect() {
 function AppRoutes() {
   const { session, loading, pendingPasswordReset, clearPendingPasswordReset } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+
+  /* Largura virtual da página: do aparelho nas telas de entrada, 1100 no app.
+     O main.tsx já resolve a primeira pintura; este efeito cobre as trocas de
+     rota, que é o caso do logout (app -> /login) e do "criar conta". Ver
+     src/lib/viewport.ts. */
+  useEffect(() => { ajustarViewport(pathname); }, [pathname]);
 
   useEffect(() => {
     if (pendingPasswordReset) {
