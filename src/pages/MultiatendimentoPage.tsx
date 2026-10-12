@@ -4235,9 +4235,14 @@ export default function MultiatendimentoPage() {
             <button
               onClick={() => setNewConvOpen(true)}
               title="Nova conversa"
-              style={{ background: "var(--surface-accent-strong)", border: "none", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+              /* --surface-accent tem o menta cheio dos outros botoes do app, e
+                 nao o verde fechado do --surface-accent-strong, que e o par de
+                 tinta BRANCA (dono, 11/10/2026: este botao destoava dos demais).
+                 Por isso o icone sai do #FFF, que daria 1,85:1 sobre o menta, e
+                 passa ao --text-on-accent, que e o charcoal do par, 7,25:1. */
+              style={{ background: "var(--surface-accent)", border: "none", borderRadius: 8, width: 30, height: 30, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
             >
-              <UserPlus size={14} color="#FFF" />
+              <UserPlus size={14} color="var(--text-on-accent)" />
             </button>
             <button
               onClick={() => { setShowMultiSettings(true); setSettingsTab("config"); }}
