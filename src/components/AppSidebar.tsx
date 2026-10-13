@@ -97,10 +97,9 @@ const ITEM_BASE =
   "focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]";
 const ITEM_REPOUSO =
   "text-[color:var(--text-muted)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--text-heading)]";
-/* Emerald nos dois temas, pelo --accent-400. Foi cinza entre 08 e 11/10/2026,
-   enquanto a ação do tema claro era charcoal: uma seleção preta teria virado o
-   elemento mais pesado da tela. Com a rampa de volta ao menta ela volta a
-   marcar a página atual com a cor da marca. Ver --selecao-barra-* em
+/* Cinza no tema claro, emerald no escuro. A marca clara voltou ao charcoal em
+   11/10/2026, e em preto a seleção viraria o elemento mais pesado da tela: ela
+   diz ONDE a pessoa está, não é uma ação para clicar. Ver --selecao-barra-* em
    src/index.css. */
 const ITEM_ATIVO = "bg-[color:var(--selecao-barra)] text-[color:var(--selecao-barra-tinta)] font-medium";
 

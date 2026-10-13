@@ -49,50 +49,57 @@
      ═══════════════════════════════════════════════════════════════════════ */
   :root {
     /* ── 1. Rampa da marca ──
-       Emerald, o menta de sempre. Ele saiu e voltou entre 08 e 11/10/2026:
-       primeiro virou charcoal #1D1D1D, acompanhando o site, que tinha perdido
-       o verde em 05/10; depois virou o verde escuro #0F7A5B, o mesmo dos
-       títulos do site; e então o dono pediu o design system original de volta.
-       O histórico fica registrado porque a mesma ideia pode voltar, e as duas
-       tentativas deixaram lições que valem para a próxima.
+       CHARCOAL. Ele saiu e voltou entre 08 e 11/10/2026, e o vaivém vale ficar
+       registrado: charcoal (08/10), verde escuro #0F7A5B (11/10), emerald
+       original (11/10) e charcoal de novo (11/10), sempre a pedido do dono. Se
+       vier uma quarta virada, estas são as três coisas que quebram:
 
-       LIÇÃO 1, a tinta anda junto com o fundo. Sobre o emerald a tinta é
-       CHARCOAL (--text-on-accent aponta para --neutral-900, 7,25:1); sobre os
-       dois escuros ela era branca. Trocar um sem o outro apaga o texto de todo
-       botão do app.
+       1. A TINTA ANDA JUNTO. Sobre o charcoal ela é branca (16,8:1); sobre o
+          emerald é charcoal, porque branco em cima do menta dá 1,85:1 e some.
+          Trocar o fundo sem trocar o --text-on-accent apaga o texto de todo
+          botão do app. Vale também para o --selecao-barra-tinta.
+       2. O HOVER INVERTE DE SENTIDO. Em marca clara ele escurece; em marca
+          escura ele CLAREIA, porque quase-preto não tem para onde descer.
+       3. AS SUPERFÍCIES ESCURAS NOS DOIS TEMAS QUEBRAM. A faixa do teste
+          grátis e as telas de planos, cadastro e tour são pretas no tema claro
+          também. Qualquer campo delas que leia um token desta rampa vira preto
+          sobre preto. Nas duas viradas isso aconteceu, uma vez em cada arquivo.
+          Ver src/lib/superficie-de-venda.ts e o topo do FreePlanBanner.tsx.
 
-       LIÇÃO 2, a leitura da rampa vira de lado. No menta o tom cheio (400) é
-       superfície e os fechados (700/800) são tinta, porque precisam escurecer
-       para serem lidos sobre branco. Em cor escura os três viram o mesmo
-       valor, porque superfície e tinta passam a ser a mesma coisa.
+       ── O raciocínio original do charcoal (08/10/2026) ── O site perdeu o verde em
+       05/10 e passou a viver de preto, branco e cinza; o CRM foi atrás, e esta
+       é a virada que tinha sido ensaiada antes em três telas.
 
-       LIÇÃO 3, o hover inverte de sentido. No menta ele ESCURECE (300 é o tom
-       claro, e o hover vai para o --accent-700); numa marca escura ele precisa
-       CLAREAR, porque quase-preto não tem para onde descer.
+       #1D1D1D é o preto do SITE, onde ele é o `--neutral-900`. Aqui a rampa
+       neutra tem #2D2F33 nessa posição, dois degraus mais claro, e por isso o
+       valor entra cravado em vez de apontar para ela: igualar as duas rampas
+       de neutro é outra conversa, e enquanto não acontece a AÇÃO precisa ser o
+       mesmo preto nos dois produtos.
 
-       LIÇÃO 4, o que NÃO acompanha a rampa. Há superfícies escuras nos dois
-       temas (a faixa do teste grátis, as telas de planos, cadastro e tour) que
-       leem hex fixo justamente para não quebrar quando esta rampa muda. Nas
-       duas viradas elas quebraram assim mesmo, porque algum campo tinha
-       ficado em token. Ver src/lib/superficie-de-venda.ts. */
-    --accent-50:  #ECFDF7;
-    --accent-100: #CFFAEB;
-    --accent-200: #A5F3D9;
-    /* ── De volta ao EMERALD original, em 11/10/2026 ───────────────────
-       A rampa clara passou por duas cores em quatro dias: charcoal #1D1D1D
-       (08/10) e o verde escuro #0F7A5B (11/10). O dono pediu o menta do design
-       system original de volta, e é ele que está aqui.
+       A leitura da rampa VIROU DE LADO, e é isso que explica os valores. No
+       menta, o tom cheio (400) era superfície e os fechados (700/800) eram a
+       tinta: precisavam escurecer para serem lidos sobre branco. Em charcoal
+       superfície e tinta são a MESMA cor, porque #1D1D1D rende 16,8:1 com
+       branco em cima e 16,8:1 como texto sobre o cartão. O 700 e o 800 ficam
+       iguais ao 400 porque a distância entre eles só existia para resolver um
+       contraste que aqui não é problema.
 
-       Quem for virar de novo: a tinta anda junto. Sobre o emerald ela é
-       CHARCOAL, nunca branca (branco sobre #01D8A4 dá 1,85:1 e some), e sobre
-       os dois escuros que passaram por aqui ela era branca. Trocar o fundo sem
-       trocar o --text-on-accent apaga o texto de todo botão do app. */
-    --accent-300: #5FE7BE;   /* hover de superfície emerald */
-    --accent-400: #01D8A4;   /* A COR DA MARCA */
-    --accent-500: #00BA88;   /* press */
-    --accent-600: #00A879;   /* série 3 de gráfico, ícone sobre claro */
-    --accent-700: #008762;   /* TINTA verde sobre cartão, 4,52:1 */
-    --accent-800: #00654A;   /* TINTA verde sobre canvas, 6,62:1 */
+       O 300 passou a ser o hover: quem já é quase preto não tem para onde
+       escurecer, então o hover CLAREIA para #3A3A3E, que é o passo que o site
+       usa (lá ele é o `--neutral-800`, o mesmo hex nas duas rampas).
+
+       O menta não morreu: ele continua sendo o verde de SUCESSO (--success),
+       a superfície de venda (planos, cadastro e tour) e o tema escuro inteiro,
+       que segue na cor antiga até ter uma decisão própria. */
+    --accent-50:  #F7F7F7;
+    --accent-100: #F2F2F2;
+    --accent-200: #E7E7E7;
+    --accent-300: #3A3A3E;   /* hover: a superfície escura CLAREIA */
+    --accent-400: #1D1D1D;   /* A COR DA MARCA */
+    --accent-500: #0D0D0D;   /* press */
+    --accent-600: #525154;   /* ícone sobre claro */
+    --accent-700: #1D1D1D;   /* TINTA sobre cartão, 16,8:1 */
+    --accent-800: #1D1D1D;   /* TINTA sobre canvas, 15,2:1 */
 
     /* ── O verde como SUPERFÍCIE, separado do verde como tinta ──
        O 700 fazia os dois trabalhos: fundo de botão verde em 53 lugares e
@@ -101,8 +108,8 @@
        o cartão escuro, e o fundo precisa continuar verde fechado para o branco
        em cima dele continuar legível. Enquanto foi um token só, inverter
        quebrava metade dos usos, e não inverter quebrava a outra metade. */
-    --surface-accent-strong: #008762;  /* fundo verde sólido, tinta branca em cima */
-    --border-accent:         #008762;  /* borda/realce verde */
+    --surface-accent-strong: #1D1D1D;  /* fundo sólido, tinta branca em cima */
+    --border-accent:         #1D1D1D;  /* borda/realce */
 
     /* ── Neutros. Charcoal faz o trabalho do preto; #000 não aparece ── */
     --neutral-0:   #FFFFFF;
@@ -208,38 +215,32 @@
     --surface-accent:   var(--accent-400);
     --surface-inverse:  var(--neutral-950);
 
-    /* ── O item selecionado da barra lateral ──
-       VERDE desde 11/10/2026, por pedido do dono, junto com a virada da ação
-       para #0F7A5B. Ele foi cinza entre 07/10 e 11/10, quando a ação era
-       charcoal: ali a seleção em preto viraria o elemento mais pesado da tela.
-       Com a ação em verde médio esse risco acaba, e a barra volta a marcar a
-       página atual com a cor da marca, como o tema escuro sempre fez.
-
-       Lê o --accent-400, e não um hex: é o mesmo desenho do bloco escuro logo
-       abaixo, então os dois temas passam a ter uma linha só de diferença, que
-       é a tinta.
+    /* ── O item selecionado da barra lateral (dono, 07/10/2026) ──
+       Cinza, e não o charcoal dos botões: a seleção diz ONDE a pessoa está, e
+       não é uma ação para clicar. Em #1D1D1D ela viraria o elemento mais
+       pesado da tela, competindo com o conteúdo.
 
        Não sai do --surface-selected, que é o token irmão para "item escolhido"
-       em tabela e dropdown: aquele segue CINZA. Linha de tabela marcada é
-       estado de leitura, e em verde sólido competiria com o conteúdo da
-       própria linha.
+       em tabela e dropdown, porque os dois divergem no tema ESCURO: lá a barra
+       continua com o menta sólido, e o --surface-selected é uma superfície
+       esverdeada discreta. Mesma intenção, desenhos diferentes.
 
-       Branco na tinta: 5,37:1 sobre o #0F7A5B, acima do 4,5:1 do AA para os
-       14px do item.
+       O 150 e não o 50 do hover porque os dois convivem na mesma barra branca:
+       passar o mouse (#F7F7F7) precisa pesar menos que estar ali (#EBEBEB).
 
        A pastilha "IA" tem fundo próprio por morar DENTRO do item selecionado.
-       Branca a 18% para se apoiar no verde sem somar uma terceira cor, que é o
-       mesmo recurso do tema escuro, lá em translúcido escuro sobre o emerald
-       claro. */
-    --selecao-barra:       var(--accent-400);
-    --selecao-barra-tinta: #0C231D;
-    --selecao-barra-badge: rgba(45, 47, 51, .14);
+       Era um cinza translúcido, escolhido para não somar dois verdes sobre o
+       emerald; sobre o cinza novo ele sumiria, então no claro ela fica branca
+       e se define pelo contraste. */
+    --selecao-barra:       var(--neutral-150);
+    --selecao-barra-tinta: #1D1D1D;
+    --selecao-barra-badge: var(--neutral-0);
 
     --text-heading:   var(--neutral-900);
     --text-body:      var(--neutral-800);
     --text-muted:     var(--neutral-600);
     --text-subtle:    var(--neutral-500);
-    --text-on-accent: var(--neutral-900);   /* charcoal sobre emerald: 7,25:1 */
+    --text-on-accent: #FFFFFF;              /* branco sobre o charcoal: 16,8:1 */
     /* Tinta sobre --surface-inverse (tooltip, botão escuro do KPI). Existia no
        material e não aqui: quem escrevia `var(--text-inverse)` ficava sem cor
        nenhuma e herdava a do pai -- foi assim que a seta do cartão de KPI saiu
@@ -257,7 +258,7 @@
        campo ou filtro. Agora é o charcoal a 25%: mais fechado porque preto a
        45% viraria uma sombra pesada em volta de cada campo, enquanto o verde
        claro precisava da opacidade alta para existir. */
-    --ring-focus-color: rgba(1, 216, 164, .45);
+    --ring-focus-color: rgba(29, 29, 29, .25);
     --icon-default:   var(--neutral-600);
     --icon-strong:    var(--neutral-900);
 
@@ -366,10 +367,10 @@
     --altura-util: calc(100vh - var(--topbar-h));
 
     /* ═══ Aliases HSL para Tailwind e shadcn. Mesmos valores da rampa ═══ */
-    --primary: 165.49 99.08% 42.55%;        /* --accent-400 #01D8A4 */
-    --primary-foreground: 220 6.25% 18.82%; /* charcoal, NUNCA branco */
-    --primary-hover: 163.56 100% 26.47%;    /* --accent-700 */
-    --ring: 165.49 99.08% 42.55%;
+    --primary: 0 0% 11.37%;                 /* --accent-400 #1D1D1D */
+    --primary-foreground: 0 0% 100%;        /* branco sobre o charcoal */
+    --primary-hover: 240 3.3% 23.5%;        /* --accent-300 #3A3A3E, CLAREIA */
+    --ring: 0 0% 11.37%;
 
     /* `accent` no shadcn é superfície de hover de item, e no sistema ela é
        neutra. O verde de hover vive em --accent-300, não aqui. */
@@ -413,12 +414,12 @@
     /* ── Barra lateral: branca, régua de 1px, ativo em pílula emerald ── */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 0 0% 42.35%;
-    --sidebar-primary: 165.49 99.08% 42.55%;
-    --sidebar-primary-foreground: 220 6.25% 18.82%;
+    --sidebar-primary: 0 0% 11.37%;
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 94.90%;
     --sidebar-accent-foreground: 220 6.25% 18.82%;
     --sidebar-border: 0 0% 90.59%;
-    --sidebar-ring: 165.49 99.08% 42.55%;
+    --sidebar-ring: 0 0% 11.37%;
   }
 
   /* ── Tema ESCURO ──
