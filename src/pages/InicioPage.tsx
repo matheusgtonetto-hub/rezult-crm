@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  Building2, MessageCircle, CircleUserRound, Users, Tag, Trophy, Filter, Check, ArrowRight, Sparkles, Play,
+  Building2, MessageCircle, CircleUserRound, Users, Tag, Trophy, Check, ArrowRight, Sparkles, Play,
   BookOpen, Bot,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -128,10 +128,14 @@ const AZUL_CENTRAL = "#3B82F6";
  * Se um padrão novo passar a ser criado, o nome dele entra aqui. Sem isso, o
  * passo correspondente volta a nascer marcado.
  */
-const PIPELINE_PADRAO = "Pipeline comercial";
 const TAGS_DO_SISTEMA = [
   // Criadas com a empresa, pelo gatilho `criar_tags_padrao`.
   "Follow-up", "Indicação", "Automação", "Agente 01",
+  // Criada com a empresa também, mas por OUTRO gatilho:
+  // `criar_agente_operacional`. Ficou de fora desta lista até 12/10/2026, e era
+  // ela sozinha que marcava o passo "Adicione uma Tag" como cumprido em toda
+  // conta nova -- exatamente o que o comentário acima previa.
+  "Operacional: ignorar",
   // Criadas com o primeiro agente, pelo gatilho `ensure_agente_tag`.
   "Agente", "SDS: Qualificado", "SDS: Não qualificado",
 ];
@@ -344,7 +348,7 @@ function CardTutorial({ t }: { t: Tutorial }) {
 }
 
 export default function InicioPage() {
-  const { leads, pipelines, teamMembers, crmTags } = useCRM();
+  const { leads, teamMembers, crmTags } = useCRM();
   const { company, whatsappConnections } = useCompany();
   const { profile } = useProfile();
 
@@ -441,10 +445,14 @@ export default function InicioPage() {
    *
    * Os pesos somam 100 de propósito. Como o progresso é mostrado em porcentagem,
    * cada peso passa a ser diretamente quanto aquele passo adianta o anel -- o
-   * WhatsApp e o Operacional valem 20% cada, a base da empresa 15%, a foto de
-   * perfil 5%. Se um passo
-   * entrar ou sair, os pesos precisam ser redistribuídos para continuar
-   * fechando em 100.
+   * WhatsApp, o Operacional e a base da empresa valem 20% cada, o primeiro
+   * negócio 15%, a equipe 10%, e logo, foto e tag 5% cada.
+   *
+   * Se um passo entrar ou sair, os pesos precisam ser redistribuídos para
+   * continuar fechando em 100. Foi o que aconteceu em 12/10/2026, quando o
+   * "Adicione um novo pipeline" saiu a pedido do dono: os 10 pontos dele foram
+   * para a base da empresa (15 -> 20) e para o primeiro negócio (10 -> 15), que
+   * são os dois passos de montar a operação que sobraram.
    */
   const missoes = useMemo<Missao[]>(() => {
     const listaLeads = Object.values(leads);
@@ -476,27 +484,17 @@ export default function InicioPage() {
         titulo: "Conte ao agente sobre o negócio",
         descricao: "Na aba Instruções do agente: o que a empresa faz, vende e cobra. É com isso que ele responde os leads.",
         para: "/agentes",
-        pontos: 15,
+        pontos: 20,
         feita: respostasDaBase >= 4,
         Icone: BookOpen,
         acao: { rotulo: "Preencher", para: "/agentes" },
-      },
-      {
-        id: "pipeline",
-        titulo: "Adicione um novo pipeline",
-        descricao: "Monte as etapas que refletem o seu processo de vendas, do primeiro contato ao fechamento.",
-        para: "/pipeline",
-        pontos: 10,
-        feita: pipelines.some(p => p.name.trim() !== PIPELINE_PADRAO),
-        Icone: Filter,
-        acao: { rotulo: "Nova pipeline", para: "/pipeline?abrir=nova-pipeline" },
       },
       {
         id: "negocio",
         titulo: "Crie seu primeiro Lead/Negócio",
         descricao: "Cadastre um contato, abra o negócio dele e acompanhe a passagem por cada etapa.",
         para: "/pipeline",
-        pontos: 10,
+        pontos: 15,
         // Lead COM pipeline, e não lead qualquer: o passo é sobre o negócio
         // entrar no funil, que é onde ele passa a ser acompanhado.
         feita: listaLeads.some(l => !!l.pipelineId),
@@ -549,7 +547,7 @@ export default function InicioPage() {
         acao: { rotulo: "Nova tag", para: "/configuracoes/tags?abrir=nova-tag" },
       },
     ];
-  }, [leads, pipelines, teamMembers, crmTags, company, whatsappConnections, profile, agenteLigado, respostasDaBase]);
+  }, [leads, teamMembers, crmTags, company, whatsappConnections, profile, agenteLigado, respostasDaBase]);
 
   const feitas = missoes.filter(m => m.feita);
   const pontos = feitas.reduce((s, m) => s + m.pontos, 0);
