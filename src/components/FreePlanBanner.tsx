@@ -14,7 +14,6 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Check, Zap, TriangleAlert, ChevronLeft, ChevronRight } from "lucide-react";
 import { emitAbrirOferta } from "@/lib/abrirOfertaEvent";
-import { VENDA } from "@/lib/superficie-de-venda";
 
 type BillingTab = "mensal" | "semestral" | "anual";
 
@@ -46,48 +45,33 @@ export const BANNER_HEIGHT = 50;
  *
  * O banner continua sendo a única faixa escura do app -- ele vende, e por isso
  * se destaca do resto --, só que agora com os valores da matriz. */
+/* ── O cartão segue o TEMA, desde 11/10/2026 ──────────────────────────────
+ *
+ * Branco com texto e botões pretos no claro, cartão escuro no escuro (dono).
+ * Ele passou por três desenhos em quatro dias e vale saber por que nenhum dos
+ * dois anteriores servia:
+ *
+ *   1. `var(--surface-inverse)`: esse token quer dizer "o oposto do tema", e
+ *      no escuro valia #F4F6F7. A faixa virava um cartão branco no app preto.
+ *   2. hex fixo #1B1B1B: resolvia o escuro, mas deixava a peça preta também no
+ *      tema claro, que é o que o dono não queria.
+ *
+ * Agora é o cartão comum do sistema. Ele inverte certo sozinho, porque é o
+ * mesmo par que todo cartão do CRM usa, e a peça deixa de ser um desenho à
+ * parte que precisa ser lembrado a cada virada de marca.
+ *
+ * O verde saiu junto. O selo e o botão passam a ser a AÇÃO do app
+ * (--surface-accent com --text-on-accent em cima): charcoal com tinta branca
+ * no claro, emerald com tinta escura no escuro. Era o menta do VENDA nos dois,
+ * herança de quando esta peça era um pedaço da tela de planos dentro do app. */
 const OFERTA = {
-  /* ── A faixa e escura NOS DOIS temas, desde 11/10/2026 ───────────────────
-   *
-   * Era `var(--surface-inverse)`, e esse token quer dizer "o oposto do tema":
-   * #1B1B1B no claro e #F4F6F7 no ESCURO. No tema escuro a faixa virava um
-   * cartao BRANCO no meio do app preto, que foi o que o dono viu.
-   *
-   * A intencao nunca foi inverter. Ela e a unica peca de venda dentro do app e
-   * se destaca por ser escura contra o canvas claro; no tema escuro perde esse
-   * contraste, e quem a separa do fundo passa a ser a moldura verde.
-   *
-   * Os tres hexes abaixo sao exatamente o que estes tokens valiam no tema
-   * CLARO (--neutral-950, --neutral-0 e --neutral-400), para o claro nao mudar
-   * nada: o pedido foi o escuro ficar igual ao claro, nao o contrario. */
-  fundo:         "#1B1B1B",
-  /* ── Os três verdes são fixos, e vêm do VENDA ───────────────────────────
-   *
-   * Eram `var(--accent-400)`, `var(--accent-700)` e `var(--text-on-accent)`.
-   * Token aqui só serve se valer o mesmo nos dois temas, e na virada do CRM
-   * para charcoal o --accent-400 virou #1D1D1D no claro. Como esta faixa é
-   * escura, o selo "Teste grátis ativo" e o botão viraram #1D1D1D sobre
-   * #1B1B1B, 1,1:1, e sumiram os dois. Nenhum commit tocou este arquivo: a
-   * quebra entrou pelo CSS, igual ao que aconteceu com o VENDA em 08/10/2026.
-   *
-   * Leem do VENDA, e não repetem hex, porque a faixa é a peça de VENDA que
-   * mora dentro do app: o menta dela é o mesmo das telas de planos, cadastro e
-   * tour, e um verde só num lugar só evita que a próxima virada desencontre
-   * um do outro.
-   *
-   * Chegou a ser o #0F7A5B da ação do app por um turno, em 11/10/2026, com a
-   * tinta em branco porque charcoal sobre aquele verde dá 2,46:1. O dono
-   * preferiu o menta de volta. Quem for refazer precisa trocar os dois juntos:
-   * o verde e a tinta. */
-  verde:         VENDA.verde,
-  verdeFechado:  VENDA.verdeFechado,
-  sobreVerde:    VENDA.sobreVerde,
-  // Sem halo: a seção 3.5 não tem sombra colorida. O destaque vem do contraste
-  // entre a faixa escura e o canvas claro.
-  brilho:        "transparent",
-  borda:         "var(--border-inverse, rgba(255,255,255,.14))",
-  texto:         "#FFFFFF",
-  textoSuave:    "#B4B4B7",
+  fundo:         "var(--surface-card)",
+  acao:          "var(--surface-accent)",
+  sobreAcao:     "var(--text-on-accent)",
+  borda:         "var(--border-default)",
+  texto:         "var(--text-heading)",
+  textoSuave:    "var(--text-muted)",
+  textoFraco:    "var(--text-subtle)",
 } as const;
 
 export function FreePlanBanner() {
@@ -248,16 +232,16 @@ export function FreePlanBanner() {
             bottom: 24,
             zIndex: 50,
             background: OFERTA.fundo,
-            // Moldura no verde da marca, e não numa linha neutra: aqui ela não
-            // serve para delimitar, serve para dizer de quem é o cartão. Com o
-            // preto atrás, ela é o que amarra esta peça à tela de planos, para
-            // onde o botão leva. (Era "ela e o cupom": o selo do cupom saiu com
-            // a oferta, em 29/09/2026.)
-            border: `1px solid ${OFERTA.verde}`,
-            // Três camadas: a preta descola do fundo claro do CRM, o brilho de
-            // fora acende a volta da moldura e o `inset` a projeta para dentro,
-            // igual ao cartão de planos.
-            boxShadow: `0 8px 28px rgba(0,0,0,0.35), 0 0 24px ${OFERTA.brilho}, inset 0 0 30px ${OFERTA.brilho}`,
+            // Linha neutra, como a de qualquer cartão. Era a moldura verde da
+            // marca, que amarrava esta peça à tela de planos enquanto o fundo
+            // era preto; sobre o branco ela viraria a única borda colorida da
+            // tela.
+            border: `1px solid ${OFERTA.borda}`,
+            // Sombra do sistema, e não as três camadas de antes (uma preta a
+            // 35% mais dois halos verdes). Aquelas existiam para descolar um
+            // cartão PRETO do canvas claro; sobre o branco elas deixariam um
+            // borrão cinza em volta.
+            boxShadow: "var(--shadow-elevated-3)",
           }}
         >
           <div className="flex items-center gap-3 pl-2 pr-3 py-3">
@@ -270,8 +254,8 @@ export function FreePlanBanner() {
               type="button"
               onClick={alternarTamanho}
               aria-label={reduzida ? "Mostrar a oferta completa" : "Encolher a oferta"}
-              className="shrink-0 rounded-[6px] p-1 transition-colors hover:bg-white/10"
-              style={{ color: "rgba(244,246,244,0.6)" }}
+              className="shrink-0 rounded-[6px] p-1 transition-colors hover:bg-[color:var(--surface-hover)]"
+              style={{ color: OFERTA.textoFraco }}
             >
               {reduzida ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
             </button>
@@ -293,7 +277,7 @@ export function FreePlanBanner() {
               <div className="min-w-0">
                 <span
                   className="inline-block rounded-[6px] px-2 py-[3px] text-[12px] font-bold tracking-wide whitespace-nowrap"
-                  style={{ background: OFERTA.verde, color: OFERTA.sobreVerde }}
+                  style={{ background: OFERTA.acao, color: OFERTA.sobreAcao }}
                 >
                   {testeEncerrado ? "Teste grátis finalizado" : "Teste grátis ativo"}
                 </span>
@@ -316,7 +300,7 @@ export function FreePlanBanner() {
                       do mínimo de leitura. */}
                   <span
                     className="inline-block rounded-[6px] px-2 py-[3px] text-[12px] font-bold tracking-wide whitespace-nowrap"
-                    style={{ background: OFERTA.verde, color: OFERTA.sobreVerde }}
+                    style={{ background: OFERTA.acao, color: OFERTA.sobreAcao }}
                   >
                     {testeEncerrado ? "Teste grátis finalizado" : "Teste grátis ativo"}
                   </span>
@@ -332,7 +316,7 @@ export function FreePlanBanner() {
 
                 {/* Filete no lugar de moldura: separa o recado do contador sem
                     desenhar mais uma caixa dentro de uma que já é. */}
-                {restante && <span className="w-px h-9 shrink-0" style={{ background: "rgba(255,255,255,0.12)" }} />}
+                {restante && <span className="w-px h-9 shrink-0" style={{ background: OFERTA.borda }} />}
 
                 {/* Número grande com a unidade embaixo, e não "06 dias" corrido:
                     o olho pega o algarismo primeiro e confirma a unidade só se
@@ -351,7 +335,7 @@ export function FreePlanBanner() {
                   ].map((unidade, i) => (
                     <div key={unidade.rotulo} className="flex items-center gap-2">
                       {i > 0 && (
-                        <span className="text-[18px] font-bold leading-none" style={{ color: "rgba(255,255,255,0.3)" }}>:</span>
+                        <span className="text-[18px] font-bold leading-none" style={{ color: OFERTA.textoFraco }}>:</span>
                       )}
                       <div className="text-center" style={{ minWidth: 30 }}>
                         <p
@@ -362,7 +346,7 @@ export function FreePlanBanner() {
                         </p>
                         <p
                           className="text-[12px] uppercase leading-none mt-[3px] tracking-[0.08em]"
-                          style={{ color: "rgba(244,246,244,0.6)" }}
+                          style={{ color: OFERTA.textoFraco }}
                         >
                           {unidade.rotulo}
                         </p>
@@ -372,26 +356,28 @@ export function FreePlanBanner() {
                 </div>
                 )}
 
-                {/* Verde chapado com texto quase preto, igual ao "Começar 7 dias
-                    grátis" da tela de planos: é o mesmo botão levando ao mesmo
-                    lugar.
+                {/* UM destino só, o mesmo do botão de upgrade em Configurações
+                    > Planos e Pagamentos (dono, 11/10/2026): o cartão de planos
+                    aberto por evento, que o AppLayout monta uma vez e os dois
+                    caminhos compartilham.
 
-                    Os dois destinos seguem diferentes, mas por outro motivo
-                    desde que a oferta saiu (29/09/2026). Durante o teste o botão
-                    leva ao `/setup`, a tela cheia de planos, que é onde quem
-                    ainda está decidindo tem a comparação inteira na frente.
-                    Encerrado o teste ele abre o cartão de planos por evento --
-                    assim sobe por cima da tela em que a pessoa estiver, sem
-                    tirá-la do lugar, porque aí a escolha é urgente. */}
+                    Antes o destino dependia do estado. Com o teste correndo ele
+                    levava a `/setup`, uma TELA inteira, e só depois de encerrado
+                    abria o cartão. Eram duas apresentações do mesmo catálogo, e
+                    a de `/setup` tirava a pessoa de onde ela estava.
+
+                    O `/setup` continua existindo e não foi tocado: ele é a
+                    etapa do cadastro, onde a pessoa ainda não tem para onde
+                    voltar. A diferença é que agora só o cadastro leva até lá. */}
                 <Button
                   size="sm"
                   className="h-8 text-xs font-semibold rounded-[8px] shrink-0"
                   style={{
-                    background: OFERTA.verde,
-                    color: OFERTA.sobreVerde,
+                    background: OFERTA.acao,
+                    color: OFERTA.sobreAcao,
                     animation: "banner-btn-attention 1.2s ease-in-out infinite",
                   }}
-                  onClick={() => (testeEncerrado ? emitAbrirOferta() : navigate("/setup"))}
+                  onClick={emitAbrirOferta}
                 >
                   {/* Texto próprio, e não o `rotuloBotao` das outras situações:
                       lá ele descreve uma obrigação ("Regularizar"), e aqui é
