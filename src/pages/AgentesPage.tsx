@@ -69,6 +69,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
+import { temGatilho } from "@/lib/gatilhos-do-fluxo";
 import { COR_TAG_AGENTE, COR_TAG_INTERESSE } from "@/lib/paleta-do-app";
 import { useNavigate, useParams } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
@@ -942,10 +943,13 @@ export default function AgentesPage() {
     );
     // Só automações com gatilho "lead_manual" podem ser acionadas sob
     // demanda (mesma restrição que o botão "Automação" do Multiatendimento
-    // já segue — automation-runner exige trigger.triggerId === trigger_type).
+    // já segue — o automation-runner exige o gatilho correspondente).
+    //
+    // `temGatilho` porque uma automação pode ter vários gatilhos e o
+    // `flow.trigger` guarda só o primeiro. Ver src/lib/gatilhos-do-fluxo.ts.
     setManualAutomations(
-      ((automationsData ?? []) as { id: string; name: string; flow: { trigger?: { triggerId?: string } } }[])
-        .filter((a) => a.flow?.trigger?.triggerId === "lead_manual")
+      ((automationsData ?? []) as { id: string; name: string; flow: unknown }[])
+        .filter((a) => temGatilho(a.flow, "lead_manual"))
         .map((a) => ({ id: a.id, name: a.name })),
     );
     setSelectedId((prev) => prev ?? (agentsData?.[0]?.id ?? null));

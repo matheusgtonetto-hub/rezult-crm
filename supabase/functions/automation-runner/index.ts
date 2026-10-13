@@ -2929,6 +2929,66 @@ async function checkCondition(
 
 // ─── Action execution ─────────────────────────────────────────────────────────
 
+/**
+ * Nome e telefone tirados do GATILHO, para quando o fluxo não passou por um
+ * bloco Campos.
+ *
+ * "Criar lead" e "Criar negócio" montam o lead a partir do
+ * `context.staged_lead_data`, que só existe se um bloco Campos tiver rodado
+ * antes. Sem ele, o lead nascia com `whatsapp` nulo e o nome caía no literal
+ * "Novo lead (webhook)".
+ *
+ * Isso é aceitável num gatilho que não sabe de quem se trata, como um webhook
+ * HTTP cru. Não é aceitável num gatilho de MENSAGEM: ali o runner tem o
+ * telefone de quem escreveu no `context.phone`, e o nome de exibição do
+ * WhatsApp na conversa. Criar um lead sem nenhum dos dois produz um cartão
+ * mudo, sem como responder o contato -- foi o que o Geomar reportou em
+ * 13/10/2026, com uma automação de "mensagem recebida" que cria lead.
+ *
+ * O que o Campos preencher continua tendo prioridade: isto só preenche buraco.
+ */
+async function contatoDoGatilho(
+  supabase: SupabaseClient,
+  payload: TriggerPayload,
+  jaPreenchido: Record<string, unknown>,
+): Promise<{ name?: string; whatsapp?: string }> {
+  // Nada a fazer se o bloco Campos já resolveu os dois. Esta checagem evita
+  // duas consultas por execução no caminho mais comum.
+  if (jaPreenchido.name && jaPreenchido.whatsapp) return {};
+
+  const ctx = payload.context as Record<string, unknown>;
+  // Só gatilho de mensagem e de atendimento trazem `phone`. Webhook HTTP e MCP
+  // guardam o corpo em `changed_fields`, então para eles isto não faz nada e o
+  // comportamento antigo segue valendo.
+  const telefone = String(ctx.phone ?? "").trim();
+  if (!telefone) return {};
+
+  // O nome de exibição vive na conversa, não na mensagem. Busca pelo id quando
+  // ele veio no gatilho e, se não veio, pela conversa mais recente do telefone.
+  //
+  // `limit(1)` e índice zero em vez de `maybeSingle()`: existem duplicatas reais
+  // de conversa para o mesmo telefone, e o maybeSingle estoura quando acha mais
+  // de uma linha.
+  let nome = "";
+  const convId = ctx.conversation_id as string | undefined;
+  if (convId) {
+    const { data } = await supabase
+      .from("whatsapp_conversations").select("name").eq("id", convId).limit(1);
+    nome = String((data as { name?: string }[] | null)?.[0]?.name ?? "").trim();
+  }
+  if (!nome) {
+    const { data } = await supabase
+      .from("whatsapp_conversations").select("name")
+      .eq("company_id", payload.company_id).eq("phone", telefone)
+      .order("last_msg_at", { ascending: false }).limit(1);
+    nome = String((data as { name?: string }[] | null)?.[0]?.name ?? "").trim();
+  }
+
+  // Sem nome, o próprio telefone é melhor rótulo que "Novo lead (webhook)":
+  // identifica a pessoa e é o que o atendente usa para procurar a conversa.
+  return { whatsapp: telefone, name: nome || telefone };
+}
+
 async function executeAction(
   supabase: SupabaseClient,
   item: ActionItem,
@@ -2996,6 +3056,13 @@ async function executeAction(
         status: "open",
         deal_number: nextDealNumber,
       };
+      // Preenche o que o bloco Campos deixou em branco, nunca por cima: o que a
+      // pessoa mapeou no fluxo vale mais que o que o runner deduziu. Testa por
+      // valor FALSY e não por chave ausente, porque uma interpolação que não
+      // resolveu grava string vazia, e aí a chave existe sem valer nada.
+      for (const [k, v] of Object.entries(await contatoDoGatilho(supabase, payload, insertLead))) {
+        if (!insertLead[k]) insertLead[k] = v;
+      }
       if (!insertLead.name) insertLead.name = "Novo lead (webhook)";
       {
         const o = normalizeOrigin(insertLead.origin);
@@ -3063,6 +3130,10 @@ async function executeAction(
         };
         insertData.column_id = columnId;
         insertData.pipeline_id = pipelineId;
+        // Mesma regra do "Criar lead" acima: tapa buraco, não sobrescreve.
+        for (const [k, v] of Object.entries(await contatoDoGatilho(supabase, payload, insertData))) {
+          if (!insertData[k]) insertData[k] = v;
+        }
         if (!insertData.name) insertData.name = "Novo lead (webhook)";
         {
           const o = normalizeOrigin(insertData.origin);

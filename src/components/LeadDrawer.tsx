@@ -7,6 +7,7 @@ import { upsertContact } from "@/lib/contacts";
 import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { usePipelinePermissions } from "@/hooks/usePipelinePermissions";
 import { supabase } from "@/lib/supabase";
+import { temGatilho } from "@/lib/gatilhos-do-fluxo";
 import { telefonesIguais, variantesDeTelefone } from "@/lib/telefone";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -307,13 +308,25 @@ export function LeadDrawer({ leadId, open, onClose }: Props) {
   const openManualAuto = async () => {
     setManualAutoLoading(true);
     setManualAutoOpen(true);
+    /* Por `company_id`, e não por `owner_id`.
+     *
+     * Automação pertence à EMPRESA; o `owner_id` é auditoria de quem criou (ver
+     * "Modelo de Acesso" no CLAUDE.md). Enquanto o filtro era pelo dono, toda
+     * automação criada por um membro convidado sumia desta lista para os
+     * outros, inclusive para o dono. Numa empresa de uma pessoa só ninguém
+     * percebia, porque os dois valores coincidem.
+     *
+     * As consultas de conversa e de arquivo logo acima continuam no
+     * `owner_id` de propósito: nas tabelas do WhatsApp é o `owner_id` que
+     * carrega a empresa, e lá ele é o dono dela, não quem criou a linha. */
     const { data } = await supabase
       .from("automations")
       .select("id, name, flow")
-      .eq("owner_id", tenantId)
+      .eq("company_id", company?.id ?? "")
       .eq("active", true);
-    type AutoRow = { id: string; name: string; flow: { trigger?: { triggerId?: string } | null } | null };
-    const manualOnes = (data ?? [] as AutoRow[]).filter((a: AutoRow) => a.flow?.trigger?.triggerId === "lead_manual");
+    type AutoRow = { id: string; name: string; flow: unknown };
+    // Lê TODOS os gatilhos, não só o primeiro. Ver src/lib/gatilhos-do-fluxo.ts.
+    const manualOnes = (data ?? [] as AutoRow[]).filter((a: AutoRow) => temGatilho(a.flow, "lead_manual"));
     setManualAutoList(manualOnes.map((a: AutoRow) => ({ id: a.id, name: a.name })));
     setManualAutoLoading(false);
   };

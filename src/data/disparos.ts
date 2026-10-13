@@ -1,6 +1,7 @@
 // ─── Disparos — camada de dados ────────────────────────────────────────────
 // Execução em massa de automações (gatilho manual por leads) sobre leads filtrados.
 import { supabase } from "@/lib/supabase";
+import { temGatilho } from "@/lib/gatilhos-do-fluxo";
 import type { Lead, CrmList } from "./mockData";
 
 export type DisparoStatus = "criado" | "agendado" | "em_andamento" | "pausado" | "concluido" | "erro";
@@ -340,8 +341,9 @@ export async function deleteDisparoItem(id: string): Promise<void> {
   if (error) throw error;
 }
 
-// Automações elegíveis: apenas as que têm o gatilho "Execução manual da automação
-// por lead ou contato" (triggerId === "lead_manual").
+// Automações elegíveis: as que têm o gatilho "Execução manual da automação por
+// lead ou contato" (triggerId === "lead_manual") entre os SEUS gatilhos, que
+// podem ser mais de um.
 export interface AutomationOption { id: string; name: string; active: boolean; }
 export async function fetchLeadManualAutomations(companyId: string): Promise<AutomationOption[]> {
   const { data, error } = await supabase
@@ -351,10 +353,10 @@ export async function fetchLeadManualAutomations(companyId: string): Promise<Aut
     .order("name", { ascending: true });
   if (error) throw error;
   return (data ?? [])
-    .filter(a => {
-      const trig = (a.flow as { trigger?: { triggerId?: string } } | null)?.trigger;
-      return trig?.triggerId === "lead_manual";
-    })
+    // `temGatilho`, e não `flow.trigger.triggerId`: uma automação pode ter
+    // vários gatilhos, e o `flow.trigger` guarda só o PRIMEIRO. Ver
+    // src/lib/gatilhos-do-fluxo.ts.
+    .filter(a => temGatilho(a.flow, "lead_manual"))
     .map(a => ({ id: a.id as string, name: a.name as string, active: !!a.active }));
 }
 
