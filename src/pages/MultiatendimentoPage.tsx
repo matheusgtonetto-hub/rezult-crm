@@ -3815,7 +3815,12 @@ export default function MultiatendimentoPage() {
     let list = visibleConvList;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
-      list = list.filter(c => convName(c).toLowerCase().includes(q) || (c.phone ?? "").includes(q) || c.preview.toLowerCase().includes(q));
+      // `preview ?? ""` pelo mesmo motivo do filtro das mensagens rápidas: com
+      // strictNullChecks desligado, o compilador aceita `.toLowerCase()` em
+      // coluna anulável e o erro só aparece na tela do cliente. Hoje não há
+      // conversa com preview nulo em produção (conferido: 0 de 335), mas a
+      // coluna aceita nulo, e a busca de conversa é usada o tempo todo.
+      list = list.filter(c => convName(c).toLowerCase().includes(q) || (c.phone ?? "").includes(q) || (c.preview ?? "").toLowerCase().includes(q));
     }
     /*
      * O corte é por LEITURA, e não por "já respondemos alguma vez".
@@ -6724,11 +6729,30 @@ export default function MultiatendimentoPage() {
                 {/* ── Mensagens rápidas ── */}
                 {settingsTab === "quick" && (() => {
                   const term = qmSearch.trim().toLowerCase();
+                  /* Tudo com `?? ""`, e não só o atalho.
+                   *
+                   * `content` é NULO em toda mensagem de áudio -- está escrito
+                   * no próprio tipo, logo acima: "sempre nulo em áudio". Este
+                   * filtro chamava `.toLowerCase()` direto nele, então digitar
+                   * qualquer letra aqui derrubava a tela inteira com um
+                   * TypeError. Quem só tem mensagem de texto nunca viu; o
+                   * Geomar, com 48 áudios e zero textos, viu na primeira
+                   * tentativa (13/10/2026).
+                   *
+                   * O compilador não pegou porque este projeto roda com
+                   * `strict: false` e `strictNullChecks: false`: o `| null` do
+                   * tipo existe para quem lê, não para quem compila.
+                   *
+                   * `media_nome` entrou na busca junto: numa lista de áudios,
+                   * o nome do arquivo é o único texto além do título e do
+                   * atalho, e era o que faltava para a busca servir para o
+                   * caso dele. */
                   const filtered = term
                     ? qmList.filter(q =>
-                        q.title.toLowerCase().includes(term) ||
-                        q.content.toLowerCase().includes(term) ||
-                        (q.shortcut ?? "").toLowerCase().includes(term))
+                        (q.title ?? "").toLowerCase().includes(term) ||
+                        (q.content ?? "").toLowerCase().includes(term) ||
+                        (q.shortcut ?? "").toLowerCase().includes(term) ||
+                        (q.media_nome ?? "").toLowerCase().includes(term))
                     : qmList;
                   return (
                     <div>
