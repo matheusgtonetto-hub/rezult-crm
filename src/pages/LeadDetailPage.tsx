@@ -1613,7 +1613,22 @@ export default function LeadDetailPage() {
                               <Plus size={12} className="mr-1" /> Tag
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="w-44">
+                          {/* Teto de altura e rolagem. Sem isso, uma conta com
+                              muitas tags abria uma lista do tamanho do número
+                              de tags: o Radix virava o menu para cima para
+                              tentar caber e ele saía pelo topo da janela, com
+                              as primeiras tags inalcançáveis.
+
+                              `--radix-dropdown-menu-content-available-height` é
+                              o espaço que o próprio Radix mede entre o botão e
+                              a borda da tela. O `min` com 18rem evita o outro
+                              extremo: numa tela alta, 40 tags abririam um menu
+                              de um palmo e meio. */}
+                          <DropdownMenuContent
+                            align="start"
+                            collisionPadding={12}
+                            className="w-44 max-h-[min(18rem,var(--radix-dropdown-menu-content-available-height))] overflow-y-auto"
+                          >
                             {crmTags.length === 0 && (
                               <div className="px-3 py-2 text-xs text-muted-foreground">
                                 Crie tags em Configurações.

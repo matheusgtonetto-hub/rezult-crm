@@ -66,6 +66,7 @@ import { CreateDealDialog } from "@/components/CreateDealDialog";
 import type { Contact } from "@/lib/contacts";
 import { tintaSobre } from "@/lib/contraste";
 import { SentinelaDeScroll } from "@/components/SentinelaDeScroll";
+import { useValorAtrasado } from "@/hooks/useValorAtrasado";
 
 const priorityColors: Record<string, string> = {
   Alta: "bg-destructive/10 text-destructive",
@@ -332,6 +333,48 @@ export default function PipelinePage() {
       else next.delete("search");
       return next;
     }, { replace: true });
+  };
+
+  /**
+   * O campo tem estado próprio, e a URL só recebe o texto depois que a pessoa
+   * para de digitar.
+   *
+   * Antes a tecla ia direto para a URL e de lá para `buscar_leads_do_funil`.
+   * Como o kanban dispara uma consulta POR COLUNA, cada caractere virava uma
+   * consulta por etapa do funil: digitar oito letras num funil de cinco etapas
+   * eram quarenta consultas, e só as cinco últimas interessavam. As outras
+   * trinta e cinco disputavam a mesma conexão e atrasavam as que importavam.
+   * Era isso que aparecia como "a busca demora para puxar os dados".
+   *
+   * `ultimaBuscaEnviada` separa a mudança que veio daqui da que veio de fora
+   * (voltar/avançar do navegador, link com `?search=`). Sem isso, a URL
+   * atrasada voltaria para o campo e apagaria o que a pessoa digitou enquanto
+   * o atraso corria.
+   */
+  const [textoDaBusca, setTextoDaBusca] = useState(search);
+  const buscaAtrasada = useValorAtrasado(textoDaBusca, 350);
+  const ultimaBuscaEnviada = useRef(search);
+
+  useEffect(() => {
+    if (buscaAtrasada === ultimaBuscaEnviada.current) return;
+    ultimaBuscaEnviada.current = buscaAtrasada;
+    setSearch(buscaAtrasada);
+    // `setSearch` é recriada a cada render; incluí-la aqui refaria o efeito
+    // sem o texto ter mudado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buscaAtrasada]);
+
+  useEffect(() => {
+    if (search === ultimaBuscaEnviada.current) return;
+    ultimaBuscaEnviada.current = search;
+    setTextoDaBusca(search);
+  }, [search]);
+
+  // Limpar é imediato: esperar 350ms para o X fazer efeito parece travamento.
+  const limparBusca = () => {
+    setTextoDaBusca("");
+    ultimaBuscaEnviada.current = "";
+    setSearch("");
   };
   const [sortKey, setSortKey] = useState<SortKey>(() => (sessionStorage.getItem("pipeline_filter_sort") as SortKey) ?? "recent");
   const [status, setStatus] = useState<StatusFilter>(() => (sessionStorage.getItem("pipeline_filter_status") as StatusFilter) ?? "open");
@@ -1068,12 +1111,12 @@ export default function PipelinePage() {
               className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
             />
             <Input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
+              value={textoDaBusca}
+              onChange={e => setTextoDaBusca(e.target.value)}
               placeholder="Pesquisar por nome, empresa, telefone ou #"
               // `pr-7` só quando há texto: sem o botão, o respiro extra à
               // direita deixaria o placeholder cortado antes da hora.
-              className={`pl-8 h-[30px] w-64 bg-card border-card-border rounded-lg text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary ${search ? "pr-7" : ""}`}
+              className={`pl-8 h-[30px] w-64 bg-card border-card-border rounded-lg text-xs focus-visible:ring-0 focus-visible:ring-offset-0 focus-visible:border-primary ${textoDaBusca ? "pr-7" : ""}`}
             />
             {/* Limpar a busca em um clique. Sem isso, sair de uma pesquisa de
                 "pesquisar por nome, empresa, telefone ou #" exigia segurar o
@@ -1086,10 +1129,10 @@ export default function PipelinePage() {
 
                 `type="button"` porque o campo pode acabar dentro de um <form>
                 um dia, e o padrão de um <button> ali é submeter. */}
-            {search && (
+            {textoDaBusca && (
               <button
                 type="button"
-                onClick={() => setSearch("")}
+                onClick={limparBusca}
                 aria-label="Limpar pesquisa"
                 title="Limpar pesquisa"
                 className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
