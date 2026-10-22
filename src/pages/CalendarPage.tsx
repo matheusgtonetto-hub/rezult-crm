@@ -93,9 +93,11 @@ interface MonthViewProps {
   today: Date;
   events: CalEvent[];
   onEvt: (e: CalEvent) => void;
+  /** Abre o dia na vista de horários. É o que o "+N mais" chama. */
+  onVerDia: (d: Date) => void;
 }
 
-function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
+function MonthView({ cur, today, events, onEvt, onVerDia }: MonthViewProps) {
   const ms = new Date(cur.getFullYear(), cur.getMonth(), 1);
   const me = new Date(cur.getFullYear(), cur.getMonth() + 1, 0);
   const cs = addDays(ms, -ms.getDay());
@@ -218,10 +220,20 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
                     </button>
                   );
                 })}
+                {/* Era um <span>, ou seja, texto morto: com 4 compromissos no
+                    mesmo dia, o quarto não tinha como ser aberto por lugar
+                    nenhum da vista de mês. Agora leva para a vista de dia,
+                    que mostra todos na grade de horários. */}
                 {dayEvts.length > 3 && (
-                  <span className="text-[12px] px-1" style={{ color: "var(--text-muted)" }}>
+                  <button
+                    type="button"
+                    onClick={() => onVerDia(day)}
+                    className="text-[12px] px-1 rounded hover:underline"
+                    style={{ color: "var(--text-muted)", cursor: "pointer" }}
+                    title={`Ver os ${dayEvts.length} compromissos deste dia`}
+                  >
                     +{dayEvts.length - 3} mais
-                  </span>
+                  </button>
                 )}
               </div>
             </div>
@@ -233,6 +245,83 @@ function MonthView({ cur, today, events, onEvt }: MonthViewProps) {
 }
 
 // ─── Vista Semana / Dia (grade de horários) ───────────────────────────────────
+
+/** Onde um evento fica na horizontal quando divide o horário com outros. */
+interface FatiaDoEvento {
+  evt: CalEvent;
+  /** Coluna que ele ocupa, de 0 a `colunas - 1`. */
+  coluna: number;
+  /** Quantas colunas o grupo sobreposto precisou. */
+  colunas: number;
+}
+
+/**
+ * Divide a largura entre compromissos que ocupam o mesmo intervalo.
+ *
+ * Antes todo evento era desenhado com `left: 3, right: 3`, ou seja, a coluna
+ * inteira. Dois compromissos no mesmo horário ficavam um EM CIMA do outro, e o
+ * de baixo era invisível e inclicável. Com a agenda de um closer isso não é caso
+ * raro: dois leads marcam 14:15 no mesmo dia e um dos dois some da tela.
+ *
+ * O algoritmo é o do Google Agenda, em duas passadas:
+ *
+ * 1. Varre em ordem de início e corta em GRUPOS. Um grupo termina quando aparece
+ *    um evento que começa depois do fim de todos os anteriores, porque a partir
+ *    dali ninguém mais encosta em ninguém e a largura pode voltar a ser cheia.
+ * 2. Dentro do grupo, cada evento entra na primeira coluna cujo último ocupante
+ *    já terminou. Se nenhuma serve, abre coluna nova.
+ *
+ * A sobreposição é medida pelo espaço que o evento OCUPA NA TELA, não pela
+ * duração real: a caixa tem piso de 22px (ver `height` adiante), então dois
+ * compromissos de 5 minutos em sequência se encostam visualmente mesmo sem se
+ * sobrepor no relógio.
+ */
+function distribuirEmColunas(evts: CalEvent[]): FatiaDoEvento[] {
+  /** Minutos que a caixa ocupa na tela, nunca menos que o piso de 22px. */
+  const MIN_VISUAL = (22 / HOUR_H) * 60;
+  const inicio = (e: CalEvent) => e.scheduledAt.getTime();
+  const fim = (e: CalEvent) =>
+    e.scheduledAt.getTime() + Math.max(e.durationMinutes, MIN_VISUAL) * 60_000;
+
+  const ordenados = [...evts].sort(
+    (a, b) => inicio(a) - inicio(b) || fim(b) - fim(a),
+  );
+
+  const fatias: FatiaDoEvento[] = [];
+  let grupo: CalEvent[] = [];
+  let fimDoGrupo = 0;
+
+  const fecharGrupo = () => {
+    if (grupo.length === 0) return;
+    // Último ocupante de cada coluna, para saber onde o próximo cabe.
+    const ultimoDaColuna: CalEvent[] = [];
+    const colunaDe = new Map<string, number>();
+    for (const e of grupo) {
+      let idx = ultimoDaColuna.findIndex(ultimo => fim(ultimo) <= inicio(e));
+      if (idx === -1) {
+        ultimoDaColuna.push(e);
+        idx = ultimoDaColuna.length - 1;
+      } else {
+        ultimoDaColuna[idx] = e;
+      }
+      colunaDe.set(e.id, idx);
+    }
+    for (const e of grupo) {
+      fatias.push({ evt: e, coluna: colunaDe.get(e.id) ?? 0, colunas: ultimoDaColuna.length });
+    }
+    grupo = [];
+    fimDoGrupo = 0;
+  };
+
+  for (const e of ordenados) {
+    if (grupo.length > 0 && inicio(e) >= fimDoGrupo) fecharGrupo();
+    grupo.push(e);
+    fimDoGrupo = Math.max(fimDoGrupo, fim(e));
+  }
+  fecharGrupo();
+
+  return fatias;
+}
 
 interface TimeGridProps {
   view: "semana" | "dia";
@@ -382,11 +471,17 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                 ))}
 
                 {/* Eventos */}
-                {dayEvts.map(evt => {
+                {distribuirEmColunas(dayEvts).map(({ evt, coluna, colunas }) => {
                   const h = evt.scheduledAt.getHours();
                   const m = evt.scheduledAt.getMinutes();
                   const top = ((h * 60 + m) / 60) * HOUR_H;
                   const height = Math.max((evt.durationMinutes / 60) * HOUR_H, 22);
+                  // Largura dividida entre quem divide o horário. Os 3px de
+                  // respiro ficam só nas bordas externas da coluna do dia, e
+                  // entre as fatias sobra 1px de folga.
+                  const larguraPct = 100 / colunas;
+                  const esquerda = `calc(${coluna * larguraPct}% + 3px)`;
+                  const largura = `calc(${larguraPct}% - ${colunas > 1 ? 4 : 6}px)`;
                   const now = new Date();
                   const overdue = !evt.isCompleted && !evt.isNoShow && evt.scheduledAt < now;
                   const s = overdue
@@ -405,8 +500,8 @@ function TimeGridView({ view, cur, today, events, onEvt, gridRef }: TimeGridProp
                         position: "absolute",
                         top,
                         height,
-                        left: 3,
-                        right: 3,
+                        left: esquerda,
+                        width: largura,
                         background: s.bg,
                         color: s.color,
                         borderRadius: 6,
@@ -960,6 +1055,7 @@ export default function CalendarPage() {
                 today={today}
                 events={calEvents}
                 onEvt={e => setEditingEvent(e)}
+                onVerDia={d => { setCur(d); setView("dia"); }}
               />
             )}
             {(view === "semana" || view === "dia") && (
