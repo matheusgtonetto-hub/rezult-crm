@@ -314,7 +314,15 @@ function Pill({ children, title }: { children: React.ReactNode; title?: string }
   return (
     <span
       title={title}
-      /* `--accent-50`, e NÃO `--surface-accent-strong)/10`.
+      /* O VERDE CLARO do sistema desde 26/10/2026 (dono): `bg-success-soft`
+       * (#CFFAEB) com a tinta própria dele, #0F7A5B, a 4,68:1. Antes era o
+       * `--accent-50`, que ficou CINZA quando a rampa virou charcoal, e por
+       * isso as pills tinham perdido o verde sem ninguém pedir.
+       *
+       * O histórico abaixo continua valendo: o fundo precisa ser cor sólida
+       * de token, nunca alfa sobre hex.
+       *
+       * `--accent-50`, e NÃO `--surface-accent-strong)/10`.
        *
        * Aquela classe não pintava nada: medido ao vivo em 28/09/2026, o fundo
        * computado era `rgba(0, 0, 0, 0)`. O modificador de alfa do Tailwind
@@ -326,7 +334,7 @@ function Pill({ children, title }: { children: React.ReactNode; title?: string }
        * (#10312A), o que alfa sobre hex nunca teria: 10% de verde sobre fundo
        * escuro fica invisível. */
       className="inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-medium leading-none
-                 bg-[color:var(--accent-50)] text-[color:var(--text-link)]"
+                 bg-success-soft text-success-soft-foreground"
     >
       {children}
     </span>
@@ -366,8 +374,9 @@ function CardAgenteOperacional({ agente, onToggle }: { agente: Agent; onToggle: 
           <p title={agente.name} className="text-[14px] font-bold text-[color:var(--text-heading)] truncate">{agente.name}</p>
           {/* Selo, e não texto solto: ele diz uma categoria ("este agente não
               precisa de configuração"), e categoria é o papel de um selo. */}
+          {/* Mesmo verde claro das pills logo abaixo (26/10/2026). */}
           <span className="inline-flex items-center gap-1 mt-0.5 rounded-full px-2 py-0.5 text-[12px] font-semibold leading-none
-                           bg-[color:var(--accent-50)] text-[color:var(--text-link)]">
+                           bg-success-soft text-success-soft-foreground">
             <Check size={11} /> Pronto para usar
           </span>
         </div>
