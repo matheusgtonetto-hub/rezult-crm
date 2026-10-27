@@ -12,7 +12,7 @@ import { Check, Zap, ArrowLeft, Loader2 } from "lucide-react";
 
 import { STRIPE_PRICES, type StripePlanKey, type StripeBillingPeriod } from "@/data/stripePrices";
 import { TextoDoRecurso } from "@/components/TextoDoRecurso";
-import { PLANS, chaveDoRecurso } from "@/data/plans";
+import { PLANS, chaveDoRecurso, planosDoPeriodo } from "@/data/plans";
 import { pixelTrack } from "@/lib/metaPixel";
 
 type PlanKey = StripePlanKey;
@@ -40,6 +40,13 @@ interface PlanInfo {
 }
 
 const PLAN_INFO: PlanInfo[] = [
+  {
+    key: "starter",
+    name: "Starter",
+    // Só mensal: `planosDoPeriodo` tira o Starter das outras abas.
+    prices:       { monthly: "R$ 97", semiannual: "", annual: "" },
+    monthlyEquiv: { semiannual: "", annual: "" },
+  },
   {
     key: "silver",
     name: "Silver",
@@ -94,6 +101,10 @@ export default function PlanosPage() {
     : null;
   const { isActive, plan: activePlan, loading: subLoading } = useSubscription();
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod>("monthly");
+  // A tela fala monthly/semiannual/annual e a regra fala mensal/semestral/anual.
+  const ABA_DO_PERIODO = { monthly: "mensal", semiannual: "semestral", annual: "anual" } as const;
+  const chavesDoPeriodo = planosDoPeriodo(ABA_DO_PERIODO[billingPeriod]).map(p => p.key);
+  const planosNaTela = PLAN_INFO.filter(p => chavesDoPeriodo.includes(p.key));
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
 
   useEffect(() => { pixelTrack("ViewContent", { content_name: "Planos" }); }, []);
@@ -103,6 +114,10 @@ export default function PlanosPage() {
     if (!company) { toast.error("Nenhuma empresa encontrada. Configure sua empresa primeiro."); return; }
 
     const priceId = STRIPE_PRICES[planKey][billingPeriod];
+    // O Starter entrou no código antes de ter preço no Stripe (26/10/2026). Com o
+    // ID vazio, o checkout recebia `priceId: ""` e a Edge Function respondia erro
+    // genérico; aqui a pessoa recebe o motivo e nada é chamado.
+    if (!priceId) { toast.error("Este plano ainda não está disponível para contratação."); return; }
     setLoadingPlan(planKey);
     pixelTrack("InitiateCheckout", { content_name: planKey, content_category: "subscription" });
 
@@ -217,8 +232,8 @@ export default function PlanosPage() {
       </div>
 
       {/* Plan cards */}
-      <div className="w-full max-w-7xl grid grid-cols-1 md:grid-cols-3 gap-6">
-        {PLAN_INFO.map((plan) => {
+      <div className={`w-full max-w-7xl grid grid-cols-1 gap-6 ${planosNaTela.length === 4 ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3"}`}>
+        {planosNaTela.map((plan) => {
           const isCurrentPlan = isActive && activePlan === plan.key;
           const isLoading = loadingPlan === plan.key;
 

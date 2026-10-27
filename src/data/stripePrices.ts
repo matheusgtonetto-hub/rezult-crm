@@ -1,4 +1,15 @@
 export const STRIPE_PRICES = {
+  /*
+   * Starter: SÓ MENSAL (dono, 26/10/2026). Produto no Stripe:
+   * prod_VW0TXyilSbvLYL. Semestral e anual ficam vazios para sempre, e os três
+   * pontos que abrem o checkout recusam ID vazio com um aviso em vez de chamar
+   * o Stripe.
+   */
+  starter: {
+    monthly:    "price_1UUyT0HxAJVer2B2wNTb51rc",
+    semiannual: "",
+    annual:     "",
+  },
   silver: {
     monthly:    "price_1TougzHxAJVer2B2OhFa2dMf",
     semiannual: "price_1TougyHxAJVer2B2XcQObtEA",

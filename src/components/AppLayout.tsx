@@ -3,6 +3,7 @@ import { Outlet, useNavigate, useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { AppSidebar } from "@/components/AppSidebar";
 import { BarraSuperior } from "@/components/BarraSuperior";
+import { JuntaDasBarras } from "@/components/JuntaDasBarras";
 import { lerBarraRecolhida, gravarBarraRecolhida, larguraDaBarra } from "@/lib/barraLateral";
 import { useCRM } from "@/context/CRMContext";
 import { useCompany } from "@/context/CompanyContext";
@@ -241,6 +242,9 @@ export default function AppLayout() {
            margem e a largura do `<main>` derivam desta variável, os dois
            acompanham sem precisar de um segundo `if`. */
         ["--barra-largura" as string]: emModoCelular ? "0px" : larguraDaBarra(barraRecolhida),
+        /* Onde a régua da barra superior começa: logo depois da curva da junta.
+           No celular não há junta, e ela atravessa a tela. */
+        ["--inicio-da-regua" as string]: emModoCelular ? "0px" : "calc(var(--barra-largura) - 1px + var(--junta-barras))",
       }}
     >
       {/*
@@ -256,6 +260,7 @@ export default function AppLayout() {
         atravessando a tela, mas com a assinatura na coluna da esquerda.
       */}
       <BarraSuperior compacta={faixaCompacta} aoAbrirMenu={emModoCelular ? () => setMenuAberto(true) : undefined} />
+      {!emModoCelular && <JuntaDasBarras />}
       {/* `recolhida={false}` na gaveta: ela abre com os rótulos. Num telefone
           não há tooltip de mouse, então uma coluna de ícones sem texto seria
           adivinhação. */}
@@ -268,17 +273,20 @@ export default function AppLayout() {
         mostrarAgenda={faixaCompacta}
       />
       {/*
-        As barras SEPARADAS, com a linha atravessando a tela.
+        As réguas das duas barras se encontram numa CURVA (dono, 26/10/2026).
 
-        Foi peça em L, com o canto arredondado e uma régua única contornando a
-        curva, entre 21/09 e 22/09/2026. O dono desfez: quer a linha de baixo da
-        barra superior seguindo até a borda esquerda da tela, sem curva, para as
-        duas barras ficarem bem divididas.
+        Foi peça em L entre 21/09 e 22/09, depois barras separadas com a linha
+        de cima atravessando a tela até a borda esquerda, e agora a curva volta:
+        a régua de cima vem da direita, para na lateral e desce por ela num
+        canto de `--junta-barras`. Sob a marca, à esquerda da curva, não há
+        linha.
 
-        Agora cada uma carrega a sua borda -- a superior a de baixo, a lateral a
-        da direita --, e a linha horizontal atravessa também o cabeçalho da
-        lateral, onde mora a marca. O que o olho lê é uma faixa de 48px no topo
-        da tela inteira, e abaixo dela o menu à esquerda e o conteúdo à direita.
+        Desta vez a curva NÃO veio com a mudança de lugar das barras: a
+        superior continua atravessando a tela no layout, a lateral continua
+        abaixo dela, e as duas mantêm a borda de 1px, só que transparente. As
+        linhas visíveis são desenho por cima (`JuntaDasBarras` e a régua
+        dentro da `BarraSuperior`), e é isso que deixa cada elemento das barras
+        exatamente onde estava.
       */}
       <main
         style={{

@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { PLANS, chaveDoRecurso } from "@/data/plans";
+import { PLANS, chaveDoRecurso, planosDoPeriodo, COLUNAS_DA_GRADE } from "@/data/plans";
 import { TextoDoRecurso } from "@/components/TextoDoRecurso";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -446,8 +446,8 @@ export function FreePlanBanner() {
           </div>
 
           {/* Plan cards */}
-          <div className="grid grid-cols-3 gap-4">
-            {PLANS.map((plan) => {
+          <div className={`grid ${COLUNAS_DA_GRADE[planosDoPeriodo(billingTab).length]} gap-4`}>
+            {planosDoPeriodo(billingTab).map((plan) => {
               const save = getSave(plan);
               return (
                 <div

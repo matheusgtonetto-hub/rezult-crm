@@ -84,7 +84,7 @@ export default function LoginPage() {
           <div className="flex justify-center mb-6"><MarcaRezult /></div>
 
           <div className="flex justify-center mb-4">
-            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+            <div className="w-14 h-14 rounded-full bg-success-soft flex items-center justify-center">
               <MailCheck size={28} className="text-primary" />
             </div>
           </div>
@@ -253,7 +253,7 @@ export default function LoginPage() {
           <Button
             type="button"
             variant="outline"
-            className="w-full h-[var(--control-h-lg)] font-medium bg-card border border-primary text-primary hover:bg-primary/5 hover:text-primary active:bg-primary/10 transition-colors"
+            className="w-full h-[var(--control-h-lg)] font-medium bg-card border border-primary text-primary hover:bg-success-soft hover:text-primary active:brightness-[0.97] transition-colors"
             onClick={() => navigate("/register")}
           >
             {t("login.criarConta")}

@@ -199,7 +199,7 @@ export function CreateDisparoWizard({
                     className="w-full flex items-center gap-3 p-4 rounded-xl border text-left transition-colors"
                     style={{ borderColor: type === "automation" ? "hsl(var(--primary))" : "var(--border-default)", background: type === "automation" ? "hsl(var(--primary) / 0.04)" : "var(--surface-card)" }}
                   >
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-success-soft flex items-center justify-center shrink-0">
                       <Workflow size={20} className="text-primary" />
                     </div>
                     <div className="flex-1">

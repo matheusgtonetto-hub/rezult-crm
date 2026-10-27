@@ -146,7 +146,7 @@ export default function ResetPasswordPage() {
     return shell(
       <div className="text-center">
         <div className="flex justify-center mb-4">
-          <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+          <div className="w-14 h-14 rounded-full bg-success-soft flex items-center justify-center">
             <MailCheck size={28} className="text-primary" />
           </div>
         </div>
@@ -165,7 +165,7 @@ export default function ResetPasswordPage() {
   return shell(
     <>
       <div className="flex justify-center mb-4">
-        <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+        <div className="w-14 h-14 rounded-full bg-success-soft flex items-center justify-center">
           <KeyRound size={28} className="text-primary" />
         </div>
       </div>

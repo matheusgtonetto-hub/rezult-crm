@@ -180,7 +180,7 @@ export default function SettingsPage() {
                 // seções, e a seta marca o fim da linha em vez do começo.
                 className={`flex items-center justify-between gap-[5px] px-4 py-[7px] font-normal leading-[16px] border-l-[3px] ${
                   isActive
-                    ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-sm"
+                    ? "w-[95%] mx-auto bg-success-soft border-primary pl-[13px] rounded-sm"
                     : "w-full border-transparent"
                 }`}
                 style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 400, letterSpacing: 0, color: "var(--text-heading)" }}
@@ -487,12 +487,12 @@ function PerfilSection({ setPwOpen }: { setPwOpen: (open: boolean) => void }) {
                   <div>
                     <p className="text-[14px] font-medium text-foreground">{c.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {{"free":"Free","silver":"Plano Silver","platinum":"Plano Platinum","emerald":"Plano Emerald","enterprise":"Plano Enterprise"}[c.plan] ?? c.plan}
+                      {{"free":"Free","starter":"Plano Starter","silver":"Plano Silver","platinum":"Plano Platinum","emerald":"Plano Emerald","enterprise":"Plano Enterprise"}[c.plan] ?? c.plan}
                     </p>
                   </div>
                 </div>
                 {c.id === company?.id && (
-                  <span className="text-[12px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full shrink-0">Ativa</span>
+                  <span className="text-[12px] font-medium text-primary bg-success-soft px-2 py-0.5 rounded-full shrink-0">Ativa</span>
                 )}
               </div>
             ))}
@@ -1187,7 +1187,7 @@ function PermissionsEditor({
                   return (
                     <label
                       key={opt.id}
-                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-primary/10" : "bg-card hover:bg-muted"}`}
+                      className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${selected ? "bg-success-soft" : "bg-card hover:bg-muted"}`}
                     >
                       <input
                         type="checkbox"
@@ -1753,7 +1753,7 @@ function EquipeSection() {
                       disabled={isAdminInvite}
                       onClick={() => setGrupoAberto(grupo.id)}
                       className={`w-full flex items-center gap-2 px-3 py-[9px] rounded-[6px] text-left transition-colors ${
-                        ativo ? "bg-primary/10" : "enabled:hover:bg-muted"
+                        ativo ? "bg-success-soft" : "enabled:hover:bg-muted"
                       } disabled:opacity-40 disabled:cursor-not-allowed`}
                     >
                       <Icon size={14} className={`shrink-0 ${ativo || temEscolha ? "text-primary" : "text-muted-foreground"}`} />
@@ -1792,7 +1792,7 @@ function EquipeSection() {
                       type="button"
                       onClick={() => setGrupoAberto("departamentos")}
                       className={`w-full flex items-center gap-2 px-3 py-[9px] rounded-[6px] text-left transition-colors ${
-                        ativo ? "bg-primary/10" : "hover:bg-muted"
+                        ativo ? "bg-success-soft" : "hover:bg-muted"
                       }`}
                     >
                       <Folder size={14} className={`shrink-0 ${ativo || temEscolha ? "text-primary" : "text-muted-foreground"}`} />
@@ -1826,7 +1826,7 @@ function EquipeSection() {
                         <label
                           key={d.id}
                           className={`flex items-center gap-3 px-4 py-3 rounded-[8px] border cursor-pointer transition-colors ${
-                            marcado ? "border-primary bg-primary/10" : "border-card-border bg-card hover:bg-muted"
+                            marcado ? "border-primary bg-success-soft" : "border-card-border bg-card hover:bg-muted"
                           }`}
                         >
                           <input
@@ -1915,7 +1915,7 @@ function EquipeSection() {
                           <label
                             key={opt.id}
                             className={`flex items-start gap-3 px-4 py-3 rounded-[8px] border cursor-pointer transition-colors ${
-                              marcada ? "border-primary bg-primary/10" : "border-card-border bg-card hover:bg-muted"
+                              marcada ? "border-primary bg-success-soft" : "border-card-border bg-card hover:bg-muted"
                             }`}
                           >
                             <input
@@ -2005,7 +2005,7 @@ function EquipeSection() {
                       <label
                         key={d.id}
                         className={`flex items-center gap-3 px-4 py-3 rounded-[8px] border cursor-pointer transition-colors ${
-                          marcado ? "border-primary bg-primary/10" : "border-card-border bg-card hover:bg-muted"
+                          marcado ? "border-primary bg-success-soft" : "border-card-border bg-card hover:bg-muted"
                         }`}
                       >
                         <input
@@ -2045,6 +2045,7 @@ function EquipeSection() {
 /* ---------------- PLANOS E PAGAMENTOS ---------------- */
 const PLAN_LABELS: Record<string, string> = {
   free:     "Free",
+  starter:  "Starter",
   silver:   "Silver",
   platinum: "Platinum",
   emerald:  "Emerald",
@@ -2061,7 +2062,7 @@ function UsageCard({ label, current, limit, icon }: { label: string; current: nu
   return (
     <div className="bg-card border border-card-border rounded-2xl shadow-elev-1 p-4">
       <div className="flex items-center gap-2 mb-3">
-        <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+        <div className="w-7 h-7 rounded-lg bg-success-soft flex items-center justify-center shrink-0">
           {icon}
         </div>
         <p className="text-[12px] font-semibold text-foreground">{label}</p>
@@ -2223,7 +2224,7 @@ function PlanosSection() {
           {/* Lado esquerdo */}
           <div className="flex flex-col justify-center w-full md:w-1/2 md:pr-5">
             <div className="flex items-center gap-2 mb-0.5">
-              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <div className="w-7 h-7 rounded-lg bg-success-soft flex items-center justify-center shrink-0">
                 <CreditCard size={15} className="text-primary" />
               </div>
               <h2 className="text-lg font-bold text-foreground">Planos e pagamentos</h2>
@@ -2690,7 +2691,7 @@ function ProdutosSection() {
                 <TableRow key={p.id} className="border-card-border hover:bg-muted/50">
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-success-soft flex items-center justify-center shrink-0">
                         <ShoppingCart size={14} className="text-primary" />
                       </div>
                       <span className="text-[14px] font-medium text-foreground">{p.name}</span>
@@ -3022,7 +3023,7 @@ function ListasSection() {
                 <TableRow key={l.id} className="border-card-border hover:bg-muted/50">
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-success-soft flex items-center justify-center shrink-0">
                         <List size={14} className="text-primary" />
                       </div>
                       <span className="text-[14px] font-medium text-foreground">{l.name}</span>
@@ -3235,11 +3236,11 @@ function CamposSection() {
                 onClick={() => toggle(g.id)}
                 className="flex items-center gap-2 flex-1 text-left"
               >
-                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-success-soft flex items-center justify-center shrink-0">
                   <FormInput size={13} className="text-primary" />
                 </div>
                 <span className="text-[14px] font-semibold text-foreground">{g.name}</span>
-                {g.isDefault && <Badge className="text-[12px] bg-primary/10 text-primary border-0">padrão</Badge>}
+                {g.isDefault && <Badge className="text-[12px] bg-success-soft text-primary border-0">padrão</Badge>}
                 <Badge variant="secondary" className="text-[12px]">{g.items.length} perguntas</Badge>
                 <ChevronDown
                   size={14}
@@ -5069,7 +5070,7 @@ function ConexoesSection() {
             <>
               <p className="text-xs text-muted-foreground -mt-1 mb-3">Selecione o provedor de integração</p>
               <div
-                className="border-[1.5px] border-primary rounded-xl p-4 flex items-center gap-3 cursor-pointer bg-primary/10/20"
+                className="border-[1.5px] border-primary rounded-xl p-4 flex items-center gap-3 cursor-pointer bg-success-soft"
                 onClick={() => setStep("creds")}
               >
                 <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center shrink-0">
@@ -5532,7 +5533,7 @@ function MetaAdsCard() {
         subtitle="Cadastre um ou mais pixels do Meta Ads. Cada automação pode escolher qual pixel usar — útil quando você tem diferentes funis com campanhas distintas."
       />
 
-      <div className="flex flex-col gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg mb-4">
+      <div className="flex flex-col gap-2 p-3 bg-success-soft border border-primary/20 rounded-lg mb-4">
         <div className="flex gap-2">
           <Input
             placeholder="Nome (ex: Funil Crédito Fácil)"
@@ -5672,7 +5673,8 @@ function ArmazenamentoSection() {
 
   const PLAN_STORAGE: Record<string, { bytes: number; label: string }> = {
     free:     { bytes: 500  * 1024 * 1024,         label: "500 MB" },
-    silver:   { bytes: 2   * 1024 * 1024 * 1024,   label: "2 GB"   },
+    starter:  { bytes: 1   * 1024 * 1024 * 1024,   label: "1 GB"   },
+    silver:   { bytes: 10  * 1024 * 1024 * 1024,   label: "10 GB"  },  // 10 GB desde 26/10/2026, igual ao PLAN_LIMITS
     platinum: { bytes: 5   * 1024 * 1024 * 1024,   label: "5 GB"   },
     emerald:  { bytes: 20  * 1024 * 1024 * 1024,   label: "20 GB"  },
   };

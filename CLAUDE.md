@@ -4,7 +4,7 @@ CRM de vendas B2B brasileiro. SaaS com multi-tenancy por empresa. Stack: React +
 
 ## Contexto do Produto
 
-- Planos: Silver (R$237/mês), Platinum (R$399/mês), Emerald (R$747/mês) — com desconto semestral (-15%) e anual (-30%)
+- Planos: Starter (R$97/mês), Silver (R$237/mês), Platinum (R$399/mês), Emerald (R$747/mês) — com desconto semestral (-15%) e anual (-30%)
 - Mercado: PMEs brasileiras com times de vendas
 - UI 100% em português brasileiro
 - Cada empresa é isolada por RLS no Supabase (multi-tenant)
@@ -364,16 +364,20 @@ O plano é vinculado à **empresa** (não ao usuário). Todos os membros da empr
 
 | Plano (chave interna) | Mensal | Semestral (total) | Anual (total) |
 |----------------------|--------|-------------------|---------------|
+| Starter (`starter`) | R$ 97 | — (só mensal) | — (só mensal) |
 | Silver (`silver`) | R$ 237 | R$ 1.209 | R$ 1.989 |
 | Platinum (`platinum`) | R$ 399 | R$ 2.035 | R$ 3.352 |
 | Emerald (`emerald`) | R$ 747 | R$ 3.810 | R$ 6.272 |
 
-> As chaves internas (`silver`, `platinum`, `emerald`) são usadas no banco e no Stripe metadata — **nunca alterar sem migration SQL**.
+> As chaves internas (`starter`, `silver`, `platinum`, `emerald`) são usadas no banco e no Stripe metadata — **nunca alterar sem migration SQL**.
+>
+> **Starter (26/10/2026):** limites em `src/data/plans.ts` (1 usuário, 500 leads, 3 automações, 1 conexão WhatsApp, 2 pipelines, 3 webhooks, 1 GB). A chave `starter` já foi do plano que virou `silver` em 13/06/2026; foi reaproveitada depois de conferir que nenhuma assinatura ativa carrega o nome antigo. **Só mensal**: `soMensal: true` em `PLANS`, e `planosDoPeriodo()` tira o Starter das abas semestral e anual das quatro telas de venda. Sem ofertas na Ticto. Migration: `20261027004937_plano_starter.sql` (aplicada em produção em 27/10/2026, 00:49 UTC) (restrição de `subscriptions.plan_name`).
 
 ### Price IDs Stripe (live mode)
 
 | Plano | Mensal | Semestral | Anual |
 |-------|--------|-----------|-------|
+| Starter | `price_1UUyT0HxAJVer2B2wNTb51rc` (produto `prod_VW0TXyilSbvLYL`) | — | — |
 | Silver | `price_1TougzHxAJVer2B2OhFa2dMf` | `price_1TougyHxAJVer2B2XcQObtEA` | `price_1TougzHxAJVer2B2pYF5yixE` |
 | Platinum | `price_1TougzHxAJVer2B21QUlvqh7` | `price_1Touh0HxAJVer2B2nc56t9f1` | `price_1TougyHxAJVer2B2U6e9SlEV` |
 | Emerald | `price_1TougyHxAJVer2B2UWGevkxv` | `price_1TougzHxAJVer2B247BGzYO9` | `price_1TougzHxAJVer2B2pePEiWPm` |

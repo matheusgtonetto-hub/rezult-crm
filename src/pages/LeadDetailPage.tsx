@@ -1087,7 +1087,7 @@ export default function LeadDetailPage() {
         {/* Esquerda */}
         <button
           onClick={() => navigate("/pipeline")}
-          className="flex items-center gap-1.5 text-sm hover:bg-[color:var(--neutral-100)] rounded-md px-2 py-1.5 transition-colors"
+          className="flex items-center gap-1.5 text-[13px] leading-5 hover:bg-[color:var(--neutral-100)] rounded-md px-2 py-1.5 transition-colors"
           style={{ color: "var(--text-heading)" }}
         >
           <ArrowLeft size={16} />
@@ -1144,7 +1144,16 @@ export default function LeadDetailPage() {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button disabled={pipelinePerms.blockChangeAttendant} className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent">
+              {/* Só os avatares, a pedido do dono (26/10/2026): nome e e-mail
+                  saíram do topo e ficam no menu. O `title` e o `aria-label`
+                  seguram o nome para quem passa o mouse e para leitor de tela,
+                  que sem texto visível não teria o que anunciar. */}
+              <button
+                disabled={pipelinePerms.blockChangeAttendant}
+                title={leadResps.length === 0 ? "Sem responsável" : leadResps.join(", ")}
+                aria-label={leadResps.length === 0 ? "Sem responsável" : `Responsáveis: ${leadResps.join(", ")}`}
+                className="flex items-center rounded-full p-1 hover:bg-muted transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+              >
                 {leadResps.length === 0 ? (
                   <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0" style={{ background: "var(--text-muted)" }}>S</div>
                 ) : (
@@ -1163,20 +1172,12 @@ export default function LeadDetailPage() {
                     )}
                   </div>
                 )}
-                <div className="flex flex-col items-start leading-tight">
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs font-semibold text-foreground">
-                      {leadResps.length === 0 ? "Sem responsável" : leadResps.length === 1 ? leadResps[0] : `${leadResps.length} responsáveis`}
-                    </span>
-                    <ChevronDown size={12} className="text-muted-foreground" />
-                  </div>
-                  {leadResps.length === 1 && memberEmails[leadResps[0]] && (
-                    <span className="text-[12px] text-muted-foreground">{memberEmails[leadResps[0]]}</span>
-                  )}
-                </div>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56 p-1">
+            {/* Largura pelo conteúdo: o `w-56` fixo cortava o e-mail no meio.
+                O teto impede um e-mail muito longo de atravessar a tela; acima
+                dele o texto trunca com reticências, e o `title` mostra inteiro. */}
+            <DropdownMenuContent align="end" className="min-w-56 w-max max-w-[min(360px,calc(100vw-32px))] p-1">
               {leadResps.length > 0 && (
                 <DropdownMenuItem
                   onClick={() => updateField("responsibles", [])}
@@ -1204,9 +1205,9 @@ export default function LeadDetailPage() {
                   ) : (
                     <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[12px] font-bold shrink-0" style={{ background: memberColors[m] || "var(--neutral-700)" }}>{m[0]}</div>
                   )}
-                  <div className="flex flex-col leading-tight">
-                    <span className="text-xs font-medium" style={{ fontWeight: selected ? 600 : 400 }}>{m}</span>
-                    {memberEmails[m] && <span className="text-[12px] text-muted-foreground">{memberEmails[m]}</span>}
+                  <div className="flex flex-col leading-tight min-w-0">
+                    <span className="text-xs font-medium truncate" style={{ fontWeight: selected ? 600 : 400 }}>{m}</span>
+                    {memberEmails[m] && <span className="text-[12px] text-muted-foreground truncate" title={memberEmails[m]}>{memberEmails[m]}</span>}
                   </div>
                 </DropdownMenuItem>
               )})}
@@ -1229,12 +1230,12 @@ export default function LeadDetailPage() {
         </div>
       </div>
 
-      {/* PROGRESS BAR */}
+      {/* PROGRESS BAR -- sem borda inferior desde 26/10/2026, a pedido do
+          dono: a régua de cima (a da TOPBAR) é a única que separa esta faixa. */}
       <div
         style={{
           height: 65,
           background: "var(--surface-card)",
-          borderBottom: "1px solid var(--border-default)",
           paddingLeft: 16,
           paddingRight: 16,
           flexShrink: 0,
@@ -1263,17 +1264,20 @@ export default function LeadDetailPage() {
             /*
              * As três situações da trilha, em tokens.
              *
-             * A etapa CONCLUÍDA estava em `#E1F5EE`, um verde claro escrito à
-             * mão que não existe na rampa, com tinta `--accent-700`: 3,98:1,
-             * abaixo do mínimo de 4,5 para 12px. Agora é o `--accent-100` da
-             * rampa com tinta `--accent-800`, que dá 6,26:1.
+             * A etapa CONCLUÍDA é verde claro com tinta verde, num par de
+             * tokens só dela (`--etapa-concluida-*`, ver index.css): lendo a
+             * rampa, ela tinha virado cinza com preto na troca para charcoal.
              *
-             * A ATIVA mantém o `--accent-700` de fundo com tinta branca
-             * (4,52:1). O emerald da marca (`--accent-400`) não serve de fundo
-             * aqui: com branco por cima daria 1,85:1.
+             * A ATIVA é a cor de ação, o mesmo par dos botões (dono,
+             * 26/10/2026): `--accent-400` de fundo com `--text-on-accent` em
+             * cima. No claro é #128C69 com branco, 4,22:1, abaixo do piso de
+             * 4,5 para estes 10px, o mesmo número que o dono aceitou nos
+             * botões. Antes ela lia o `--accent-700`, que é TINTA e ficou
+             * preta quando a rampa virou charcoal; por isso a trilha não
+             * acompanhou a volta do verde.
              */
-            const bg = isActive ? "var(--accent-700)" : isPast ? "var(--accent-100)" : "var(--neutral-50)";
-            const color = isActive ? "var(--text-inverse)" : isPast ? "var(--accent-800)" : "var(--text-muted)";
+            const bg = isActive ? "var(--accent-400)" : isPast ? "var(--etapa-concluida-bg)" : "var(--neutral-50)";
+            const color = isActive ? "var(--text-on-accent)" : isPast ? "var(--etapa-concluida-tinta)" : "var(--text-muted)";
             const stageRef = lead.stageEnteredAt ? lead.stageEnteredAt.split("T")[0] : lead.entryDate;
             const days = idx === activeIdx ? daysBetween(stageRef, today) : isPast ? 2 : 0;
             return (
@@ -1824,7 +1828,7 @@ export default function LeadDetailPage() {
                               key={title}
                               title={title}
                               onMouseDown={e => { e.preventDefault(); applyNewNoteFormat(cmd); }}
-                              className={`flex items-center justify-center rounded transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                              className={`flex items-center justify-center rounded transition-colors ${isActive ? "bg-success-soft text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
                               style={{ width: 26, height: 26 }}
                             >
                               {icon}
@@ -1970,7 +1974,7 @@ export default function LeadDetailPage() {
                                           applyFormat(cmd);
                                         }
                                       }}
-                                      className={`flex items-center justify-center rounded transition-colors ${isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+                                      className={`flex items-center justify-center rounded transition-colors ${isActive ? "bg-success-soft text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
                                       style={{ width: 26, height: 26 }}
                                     >
                                       {icon}
@@ -2659,7 +2663,7 @@ export default function LeadDetailPage() {
                     <div className="space-y-2">
                       {uploadedFiles.map(f => (
                         <div key={f.id} className="flex items-center gap-3 p-3 rounded-lg group" style={{ background: "var(--surface-card)", border: "1px solid var(--border-default)" }}>
-                          <div className="w-9 h-9 rounded-md bg-[#E1F5EE] flex items-center justify-center shrink-0" style={{ color: "var(--accent-700)" }}>
+                          <div className="w-9 h-9 rounded-md bg-success-soft flex items-center justify-center shrink-0" style={{ color: "var(--accent-700)" }}>
                             {f.mimeType.startsWith("image/") ? <ImageIcon size={16} /> : <FileText size={16} />}
                           </div>
                           <div className="flex-1 min-w-0">

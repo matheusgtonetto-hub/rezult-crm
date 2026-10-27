@@ -43,6 +43,11 @@ export interface PlanDefinition {
    */
   features: Recurso[];
   pricing: PlanPricing;
+  /**
+   * Só é vendido no ciclo MENSAL: some das abas semestral e anual de toda tela
+   * de venda. Quem decide isso é `planosDoPeriodo`, e não cada tela.
+   */
+  soMensal?: boolean;
 }
 
 export interface PlanLimits {
@@ -55,7 +60,7 @@ export interface PlanLimits {
   storage: number | null; // GB
 }
 
-export const PAID_PLANS = ["silver", "platinum", "emerald"];
+export const PAID_PLANS = ["starter", "silver", "platinum", "emerald"];
 
 /**
  * O plano que vale AGORA, já considerando a validade.
@@ -77,12 +82,40 @@ export function planoEmVigor(
 
 export const PLAN_LIMITS: Record<string, PlanLimits> = {
   free:      { leads: 50,     members: 2,    connections: 1,    automations: 3,    pipelines: 2,    webhooks: 1,    storage: 1    },
+  // Starter (26/10/2026): o plano de entrada de R$ 97. Os seis números são os
+  // que o dono definiu; o armazenamento ficou em 1 GB, o do free.
+  starter:   { leads: 500,    members: 1,    connections: 1,    automations: 3,    pipelines: 2,    webhooks: 3,    storage: 1    },
   silver:    { leads: 5000,   members: 4,    connections: 3,    automations: 8,    pipelines: 5,    webhooks: 3,    storage: 10   },
   platinum:  { leads: 100000, members: 15,   connections: 10,   automations: 20,   pipelines: 20,   webhooks: 15,   storage: 50   },
   emerald:   { leads: null,   members: null, connections: null, automations: null, pipelines: null, webhooks: null, storage: null },
 };
 
 export const PLANS: PlanDefinition[] = [
+  {
+    key: "starter",
+    name: "Starter",
+    // Só mensal, decisão do dono (26/10/2026). Os campos semestral e anual de
+    // `pricing` ficam vazios porque o tipo os exige, e nenhuma tela os lê:
+    // `planosDoPeriodo` tira o Starter dessas abas antes.
+    soMensal: true,
+    features: [
+      { forte: "1 usuário",     resto: "no sistema" },
+      { forte: "500 leads",     resto: "com controle de tags" },
+      { forte: "3 automações",  resto: "para interações com leads" },
+      { forte: "1 conexão",     resto: "WhatsApp" },
+      { forte: "2 pipelines",   resto: "com até 8 etapas" },
+      { forte: "3 integrações", resto: "via Webhook" },
+      { resto: "Acesso à API e MCP" },
+      { resto: "Dashboards detalhados da operação" },
+    ],
+    pricing: {
+      mensal:        "R$ 97,00",
+      semestral:     "",
+      semestralSave: "",
+      anual:         "",
+      anualSave:     "",
+    },
+  },
   {
     key: "silver",
     name: "Silver",
@@ -148,3 +181,24 @@ export const PLANS: PlanDefinition[] = [
     },
   },
 ];
+
+/**
+ * Os planos à venda num período, na ordem de `PLANS`.
+ *
+ * Existe porque o Starter é só mensal (26/10/2026). Sem um lugar único para
+ * essa regra, cada uma das quatro telas de venda (Setup, oferta de
+ * contratação, faixa do plano gratuito e /planos) filtraria do seu jeito, e
+ * a primeira que esquecesse venderia um Starter anual que não existe.
+ */
+export function planosDoPeriodo(periodo: "mensal" | "semestral" | "anual"): PlanDefinition[] {
+  return PLANS.filter(p => periodo === "mensal" || !p.soMensal);
+}
+
+/**
+ * A classe de grade para N planos. Por extenso, e não `grid-cols-${n}`: o
+ * Tailwind só gera as classes que encontra escritas no código.
+ */
+export const COLUNAS_DA_GRADE: Record<number, string> = {
+  3: "grid-cols-3",
+  4: "grid-cols-4",
+};

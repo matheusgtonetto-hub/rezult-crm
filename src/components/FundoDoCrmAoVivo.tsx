@@ -1,5 +1,6 @@
 import { AppSidebar } from "@/components/AppSidebar";
 import { BarraSuperior } from "@/components/BarraSuperior";
+import { JuntaDasBarras } from "@/components/JuntaDasBarras";
 import InicioPage from "@/pages/InicioPage";
 import { lerBarraRecolhida, larguraDaBarra } from "@/lib/barraLateral";
 
@@ -89,21 +90,21 @@ export function FundoDoCrmAoVivo() {
              sairia com largura zero. A réplica usa o estado que a pessoa deixou
              no app, para o fundo parecer o CRM dela. */
           ["--barra-largura" as string]: larguraDaBarra(barraRecolhida),
+          ["--inicio-da-regua" as string]: "calc(var(--barra-largura) - 1px + var(--junta-barras))",
         }}
       >
         {/* A mesma ordem do app: barra superior por cima de tudo, lateral
             embaixo dela. Réplica decorativa, então a superior vai sem o botão
             de recolher -- aqui ele não teria o que fazer. */}
         <BarraSuperior />
+        <JuntaDasBarras />
         <div className="flex-1 min-h-0 flex">
         <AppSidebar recolhida={barraRecolhida} aoAlternar={() => {}} />
         {/* A mesma pilha do `AppLayout`: barra superior no topo, conteúdo
             embaixo. Sem isso a réplica mostraria um CRM que não existe -- a
             pessoa vê as duas barras em todas as telas depois daqui.
 
-            O canto arredondado da junta saiu junto com o do app, em
-            22/09/2026: as barras passaram a ser separadas, cada uma com a sua
-            borda. */}
+            A junta arredondada das réguas acompanha a do app (26/10/2026). */}
         <main
           className="flex-1 min-w-0 overflow-hidden flex flex-col"
           style={{ marginLeft: "var(--barra-largura)", background: "var(--surface-card)" }}

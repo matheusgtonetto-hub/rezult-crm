@@ -87,7 +87,7 @@ export default function DisparosPage() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="mt-16 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+          <div className="w-14 h-14 rounded-2xl bg-success-soft flex items-center justify-center mx-auto mb-4">
             <Rocket size={26} className="text-primary" />
           </div>
           <p className="text-base font-semibold">{disparos.length === 0 ? "Nenhum disparo ainda" : "Nenhum resultado"}</p>
@@ -111,7 +111,7 @@ export default function DisparosPage() {
               >
                 <p className="text-sm font-semibold text-foreground truncate">{d.title}</p>
                 <p className="text-xs text-muted-foreground truncate mt-0.5">{d.description || "—"}</p>
-                <span className="inline-flex items-center gap-1 text-[12px] font-medium bg-primary/10 text-primary rounded px-2 py-0.5 mt-2">
+                <span className="inline-flex items-center gap-1 text-[12px] font-medium bg-success-soft text-primary rounded px-2 py-0.5 mt-2">
                   <Workflow size={11} /> Automação
                 </span>
                 <div className="flex items-center gap-3 mt-3 text-xs text-muted-foreground">

@@ -320,7 +320,7 @@ export function PipelineFilterPanel({
                 // 1.5 (6px), e classe fora da escala não vira CSS nenhum -- o
                 // padding cairia para zero sem erro em lugar algum. 1.3 daria
                 // 5,2px; 5 evita a fração de pixel.
-                className={`w-full flex items-center gap-2 px-2 py-[5px] rounded-md text-[13px] transition-colors ${ativo ? "bg-muted" : "hover:bg-muted"}`}
+                className={`w-full flex items-center gap-2 px-2 py-[5px] rounded-md text-[13px] transition-colors ${ativo ? "bg-muted" : "hover:bg-success-soft"}`}
               >
                 {/* Ícone e nome sempre em preto. O verde era a terceira camada
                     dizendo a mesma coisa que a bolinha de contagem ao lado, e
@@ -331,14 +331,14 @@ export function PipelineFilterPanel({
                   {rotulo}
                 </span>
                 {qtd > 0 && (
-                  <span className="rounded-full bg-primary/15 text-primary text-[12px] font-bold px-1.5 leading-4">{qtd}</span>
+                  <span className="rounded-full bg-success-soft text-primary text-[12px] font-bold px-1.5 leading-4">{qtd}</span>
                 )}
                 {/* O status mostra o VALOR escolhido, não uma contagem: "Ganho"
                     diz o que está filtrando, e "1" não diria nada. Só aparece
                     fora do padrão ("Em aberto"), senão a linha ficaria sempre
                     marcada e o realce perderia a função. */}
                 {chave === "status" && statusDraft !== "open" && (
-                  <span className="rounded-full bg-primary/15 text-primary text-[12px] font-bold px-1.5 leading-4">
+                  <span className="rounded-full bg-success-soft text-primary text-[12px] font-bold px-1.5 leading-4">
                     {STATUS_OPCOES.find(o => o.valor === statusDraft)?.rotulo}
                   </span>
                 )}
@@ -361,7 +361,7 @@ export function PipelineFilterPanel({
           <Button
             variant="outline"
             size="sm"
-            className="flex-1 h-8 text-xs px-2 border-primary bg-card text-primary hover:bg-primary/10 hover:text-primary"
+            className="flex-1 h-8 text-xs px-2 border-primary bg-card text-primary hover:bg-success-soft hover:text-primary"
             disabled={activeCount === 0 && !statusRestringe}
             onClick={limparEAplicar}
           >

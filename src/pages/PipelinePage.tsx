@@ -68,9 +68,19 @@ import { tintaSobre } from "@/lib/contraste";
 import { SentinelaDeScroll } from "@/components/SentinelaDeScroll";
 import { useValorAtrasado } from "@/hooks/useValorAtrasado";
 
+/*
+ * O destaque das opções de Ordenação e Status, ao passar o mouse ou navegar
+ * pelo teclado. O SelectItem base pinta com `--accent`, que no sistema é a
+ * superfície NEUTRA de hover (cinza). Aqui o dono pediu verde claro, o mesmo
+ * menta das etapas concluídas do negócio (26/10/2026): o `--success-soft`,
+ * #CFFAEB no claro, que é também de onde a etapa lê. Recorte só desta tela;
+ * os outros menus do app continuam no cinza neutro.
+ */
+const ITEM_DE_FILTRO = "focus:bg-success-soft focus:text-foreground";
+
 const priorityColors: Record<string, string> = {
   Alta: "bg-destructive/10 text-destructive",
-  Média: "bg-primary/10 text-primary",
+  Média: "bg-success-soft text-primary",
   Baixa: "bg-muted text-muted-foreground",
 };
 
@@ -944,8 +954,8 @@ export default function PipelinePage() {
                 uma segunda fonte para a mesma aparência, que passaria a divergir
                 do vizinho no dia em que o tema mudasse.
 
-                Os dois ficam visualmente idênticos; o que os distingue é o ícone
-                e o rótulo.
+                Os dois ficam visualmente idênticos; o que os distingue é o
+                rótulo. O `+` da esquerda saiu a pedido do dono (26/10/2026).
 
                 `gap-1` (4px) para bater com os botões do multiatendimento, e o
                 `mr-1.5` do ícone saiu junto: o Button já traz `gap-2` na base,
@@ -960,21 +970,24 @@ export default function PipelinePage() {
                 conteúdo: 16px de linha (`leading-4`) mais 6 em cima e 6 embaixo,
                 28px.
 
-                `leading-4` explícito porque `text-[12px]` define só o tamanho da
+                `leading-4` explícito porque `text-[11px]` define só o tamanho da
                 fonte. O `text-sm` que ele substitui trazia a entrelinha junto, e
                 sem repô-la a altura da linha cairia para a herdada do body,
-                mudando a altura do botão por tabela. */}
+                mudando a altura do botão por tabela. É ele que mantém os 28px
+                mesmo com a fonte menor.
+
+                11px e peso 500 a pedido do dono (26/10/2026). Era 12px e 600. */}
             <Button
-              className="rounded-lg font-semibold h-auto px-[10px] py-[6px] text-[12px] leading-4 gap-1"
+              className="rounded-lg font-medium h-auto px-[10px] py-[6px] text-[11px] leading-4 gap-1"
               onClick={() => setAutomacaoAberta(true)}
             >
-              <Plus size={14} /> Enviar Automação
+              Enviar Automação
             </Button>
             <Button
-              className="rounded-lg font-semibold h-auto px-[10px] py-[6px] text-[12px] leading-4 gap-1"
+              className="rounded-lg font-medium h-auto px-[10px] py-[6px] text-[11px] leading-4 gap-1"
               onClick={() => setNovoLeadOpen(true)}
             >
-              <Plus size={14} /> Novo Lead
+              Novo Lead
             </Button>
           </div>
 
@@ -1155,10 +1168,10 @@ export default function PipelinePage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-card-border">
-                  <SelectItem value="recent">Mais recentes</SelectItem>
-                  <SelectItem value="oldest">Mais antigos</SelectItem>
-                  <SelectItem value="value">Valor</SelectItem>
-                  <SelectItem value="name">Nome</SelectItem>
+                  <SelectItem value="recent" className={ITEM_DE_FILTRO}>Mais recentes</SelectItem>
+                  <SelectItem value="oldest" className={ITEM_DE_FILTRO}>Mais antigos</SelectItem>
+                  <SelectItem value="value" className={ITEM_DE_FILTRO}>Valor</SelectItem>
+                  <SelectItem value="name" className={ITEM_DE_FILTRO}>Nome</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1170,10 +1183,10 @@ export default function PipelinePage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-card-border">
-                  <SelectItem value="open">Em aberto</SelectItem>
-                  <SelectItem value="won">Ganho</SelectItem>
-                  <SelectItem value="lost">Perdido</SelectItem>
-                  <SelectItem value="all">Todos</SelectItem>
+                  <SelectItem value="open" className={ITEM_DE_FILTRO}>Em aberto</SelectItem>
+                  <SelectItem value="won" className={ITEM_DE_FILTRO}>Ganho</SelectItem>
+                  <SelectItem value="lost" className={ITEM_DE_FILTRO}>Perdido</SelectItem>
+                  <SelectItem value="all" className={ITEM_DE_FILTRO}>Todos</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1265,13 +1278,20 @@ export default function PipelinePage() {
                               <div
                                 ref={provided.innerRef}
                                 {...provided.droppableProps}
-                                className={`min-w-[280px] w-[280px] h-full flex flex-col rounded-2xl border border-card-border bg-card shadow-elev-1 transition-colors ${
+                                className={`min-w-[280px] w-[280px] h-full flex flex-col rounded-2xl border border-card-border bg-card shadow-elev-1 transition-colors overflow-hidden ${
                                   snapshot.isDraggingOver ? "bg-[#F8F9FA]" : ""
                                 }`}
                               >
-                                {/* Top color line */}
+                                {/* Top color line. Quem arredonda é o `overflow-hidden` da
+                                    coluna, e não a própria barra (26/10/2026): ela tinha
+                                    `rounded-t-lg` (8px) dentro de uma coluna de 16px, e os
+                                    cantos saíam por fora. Dar 15px à barra não resolve,
+                                    porque com 4px de altura o navegador reduz o raio para
+                                    caber. A lista de cards já rola num `overflow-y-auto`
+                                    próprio, e os popovers vão para um portal, então o
+                                    corte não esconde nada. */}
                                 <div
-                                  className="h-1 w-full rounded-t-lg"
+                                  className="h-1 w-full shrink-0"
                                   style={{ backgroundColor: col.color }}
                                 />
                                 {/* Header */}
@@ -2073,7 +2093,7 @@ export default function PipelinePage() {
                           key={name}
                           onClick={() => setSelectedPermAttendant(name)}
                           className={`flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors ${
-                            isSelected ? "bg-primary/8 border-r-2 border-primary" : "hover:bg-muted/60"
+                            isSelected ? "bg-success-soft border-r-2 border-primary" : "hover:bg-muted/60"
                           }`}
                         >
                           {avatar ? (
@@ -2185,7 +2205,7 @@ export default function PipelinePage() {
                               onClick={() => setEditPipelineGroup(g.name)}
                               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm border transition-colors ${
                                 editPipelineGroup === g.name
-                                  ? "border-primary bg-primary/5 text-foreground"
+                                  ? "border-primary bg-success-soft text-foreground"
                                   : "border-card-border bg-card text-foreground hover:bg-muted/50"
                               }`}
                             >

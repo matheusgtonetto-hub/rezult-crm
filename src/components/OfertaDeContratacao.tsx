@@ -3,7 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useCompany } from "@/context/CompanyContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { PLANS, chaveDoRecurso } from "@/data/plans";
+import { PLANS, chaveDoRecurso, planosDoPeriodo, COLUNAS_DA_GRADE } from "@/data/plans";
 import { STRIPE_PRICES } from "@/data/stripePrices";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -100,7 +100,15 @@ const TOTAIS_DO_CICLO: Record<string, { semestral: string; anual: string }> = {
 };
 
 /** Medidas do cartão preto. O desenho inteiro foi calibrado nelas. */
-const LARGURA_DO_CARD = 980;
+/*
+ * 1280 e não mais 980 desde 26/10/2026: com o Starter a aba Mensal passou a ter
+ * QUATRO planos, e em 980 cada coluna caía de ~291px para ~213px. O texto dos
+ * recursos quebrava em mais linhas e a lista passava da altura fixa do cartão,
+ * cortada pelo `overflow-hidden`. 1280 devolve às quatro colunas a largura que
+ * as três tinham ((1280 - 82 - 36) / 4 = 290px). Em janela menor a `escala`
+ * encolhe o desenho inteiro, então nada passa a ser cortado na lateral.
+ */
+const LARGURA_DO_CARD = 1280;
 const ALTURA_DO_CARD  = 652;
 
 /** Quantos meses cada ciclo cobre. É a ponte entre mensalidade e total. */
@@ -178,8 +186,6 @@ function precosDoCartao(
 ): {
   /** O número grande do cartão, sempre por mês. */
   porMes: string;
-  /** A mensalidade do plano mensal, para riscar acima do `porMes`. */
-  referenciaMensal: string;
   /**
    * Quanto o ciclo inteiro poupa em relação a comprar mês a mês. Nulo quando não
    * há economia -- o caso do mensal sem oferta, onde os dois valores são o mesmo.
@@ -212,9 +218,8 @@ function precosDoCartao(
 
   return {
     porMes: emReais(totalDeTabela / meses),
-    referenciaMensal: emReais(mensalCheio),
     // Meio centavo de arredondamento não é economia. O corte em 0,01 evita um
-    // "Economize R$ 0,00" no mensal sem oferta, onde os dois valores são o mesmo.
+    // "Economia total de R$ 0,00" no mensal sem oferta, onde os dois valores são o mesmo.
     economia: economia >= 0.01 ? emReais(economia) : null,
     total: emReais(totalDeTabela),
     linhaDeCobranca: ciclo === "mensal"
@@ -317,8 +322,12 @@ export function OfertaDeContratacao({
       return;
     }
 
-    setConfirming(true);
     const priceId = STRIPE_PRICES[confirmPlan][BILLING_TAB_TO_PERIOD[billingTab]];
+    // O Starter entrou no código antes de ter preço no Stripe (26/10/2026). Com o
+    // ID vazio, o checkout recebia `priceId: ""` e a Edge Function respondia erro
+    // genérico; aqui a pessoa recebe o motivo e nada é chamado.
+    if (!priceId) { toast.error("Este plano ainda não está disponível para contratação."); return; }
+    setConfirming(true);
     pixelTrack("InitiateCheckout", { content_name: confirmPlan, content_category: "subscription" });
 
     try {
@@ -543,8 +552,8 @@ export function OfertaDeContratacao({
                         <span aria-hidden />
                       </div>
 
-                      <div className="grid grid-cols-3 gap-3 pt-4">
-                        {PLANS.map((plan) => {
+                      <div className={`grid ${COLUNAS_DA_GRADE[planosDoPeriodo(billingTab).length]} gap-3 pt-4`}>
+                        {planosDoPeriodo(billingTab).map((plan) => {
                           const precos = precosDoCartao(plan, billingTab);
                           const destaque = !!plan.badge;
                           return (
@@ -586,12 +595,11 @@ export function OfertaDeContratacao({
                                   `precosDoCartao`, justamente porque precisam
                                   fechar entre si. */}
                               <div className="mt-[2px] mb-4">
-                                {/* Riscado a MENSALIDADE, e não o total do ciclo:
-                                    o número grande logo abaixo também é por mês,
-                                    e assim a comparação se lê sem conta nenhuma.
-                                    O valor do ciclo inteiro aparece na linha de
-                                    cobrança, onde há espaço para dizer o que ele
-                                    é.
+                                {/* Só a economia, em verde (dono, 26/10/2026). Havia
+                                    à esquerda a mensalidade cheia riscada em
+                                    vermelho; saiu, e o selo passou a dizer
+                                    "Economia total" porque o valor é mesmo o do
+                                    ciclo inteiro contra comprar mês a mês.
 
                                     Margem NEGATIVA de 3px: a caixa de linha do
                                     texto de 16px carrega uns 4px invisíveis
@@ -599,14 +607,15 @@ export function OfertaDeContratacao({
                                     sem encostar uma linha na outra. */}
                                 {precos.economia && (
                                   <div className="flex items-center gap-2 -mb-[3px] min-w-0">
-                                    <s className="text-[14px] font-medium shrink-0" style={{ color: VENDA.vermelho }}>
-                                      {precos.referenciaMensal}
-                                    </s>
+                                    {/* Texto solto, sem a pílula (26/10/2026): o fundo
+                                        dela era translúcido demais para aparecer, e
+                                        sobrava só o `px-2` empurrando o texto 8px
+                                        para dentro do alinhamento do nome. */}
                                     <span
-                                      className="inline-flex items-center text-[12px] font-medium rounded-full px-2 py-0.5 min-w-0"
-                                      style={{ background: VENDA.brilhoSuave, color: VENDA.verde }}
+                                      className="inline-flex items-center text-[13px] font-medium py-0.5 min-w-0"
+                                      style={{ color: VENDA.verde }}
                                     >
-                                      <span className="truncate">Economize {precos.economia}</span>
+                                      <span className="truncate">Economia total de {precos.economia}</span>
                                     </span>
                                   </div>
                                 )}
@@ -742,7 +751,7 @@ export function OfertaDeContratacao({
                     <button
                       type="button"
                       onClick={() => setFormaDePagamento("avista")}
-                      className="text-left rounded-[6px] border border-card-border px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5"
+                      className="text-left rounded-[6px] border border-card-border px-4 py-3 transition-colors hover:border-primary hover:bg-success-soft"
                     >
                       <p className="text-[13px] font-semibold text-foreground">À vista</p>
                       <p className="text-[12px] text-muted-foreground mt-0.5">
@@ -753,7 +762,7 @@ export function OfertaDeContratacao({
                     <button
                       type="button"
                       onClick={() => setFormaDePagamento("parcelado")}
-                      className="text-left rounded-[6px] border border-card-border px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5"
+                      className="text-left rounded-[6px] border border-card-border px-4 py-3 transition-colors hover:border-primary hover:bg-success-soft"
                     >
                       <p className="text-[13px] font-semibold text-foreground">Parcelado</p>
                       {/* O juro é dito aqui, e não no checkout. Parcelado sai

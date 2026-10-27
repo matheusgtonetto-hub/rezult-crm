@@ -4478,7 +4478,7 @@ export default function MultiatendimentoPage() {
               <div
                 key={c.id}
                 onClick={() => { if (selectionMode) { toggleConvSelected(c.id); return; } setActiveId(c.id); updateCs(c.id, { read: true }); }}
-                style={{ padding: "12px 16px", borderBottom: "1px solid var(--neutral-100)", background: (selectionMode && selected) ? "#E8F5F0" : isActive ? "var(--accent-50)" : "transparent", borderLeft: isActive ? "3px solid var(--border-accent)" : "3px solid transparent", cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }}
+                style={{ padding: "12px 16px", borderBottom: "1px solid var(--neutral-100)", background: (selectionMode && selected) ? "hsl(var(--success-soft))" : isActive ? "var(--accent-50)" : "transparent", borderLeft: isActive ? "3px solid var(--border-accent)" : "3px solid transparent", cursor: "pointer", display: "flex", gap: 10, alignItems: "center" }}
                 onMouseEnter={e => { if (!isActive && !(selectionMode && selected)) e.currentTarget.style.background = "var(--surface-hover)"; }}
                 onMouseLeave={e => { if (!isActive && !(selectionMode && selected)) e.currentTarget.style.background = "transparent"; }}
               >
@@ -6554,7 +6554,7 @@ export default function MultiatendimentoPage() {
               ]).map(({ tab, label }) => {
                 const active2 = settingsTab === tab;
                 return (
-                  <button key={tab} onClick={() => setSettingsTab(tab)} style={{ background: active2 ? "#E8F5F0" : "transparent", border: "none", cursor: "pointer", padding: "11px 16px", textAlign: "left", fontSize: 13, fontWeight: active2 ? 600 : 400, color: active2 ? "var(--accent-700)" : "#444", borderLeft: active2 ? "3px solid var(--border-accent)" : "3px solid transparent", transition: "all 0.15s" }}>
+                  <button key={tab} onClick={() => setSettingsTab(tab)} style={{ background: active2 ? "hsl(var(--success-soft))" : "transparent", border: "none", cursor: "pointer", padding: "11px 16px", textAlign: "left", fontSize: 13, fontWeight: active2 ? 600 : 400, color: active2 ? "var(--accent-700)" : "#444", borderLeft: active2 ? "3px solid var(--border-accent)" : "3px solid transparent", transition: "all 0.15s" }}>
                     {label}
                   </button>
                 );
@@ -6670,7 +6670,7 @@ export default function MultiatendimentoPage() {
                         <input placeholder="Pesquisar..." value={agentSearch} onChange={e => setAgentSearch(e.target.value)} style={{ border: "none", outline: "none", background: "transparent", fontSize: 12, color: "var(--text-heading)", flex: 1, minWidth: 0 }} />
                       </div>
                       {teamMembers.filter(m => !agentSearch || m.toLowerCase().includes(agentSearch.toLowerCase())).map(m => (
-                        <button key={m} onClick={() => setSelectedAgent(m)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, border: "none", cursor: "pointer", textAlign: "left", background: selectedAgent === m ? "#E8F5F0" : "#F9F9F9", borderLeft: selectedAgent === m ? "3px solid var(--border-accent)" : "3px solid transparent", flexShrink: 0 }}>
+                        <button key={m} onClick={() => setSelectedAgent(m)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 10, border: "none", cursor: "pointer", textAlign: "left", background: selectedAgent === m ? "hsl(var(--success-soft))" : "#F9F9F9", borderLeft: selectedAgent === m ? "3px solid var(--border-accent)" : "3px solid transparent", flexShrink: 0 }}>
                           <div style={{ width: 28, height: 28, borderRadius: "50%", background: corDoTexto(m), color: tintaSobre(corDoTexto(m)), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>{iniciais(m)}</div>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-heading)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m}</div>

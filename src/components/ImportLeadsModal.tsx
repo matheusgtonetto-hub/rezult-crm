@@ -302,8 +302,8 @@ export function ImportLeadsModal({ open, onClose }: Props) {
           {/* Upload zone */}
           <div
             className={`relative border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
-              isDragging ? "border-primary bg-primary/10"
-                        : "border-card-border hover:border-primary hover:bg-primary/5"
+              isDragging ? "border-primary bg-success-soft"
+                        : "border-card-border hover:border-primary hover:bg-success-soft"
             }`}
             onClick={() => inputRef.current?.click()}
             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}

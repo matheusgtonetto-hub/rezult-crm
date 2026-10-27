@@ -2367,7 +2367,7 @@ export default function AutomacoesPage() {
                             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); requestLeave(() => openEditor(item.id)); } }}
                             className={`flex items-center gap-2 px-3 h-[32px] font-normal leading-[16px] border-l-[3px] cursor-pointer ${
                               sel
-                                ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-sm"
+                                ? "w-[95%] mx-auto bg-success-soft border-primary pl-[13px] rounded-sm"
                                 : "w-full border-transparent"
                             }`}
                             style={{ fontFamily: "Inter, sans-serif", fontSize: "13px", fontStyle: "normal", fontWeight: 500, letterSpacing: 0, color: "var(--text-heading)" }}
@@ -7438,7 +7438,7 @@ function FieldDestPicker({ onSelect, onClose, customFieldGroups }: {
         <div style={{ flex: 1, overflowY: "auto" }}>
           {categories.map(c => (
             <button key={c.id} onClick={() => { setCat(c.id); setSearch(""); }}
-              style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "#F0FDF4" : "transparent", color: cat === c.id ? "#16A34A" : "var(--text-heading)", fontWeight: cat === c.id ? 600 : 400 }}>
+              style={{ display: "block", width: "100%", textAlign: "left", padding: "8px 12px", fontSize: 12, border: "none", cursor: "pointer", background: cat === c.id ? "hsl(var(--success-soft))" : "transparent", color: cat === c.id ? "hsl(var(--success-soft-foreground))" : "var(--text-heading)", fontWeight: cat === c.id ? 600 : 400 }}>
               {c.label}
             </button>
           ))}

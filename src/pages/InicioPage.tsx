@@ -220,7 +220,7 @@ function AnelDeProgresso({ valor }: { valor: number }) {
 const classeDoBotao = (feita: boolean) =>
   "inline-flex items-center gap-1.5 mt-3 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors disabled:opacity-60 " +
   (feita
-    ? "border-primary bg-transparent text-primary hover:bg-primary/10"
+    ? "border-primary bg-transparent text-primary hover:bg-success-soft"
     : "border-transparent bg-primary text-primary-foreground hover:bg-primary/90");
 
 /**
@@ -734,7 +734,7 @@ export default function InicioPage() {
         {proxima && (
           <Link
             to={proxima.para}
-            className="flex items-center justify-between gap-3 rounded-lg bg-primary/10 px-4 py-3 mb-5 hover:bg-primary/15 transition-colors"
+            className="flex items-center justify-between gap-3 rounded-lg bg-success-soft px-4 py-3 mb-5 hover:brightness-[0.97] transition-colors"
           >
             <span className="min-w-0">
               <span className="block text-[11px] uppercase tracking-wide text-[color:var(--accent-800)]">Próximo passo</span>

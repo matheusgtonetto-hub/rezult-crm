@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useCompany } from "@/context/CompanyContext";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
-import { PLANS, chaveDoRecurso, type PlanDefinition } from "@/data/plans";
+import { PLANS, chaveDoRecurso, type PlanDefinition, planosDoPeriodo, COLUNAS_DA_GRADE } from "@/data/plans";
 import { STRIPE_PRICES } from "@/data/stripePrices";
 import { Button } from "@/components/ui/button";
 import {
@@ -231,7 +231,15 @@ const PASSOS_DO_TOUR = [
  *
  * A altura conta os 650px do miolo mais 1px de moldura de cada lado.
  */
-const LARGURA_DO_CARD = 980;
+/*
+ * 1280 e não mais 980 desde 26/10/2026: com o Starter a aba Mensal passou a ter
+ * QUATRO planos, e em 980 cada coluna caía de ~291px para ~213px. O texto dos
+ * recursos quebrava em mais linhas e a lista passava da altura fixa do cartão,
+ * cortada pelo `overflow-hidden`. 1280 devolve às quatro colunas a largura que
+ * as três tinham ((1280 - 82 - 36) / 4 = 290px). Em janela menor a `escala`
+ * encolhe o desenho inteiro, então nada passa a ser cortado na lateral.
+ */
+const LARGURA_DO_CARD = 1280;
 const ALTURA_DO_CARD = 652;
 /** Folga mínima até a borda da janela, igual ao `py-10` da página. */
 const RESPIRO_DA_JANELA = 40;
@@ -553,9 +561,12 @@ export default function SetupPage() {
       return;
     }
 
-    setConfirming(true);
-
     const priceId = STRIPE_PRICES[confirmPlan][BILLING_TAB_TO_PERIOD[billingTab]];
+    // O Starter entrou no código antes de ter preço no Stripe (26/10/2026). Com o
+    // ID vazio, o checkout recebia `priceId: ""` e a Edge Function respondia erro
+    // genérico; aqui a pessoa recebe o motivo e nada é chamado.
+    if (!priceId) { toast.error("Este plano ainda não está disponível para contratação."); return; }
+    setConfirming(true);
     pixelTrack("InitiateCheckout", { content_name: confirmPlan, content_category: "subscription" });
 
     try {
@@ -965,8 +976,8 @@ export default function SetupPage() {
                         confirmação e o checkout da conta que já existe. Os
                         valores continuam saindo de PLANS e SETUP_PLAN_TOTALS,
                         que são os do app. */}
-                    <div className="grid grid-cols-3 gap-3 pt-4">
-                      {PLANS.map((plan) => {
+                    <div className={`grid ${COLUNAS_DA_GRADE[planosDoPeriodo(billingTab).length]} gap-3 pt-4`}>
+                      {planosDoPeriodo(billingTab).map((plan) => {
                         const save = getPlanSave(plan);
                         const destaque = !!plan.badge;
                         return (
@@ -1215,7 +1226,7 @@ export default function SetupPage() {
                     <button
                       type="button"
                       onClick={() => setFormaDePagamento("avista")}
-                      className="text-left rounded-[6px] border border-card-border px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5"
+                      className="text-left rounded-[6px] border border-card-border px-4 py-3 transition-colors hover:border-primary hover:bg-success-soft"
                     >
                       <p className="text-[13px] font-semibold text-foreground">À vista</p>
                       <p className="text-[12px] text-muted-foreground mt-0.5">
@@ -1226,7 +1237,7 @@ export default function SetupPage() {
                     <button
                       type="button"
                       onClick={() => setFormaDePagamento("parcelado")}
-                      className="text-left rounded-[6px] border border-card-border px-4 py-3 transition-colors hover:border-primary hover:bg-primary/5"
+                      className="text-left rounded-[6px] border border-card-border px-4 py-3 transition-colors hover:border-primary hover:bg-success-soft"
                     >
                       <p className="text-[13px] font-semibold text-foreground">Parcelado</p>
                       {/* O juro é dito aqui, e não no checkout. Parcelado sai

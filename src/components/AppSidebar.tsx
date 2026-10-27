@@ -97,10 +97,10 @@ const ITEM_BASE =
   "focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]";
 const ITEM_REPOUSO =
   "text-[color:var(--text-muted)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--text-heading)]";
-/* Cinza no tema claro, emerald no escuro. A marca clara voltou ao charcoal em
-   11/10/2026, e em preto a seleção viraria o elemento mais pesado da tela: ela
-   diz ONDE a pessoa está, não é uma ação para clicar. Ver --selecao-barra-* em
-   src/index.css. */
+/* Menta no tema claro (desde 26/10/2026, antes cinza), emerald no escuro. Não
+   é a cor cheia dos botões: em verde sólido a seleção viraria o elemento mais
+   pesado da tela, e ela diz ONDE a pessoa está, não é uma ação para clicar.
+   Ver --selecao-barra-* em src/index.css. */
 const ITEM_ATIVO = "bg-[color:var(--selecao-barra)] text-[color:var(--selecao-barra-tinta)] font-medium";
 
 /**
@@ -476,12 +476,13 @@ export function AppSidebar({ recolhida, aoAlternar, sobreposta = false, aberta =
           zIndex: 30,
           overflow: "hidden",
           background: "var(--surface-card)",
-          /* A régua da direita divide esta barra do conteúdo. Ela vai do topo
-             DESTA barra até o pé da tela, e não até o alto da janela: o pedido
-             do dono é que a linha vertical pare na régua da barra superior, em
-             vez de cruzá-la. Como a barra começa em `--topbar-h`, a borda já
-             nasce no lugar certo. */
-          borderRight: "1px solid var(--border-default)",
+          /* A régua da direita divide esta barra do conteúdo. Fora da gaveta
+             ela é desenhada pelo `JuntaDasBarras`, que a faz nascer da curva
+             que vem da barra superior (dono, 26/10/2026); aqui a borda fica
+             TRANSPARENTE, mas com o mesmo 1px, para a largura e a posição de
+             tudo o que está dentro continuarem as mesmas. Na gaveta do celular
+             não há junta, e a borda volta a ser visível. */
+          borderRight: sobreposta ? "1px solid var(--border-default)" : "1px solid transparent",
           transition: "width var(--dur-normal) var(--ease-out)",
         }}
       >

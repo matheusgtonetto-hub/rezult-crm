@@ -49,10 +49,11 @@
      ═══════════════════════════════════════════════════════════════════════ */
   :root {
     /* ── 1. Rampa da marca ──
-       CHARCOAL. Ele saiu e voltou entre 08 e 11/10/2026, e o vaivém vale ficar
-       registrado: charcoal (08/10), verde escuro #0F7A5B (11/10), emerald
-       original (11/10) e charcoal de novo (11/10), sempre a pedido do dono. Se
-       vier uma quarta virada, estas são as três coisas que quebram:
+       VERDE #128C69 na AÇÃO, charcoal na TINTA (26/10/2026). A marca já saiu e
+       voltou várias vezes, e o vaivém vale ficar registrado: charcoal (08/10),
+       verde escuro #0F7A5B (11/10), emerald original (11/10), charcoal de novo
+       (11/10) e, na quarta virada, o #128C69 do site (26/10), sempre a pedido
+       do dono. Se vier uma quinta, estas são as três coisas que quebram:
 
        1. A TINTA ANDA JUNTO. Sobre o charcoal ela é branca (16,8:1); sobre o
           emerald é charcoal, porque branco em cima do menta dá 1,85:1 e some.
@@ -65,6 +66,20 @@
           também. Qualquer campo delas que leia um token desta rampa vira preto
           sobre preto. Nas duas viradas isso aconteceu, uma vez em cada arquivo.
           Ver src/lib/superficie-de-venda.ts e o topo do FreePlanBanner.tsx.
+
+       ── A quarta virada (26/10/2026) ── O dono pediu os botões de volta no
+       verde, com o valor do site: #128C69, que lá é o `--verde-tinta`. Ele
+       nunca tinha morado nesta rampa (o verde daqui era o emerald #01D8A4).
+
+       Só a SUPERFÍCIE virou. O 700 e o 800 continuam #1D1D1D porque #128C69
+       como texto dá 4,22:1 sobre branco e reprova abaixo de 24px; o
+       `.text-primary` lê o 800, então link e ícone seguem pretos.
+
+       A tinta sobre o verde é branca, a 4,22:1. Isso reprova o piso de 4,5:1
+       no rótulo do botão (14px), e o dono aceitou sabendo disso. O hover
+       ESCURECE para #0F7A5B (5,31:1) e o press para #0A5C45, os dois degraus
+       vizinhos que o site já usa: escurecer em vez de clarear é o que impede
+       o hover de piorar um contraste que já está no limite.
 
        ── O raciocínio original do charcoal (08/10/2026) ── O site perdeu o verde em
        05/10 e passou a viver de preto, branco e cinza; o CRM foi atrás, e esta
@@ -94,9 +109,9 @@
     --accent-50:  #F7F7F7;
     --accent-100: #F2F2F2;
     --accent-200: #E7E7E7;
-    --accent-300: #3A3A3E;   /* hover: a superfície escura CLAREIA */
-    --accent-400: #1D1D1D;   /* A COR DA MARCA */
-    --accent-500: #0D0D0D;   /* press */
+    --accent-300: #0F7A5B;   /* hover: ESCURECE, branco em cima 5,31:1 */
+    --accent-400: #128C69;   /* A COR DA MARCA, só como superfície */
+    --accent-500: #0A5C45;   /* press */
     --accent-600: #525154;   /* ícone sobre claro */
     --accent-700: #1D1D1D;   /* TINTA sobre cartão, 16,8:1 */
     --accent-800: #1D1D1D;   /* TINTA sobre canvas, 15,2:1 */
@@ -108,8 +123,8 @@
        o cartão escuro, e o fundo precisa continuar verde fechado para o branco
        em cima dele continuar legível. Enquanto foi um token só, inverter
        quebrava metade dos usos, e não inverter quebrava a outra metade. */
-    --surface-accent-strong: #1D1D1D;  /* fundo sólido, tinta branca em cima */
-    --border-accent:         #1D1D1D;  /* borda/realce */
+    --surface-accent-strong: #128C69;  /* fundo sólido, tinta branca em cima */
+    --border-accent:         #128C69;  /* borda/realce */
 
     /* ── Neutros. Charcoal faz o trabalho do preto; #000 não aparece ── */
     --neutral-0:   #FFFFFF;
@@ -155,12 +170,49 @@
        deixa as duas escolhas explícitas, em vez de uma ser efeito colateral da
        outra.
 
-       O valor é o verde ORIGINAL da tela, bem mais lavado que o menta da
-       rampa: ele vinha cravado como #F2F7F5 e virou `--accent-50` sem pedido,
-       no commit 4786643 (barra superior). O dono notou a diferença e pediu o
-       primeiro de volta. Deixar o hex aqui, num token de um papel só, é o que
-       impede que ele seja "arrumado" de novo para um tom da rampa. */
-    --fundo-entrada: #F2F7F5;
+       Em 26/10/2026 o dono trocou essa escolha: o fundo da entrada no CLARO
+       passa a ser branco, igual ao escuro, que já apontava para a superfície
+       neutra. O verde lavado (#F2F7F5) sai depois de ter voltado uma vez --
+       fica registrado para que ninguém o reponha achando que foi perda. O
+       token continua existindo, e continua separado da rampa, porque o papel
+       é o mesmo: se um dos temas voltar a querer cor própria aqui, é nesta
+       linha que ela entra, sem mexer em `--neutral-0`.
+
+       Vale notar o efeito: o cartão de login também é branco (`--card`), então
+       no claro ele não se separa mais do fundo por cor, e sim pela sombra, pela
+       borda e pela luz que gira na borda. */
+    --fundo-entrada: var(--neutral-0);
+
+    /* ── A etapa CONCLUÍDA na trilha do negócio ──
+       Verde claro com tinta verde (dono, 26/10/2026). Ela lia o --accent-100 e
+       o --accent-800, e quando a rampa virou charcoal os dois viraram cinza e
+       preto. Um par de um papel só, como o --fundo-entrada, para que a
+       próxima virada da rampa não a leve junto de novo.
+
+       O fundo é o menta #CFFAEB, lido do --success-soft. É o MESMO verde
+       claro do hover dos filtros do pipeline (dono, 26/10/2026): os dois
+       apontam para o --success-soft, e não para hex cravados, para que uma
+       troca futura leve os dois juntos.
+
+       A tinta é o #0F7A5B, e não o #128C69 da marca: a etiqueta tem 10px, e
+       sobre o menta o #128C69 dá 3,72:1, enquanto o #0F7A5B dá 4,68:1,
+       acima do piso de 4,5. */
+    --etapa-concluida-bg:    hsl(var(--success-soft));
+    --etapa-concluida-tinta: hsl(var(--success-soft-foreground));  /* #0F7A5B */
+
+    /* ── O cartão de KPI pintado inteiro (dono, 26/10/2026, em avaliação) ──
+       "Total em vendas" em verde e "Total perdidos" em vermelho, com o texto
+       todo em branco. Os mesmos valores valem nos dois temas, por isso não há
+       redefinição no bloco escuro: cartão cheio de cor lê igual sobre canvas
+       claro ou escuro, e o branco em cima não muda.
+
+       O verde é o de SUCESSO (#008762), e não o da marca: o cartão diz "deu
+       certo", não "clique aqui". Branco sobre ele dá 4,52:1. O vermelho é o
+       --danger-500, feito para receber branco: 4,83:1. Os dois passam o 4,5
+       do texto de 12px da linha de apoio. */
+    --cartao-venda-bg: #008762;
+    --cartao-perda-bg: var(--danger-500);
+    --cartao-tinta:    #FFFFFF;
 
     /* ── A luz que gira na borda do cartão de login ──
        São DOIS tons, e o efeito de "facho girando" vem do contraste entre
@@ -204,7 +256,7 @@
     --azul-api:     #1D4ED8;
 
     /* ── 2. Papéis semânticos. É ISTO que o código deve pedir ── */
-    --bg-app:           var(--neutral-50);
+    --bg-app:           var(--neutral-0);   /* branco, igual ao --background (dono, 26/10/2026) */
     --surface-card:     var(--neutral-0);
     --surface-hover:    var(--neutral-50);
     /* Linha de tabela marcada, item de dropdown escolhido, aba ativa. Era o
@@ -216,23 +268,25 @@
     --surface-inverse:  var(--neutral-950);
 
     /* ── O item selecionado da barra lateral (dono, 07/10/2026) ──
-       Cinza, e não o charcoal dos botões: a seleção diz ONDE a pessoa está, e
-       não é uma ação para clicar. Em #1D1D1D ela viraria o elemento mais
-       pesado da tela, competindo com o conteúdo.
+       MENTA desde 26/10/2026, o mesmo verde claro único do sistema
+       (--success-soft, #CFFAEB). Antes era cinza #EBEBEB. Continua NÃO sendo a
+       cor dos botões: a seleção diz ONDE a pessoa está, e não é uma ação para
+       clicar. Em verde cheio ela viraria o elemento mais pesado da tela.
+       A tinta segue #1D1D1D, que sobre o menta dá 14,9:1.
 
        Não sai do --surface-selected, que é o token irmão para "item escolhido"
        em tabela e dropdown, porque os dois divergem no tema ESCURO: lá a barra
        continua com o menta sólido, e o --surface-selected é uma superfície
        esverdeada discreta. Mesma intenção, desenhos diferentes.
 
-       O 150 e não o 50 do hover porque os dois convivem na mesma barra branca:
-       passar o mouse (#F7F7F7) precisa pesar menos que estar ali (#EBEBEB).
+       O hover continua cinza (#F7F7F7) porque os dois convivem na mesma barra
+       branca: passar o mouse precisa pesar menos que estar ali.
 
        A pastilha "IA" tem fundo próprio por morar DENTRO do item selecionado.
        Era um cinza translúcido, escolhido para não somar dois verdes sobre o
-       emerald; sobre o cinza novo ele sumiria, então no claro ela fica branca
-       e se define pelo contraste. */
-    --selecao-barra:       var(--neutral-150);
+       emerald; sobre o cinza ele sumiria, então no claro ela fica branca
+       e se define pelo contraste, o que vale também sobre o menta. */
+    --selecao-barra:       hsl(var(--success-soft));
     --selecao-barra-tinta: #1D1D1D;
     --selecao-barra-badge: var(--neutral-0);
 
@@ -240,7 +294,7 @@
     --text-body:      var(--neutral-800);
     --text-muted:     var(--neutral-600);
     --text-subtle:    var(--neutral-500);
-    --text-on-accent: #FFFFFF;              /* branco sobre o charcoal: 16,8:1 */
+    --text-on-accent: #FFFFFF;              /* branco sobre o #128C69: 4,22:1 */
     /* Tinta sobre --surface-inverse (tooltip, botão escuro do KPI). Existia no
        material e não aqui: quem escrevia `var(--text-inverse)` ficava sem cor
        nenhuma e herdava a do pai -- foi assim que a seta do cartão de KPI saiu
@@ -354,11 +408,14 @@
        texto, só os botões de ferramenta e o menu da pessoa -- não precisa da
        altura de um cabeçalho, e assim não compete com a lateral. */
     --topbar-h: 48px;
-    /* Sem raio na junção desde 22/09/2026: as duas barras deixaram de ser uma
-       peça em L e voltaram a ser separadas, cada uma com a sua borda, com a
-       linha do topo atravessando a tela inteira (pedido do dono). O token some
-       junto -- um valor que ninguém lê vira armadilha para quem o encontra
-       depois e acha que ele governa alguma coisa. */
+    /* O raio do canto onde a régua da barra superior encontra a da lateral.
+       Voltou em 26/10/2026, a pedido do dono: a linha de cima para na lateral
+       e desce por ela numa curva, em vez de atravessar até a borda esquerda da
+       tela (o desenho entre 22/09 e 26/10). É o raio de painel, o mesmo de
+       quando a junta existiu pela primeira vez. Quem desenha a curva é o
+       `JuntaDasBarras`; as duas barras mantêm a borda de 1px, transparente,
+       para nenhum elemento delas mudar de lugar. */
+    --junta-barras: var(--radius-card);
     /* A altura que sobra da janela para a tela, descontada a barra superior.
        As telas de altura cheia medem por ela, e nunca por 100vh: com 100vh
        passariam da janela pela altura da barra, e a última linha sairia por
@@ -367,17 +424,17 @@
     --altura-util: calc(100vh - var(--topbar-h));
 
     /* ═══ Aliases HSL para Tailwind e shadcn. Mesmos valores da rampa ═══ */
-    --primary: 0 0% 11.37%;                 /* --accent-400 #1D1D1D */
-    --primary-foreground: 0 0% 100%;        /* branco sobre o charcoal */
-    --primary-hover: 240 3.3% 23.5%;        /* --accent-300 #3A3A3E, CLAREIA */
-    --ring: 0 0% 11.37%;
+    --primary: 162.79 77.22% 30.98%;        /* --accent-400 #128C69 */
+    --primary-foreground: 0 0% 100%;        /* branco sobre o verde */
+    --primary-hover: 162.62 78.10% 26.86%;  /* --accent-300 #0F7A5B, ESCURECE */
+    --ring: 162.79 77.22% 30.98%;
 
     /* `accent` no shadcn é superfície de hover de item, e no sistema ela é
        neutra. O verde de hover vive em --accent-300, não aqui. */
     --accent: 0 0% 94.90%;                  /* --neutral-100 */
     --accent-foreground: 220 6.25% 18.82%;
 
-    --background: 0 0% 96.86%;              /* --neutral-50, o canvas */
+    --background: 0 0% 100%;                /* --neutral-0 #FFFFFF, o canvas (dono, 26/10/2026) */
     --foreground: 220 6.25% 18.82%;         /* charcoal */
 
     --card: 0 0% 100%;
@@ -405,6 +462,12 @@
     --info-foreground: 0 0% 100%;
 
     --success-soft: 159.07 81.13% 89.61%;   /* --accent-100 */
+    /* O VERDE CLARO do sistema é um só, o --success-soft (dono, 26/10/2026):
+       destaque de seleção, hover de filtro, fundo de ícone, etapa concluída.
+       Antes cada tela tinha o seu (primary a 5, 8, 10 ou 15%, #E8F5F0,
+       #E1F5EE, #F0FDF4). Esta é a tinta para texto VERDE em cima dele:
+       #0F7A5B, 4,68:1 sobre o #CFFAEB. Texto neutro continua na cor normal. */
+    --success-soft-foreground: 162.62 78.10% 26.86%;  /* #0F7A5B */
     --destructive-soft: 0 100% 96.27%;      /* --danger-bg */
     --warning-soft: 42.16 100% 92.75%;      /* --warning-bg */
 
@@ -414,12 +477,12 @@
     /* ── Barra lateral: branca, régua de 1px, ativo em pílula emerald ── */
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 0 0% 42.35%;
-    --sidebar-primary: 0 0% 11.37%;
+    --sidebar-primary: 162.79 77.22% 30.98%;
     --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 0 0% 94.90%;
     --sidebar-accent-foreground: 220 6.25% 18.82%;
     --sidebar-border: 0 0% 90.59%;
-    --sidebar-ring: 0 0% 11.37%;
+    --sidebar-ring: 162.79 77.22% 30.98%;
   }
 
   /* ── Tema ESCURO ──
@@ -510,6 +573,11 @@
        escurecido: foi o que o dono aprovou ao ver a tela branca. */
     --fundo-entrada: var(--neutral-0);
 
+    /* No escuro a etapa concluída fica como estava antes de ganhar token:
+       --accent-100 de fundo com --accent-800 de tinta, 9,24:1. */
+    --etapa-concluida-bg:    #143A30;
+    --etapa-concluida-tinta: #8BF0D3;
+
     /* No escuro o facho sobe de tom inteiro, senão ele some no fundo; o
        contraste INTERNO entre os dois é o que se mantém. */
     --luz-cartao-borda:  #00A879;
@@ -579,6 +647,7 @@
     --info-foreground: 0 0% 100%;
 
     --success-soft: 164 40% 14%;
+    --success-soft-foreground: 162.77 77.10% 74.31%;  /* #8BF0D3, 10,19:1 */
     --destructive-soft: 0 30% 13%;
     --warning-soft: 40 35% 13%;
 

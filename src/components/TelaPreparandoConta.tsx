@@ -31,7 +31,7 @@ export function TelaPreparandoConta({ progresso }: { progresso: number }) {
         <div className="flex justify-center mb-8">
           <MarcaRezult />
         </div>
-        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+        <div className="w-16 h-16 rounded-full bg-success-soft flex items-center justify-center mx-auto mb-6">
           <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
         </div>
         <h2 className="text-xl font-bold text-foreground mb-2">Estamos preparando sua conta...</h2>

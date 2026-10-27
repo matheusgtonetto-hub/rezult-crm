@@ -166,7 +166,7 @@ export function PipelineSidebar() {
                       onClick={() => navigate(`/pipeline/${p.id}`)}
                       className={`flex items-center gap-2 px-3 h-[32px] font-normal leading-[16px] border-l-[3px] ${
                         active
-                          ? "w-[95%] mx-auto bg-primary/10 border-primary pl-[13px] rounded-sm"
+                          ? "w-[95%] mx-auto bg-success-soft border-primary pl-[13px] rounded-sm"
                           : "w-full border-transparent"
                       }`}
                       style={{ fontSize: "13px", fontStyle: "normal", fontWeight: 500, letterSpacing: 0, color: "var(--text-heading)" }}
@@ -195,7 +195,7 @@ export function PipelineSidebar() {
                     onClick={() => navigate(`/pipeline/${p.id}`)}
                     className={`flex items-center gap-2 px-3 py-[7px] font-normal leading-[16px] transition-colors ${
                       active
-                        ? "w-[95%] mx-auto bg-primary/10 border-l-[3px] border-primary pl-[13px] rounded-sm"
+                        ? "w-[95%] mx-auto bg-success-soft border-l-[3px] border-primary pl-[13px] rounded-sm"
                         : "w-full"
                     }`}
                     style={{ fontSize: "13px", fontStyle: "normal", fontWeight: 500, letterSpacing: 0, color: "var(--text-heading)" }}
@@ -262,7 +262,7 @@ export function PipelineSidebar() {
                       type="button"
                       onClick={() => { setNewCategory(g.name); setShowGroupPicker(false); }}
                       className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50 transition-colors text-left ${
-                        newCategory === g.name ? "bg-primary/5 text-primary font-medium" : "text-foreground"
+                        newCategory === g.name ? "bg-success-soft text-primary font-medium" : "text-foreground"
                       }`}
                     >
                       <span>{g.name}</span>
@@ -275,7 +275,7 @@ export function PipelineSidebar() {
                       <button
                         type="button"
                         onClick={() => setCreatingNewGroup(true)}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-primary/5 transition-colors"
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-success-soft transition-colors"
                       >
                         <Plus size={12} /> Criar grupo
                       </button>

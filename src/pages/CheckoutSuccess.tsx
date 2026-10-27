@@ -6,6 +6,7 @@ import { useSubscription } from "@/hooks/useSubscription";
 import { CheckCircle2, Loader2 } from "lucide-react";
 
 const PLAN_LABELS: Record<string, string> = {
+  starter:  "Starter",
   silver:   "Silver",
   platinum: "Platinum",
   emerald:  "Emerald",

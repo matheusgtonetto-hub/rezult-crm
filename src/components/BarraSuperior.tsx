@@ -51,6 +51,7 @@ import {
 
 const PLAN_LABELS: Record<string, string> = {
   free: "Free",
+  starter: "Plano Starter",
   silver: "Plano Silver",
   platinum: "Plano Platinum",
   emerald: "Plano Emerald",
@@ -197,9 +198,20 @@ export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?:
           de largura, como mudou de 51 para 55 em 27/09/2026, o alinhamento
           acompanha sozinho em vez de quebrar em silêncio. */}
       <header
-        className="flex items-center shrink-0 pr-3 bg-[color:var(--surface-card)] border-b border-[color:var(--border-default)]"
+        className="relative flex items-center shrink-0 pr-3 bg-[color:var(--surface-card)] border-b border-transparent"
         style={{ height: "var(--topbar-h)", paddingLeft: "calc((var(--rail-w) - 30px) / 2)" }}
       >
+        {/* A régua de baixo. A borda de 1px continua no `header`, mas
+            TRANSPARENTE: tirá-la daria 1px a mais de altura útil e os itens,
+            centrados na vertical, desceriam meio pixel. A linha visível é esta,
+            no mesmo pixel da borda, e começa onde o `AppLayout` manda
+            (`--inicio-da-regua`): depois da curva da junta com a lateral. Sem a
+            variável, como no celular, ela atravessa a tela inteira. */}
+        <span
+          aria-hidden
+          className="pointer-events-none absolute right-0 bottom-[-1px] h-px bg-[color:var(--border-default)]"
+          style={{ left: "var(--inicio-da-regua, 0px)", transition: "left var(--dur-normal) var(--ease-out)" }}
+        />
         {/* ── A marca do produto ─────────────────────────────────────────────
             Voltou para cá em 29/09/2026, a pedido do dono, e agora troca de
             lugar com a empresa: a marca do PRODUTO fica aqui, no topo, e o
@@ -333,7 +345,7 @@ export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?:
                 onClick={() => setAjudaAberta(false)}
                 className="flex items-start gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors"
               >
-                <div className="mt-0.5 w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <div className="mt-0.5 w-8 h-8 rounded-lg bg-success-soft flex items-center justify-center shrink-0">
                   <GraduationCap size={16} className="text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -382,7 +394,7 @@ export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?:
                   onClick={() => { setNotifAberto(false); navigate(n.to); }}
                   className="w-full flex items-start gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors text-left"
                 >
-                  <div className="mt-0.5 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <div className="mt-0.5 w-7 h-7 rounded-full bg-success-soft flex items-center justify-center shrink-0">
                     <CalendarDays size={14} className="text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">

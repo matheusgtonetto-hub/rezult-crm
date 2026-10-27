@@ -39,28 +39,20 @@ export function temaSalvo(): Tema | null {
 }
 
 /**
- * As telas de antes do login. A lista mora aqui, e não no App.tsx, porque quem
- * precisa dela roda ANTES do React (ver `temaInicial`).
- */
-const ROTAS_DE_ENTRADA = ["/login", "/register", "/verify-2fa", "/reset-password"];
-
-/**
  * O tema para começar, quando ninguém escolheu ainda.
  *
- * O padrão NÃO é o mesmo em toda parte, e é de propósito (dono, 24/09/2026):
- * as telas de entrada abrem no ESCURO, o app abre no claro. A entrada é a
- * vitrine, e o cartão com a luz girando é o que ela tem para mostrar; o app é
- * onde se trabalha o dia inteiro, e mudar o padrão dele viraria uma troca de
- * aparência para quem nunca pediu nada.
+ * O padrão é o CLARO em toda parte, entrada e app (dono, 26/10/2026). Até
+ * aqui as telas de entrada abriam no escuro de propósito: a ideia era que a
+ * entrada fosse vitrine, e o cartão com a luz girando o que ela tinha para
+ * mostrar. O dono trocou essa decisão -- a entrada passa a abrir clara, como o
+ * resto do produto -- e com isso o padrão deixou de depender da rota: não há
+ * mais lista de rotas de entrada para consultar aqui.
  *
- * Quem já escolheu tem a escolha respeitada nos dois lados: isto só decide o
- * primeiro encontro.
+ * Quem já escolheu tem a escolha respeitada: isto só decide o primeiro
+ * encontro.
  */
 export function temaInicial(): Tema {
-  const escolhido = temaSalvo();
-  if (escolhido) return escolhido;
-  const naEntrada = ROTAS_DE_ENTRADA.some(r => location.pathname.startsWith(r));
-  return naEntrada ? "dark" : "light";
+  return temaSalvo() ?? "light";
 }
 
 /** O tema em vigor, com um padrão de quem pergunta. */
@@ -71,10 +63,10 @@ export function lerTemaLocal(padrao: Tema = "light"): Tema {
 /**
  * Aplica no documento e, por padrão, lembra para o próximo carregamento.
  *
- * `lembrar: false` existe para o boot: o padrão escuro da tela de entrada é uma
- * APRESENTAÇÃO, não uma escolha da pessoa. Se ele fosse gravado, bastaria abrir
- * o login uma vez para o app inteiro nascer escuro depois -- e ninguém teria
- * pedido isso.
+ * `lembrar: false` existe para o boot: o padrão claro é uma APRESENTAÇÃO, não
+ * uma escolha da pessoa. Gravá-lo faria o produto não saber mais distinguir
+ * "nunca escolheu" de "escolheu claro", e qualquer mudança futura de padrão
+ * passaria por cima de quem só abriu a tela uma vez.
  */
 export function aplicarTema(tema?: Tema, lembrar = true): void {
   const escuro = tema === "dark";

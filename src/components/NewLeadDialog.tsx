@@ -117,7 +117,7 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
                       type="button"
                       onClick={() => { setResponsible(member); setShowResponsiblePicker(false); }}
                       className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50 transition-colors text-left ${
-                        responsible === member ? "bg-primary/5 text-primary font-medium" : "text-foreground"
+                        responsible === member ? "bg-success-soft text-primary font-medium" : "text-foreground"
                       }`}
                     >
                       <span>{member}</span>
@@ -167,7 +167,7 @@ export function NewLeadDialog({ open, onClose, defaultStage }: Props) {
                         type="button"
                         onClick={() => toggleTag(tag.name)}
                         className={`w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-muted/50 transition-colors text-left ${
-                          selected ? "bg-primary/5" : ""
+                          selected ? "bg-success-soft" : ""
                         }`}
                       >
                         <div className="flex items-center gap-2">

@@ -1104,6 +1104,9 @@ export default function DashboardPage() {
                 sub={c.sub}
                 variacao={c.delta}
                 tom={c.tom}
+                // Nesta fileira, success e danger são justamente "Total em
+                // vendas" e "Total perdidos", os dois com o cartão pintado.
+                fundoNoTom={c.tom === "success" || c.tom === "danger"}
                 // O dinheiro segue em `sub` e a contagem em `value`, como
                 // sempre foram. Quem inverteu a ORDEM na tela foi o `KpiCard`,
                 // trocando de lugar as duas linhas que desenha -- os dados aqui
@@ -1271,7 +1274,7 @@ export default function DashboardPage() {
                    Ícone, e não foto: produto não tem imagem no cadastro, então
                    este é o retrato que existe. */
                 marca: (
-                  <span className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <span className="w-8 h-8 rounded-lg bg-success-soft flex items-center justify-center shrink-0">
                     <ShoppingCart size={14} className="text-primary" />
                   </span>
                 ),
@@ -1823,8 +1826,8 @@ export default function DashboardPage() {
                       é contagem: os quatro contam negócios, em situações
                       diferentes. */}
                   <KpiCard label="Total de negócios" value={pLeads.length} sub={fmt(pLeads.reduce((s, l) => s + l.value, 0))} tom="primary" destaqueNoSub sufixo={pLeads.length === 1 ? "negócio" : "negócios"} />
-                  <KpiCard label="Total em vendas"   value={pWon.length}   sub={fmt(pWon.reduce((s, l) => s + l.value, 0))}   tom="success" destaqueNoSub sufixo={pWon.length === 1 ? "negócio" : "negócios"} />
-                  <KpiCard label="Total perdidos"    value={pLost.length}  sub={fmt(pLost.reduce((s, l) => s + l.value, 0))}  tom="danger"  destaqueNoSub sufixo={pLost.length === 1 ? "negócio" : "negócios"} />
+                  <KpiCard label="Total em vendas"   value={pWon.length}   sub={fmt(pWon.reduce((s, l) => s + l.value, 0))}   tom="success" fundoNoTom destaqueNoSub sufixo={pWon.length === 1 ? "negócio" : "negócios"} />
+                  <KpiCard label="Total perdidos"    value={pLost.length}  sub={fmt(pLost.reduce((s, l) => s + l.value, 0))}  tom="danger"  fundoNoTom destaqueNoSub sufixo={pLost.length === 1 ? "negócio" : "negócios"} />
                   <KpiCard label="Total em aberto"   value={pOpen.length}  sub={fmt(pOpen.reduce((s, l) => s + l.value, 0))}  tom="amber"   destaqueNoSub sufixo={pOpen.length === 1 ? "negócio" : "negócios"} />
                   {/* O quinto fica na hierarquia inversa, e é o certo para ele:
                       não tem dinheiro para destacar, e a taxa é a resposta. Com

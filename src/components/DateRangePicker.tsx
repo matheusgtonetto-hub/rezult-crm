@@ -133,9 +133,9 @@ export function SeletorDePeriodo({
                     As pontas ganham canto arredondado no lado de fora, então o
                     intervalo começa e termina em curva em vez de cortar reto no
                     meio da célula. */}
-                {showRangeBg && <div className="absolute inset-y-[5px] inset-x-0 bg-primary/10" />}
-                {showLeftHalf && <div className="absolute inset-y-[5px] left-0 right-[50%] bg-primary/10 rounded-r-full" />}
-                {showRightHalf && <div className="absolute inset-y-[5px] left-[50%] right-0 bg-primary/10 rounded-l-full" />}
+                {showRangeBg && <div className="absolute inset-y-[5px] inset-x-0 bg-success-soft" />}
+                {showLeftHalf && <div className="absolute inset-y-[5px] left-0 right-[50%] bg-success-soft rounded-r-full" />}
+                {showRightHalf && <div className="absolute inset-y-[5px] left-[50%] right-0 bg-success-soft rounded-l-full" />}
                 <span className={[
                   "relative z-10 w-8 h-8 flex items-center justify-center rounded-full text-xs transition-colors",
                   isSelected ? "bg-primary text-primary-foreground font-semibold" : "",

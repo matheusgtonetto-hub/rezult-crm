@@ -106,7 +106,7 @@ export function ListaOpcoes({
                 type="button"
                 onClick={() => onAlternar(o.valor)}
                 className={`w-full flex items-center gap-2 px-1.5 py-1.5 rounded-md text-left transition-colors ${
-                  marcada ? (navegacao ? "bg-muted" : "bg-primary/10") : "hover:bg-muted"
+                  marcada ? (navegacao ? "bg-muted" : "bg-success-soft") : "hover:bg-muted"
                 }`}
               >
                 {/* O visto ocupa espaço mesmo desmarcado (`invisible`, não
