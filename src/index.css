@@ -200,6 +200,20 @@
     --etapa-concluida-bg:    hsl(var(--success-soft));
     --etapa-concluida-tinta: hsl(var(--success-soft-foreground));  /* #0F7A5B */
 
+    /* ── Balão do CLIENTE no Multiatendimento (dono, 27/10/2026) ──
+       Fundo claro com borda #128C69, no padrão do balão amarelo do atendente.
+       É o próprio verde do balão sólido de antes, a 15% sobre o cartão: a
+       mesma intensidade do amarelo, que é ~15% do #F7B32B sobre branco. Os
+       mentas da rampa (#CFFAEB, #A5F3D9) e um verde na claridade exata do
+       amarelo (#DBFCEE) foram testados e reprovados pelo dono. Resulta em
+       #DBEEE8 no claro; texto #1D1D1D em cima, 13,97:1.
+
+       Mistura opaca (color-mix com o cartão) e não rgba: o balão fica igual
+       sobre qualquer fundo de chat, como o amarelo, que também é opaco.
+       Vale nos dois temas, porque --accent-400 e --surface-card já trocam
+       sozinhos no escuro. */
+    --balao-cliente-bg: color-mix(in srgb, var(--accent-400) 15%, var(--surface-card));
+
     /* ── O cartão de KPI pintado inteiro (dono, 26/10/2026, em avaliação) ──
        "Total em vendas" em verde e "Total perdidos" em vermelho, com o texto
        todo em branco. Os mesmos valores valem nos dois temas, por isso não há

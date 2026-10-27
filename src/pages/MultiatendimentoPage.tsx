@@ -22,6 +22,7 @@ import { WhatsappTemplatePicker, type Modelo } from "@/components/WhatsappTempla
 // Player de áudio compartilhado com o chat flutuante: uma bolha de áudio só
 // para as duas telas, em vez de uma cópia em cada uma.
 import { AudioBubble } from "@/components/AudioBubble";
+import { VisualizadorDeImagem, type ImagemAberta } from "@/components/VisualizadorDeImagem";
 import { parseAudioDuration } from "@/lib/audio";
 import type { Lead, Pipeline, LeadOrigin, ActivityType } from "@/data/mockData";
 import {
@@ -1612,6 +1613,8 @@ export default function MultiatendimentoPage() {
   // a citação.
   const [citando, setCitando]             = useState<Msg | null>(null);
   const [msgSobreMouse, setMsgSobreMouse] = useState<string | null>(null);
+  // Foto aberta em tela cheia. Uma só para a página: o visualizador é único.
+  const [imagemAberta, setImagemAberta]   = useState<ImagemAberta | null>(null);
   // Menu aberto de uma mensagem. Só um por vez, e fecha ao clicar em qualquer
   // lugar: menu de mensagem que fica preso na tela atrapalha mais que ajuda.
   const [menuDaMsg, setMenuDaMsg]         = useState<string | null>(null);
@@ -4845,6 +4848,13 @@ export default function MultiatendimentoPage() {
                      * `--warning-bg` com borda `--warning-400` do card de
                      * anotação no pipeline, nos dois temas.
                      *
+                     * No mesmo dia o verde do cliente deixou de ser sólido e
+                     * seguiu o MESMO PADRÃO: fundo claro (`--balao-cliente-bg`)
+                     * com borda na cor cheia (`--accent-400`) e texto escuro.
+                     * Com os dois balões claros, tudo o que vai DENTRO deles
+                     * (citação, ícones, legenda, áudio) usa uma versão só;
+                     * esta variável decide apenas fundo e borda.
+                     *
                      * A variável existe porque `isAgent` respondia DUAS
                      * perguntas ao mesmo tempo: de que lado o balão fica e de
                      * que cor ele é. Enquanto fosse uma só, inverter a cor
@@ -4886,10 +4896,10 @@ export default function MultiatendimentoPage() {
                               original -- nem toda citada existe na nossa base. */}
                           {m.citacao && (
                             <div style={{
-                              borderLeft: `3px solid ${balaoVerde ? "rgba(255,255,255,0.55)" : "var(--accent-700)"}`,
-                              background: balaoVerde ? "rgba(255,255,255,0.14)" : "var(--neutral-50)",
+                              borderLeft: "3px solid var(--accent-700)",
+                              background: "var(--neutral-50)",
                               borderRadius: 8, padding: "6px 10px", marginBottom: 4,
-                              fontSize: 12, color: balaoVerde ? "rgba(255,255,255,0.9)" : "var(--text-muted)",
+                              fontSize: 12, color: "var(--text-muted)",
                               maxWidth: "100%", whiteSpace: "pre-wrap", overflowWrap: "anywhere",
                               display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
                             }}>
@@ -4903,7 +4913,7 @@ export default function MultiatendimentoPage() {
                             // faria o texto reflowar embaixo do cursor, e balão
                             // que muda de forma quando você chega perto é pior
                             // que balão um pouco mais largo.
-                            padding: m.kind === "image" ? 4 : "10px 30px 10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: balaoVerde ? "var(--surface-accent-strong)" : "var(--warning-bg)", color: balaoVerde ? "#FFF" : "var(--text-heading)", border: balaoVerde ? "none" : "1px solid var(--warning-400)", boxShadow: balaoVerde ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "flex-end", gap: 8, minWidth: 0, position: "relative" }}>
+                            padding: m.kind === "image" ? 4 : "10px 30px 10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: balaoVerde ? "var(--balao-cliente-bg)" : "var(--warning-bg)", color: "var(--text-heading)", border: `1px solid ${balaoVerde ? "var(--accent-400)" : "var(--warning-400)"}`, boxShadow: "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "flex-end", gap: 8, minWidth: 0, position: "relative" }}>
                             {/* Ação da mensagem, dentro do balão. Ficava do lado
                                 de fora e sumia no caminho do mouse: o vão entre
                                 o balão e o botão já é área sem hover, então o
@@ -4924,12 +4934,12 @@ export default function MultiatendimentoPage() {
                                 style={{
                                   position: "absolute", top: 2, right: 4,
                                   width: 20, height: 20, borderRadius: 6, border: "none",
-                                  background: balaoVerde ? "rgba(0,0,0,0.18)" : "rgba(0,0,0,0.06)",
+                                  background: "rgba(0,0,0,0.06)",
                                   display: "flex", alignItems: "center", justifyContent: "center",
                                   cursor: "pointer", padding: 0, zIndex: 2,
                                 }}
                               >
-                                <ChevronDown size={14} color={balaoVerde ? "#FFF" : "var(--text-body)"} />
+                                <ChevronDown size={14} color="var(--text-body)" />
                               </button>
                             )}
                             <MenuDaMensagem
@@ -4987,30 +4997,32 @@ export default function MultiatendimentoPage() {
                               // estoura os 65% de largura e o chat inteiro passa
                               // a rolar na horizontal.
                               overflowWrap: "anywhere",
-                            }}>{m.text}</span>{/* O `isAgent` aqui NÃO vira `balaoVerde`: o duplo-check é o
-                                recibo de entrega do que NÓS mandamos, e mensagem
-                                recebida não tem esse estado. Só a cor segue o
-                                balão -- branco sobre o verde não se veria mais,
-                                agora que o balão do atendente é claro. */}
-                            {isAgent && <CheckCheck size={14} color={
-                              balaoVerde
-                                ? (m.read ? "#FFF" : "rgba(255,255,255,0.5)")
-                                : (m.read ? "var(--accent-700)" : "var(--text-muted)")
-                            } />}</>}
-                            {m.kind === "audio" && <AudioBubble duration={m.duration} src={m.src} light={balaoVerde} />}
+                            }}>{m.text}</span>{/* O duplo-check é o recibo de entrega do que NÓS
+                                mandamos, por isso depende de `isAgent`: mensagem
+                                recebida não tem esse estado. */}
+                            {isAgent && <CheckCheck size={14} color={m.read ? "var(--accent-700)" : "var(--text-muted)"} />}</>}
+                            {m.kind === "audio" && <AudioBubble duration={m.duration} src={m.src} light={false} />}
                             {m.kind === "image" && (
                               <div style={{ overflow: "hidden", borderRadius: 12 }}>
                                 {m.src ? (
-                                  <img src={m.src} alt={m.caption ?? "imagem"} style={{ maxWidth: 220, maxHeight: 180, display: "block", objectFit: "cover" }} />
+                                  <button
+                                    type="button"
+                                    onClick={() => setImagemAberta({ src: m.src, legenda: m.caption })}
+                                    title="Ampliar imagem"
+                                    aria-label="Ampliar imagem"
+                                    style={{ display: "block", padding: 0, border: "none", background: "none", cursor: "zoom-in" }}
+                                  >
+                                    <img src={m.src} alt={m.caption ?? "imagem"} style={{ maxWidth: 220, maxHeight: 180, display: "block", objectFit: "cover" }} />
+                                  </button>
                                 ) : (
                                   <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 4px" }}>
-                                    <ImageIcon size={18} color={balaoVerde ? "rgba(255,255,255,0.8)" : "var(--accent-700)"} />
+                                    <ImageIcon size={18} color="var(--accent-700)" />
                                     <span style={{ fontSize: 13, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{m.caption || "Imagem"}</span>
                                   </div>
                                 )}
                                 {m.src && m.caption && <div style={{
                                   padding: "4px 8px 6px", fontSize: 12,
-                                  color: balaoVerde ? "var(--surface-card)" : "var(--text-muted)",
+                                  color: "var(--text-muted)",
                                   // Mesmo tratamento da bolha de texto: legenda
                                   // de imagem é texto do cliente também. Existe
                                   // uma de 501 caracteres com quebras na base,
@@ -5031,15 +5043,15 @@ export default function MultiatendimentoPage() {
                                   title={`Baixar ${m.filename}`}
                                   style={{ display: "flex", alignItems: "center", gap: 8, color: "inherit", textDecoration: "none", cursor: "pointer" }}
                                 >
-                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: balaoVerde ? "rgba(255,255,255,0.2)" : "var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                    <Download size={18} color={balaoVerde ? "#FFF" : "var(--accent-700)"} />
+                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                    <Download size={18} color="var(--accent-700)" />
                                   </div>
                                   <span style={{ fontSize: 13, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textDecoration: "underline" }}>{m.filename}</span>
                                 </a>
                               ) : (
                                 <div title="Arquivo indisponível para download" style={{ display: "flex", alignItems: "center", gap: 8, opacity: 0.7 }}>
-                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: balaoVerde ? "rgba(255,255,255,0.2)" : "var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                                    <FolderOpen size={18} color={balaoVerde ? "#FFF" : "var(--accent-700)"} />
+                                  <div style={{ width: 36, height: 36, borderRadius: 8, background: "var(--neutral-100)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                    <FolderOpen size={18} color="var(--accent-700)" />
                                   </div>
                                   <span style={{ fontSize: 13, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.filename}</span>
                                 </div>
@@ -7120,6 +7132,9 @@ export default function MultiatendimentoPage() {
         })}
         onExecutar={runAutomationOnConvs}
       />
+
+      {/* ── Foto da conversa em tela cheia, com download ─────────────── */}
+      <VisualizadorDeImagem imagem={imagemAberta} onFechar={() => setImagemAberta(null)} />
 
       {/* ── DIALOG: agendar atividade ────────────────────────────────── */}
       {showScheduleDialog && (() => {
