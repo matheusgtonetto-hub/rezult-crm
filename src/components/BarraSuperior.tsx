@@ -186,9 +186,14 @@ export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?:
         ponta, sem emenda visível.
       */}
       {/* O recuo da esquerda NÃO é um número escolhido: é a conta que centra um
-          logo de 30px na régua da barra lateral recolhida.
+          logo de 26px na régua da barra lateral recolhida.
 
-              (--rail-w - 30) / 2  =  (55 - 30) / 2  =  12,5px
+              (--rail-w - 26) / 2  =  (55 - 26) / 2  =  14,5px
+
+          O logo era de 30px (12,5px de recuo) e desceu para 26px em 27/10/2026
+          (dono), para pesar menos ao lado do nome: com 30px ele tinha 2,3× a
+          altura das maiúsculas do "Rezult" em 18px; com 26px, 2×. Mudou o
+          tamanho, muda o número desta conta junto.
 
           Com ela, a marca daqui cai no MESMO eixo vertical do logo da empresa
           logo abaixo -- e, de quebra, no mesmo eixo dos ícones do menu, porque
@@ -199,7 +204,7 @@ export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?:
           acompanha sozinho em vez de quebrar em silêncio. */}
       <header
         className="relative flex items-center shrink-0 pr-3 bg-[color:var(--surface-card)] border-b border-transparent"
-        style={{ height: "var(--topbar-h)", paddingLeft: "calc((var(--rail-w) - 30px) / 2)" }}
+        style={{ height: "var(--topbar-h)", paddingLeft: "calc((var(--rail-w) - 26px) / 2)" }}
       >
         {/* A régua de baixo. A borda de 1px continua no `header`, mas
             TRANSPARENTE: tirá-la daria 1px a mais de altura útil e os itens,
@@ -245,10 +250,10 @@ export function BarraSuperior({ aoAbrirMenu, compacta = false }: { aoAbrirMenu?:
             src="/favicon.png?v=5"
             alt="Rezult"
             className="shrink-0 block object-cover"
-            style={{ width: 30, height: 30, borderRadius: 8 }}
+            style={{ width: 26, height: 26, borderRadius: 7 }}
           />
           {/* O nome escrito sai no modo compacto (celular). O logo ao lado
-              diz a mesma coisa em 30px, e era este texto -- somado ao nome e ao
+              diz a mesma coisa em 26px, e era este texto -- somado ao nome e ao
               e-mail do usuário na outra ponta -- que fazia a faixa transbordar
               numa tela de 390px. */}
           {!compacta && (

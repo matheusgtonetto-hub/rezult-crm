@@ -719,7 +719,12 @@ export default function LeadDetailPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
-  const [newNoteActive, setNewNoteActive] = useState(false);
+  // O campo de nova anotação fica SEMPRE aberto (dono, 27/10/2026); antes ele
+  // nascia recolhido e só abria barra e botões no foco. A moldura de fora é
+  // sempre verde; o verde do campo de digitação vem do próprio :focus, no CSS.
+  // Quem decide se Cancelar e Salvar ficam ativos é `notaTemTexto`: com o
+  // campo vazio não há o que salvar nem o que descartar.
+  const [notaTemTexto, setNotaTemTexto] = useState(false);
   const newNoteDivRef = useRef<HTMLDivElement | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
@@ -797,6 +802,10 @@ export default function LeadDetailPage() {
   };
 
   const handleNewNoteKey = () => { checkFormats(); detectMention("new"); };
+  // Texto visível, e não o HTML: um negrito ligado no campo vazio deixa
+  // "<b></b>" lá dentro, e isso não é alteração nenhuma.
+  const atualizarNotaTemTexto = () =>
+    setNotaTemTexto((newNoteDivRef.current?.innerText ?? "").trim().length > 0);
   const handleEditKey = () => { checkFormats(); detectMention("edit"); };
 
   const applyFormat = (command: string, value?: string) => {
@@ -942,7 +951,7 @@ export default function LeadDetailPage() {
       });
       if (newNoteDivRef.current) newNoteDivRef.current.innerHTML = "";
       setNewNote("");
-      setNewNoteActive(false);
+      setNotaTemTexto(false);
       toast.success("Anotação salva!");
     } catch {
       toast.error("Erro ao salvar anotação. Tente novamente.");
@@ -1785,34 +1794,30 @@ export default function LeadDetailPage() {
               <div className="space-y-3">
                 <div
                   style={{
-                    border: `1px solid ${newNoteActive ? "hsl(var(--primary))" : "var(--border-default)"}`,
+                    border: "1px solid hsl(var(--primary))",
                     borderRadius: 10,
                     background: "var(--neutral-25)",
                     padding: 12,
-                    transition: "border-color 0.15s",
                   }}
                 >
                   <div
                     ref={newNoteDivRef}
                     contentEditable
                     suppressContentEditableWarning
-                    onFocus={() => setNewNoteActive(true)}
+                    onInput={atualizarNotaTemTexto}
                     onKeyDown={e => { if (e.key === "Escape") setMentionState(null); }}
                     onKeyUp={handleNewNoteKey}
                     onMouseUp={handleNewNoteKey}
                     onSelect={handleNewNoteKey}
                     data-placeholder="Escreva uma anotação, @nome..."
-                    className="note-content bg-card border border-card-border rounded-md text-sm px-3 py-2 outline-none focus:ring-1 focus:ring-primary empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
+                    className="note-content bg-card border border-card-border rounded-md text-sm px-3 py-2 outline-none focus:border-primary empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground empty:before:pointer-events-none"
                     style={{
                       color: "var(--text-heading)",
-                      minHeight: newNoteActive ? 80 : 38,
+                      minHeight: 80,
                       wordBreak: "break-word",
-                      transition: "min-height 0.15s",
                     }}
                   />
-                  {newNoteActive && (
-                    <>
-                      <div className="flex items-center justify-between gap-0.5 pt-2 mt-2 border-t border-card-border">
+                  <div className="flex items-center justify-between gap-0.5 pt-2 mt-2 border-t border-card-border">
                         <div className="flex items-center gap-0.5">
                         {[
                           { icon: <Bold size={13} />, title: "Negrito", cmd: "bold" },
@@ -1841,25 +1846,27 @@ export default function LeadDetailPage() {
                             variant="outline"
                             size="sm"
                             className="rounded-md h-7 text-xs"
+                            disabled={!notaTemTexto}
                             onClick={() => {
                               if (newNoteDivRef.current) newNoteDivRef.current.innerHTML = "";
-                              setNewNoteActive(false);
+                              setNotaTemTexto(false);
                             }}
                           >
                             Cancelar
                           </Button>
+                          {/* A cor vai inline só quando ativo: o estilo inline
+                              ganharia do cinza que o Button põe no desativado. */}
                           <Button
                             onClick={handleSaveNote}
                             size="sm"
                             className="rounded-md h-7 text-xs"
-                            style={{ background: "hsl(var(--primary))", color: "var(--text-on-accent)" }}
+                            disabled={!notaTemTexto}
+                            style={notaTemTexto ? { background: "hsl(var(--primary))", color: "var(--text-on-accent)" } : undefined}
                           >
                             Salvar
                           </Button>
                         </div>
-                      </div>
-                    </>
-                  )}
+                  </div>
                 </div>
 
                 {/* Unified timeline: notes + stage events */}
