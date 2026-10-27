@@ -4840,7 +4840,10 @@ export default function MultiatendimentoPage() {
                      * ─── Quem leva o balão verde (dono, 29/09/2026) ─────────
                      *
                      * Invertido: agora é a mensagem do CLIENTE que vem em
-                     * verde, e a do atendente em branco (preto no tema escuro).
+                     * verde. A do atendente era branca e, desde 27/10/2026
+                     * (dono), usa o amarelo das anotações do lead: o mesmo
+                     * `--warning-bg` com borda `--warning-400` do card de
+                     * anotação no pipeline, nos dois temas.
                      *
                      * A variável existe porque `isAgent` respondia DUAS
                      * perguntas ao mesmo tempo: de que lado o balão fica e de
@@ -4900,7 +4903,7 @@ export default function MultiatendimentoPage() {
                             // faria o texto reflowar embaixo do cursor, e balão
                             // que muda de forma quando você chega perto é pior
                             // que balão um pouco mais largo.
-                            padding: m.kind === "image" ? 4 : "10px 30px 10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: balaoVerde ? "var(--surface-accent-strong)" : "var(--surface-card)", color: balaoVerde ? "#FFF" : "var(--text-heading)", border: balaoVerde ? "none" : "1px solid var(--border-default)", boxShadow: balaoVerde ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "flex-end", gap: 8, minWidth: 0, position: "relative" }}>
+                            padding: m.kind === "image" ? 4 : "10px 30px 10px 14px", borderRadius: isAgent ? "16px 4px 16px 16px" : "4px 16px 16px 16px", background: balaoVerde ? "var(--surface-accent-strong)" : "var(--warning-bg)", color: balaoVerde ? "#FFF" : "var(--text-heading)", border: balaoVerde ? "none" : "1px solid var(--warning-400)", boxShadow: balaoVerde ? "none" : "0 1px 2px rgba(0,0,0,0.06)", fontSize: 14, lineHeight: 1.4, display: "flex", alignItems: "flex-end", gap: 8, minWidth: 0, position: "relative" }}>
                             {/* Ação da mensagem, dentro do balão. Ficava do lado
                                 de fora e sumia no caminho do mouse: o vão entre
                                 o balão e o botão já é área sem hover, então o

@@ -9,10 +9,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { useMensagensNaoLidas } from "@/hooks/useMensagensNaoLidas";
 import {
   CalendarDays,
-  ContactRound,
+  UsersRound,
   LayoutDashboard,
   House,
-  Workflow,
+  Network,
   Zap,
   Filter,
   BotMessageSquare,
@@ -225,14 +225,14 @@ export function AppSidebar({ recolhida, aoAlternar, sobreposta = false, aberta =
     ...(canAny("pipelines:admin", "pipelines:member", "leads:admin", "leads:member", "leads:restricted", "leads:operator")
       ? [{ to: "/pipeline", label: "Pipelines", icon: Filter }] : []),
     ...(canAny("leads:admin", "leads:member", "leads:restricted", "leads:operator")
-      ? [{ to: "/leads", label: "Leads", icon: ContactRound }] : []),
+      ? [{ to: "/leads", label: "Leads", icon: UsersRound }] : []),
     // Disparos é governado por `impulsos`, não por `automacoes`: são duas abas
     // diferentes, e antes as duas liam a mesma permissão. Quem recebia acesso a
     // Automações ganhava Disparos junto, sem ninguém ter marcado isso.
     ...(canAny("impulsos:admin")
       ? [{ to: "/disparos", label: "Disparos", icon: Zap }] : []),
     ...(canAny("automacoes:admin", "automacoes:member")
-      ? [{ to: "/automacoes", label: "Automações", icon: Workflow }] : []),
+      ? [{ to: "/automacoes", label: "Automações", icon: Network }] : []),
     // Passa a respeitar a permissão, como os itens vizinhos. Dono e admin
     // continuam vendo: o `can` devolve verdadeiro para os dois antes de olhar a
     // lista, então ninguém perde acesso ao que já tinha.

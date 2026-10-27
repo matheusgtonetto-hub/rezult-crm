@@ -2046,7 +2046,7 @@ export default function LeadDetailPage() {
                       <div
                         className="group"
                         style={{
-                          background: item.pinned ? "var(--warning-bg)" : "#FAFAF7",
+                          background: item.pinned ? "var(--warning-bg)" : "var(--neutral-50)",
                           border: item.pinned
                             ? "1px solid #FCD34D"
                             : isCompleted
@@ -2382,7 +2382,7 @@ export default function LeadDetailPage() {
                         key={act.id}
                         className="group"
                         style={{
-                          background: act.pinned ? "var(--warning-bg)" : "#FAFAF7",
+                          background: act.pinned ? "var(--warning-bg)" : "var(--neutral-50)",
                           border: act.pinned
                             ? "1px solid #FCD34D"
                             : isCompleted

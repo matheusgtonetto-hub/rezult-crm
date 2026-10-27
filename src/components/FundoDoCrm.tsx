@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import {
-  House, ChartColumnDecreasing, Filter, ContactRound, Zap, Workflow, BotMessageSquare,
+  House, ChartColumnDecreasing, Filter, UsersRound, Zap, Workflow, Network, BotMessageSquare,
   CalendarDays, GraduationCap, Bell, Cog,
   Search, ChevronDown, SlidersHorizontal, X, Plus, MoreHorizontal, GripVertical,
   CalendarClock, Tag,
@@ -132,7 +132,7 @@ const iniciais = (nome: string) =>
   nome.split(" ").slice(0, 2).map(p => p[0]).join("").toUpperCase();
 
 /** Ícones da barra, na ordem da navegação real. Pipelines é o item aceso. */
-const NAV = [House, ChartColumnDecreasing, Filter, ContactRound, CrmWhatsAppIcon, Zap, Workflow, BotMessageSquare];
+const NAV = [House, ChartColumnDecreasing, Filter, UsersRound, CrmWhatsAppIcon, Zap, Network, BotMessageSquare];
 const RODAPE = [CalendarDays, GraduationCap, Bell, Cog];
 
 /** Índice de Pipelines na lista acima, que é a tela aberta no fundo. */

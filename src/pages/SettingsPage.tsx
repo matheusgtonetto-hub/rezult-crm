@@ -62,9 +62,9 @@ type SectionId =
    aqui que o render ignora seria dado mentindo. */
 const SECTIONS: { id: SectionId; label: string }[] = [
   { id: "perfil",  label: "Meu perfil" },
-  { id: "planos",  label: "Planos e pagamentos" },
+  { id: "planos",  label: "Planos" },
   { id: "empresa", label: "Empresa" },
-  { id: "usuarios", label: "Usuários e acessos" },
+  { id: "usuarios", label: "Membros" },
   { id: "tags",    label: "Tags" },
   { id: "produtos", label: "Produtos" },
   { id: "motivos", label: "Motivos de perda" },
