@@ -457,6 +457,18 @@ function NewLeadTaskButton({ onAdd }: { onAdd: (title: string) => void }) {
   );
 }
 
+/* Largura máxima da faixa de etapas no cabeçalho do negócio. Passou disso, a
+   faixa mantém esta largura e as etapas rolam para o lado. */
+const LARGURA_MAXIMA_ETAPAS = 560;
+
+/** Rola a faixa de etapas até a etapa atual ficar no meio da área visível. */
+function centralizarEtapaAtiva(caixa: HTMLElement, suave: boolean) {
+  const ativa = caixa.querySelector<HTMLElement>('[data-etapa-ativa="true"]');
+  if (!ativa) return;
+  const alvo = ativa.offsetLeft - (caixa.clientWidth - ativa.offsetWidth) / 2;
+  caixa.scrollTo({ left: Math.max(0, alvo), behavior: suave ? "smooth" : "auto" });
+}
+
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -844,6 +856,50 @@ export default function LeadDetailPage() {
   const [showLostReasonDialog, setShowLostReasonDialog] = useState(false);
   const [selectedLossReasonId, setSelectedLossReasonId] = useState<string>("none");
 
+  /*
+   * Faixa de etapas do cabeçalho (15/11/2026). Fica antes do `return` do lead
+   * não encontrado porque hook não pode vir depois de retorno antecipado.
+   *
+   * O primeiro posicionamento é seco (a página abre já com a etapa no meio) e
+   * os seguintes são suaves, para acompanhar o avanço do funil. A etapa só é
+   * achada pelo `data-etapa-ativa`, assim o efeito não depende de variáveis que
+   * só existem depois do retorno.
+   */
+  const faixaEtapasRef = useRef<HTMLDivElement>(null);
+  const primeiraCentralizacao = useRef(true);
+  useEffect(() => {
+    const caixa = faixaEtapasRef.current;
+    if (!caixa) return;
+    centralizarEtapaAtiva(caixa, !primeiraCentralizacao.current);
+    primeiraCentralizacao.current = false;
+  }, [lead?.stage, pipeline?.id, pipeline?.columns?.length]);
+
+  /*
+   * Dois reforços da mesma faixa, ligados uma vez por negócio:
+   * - roda do mouse comum só gira na vertical, então sem isto quem não tem
+   *   trackpad não alcançaria as etapas escondidas. Só intercepta quando a
+   *   faixa de fato rola, para não roubar a rolagem da página à toa;
+   * - se a janela mudar de tamanho, a etapa atual sai do meio; o observador a
+   *   recoloca.
+   */
+  useEffect(() => {
+    const caixa = faixaEtapasRef.current;
+    if (!caixa) return;
+    const aoRolarRoda = (e: WheelEvent) => {
+      if (caixa.scrollWidth <= caixa.clientWidth) return;
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      e.preventDefault();
+      caixa.scrollLeft += e.deltaY;
+    };
+    caixa.addEventListener("wheel", aoRolarRoda, { passive: false });
+    const observador = new ResizeObserver(() => centralizarEtapaAtiva(caixa, false));
+    observador.observe(caixa);
+    return () => {
+      caixa.removeEventListener("wheel", aoRolarRoda);
+      observador.disconnect();
+    };
+  }, [lead?.id]);
+
   if (!lead) {
     return (
       <div className="flex flex-col items-center justify-center h-[var(--altura-util)] gap-3" style={{ background: "var(--bg-app)" }}>
@@ -1082,29 +1138,114 @@ export default function LeadDetailPage() {
   return (
     <>
     <div style={{ background: "var(--bg-app)", height: "var(--altura-util)", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-      {/* TOPBAR — altura fixa; a página inteira não rola mais, então não
-          precisa mais ser sticky (ver CONTENT logo abaixo). */}
+      {/* CABEÇALHO: a topbar e a faixa de etapas viraram uma linha só, a pedido do
+          dono (15/11/2026). Esquerda: voltar, avatar e nome. Centro: etapas, com
+          largura máxima e rolagem lateral, a etapa atual sempre no meio. Direita:
+          ganho, perdido, responsáveis e o menu. Sem régua embaixo, como a faixa
+          de etapas já era desde 26/10/2026. */}
       <div
         style={{
-          height: 50,
+          height: 65,
           background: "var(--surface-card)",
-          borderBottom: "1px solid var(--border-default)",
+          paddingLeft: 16,
+          paddingRight: 16,
           flexShrink: 0,
+          gridTemplateColumns: `minmax(250px, 1fr) minmax(0, ${LARGURA_MAXIMA_ETAPAS}px) minmax(250px, 1fr)`,
         }}
-        className="flex items-center justify-between px-4"
+        className="grid items-center gap-4"
       >
-        {/* Esquerda */}
-        <button
-          onClick={() => navigate("/pipeline")}
-          className="flex items-center gap-1.5 text-[13px] leading-5 hover:bg-[color:var(--neutral-100)] rounded-md px-2 py-1.5 transition-colors"
-          style={{ color: "var(--text-heading)" }}
-        >
-          <ArrowLeft size={16} />
-          <span style={{ fontWeight: 500 }}>{pipeline?.name ?? "Sem negócio"}</span>
-        </button>
+        {/* Esquerda: seta de voltar (só o ícone), avatar, nome e funil */}
+        <div className="flex items-center gap-2 justify-self-start min-w-0">
+          <button
+            onClick={() => navigate("/pipeline")}
+            title="Voltar ao pipeline"
+            aria-label={`Voltar ao pipeline ${pipeline?.name ?? ""}`.trim()}
+            className="flex items-center justify-center w-8 h-8 shrink-0 rounded-md hover:bg-[color:var(--neutral-100)] transition-colors"
+            style={{ color: "var(--text-heading)" }}
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <ProfileAvatar name={lead.name} avatarUrl={leadAvatarUrl} size={40} onError={refetchLeadAvatar} />
+          <div className="flex flex-col min-w-0">
+            <div className="flex items-baseline gap-1">
+              <span className="font-bold truncate" style={{ fontSize: 14, color: "var(--text-heading)" }}>{lead.name}</span>
+              <span className="text-[12px] text-muted-foreground shrink-0">#{lead.dealNumber}</span>
+            </div>
+            <span className="text-[12px] text-muted-foreground truncate">
+              {pipeline ? <>{pipeline.name} → {stages[activeIdx]?.title ?? "—"}</> : "Lead sem negócio"}
+            </span>
+          </div>
+        </div>
 
-        {/* Direita */}
-        <div className="flex items-center gap-2">
+        {/* Centro: etapas. A caixa de fora tem largura máxima e rola para o lado;
+            a de dentro usa `mx-auto`, que centraliza quando cabe tudo e deixa de
+            centralizar quando passa (um `justify-center` cortaria o começo da
+            lista, que ficaria fora do alcance da rolagem). */}
+        <div
+          ref={faixaEtapasRef}
+          className="faixa-etapas relative min-w-0 overflow-x-auto"
+          style={{ scrollbarWidth: "none", overscrollBehaviorX: "contain" }}
+        >
+          <div className="flex items-center mx-auto" style={{ gap: 3, width: "max-content" }}>
+            {stages.map((s, idx) => {
+              const isActive = idx === activeIdx;
+              const isPast = idx < activeIdx;
+              /*
+               * As três situações da trilha, em tokens.
+               *
+               * A etapa CONCLUÍDA é verde claro com tinta verde, num par de
+               * tokens só dela (`--etapa-concluida-*`, ver index.css): lendo a
+               * rampa, ela tinha virado cinza com preto na troca para charcoal.
+               *
+               * A ATIVA é a cor de ação, o mesmo par dos botões (dono,
+               * 26/10/2026): `--accent-400` de fundo com `--text-on-accent` em
+               * cima. No claro é #128C69 com branco, 4,22:1, abaixo do piso de
+               * 4,5 para estes 10px, o mesmo número que o dono aceitou nos
+               * botões. Antes ela lia o `--accent-700`, que é TINTA e ficou
+               * preta quando a rampa virou charcoal; por isso a trilha não
+               * acompanhou a volta do verde.
+               */
+              const bg = isActive ? "var(--accent-400)" : isPast ? "var(--etapa-concluida-bg)" : "var(--neutral-50)";
+              const color = isActive ? "var(--text-on-accent)" : isPast ? "var(--etapa-concluida-tinta)" : "var(--text-muted)";
+              const stageRef = lead.stageEnteredAt ? lead.stageEnteredAt.split("T")[0] : lead.entryDate;
+              const days = idx === activeIdx ? daysBetween(stageRef, today) : isPast ? 2 : 0;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => handleStageClick(s.id)}
+                data-etapa-ativa={isActive}
+                  className="flex flex-col items-center justify-center transition-all hover:opacity-80 shrink-0"
+                >
+                  <div
+                    style={{
+                      background: bg,
+                      color,
+                      /* 10px, a pedido do dono em 21/09/2026. É abaixo do piso de
+                         12px da matriz (seção 3.2): a trilha tem até oito etapas
+                         lado a lado no topo do negócio, e o nome inteiro só cabe
+                         nesse corpo. O peso 600 e o contraste medido (4,52:1 na
+                         ativa, 6,26:1 na concluída) seguram a leitura. */
+                      fontSize: 10,
+                      fontWeight: 600,
+                      padding: "3px 14px",
+                      clipPath: "polygon(0 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 0 100%, 7px 50%)",
+                      textAlign: "center",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {s.title}
+                  </div>
+                  <span style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
+                    {days} {days === 1 ? "dia" : "dias"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Direita: ganho, perdido, responsáveis e menu */}
+        <div className="flex items-center gap-2 justify-self-end">
           {/* Botões de status */}
           {lead.dealStatus === "won" || lead.dealStatus === "lost" ? (
             <>
@@ -1239,94 +1380,7 @@ export default function LeadDetailPage() {
         </div>
       </div>
 
-      {/* PROGRESS BAR -- sem borda inferior desde 26/10/2026, a pedido do
-          dono: a régua de cima (a da TOPBAR) é a única que separa esta faixa. */}
-      <div
-        style={{
-          height: 65,
-          background: "var(--surface-card)",
-          paddingLeft: 16,
-          paddingRight: 16,
-          flexShrink: 0,
-        }}
-        className="grid grid-cols-3 items-center"
-      >
-        {/* Esquerda — avatar, nome e funil */}
-        <div className="flex items-center gap-2 justify-self-start min-w-0">
-          <ProfileAvatar name={lead.name} avatarUrl={leadAvatarUrl} size={40} onError={refetchLeadAvatar} />
-          <div className="flex flex-col min-w-0">
-            <div className="flex items-baseline gap-1">
-              <span className="font-bold truncate" style={{ fontSize: 14, color: "var(--text-heading)" }}>{lead.name}</span>
-              <span className="text-[12px] text-muted-foreground shrink-0">#{lead.dealNumber}</span>
-            </div>
-            <span className="text-[12px] text-muted-foreground truncate">
-              {pipeline ? <>{pipeline.name} → {stages[activeIdx]?.title ?? "—"}</> : "Lead sem negócio"}
-            </span>
-          </div>
-        </div>
-
-        {/* Centro — etapas */}
-        <div className="flex items-center justify-center" style={{ gap: 3 }}>
-          {stages.map((s, idx) => {
-            const isActive = idx === activeIdx;
-            const isPast = idx < activeIdx;
-            /*
-             * As três situações da trilha, em tokens.
-             *
-             * A etapa CONCLUÍDA é verde claro com tinta verde, num par de
-             * tokens só dela (`--etapa-concluida-*`, ver index.css): lendo a
-             * rampa, ela tinha virado cinza com preto na troca para charcoal.
-             *
-             * A ATIVA é a cor de ação, o mesmo par dos botões (dono,
-             * 26/10/2026): `--accent-400` de fundo com `--text-on-accent` em
-             * cima. No claro é #128C69 com branco, 4,22:1, abaixo do piso de
-             * 4,5 para estes 10px, o mesmo número que o dono aceitou nos
-             * botões. Antes ela lia o `--accent-700`, que é TINTA e ficou
-             * preta quando a rampa virou charcoal; por isso a trilha não
-             * acompanhou a volta do verde.
-             */
-            const bg = isActive ? "var(--accent-400)" : isPast ? "var(--etapa-concluida-bg)" : "var(--neutral-50)";
-            const color = isActive ? "var(--text-on-accent)" : isPast ? "var(--etapa-concluida-tinta)" : "var(--text-muted)";
-            const stageRef = lead.stageEnteredAt ? lead.stageEnteredAt.split("T")[0] : lead.entryDate;
-            const days = idx === activeIdx ? daysBetween(stageRef, today) : isPast ? 2 : 0;
-            return (
-              <button
-                key={s.id}
-                onClick={() => handleStageClick(s.id)}
-                className="flex flex-col items-center justify-center transition-all hover:opacity-80 shrink-0"
-              >
-                <div
-                  style={{
-                    background: bg,
-                    color,
-                    /* 10px, a pedido do dono em 21/09/2026. É abaixo do piso de
-                       12px da matriz (seção 3.2): a trilha tem até oito etapas
-                       lado a lado no topo do negócio, e o nome inteiro só cabe
-                       nesse corpo. O peso 600 e o contraste medido (4,52:1 na
-                       ativa, 6,26:1 na concluída) seguram a leitura. */
-                    fontSize: 10,
-                    fontWeight: 600,
-                    padding: "3px 14px",
-                    clipPath: "polygon(0 0, calc(100% - 7px) 0, 100% 50%, calc(100% - 7px) 100%, 0 100%, 7px 50%)",
-                    textAlign: "center",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {s.title}
-                </div>
-                <span style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
-                  {days} {days === 1 ? "dia" : "dias"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Direita — vazio para balancear o grid */}
-        <div />
-      </div>
-
-      {/* CONTENT — abaixo da topbar/etapas (ambas altura fixa, fora deste
+      {/* CONTENT: abaixo do cabeçalho (altura fixa, fora deste
           bloco), ocupa o resto da viewport. minHeight: 0 é obrigatório aqui:
           sem isso, um filho de flex nunca encolhe além do conteúdo interno e
           o overflowY:auto das duas colunas simplesmente não faz nada. */}

@@ -906,6 +906,10 @@
   background: hsl(0 0% 70% / 0.9);
 }
 
+/* Faixa de etapas do cabeçalho do negócio: rola para o lado sem mostrar a
+   barra (o Firefox é coberto pelo scrollbarWidth no estilo inline). */
+.faixa-etapas::-webkit-scrollbar { display: none; }
+
 /* Note rich text view and editor */
 .note-content { line-height: 1.6; }
 .note-content div { min-height: 1.4em; }
