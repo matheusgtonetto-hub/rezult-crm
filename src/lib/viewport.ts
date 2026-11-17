@@ -6,10 +6,13 @@
  * atropelavam. Com 1100, o celular monta a página como o desktop e reduz tudo
  * junto. Ver o comentário longo no `<head>` do index.html.
  *
- * O preço disso são as telas de ENTRADA. Login, cadastro, 2FA e redefinição de
- * senha são um cartão de 380px centralizado, que já nasce responsivo. Dentro de
- * uma página de 1100px virtuais, esse cartão ocupa um terço da tela do celular
- * e sai ilegível, que foi o que o dono relatou em 11/10/2026 ("muito pequena").
+ * O preço disso são as telas de ENTRADA. Login e cadastro são uma coluna de
+ * formulário (com o painel de destaques ao lado a partir de 1024px, ver
+ * `LayoutDeEntrada`); 2FA e redefinição de senha seguem como um cartão de 380px
+ * centralizado. Todas já nascem responsivas. Dentro de uma página de 1100px
+ * virtuais, esse conteúdo ocupa um terço da tela do celular e sai ilegível, que
+ * foi o que o dono relatou em 11/10/2026 ("muito pequena"). Pela mesma razão o
+ * `lg:` do Tailwind só funciona como esperado nestas rotas.
  *
  * Então a meta passa a ser por rota: aparelho nas telas de entrada, 1100 no
  * app. É a exceção que o próprio comentário do index.html antecipava.

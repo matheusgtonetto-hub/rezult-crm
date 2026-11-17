@@ -7,9 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, MailCheck, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { useIdioma } from "@/context/IdiomaContext";
-import { SeletorDeIdioma } from "@/components/SeletorDeIdioma";
-import { SeletorDeTema } from "@/components/SeletorDeTema";
-import { RodapeLegal } from "@/components/RodapeLegal";
+import { LayoutDeEntrada } from "@/components/entrada/LayoutDeEntrada";
 import { MarcaRezult } from "@/components/MarcaRezult";
 
 type Screen = "login" | "forgot";
@@ -70,149 +68,109 @@ export default function LoginPage() {
     setForgotSent(true);
   };
 
+  // As duas telas (entrar e recuperar senha) moram na mesma casca. Ao abrir a
+  // recuperação, o painel da direita não se mexe: só a coluna do formulário
+  // troca, e a pessoa entende que continua no mesmo lugar.
   if (screen === "forgot") {
     return (
-      <div className="relative min-h-[100dvh] flex flex-col px-4" style={{ background: "var(--fundo-entrada)" }}>
-        {/* Preso ao canto da tela, fora do cartão: a escolha vale para a página
-            inteira, e dentro do cartão ela viraria mais um campo do
-            formulário. `absolute` sobre o `relative` do fundo. */}
-        <div className="absolute top-5 right-5 z-10 flex items-center gap-2"><SeletorDeIdioma /><SeletorDeTema /></div>
-        <div className="flex-1 flex items-center justify-center py-6">
-        <div
-          className="w-full max-w-[380px] bg-card rounded-[var(--radius-card)] p-[30px] text-center border border-input shadow-elev-3"
-                  >
-          <div className="flex justify-center mb-6"><MarcaRezult /></div>
+      <LayoutDeEntrada>
+        <div className="mb-10"><MarcaRezult /></div>
 
-          <div className="flex justify-center mb-4">
-            <div className="w-14 h-14 rounded-full bg-success-soft flex items-center justify-center">
-              <MailCheck size={28} className="text-primary" />
-            </div>
-          </div>
+        <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-success-soft">
+          <MailCheck size={28} className="text-primary" />
+        </div>
 
-          {forgotSent ? (
-            <>
-              <h1 className="text-xl font-bold text-foreground">{t("senha.enviadoTitulo")}</h1>
-              <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
-                {t("senha.enviadoPara")} <strong>{forgotEmail}</strong>.
-                <br />{t("senha.enviadoInstrucao")}
-              </p>
+        {forgotSent ? (
+          <>
+            <h1 className="text-[24px] font-semibold leading-[1.2] tracking-[-0.015em] text-foreground">{t("senha.enviadoTitulo")}</h1>
+            <p className="text-sm text-muted-foreground mt-3 leading-relaxed">
+              {t("senha.enviadoPara")} <strong>{forgotEmail}</strong>.
+              <br />{t("senha.enviadoInstrucao")}
+            </p>
+            <Button
+              className="w-full h-[var(--control-h-lg)] font-semibold mt-8"
+              onClick={() => setScreen("login")}
+            >
+              {t("senha.voltar")}
+            </Button>
+          </>
+        ) : (
+          <>
+            <h1 className="text-[24px] font-semibold leading-[1.2] tracking-[-0.015em] text-foreground">{t("senha.titulo")}</h1>
+            <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+              {t("senha.descricao")}
+            </p>
+
+            <form onSubmit={handleForgot} className="space-y-4 mt-8">
+              <div className="space-y-[3px]">
+                <Label htmlFor="forgot-email" className="text-[13px] font-normal text-foreground">{t("login.email")}</Label>
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  placeholder={t("login.emailPlaceholder")}
+                  value={forgotEmail}
+                  onChange={e => setForgotEmail(e.target.value)}
+                  className="focus-visible:border-primary"
+                  autoFocus
+                />
+              </div>
+
+              <Button type="submit" className="w-full h-[var(--control-h-lg)] font-semibold" disabled={forgotLoading}>
+                {forgotLoading ? t("senha.enviando") : t("senha.enviar")}
+              </Button>
+
               <Button
-                className="w-full h-[var(--control-h-lg)] font-semibold mt-8"
+                type="button"
+                variant="outline"
+                className="w-full h-[var(--control-h-lg)]"
                 onClick={() => setScreen("login")}
               >
                 {t("senha.voltar")}
               </Button>
-            </>
-          ) : (
-            <>
-              <h1 className="text-xl font-bold text-foreground">{t("senha.titulo")}</h1>
-              <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
-                {t("senha.descricao")}
-              </p>
-
-              <form onSubmit={handleForgot} className="space-y-4 mt-8 text-left">
-                <div className="space-y-[3px]">
-                  <Label htmlFor="forgot-email" className="text-[13px] font-normal text-foreground">{t("login.email")}</Label>
-                  <Input
-                    id="forgot-email"
-                    type="email"
-                    placeholder={t("login.emailPlaceholder")}
-                    value={forgotEmail}
-                    onChange={e => setForgotEmail(e.target.value)}
-                    className="focus-visible:border-primary"
-                    autoFocus
-                  />
-                </div>
-
-                <Button type="submit" className="w-full h-[var(--control-h-lg)] font-semibold" disabled={forgotLoading}>
-                  {forgotLoading ? t("senha.enviando") : t("senha.enviar")}
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full h-[var(--control-h-lg)]"
-                  onClick={() => setScreen("login")}
-                >
-                  {t("senha.voltar")}
-                </Button>
-              </form>
-            </>
-          )}
-        </div>
-        </div>
-        <RodapeLegal />
-      </div>
+            </form>
+          </>
+        )}
+      </LayoutDeEntrada>
     );
   }
 
-  // Coluna de três partes: seletor solto no canto, cartão no meio e rodapé
-  // colado no fim da tela. O `flex-1` do bloco do meio é o que empurra o rodapé
-  // para baixo -- centralizar tudo junto deixaria o rodapé grudado no cartão,
-  // no meio da tela.
-  //
-  // `min-h-[100dvh]` e não `h-screen overflow-hidden` (11/10/2026): com a
-  // largura do aparelho em vigor nesta rota, o cartão ocupa altura real de
-  // celular, e num aparelho curto ou em paisagem o `overflow-hidden` cortava o
-  // botão de entrar sem deixar rolar. O `min-h` preserva o rodapé no fim da
-  // tela quando sobra espaço, que era o papel do `h-screen`. O `dvh` em vez de
-  // `vh` porque no celular a barra do navegador entra na conta do `vh`.
   return (
-    <div className="relative min-h-[100dvh] flex flex-col px-4" style={{ background: "var(--fundo-entrada)" }}>
-      <div className="absolute top-5 right-5 z-10 flex items-center gap-2"><SeletorDeIdioma /><SeletorDeTema /></div>
-      <div className="flex-1 flex items-center justify-center py-6">
-      <div className="relative w-full max-w-[380px] rounded-[var(--radius-card)] p-[1px] overflow-hidden shadow-elev-3">
-        {/* Rotating border lights */}
-        <div
-          className="absolute inset-[-100%]"
-          style={{
-            background: "var(--luz-cartao-feixe-a)",
-            animation: "spin-border var(--luz-cartao-giro) linear infinite",
-          }}
-        />
-        <div
-          className="absolute inset-[-100%]"
-          style={{
-            background: "var(--luz-cartao-feixe-b)",
-            animation: "spin-border var(--luz-cartao-giro) linear infinite",
-          }}
-        />
-        <div
-        className="relative w-full bg-card rounded-[var(--radius-card)] p-[30px]"
-              >
-        <div className="flex justify-center items-center mb-[15px]">
-          <MarcaRezult />
+    <LayoutDeEntrada>
+      <div className="mb-10"><MarcaRezult /></div>
+
+      {emailConfirmed && (
+        <div className="flex items-start gap-3 bg-[color:var(--accent-50)] border border-[color:var(--accent-200)] rounded-xl px-4 py-3 mb-6">
+          <CheckCircle2 size={18} className="text-[color:var(--accent-700)] mt-0.5 shrink-0" />
+          <p className="text-sm text-[color:var(--accent-800)] leading-snug">
+            <span className="font-semibold">{t("login.emailConfirmadoTitulo")}</span>
+            <br />{t("login.emailConfirmadoTexto")}
+          </p>
+        </div>
+      )}
+
+      <h1 className="text-[24px] font-semibold leading-[1.2] tracking-[-0.015em] text-foreground">{t("login.titulo")}</h1>
+      <p className="text-[14px] text-muted-foreground mt-1" style={{ fontWeight: 400 }}>
+        {t("login.subtitulo")}
+      </p>
+
+      <form onSubmit={handleLogin} className="space-y-4 mt-8">
+        <div className="space-y-[3px]">
+          <Label htmlFor="email" className="text-[13px] font-normal text-foreground">{t("login.email")}</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder={t("login.emailPlaceholder")}
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            className="focus-visible:border-primary"
+            autoComplete="email"
+          />
         </div>
 
-        {emailConfirmed && (
-          <div className="flex items-start gap-3 bg-[color:var(--accent-50)] border border-[color:var(--accent-200)] rounded-xl px-4 py-3 mb-6">
-            <CheckCircle2 size={18} className="text-[color:var(--accent-700)] mt-0.5 shrink-0" />
-            <p className="text-sm text-[color:var(--accent-800)] leading-snug">
-              <span className="font-semibold">{t("login.emailConfirmadoTitulo")}</span>
-              <br />{t("login.emailConfirmadoTexto")}
-            </p>
-          </div>
-        )}
-
-        <h1 className="text-[24px] font-semibold leading-[1.2] tracking-[-0.015em] text-foreground text-center">{t("login.titulo")}</h1>
-        <p className="text-[14px] text-muted-foreground text-center mt-[1px]" style={{ fontWeight: 400 }}>
-          {t("login.subtitulo")}
-        </p>
-
-        <form onSubmit={handleLogin} className="space-y-3 mt-[15px]">
-          <div className="space-y-[3px]">
-            <Label htmlFor="email" className="text-[13px] font-normal text-foreground">{t("login.email")}</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder={t("login.emailPlaceholder")}
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="focus-visible:border-primary"
-              autoComplete="email"
-            />
-          </div>
-
+        {/* O link de recuperar a senha mora colado no campo de senha, e não
+            solto entre ele e o botão: é uma ação DO campo. Por isso os dois
+            dividem um bloco com respiro menor que o do resto do formulário. */}
+        <div className="space-y-2">
           <div className="space-y-[3px]">
             <Label htmlFor="password" className="text-[13px] font-normal text-foreground">{t("login.senha")}</Label>
             <div className="relative">
@@ -236,34 +194,36 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={openForgot}
-              className="text-xs text-primary hover:underline font-medium"
-            >
-              {t("login.recuperarSenha")}
-            </button>
-          </div>
-
-          <Button type="submit" className="w-full h-[var(--control-h-lg)] font-semibold" disabled={loading}>
-            {loading ? t("login.aguarde") : t("login.entrar")}
-          </Button>
-
-          <Button
+          <button
             type="button"
-            variant="outline"
-            className="w-full h-[var(--control-h-lg)] font-medium bg-card border border-primary text-primary hover:bg-success-soft hover:text-primary active:brightness-[0.97] transition-colors"
-            onClick={() => navigate("/register")}
+            onClick={openForgot}
+            className="block text-[13px] text-primary hover:underline font-medium"
           >
-            {t("login.criarConta")}
-          </Button>
-        </form>
+            {t("login.recuperarSenha")}
+          </button>
         </div>
-      </div>
-      </div>
 
-      <RodapeLegal />
-    </div>
+        <Button type="submit" className="w-full h-[var(--control-h-lg)] font-semibold" disabled={loading}>
+          {loading ? t("login.aguarde") : t("login.entrar")}
+        </Button>
+
+        {/* No lugar onde a referência separa o "Entrar" do login com o Google.
+            Aqui separa de "Criar conta": são os dois caminhos de quem chega. */}
+        <div className="flex items-center gap-3 text-[13px] text-muted-foreground">
+          <span className="h-px flex-1 bg-border" />
+          {t("login.ou")}
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full h-[var(--control-h-lg)] font-medium bg-card border border-primary text-primary hover:bg-success-soft hover:text-primary active:brightness-[0.97] transition-colors"
+          onClick={() => navigate("/register")}
+        >
+          {t("login.criarConta")}
+        </Button>
+      </form>
+    </LayoutDeEntrada>
   );
 }

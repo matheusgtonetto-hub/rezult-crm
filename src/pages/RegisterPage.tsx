@@ -7,9 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
-import { SeletorDeIdioma } from "@/components/SeletorDeIdioma";
-import { SeletorDeTema } from "@/components/SeletorDeTema";
-import { RodapeLegal } from "@/components/RodapeLegal";
+import { LayoutDeEntrada } from "@/components/entrada/LayoutDeEntrada";
 import { useIdioma } from "@/context/IdiomaContext";
 import { pixelTrack } from "@/lib/metaPixel";
 import { capturarAtribuicao } from "@/lib/atribuicao";
@@ -81,170 +79,134 @@ export default function RegisterPage() {
     navigate("/verify-2fa", { state: { email } });
   };
 
-  // Mesma coluna do login: cartão no bloco que cresce, rodapé no fim. O
-  // formulário é alto e a página rola, então o rodapé aparece ao terminar de
-  // rolar, que é onde se espera encontrá-lo.
-  //
-  // A rolagem é da PÁGINA e não deste container (11/10/2026, junto da troca de
-  // viewport por rota). Era `h-screen overflow-y-auto`: no iOS o `100vh` conta
-  // a altura com a barra do navegador recolhida, então o fim do container ficava
-  // por baixo da barra, e rolar dentro de uma caixa de altura fixa não recolhe
-  // a barra. Com `min-h-[100dvh]` quem rola é a página, a barra sai do caminho
-  // e o rodapé continua no fim da tela quando o formulário é curto.
   return (
-    <div className="relative min-h-[100dvh] flex flex-col px-4" style={{ background: "var(--fundo-entrada)" }}>
-      {/* Mesmo canto do login: quem escolheu o idioma lá chega aqui pelo botão
-          "Criar uma conta", e o seletor precisa continuar onde a pessoa
-          acabou de vê-lo. */}
-      <div className="absolute top-5 right-5 z-10 flex items-center gap-2"><SeletorDeIdioma /><SeletorDeTema /></div>
-      <div className="flex-1 flex items-center justify-center py-6">
-      <div className="relative w-full max-w-[380px] rounded-[var(--radius-card)] p-[1px] overflow-hidden shadow-elev-3">
-        {/* Rotating border lights */}
-        <div
-          className="absolute inset-[-100%]"
-          style={{
-            background: "var(--luz-cartao-feixe-a)",
-            animation: "spin-border var(--luz-cartao-giro) linear infinite",
-          }}
-        />
-        <div
-          className="absolute inset-[-100%]"
-          style={{
-            background: "var(--luz-cartao-feixe-b)",
-            animation: "spin-border var(--luz-cartao-giro) linear infinite",
-          }}
-        />
-        <div className="relative w-full bg-card rounded-[var(--radius-card)] px-[30px] pt-[30px] pb-[20px]">
-          {/* Seta no canto, e não um botão no fim do formulário: voltar é saída,
-              não conclusão, e no rodapé ela dividia atenção com o botão de
-              criar a conta. `absolute` para não empurrar a logo do centro.
+    <LayoutDeEntrada
+      // Seta no canto da página, e não um botão no fim do formulário: voltar é
+      // saída, não conclusão, e no rodapé ela dividia atenção com o botão de
+      // criar a conta. Vai no cabeçalho da casca, que é onde o idioma e o tema
+      // também ficam, para a seta não empurrar a logo para o lado.
+      //
+      // Só o desenho, sem texto: a seta para a esquerda no alto de uma tela já
+      // é lida como "voltar" em qualquer idioma, e o nome completo vai no
+      // `aria-label`, para quem usa leitor de tela.
+      voltar={
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          aria-label={t("cadastro.voltar")}
+          title={t("cadastro.voltar")}
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <ArrowLeft size={18} />
+        </button>
+      }
+    >
+      <div className="mb-10"><MarcaRezult /></div>
 
-              Só o desenho, sem texto: a seta para a esquerda no alto de um
-              formulário já é lida como "voltar" em qualquer idioma, e o nome
-              completo vai no `aria-label`, para quem usa leitor de tela. */}
-          <button
-            type="button"
-            onClick={() => navigate("/")}
-            aria-label={t("cadastro.voltar")}
-            title={t("cadastro.voltar")}
-            className="absolute left-[18px] top-[22px] flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <ArrowLeft size={18} />
-          </button>
+      <h1 className="text-[24px] font-semibold leading-[1.2] tracking-[-0.015em] text-foreground">{t("cadastro.titulo")}</h1>
+      <p className="text-[14px] text-muted-foreground mt-1" style={{ fontWeight: 400 }}>
+        {t("cadastro.subtitulo")}
+      </p>
 
-          <div className="flex justify-center items-center mb-[15px]">
-            <MarcaRezult />
-          </div>
-
-          <h1 className="text-[24px] font-semibold leading-[1.2] tracking-[-0.015em] text-foreground text-center">{t("cadastro.titulo")}</h1>
-          <p className="text-[14px] text-muted-foreground text-center mt-[1px]" style={{ fontWeight: 400 }}>
-            {t("cadastro.subtitulo")}
-          </p>
-
-          <form onSubmit={handleSubmit} className="space-y-3 mt-[15px]">
-            <div className="space-y-[3px]">
-              <Label htmlFor="fullName" className="text-[13px] font-normal text-foreground">{t("cadastro.nome")}</Label>
-              <Input
-                id="fullName"
-                type="text"
-                placeholder={t("cadastro.nomePlaceholder")}
-                value={fullName}
-                onChange={e => setFullName(e.target.value)}
-                className="focus-visible:border-primary"
-                autoComplete="name"
-                autoFocus
-              />
-            </div>
-
-            <div className="space-y-[3px]">
-              <Label htmlFor="reg-email" className="text-[13px] font-normal text-foreground">{t("login.email")}</Label>
-              <Input
-                id="reg-email"
-                type="email"
-                placeholder={t("login.emailPlaceholder")}
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="focus-visible:border-primary"
-                autoComplete="email"
-              />
-            </div>
-
-            <div className="space-y-[3px]">
-              <Label htmlFor="reg-password" className="text-[13px] font-normal text-foreground">{t("login.senha")}</Label>
-              <div className="relative">
-                <Input
-                  id="reg-password"
-                  type={showPwd ? "text" : "password"}
-                  placeholder={t("login.senhaPlaceholder")}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="pr-10 focus-visible:border-primary"
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd(s => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={showPwd ? t("login.ocultarSenha") : t("login.mostrarSenha")}
-                >
-                  {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-[3px]">
-              <Label htmlFor="reg-confirm" className="text-[13px] font-normal text-foreground">{t("cadastro.confirmarSenha")}</Label>
-              <div className="relative">
-                <Input
-                  id="reg-confirm"
-                  type={showConfirmPwd ? "text" : "password"}
-                  placeholder={t("cadastro.confirmarPlaceholder")}
-                  value={confirmPwd}
-                  onChange={e => setConfirmPwd(e.target.value)}
-                  className="pr-10 focus-visible:border-primary"
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmPwd(s => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  aria-label={showConfirmPwd ? t("login.ocultarSenha") : t("login.mostrarSenha")}
-                >
-                  {showConfirmPwd ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Consentimento pelo ato de criar a conta, sem caixa para marcar.
-                O texto é o aceite: quem clica no botão está concordando, e é
-                por isso que ele vem logo acima dele, e não perdido no meio do
-                formulário. */}
-            <p className="text-[12px] text-muted-foreground leading-snug">
-              {t("cadastro.consentimento")}{" "}
-              <a
-                href="https://www.rezultcrm.com/politica"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="font-medium text-primary hover:underline"
-              >
-                {t("cadastro.politica")}
-              </a>
-              .
-            </p>
-
-            <Button
-              type="submit"
-              className="w-full h-[var(--control-h-lg)] font-semibold"
-              disabled={loading || !fullName.trim() || !email.trim() || !password || !confirmPwd}
-            >
-              {loading ? t("cadastro.criando") : t("cadastro.botao")}
-            </Button>
-
-          </form>
+      <form onSubmit={handleSubmit} className="space-y-4 mt-8">
+        <div className="space-y-[3px]">
+          <Label htmlFor="fullName" className="text-[13px] font-normal text-foreground">{t("cadastro.nome")}</Label>
+          <Input
+            id="fullName"
+            type="text"
+            placeholder={t("cadastro.nomePlaceholder")}
+            value={fullName}
+            onChange={e => setFullName(e.target.value)}
+            className="focus-visible:border-primary"
+            autoComplete="name"
+            autoFocus
+          />
         </div>
-      </div>
-      </div>
-      <RodapeLegal />
-    </div>
+
+        <div className="space-y-[3px]">
+          <Label htmlFor="reg-email" className="text-[13px] font-normal text-foreground">{t("login.email")}</Label>
+          <Input
+            id="reg-email"
+            type="email"
+            placeholder={t("login.emailPlaceholder")}
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            className="focus-visible:border-primary"
+            autoComplete="email"
+          />
+        </div>
+
+        <div className="space-y-[3px]">
+          <Label htmlFor="reg-password" className="text-[13px] font-normal text-foreground">{t("login.senha")}</Label>
+          <div className="relative">
+            <Input
+              id="reg-password"
+              type={showPwd ? "text" : "password"}
+              placeholder={t("login.senhaPlaceholder")}
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="pr-10 focus-visible:border-primary"
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPwd(s => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={showPwd ? t("login.ocultarSenha") : t("login.mostrarSenha")}
+            >
+              {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-[3px]">
+          <Label htmlFor="reg-confirm" className="text-[13px] font-normal text-foreground">{t("cadastro.confirmarSenha")}</Label>
+          <div className="relative">
+            <Input
+              id="reg-confirm"
+              type={showConfirmPwd ? "text" : "password"}
+              placeholder={t("cadastro.confirmarPlaceholder")}
+              value={confirmPwd}
+              onChange={e => setConfirmPwd(e.target.value)}
+              className="pr-10 focus-visible:border-primary"
+              autoComplete="new-password"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPwd(s => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={showConfirmPwd ? t("login.ocultarSenha") : t("login.mostrarSenha")}
+            >
+              {showConfirmPwd ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+        </div>
+
+        {/* Consentimento pelo ato de criar a conta, sem caixa para marcar.
+            O texto é o aceite: quem clica no botão está concordando, e é
+            por isso que ele vem logo acima dele, e não perdido no meio do
+            formulário. */}
+        <p className="text-[12px] text-muted-foreground leading-snug">
+          {t("cadastro.consentimento")}{" "}
+          <a
+            href="https://www.rezultcrm.com/politica"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-primary hover:underline"
+          >
+            {t("cadastro.politica")}
+          </a>
+          .
+        </p>
+
+        <Button
+          type="submit"
+          className="w-full h-[var(--control-h-lg)] font-semibold"
+          disabled={loading || !fullName.trim() || !email.trim() || !password || !confirmPwd}
+        >
+          {loading ? t("cadastro.criando") : t("cadastro.botao")}
+        </Button>
+      </form>
+    </LayoutDeEntrada>
   );
 }
