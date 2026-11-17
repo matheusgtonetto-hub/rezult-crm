@@ -1,6 +1,4 @@
 import type { ReactNode } from "react";
-import { SeletorDeIdioma } from "@/components/SeletorDeIdioma";
-import { SeletorDeTema } from "@/components/SeletorDeTema";
 import { RodapeLegal } from "@/components/RodapeLegal";
 import { PainelDeFuncionalidades } from "@/components/entrada/PainelDeFuncionalidades";
 
@@ -15,15 +13,14 @@ import { PainelDeFuncionalidades } from "@/components/entrada/PainelDeFuncionali
  *
  * ─── Coluna do formulário ───────────────────────────────────────────────────
  *
- * Três partes em coluna: o cabeçalho (voltar à esquerda, idioma e tema à
- * direita), o miolo que cresce e o rodapé legal. O `flex-1` do miolo é o que
+ * Três partes em coluna: o cabeçalho (só a seta de voltar, quando a tela tem
+ * uma), o miolo que cresce e o rodapé legal. O `flex-1` do miolo é o que
  * empurra o rodapé para o fim da tela; centralizar tudo junto o deixaria
  * grudado no formulário, no meio.
  *
- * O cabeçalho é uma linha NO FLUXO, e não os seletores soltos num canto com
- * `absolute` como eram. Com o painel à direita, o canto da página passou a ser
- * do painel, e o canto da coluna, num celular de 360px, é onde o formulário
- * sobe e cobriria os seletores. Na linha, nada se sobrepõe em tamanho nenhum.
+ * Sem seletor de idioma e de tema (dono, 17/11/2026): saíram do login e do
+ * cadastro. O idioma segue o que a pessoa escolheu antes ou o do navegador
+ * (`IdiomaContext`), e o tema o que ficou guardado (`src/lib/tema.ts`).
  *
  * `min-h-[100dvh]` e não `h-screen overflow-hidden` (11/10/2026): num aparelho
  * curto ou deitado, o `overflow-hidden` cortava o botão de entrar sem deixar
@@ -43,10 +40,13 @@ export function LayoutDeEntrada({ children, voltar }: { children: ReactNode; vol
   return (
     <div className="min-h-[100dvh] lg:grid lg:grid-cols-2" style={{ background: "var(--fundo-entrada)" }}>
       <main className="flex min-h-[100dvh] min-w-0 flex-col px-5 sm:px-8">
-        <header className="flex items-center justify-between pt-5">
-          <div>{voltar}</div>
-          <div className="flex items-center gap-2"><SeletorDeIdioma /><SeletorDeTema /></div>
-        </header>
+        {/* A seta de voltar fica na MESMA coluna do formulário, alinhada à
+            esquerda com o logo e os textos. Sem seta (login), não há cabeçalho. */}
+        {voltar && (
+          <header className="mx-auto flex w-full max-w-[400px] items-center pt-5">
+            {voltar}
+          </header>
+        )}
 
         <div className="flex flex-1 items-center justify-center py-8">
           <div className="w-full max-w-[400px]">{children}</div>

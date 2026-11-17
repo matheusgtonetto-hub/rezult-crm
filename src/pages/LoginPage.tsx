@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,15 @@ import { MarcaRezult } from "@/components/MarcaRezult";
 type Screen = "login" | "forgot";
 
 export default function LoginPage() {
-  const navigate = useNavigate();
   const { signIn, resetPassword } = useAuth();
   const { t } = useIdioma();
 
-  const [screen, setScreen]             = useState<Screen>("login");
+  // O cadastro ("recadastre sua senha") chega aqui pedindo a tela de
+  // recuperação pelo estado da navegação.
+  const location = useLocation();
+  const [screen, setScreen]             = useState<Screen>(
+    () => ((location.state as { recuperarSenha?: boolean } | null)?.recuperarSenha ? "forgot" : "login"),
+  );
   const [email, setEmail]               = useState("");
   const [password, setPassword]         = useState("");
   const [showPwd, setShowPwd]           = useState(false);
@@ -148,14 +152,27 @@ export default function LoginPage() {
         </div>
       )}
 
-      <h1 className="text-[24px] font-semibold leading-[1.2] tracking-[-0.015em] text-foreground">{t("login.titulo")}</h1>
-      <p className="text-[14px] text-muted-foreground mt-1" style={{ fontWeight: 400 }}>
-        {t("login.subtitulo")}
+      <h1 className="text-[24px] font-bold leading-[1.2] tracking-[-0.015em] text-foreground">{t("login.titulo")}</h1>
+      {/* "Criar conta" é um LINK dentro da frase, e não mais um botão sob o
+          "Entrar" (dono, 17/11/2026): quem chega sem conta lê a pergunta e
+          clica na resposta. É `Link`, e não botão com `navigate`, porque leva a
+          outra página: o navegador ganha o endereço, o clique com o botão do
+          meio abre em outra aba e o leitor de tela anuncia "link".
+
+          O verde é o `success-soft-foreground` (a tinta verde do sistema), e
+          não o verde da marca: a marca (#128C69) sobre branco rende 4,22:1,
+          abaixo do piso de 4,5 para texto de 15px, e esta tinta rende 5,31:1 no
+          claro e 12,49:1 no escuro, onde o token troca sozinho. */}
+      <p className="mt-3 text-[15px] font-medium text-muted-foreground">
+        {t("login.semConta")}{" "}
+        <Link to="/register" className="font-medium text-success-soft-foreground hover:underline">
+          {t("login.criarConta")}
+        </Link>
       </p>
 
       <form onSubmit={handleLogin} className="space-y-4 mt-8">
         <div className="space-y-[3px]">
-          <Label htmlFor="email" className="text-[13px] font-normal text-foreground">{t("login.email")}</Label>
+          <Label htmlFor="email" className="text-[14px] font-medium text-muted-foreground">{t("login.email")}</Label>
           <Input
             id="email"
             type="email"
@@ -172,7 +189,7 @@ export default function LoginPage() {
             dividem um bloco com respiro menor que o do resto do formulário. */}
         <div className="space-y-2">
           <div className="space-y-[3px]">
-            <Label htmlFor="password" className="text-[13px] font-normal text-foreground">{t("login.senha")}</Label>
+            <Label htmlFor="password" className="text-[14px] font-medium text-muted-foreground">{t("login.senha")}</Label>
             <div className="relative">
               <Input
                 id="password"
@@ -197,7 +214,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={openForgot}
-            className="block text-[13px] text-primary hover:underline font-medium"
+            className="block text-[14px] text-success-soft-foreground hover:underline font-semibold"
           >
             {t("login.recuperarSenha")}
           </button>
@@ -205,23 +222,6 @@ export default function LoginPage() {
 
         <Button type="submit" className="w-full h-[var(--control-h-lg)] font-semibold" disabled={loading}>
           {loading ? t("login.aguarde") : t("login.entrar")}
-        </Button>
-
-        {/* No lugar onde a referência separa o "Entrar" do login com o Google.
-            Aqui separa de "Criar conta": são os dois caminhos de quem chega. */}
-        <div className="flex items-center gap-3 text-[13px] text-muted-foreground">
-          <span className="h-px flex-1 bg-border" />
-          {t("login.ou")}
-          <span className="h-px flex-1 bg-border" />
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full h-[var(--control-h-lg)] font-medium bg-card border border-primary text-primary hover:bg-success-soft hover:text-primary active:brightness-[0.97] transition-colors"
-          onClick={() => navigate("/register")}
-        >
-          {t("login.criarConta")}
         </Button>
       </form>
     </LayoutDeEntrada>

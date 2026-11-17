@@ -70,7 +70,6 @@ const VARIAVEIS = {
   "--pf-texto": VENDA.texto,
   "--pf-texto-suave": VENDA.textoSuave,
   "--pf-texto-fraco": VENDA.textoFraco,
-  "--pf-borda": VENDA.borda,
   "--pf-verde": VENDA.verde,
   "--pf-anel": VENDA.bordaAtiva,
   "--pf-duracao": `${DURACAO_MS}ms`,
@@ -187,9 +186,9 @@ export function PainelDeFuncionalidades() {
               aria-label={`${i + 1} / ${DESTAQUES.length}`}
               aria-hidden={ativo ? undefined : true}
             >
-              <div className="pf-palco" aria-hidden="true">
-                <div className="pf-cena"><Cena /></div>
-              </div>
+              {/* A cena ocupa o slide inteiro, de borda a borda; o texto fica por
+                  cima, na parte de baixo, sobre o escurecimento. */}
+              <div className="pf-cena" aria-hidden="true"><Cena /></div>
 
               <div className="pf-texto">
                 <p className="pf-tag">

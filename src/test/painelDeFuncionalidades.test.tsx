@@ -339,9 +339,9 @@ describe("PainelDeFuncionalidades: idiomas", () => {
     }
   });
 
-  it("nenhum texto novo usa travessão (regra do dono: entrega que foi escrito por IA)", () => {
+  it("nenhum texto do painel nem do login usa travessão (regra do dono: entrega que foi escrito por IA)", () => {
     for (const idioma of IDIOMAS) {
-      const chaves = Object.keys(DICIONARIOS[idioma]).filter(c => c.startsWith("painel.") || c === "login.ou");
+      const chaves = Object.keys(DICIONARIOS[idioma]).filter(c => c.startsWith("painel.") || c.startsWith("login."));
       expect(chaves.length).toBeGreaterThan(0);
       for (const chave of chaves) {
         const texto = DICIONARIOS[idioma][chave as keyof (typeof DICIONARIOS)["pt"]];
@@ -362,13 +362,13 @@ describe("LayoutDeEntrada", () => {
     );
   }
 
-  it("mantém o que a tela passa (conteúdo e seta de voltar) e o que é da casca (seletores e rodapé)", () => {
+  it("mantém o que a tela passa (conteúdo e seta de voltar) e o rodapé, sem seletores de idioma e tema", () => {
     renderizarCasca();
 
     expect(screen.getByRole("heading", { level: 1, name: "conteudo-de-teste" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "voltar-de-teste" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Idioma" })).toBeInTheDocument();
-    expect(screen.getByRole("group", { name: "Tema" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Idioma" })).toBeNull();
+    expect(screen.queryByRole("group", { name: "Tema" })).toBeNull();
     expect(screen.getByText(/Todos os direitos reservados/)).toBeInTheDocument();
   });
 

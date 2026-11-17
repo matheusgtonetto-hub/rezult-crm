@@ -41,8 +41,11 @@ export function MarcaRezult({ className, style }: { className?: string; style?: 
           em 400. O 18 mora no pai porque as duas palavras dividem o
           `line-height` dele; subir o pai moveria a linha de base das duas. E a
           cor é uma só, sem o verde, porque o site também é de uma cor só. */}
-      <span className="text-[18px] font-normal leading-none tracking-tight">
-        <span className="text-[20px] font-semibold">Rezult</span> CRM
+      {/* 22px no "Rezult" a pedido do dono (17/11/2026); era 20px. O "CRM" sobe
+          na mesma proporção (18 para 20px), para as duas palavras seguirem com
+          a mesma relação de tamanho que o site usa. */}
+      <span className="text-[20px] font-normal leading-none tracking-tight">
+        <span className="text-[22px] font-semibold">Rezult</span> CRM
       </span>
     </span>
   );

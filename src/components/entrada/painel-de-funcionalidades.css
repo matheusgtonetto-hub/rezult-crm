@@ -1,66 +1,76 @@
 /*
  * Painel de destaques das telas de entrada (login e cadastro).
  *
- * ─── Por que as cores da moldura vêm de fora ────────────────────────────────
+ * ─── A cena ocupa o painel inteiro (dono, 17/11/2026) ───────────────────────
  *
- * O painel é uma superfície escura NOS DOIS temas, como as telas de venda (ver
- * `src/lib/superficie-de-venda.ts`, regra "token aqui só se não inverter").
- * As cores dele chegam por variável `--pf-*`, que o componente escreve a partir
- * de `VENDA`: assim a paleta continua tendo UMA cópia só, e este arquivo não
- * guarda hex da moldura.
+ * A primeira versão desenhava o app numa janela de proporção fixa, centrada
+ * sobre um fundo escuro, e sobrava preto em volta. O pedido foi a cena no
+ * tamanho máximo do quadro. Agora o app preenche o painel de borda a borda: a
+ * faixa clara de cima recebe a barra de progresso, e embaixo o texto do
+ * destaque fica sobre um escurecimento que nasce acima dele (como na
+ * referência). Esse escurecimento é exceção à regra "sem degradê decorativo"
+ * do design system: ele existe para o texto branco ser lido sobre a cena clara,
+ * não para enfeitar, e acompanha a altura do próprio texto.
  *
- * As cores de DENTRO da janela do produto (`--pj-*`) são hex fixos do tema
- * claro, e é de propósito: a janela é um "print" do app. Se ela seguisse o
- * tema, escolher o escuro ao lado do idioma viraria a janela escura e o painel
- * perderia o contraste que o separa do fundo.
+ * ─── Cores ──────────────────────────────────────────────────────────────────
  *
- * ─── Por que tudo em `em` ───────────────────────────────────────────────────
+ * O texto e o escurecimento usam a paleta `VENDA` (`src/lib/superficie-de-
+ * venda.ts`), que o componente injeta como `--pf-*`: uma cópia só. O app
+ * desenhado (`--pj-*`) usa hex fixos do tema CLARO, de propósito: é um "print"
+ * do produto e não vira escuro quando a pessoa usa o tema escuro.
  *
- * Cada cena é desenhada numa caixa de 36em por 23em, e o tamanho do `em` sai do
- * espaço que o palco tem (unidades de container query: `cqw`/`cqh`). A cena
- * inteira escala junto, sem medir nada em JavaScript, e nenhuma medida precisa
- * ser recalculada quando a janela muda de tamanho. O teto de 17px impede a cena
- * de virar um gigante em monitor largo.
+ * ─── Escala e responsividade ────────────────────────────────────────────────
+ *
+ * Tudo dentro do app é medido em `em`, e o `em` sai da LARGURA do painel
+ * (`cqw`, unidade de container query), entre 11px e 16px. O painel é um
+ * container nomeado (`painel`), e as consultas `@container` mudam o desenho
+ * conforme a largura: o funil mostra 2, 3 ou 4 colunas. A altura que sobra
+ * embaixo é preenchida pelo próprio app (colunas, listas), e o que importa na
+ * cena acontece na metade de cima, fora do escurecimento.
  *
  * ─── Movimento ──────────────────────────────────────────────────────────────
  *
- * Segue a seção 3.6 do design system: sem bounce, sem mola, sem flutuação em
- * loop e sem brilho pulsante. Cada cena TOCA UMA VEZ e fica parada no estado
- * final.
- *
- * Por isso o estado natural de cada elemento (sem animação nenhuma) é o FINAL,
- * e os keyframes só descrevem o caminho desde o começo. Quem reduz o movimento
- * vê a cena completa e imóvel sem que exista código para esse caso: basta a
- * animação não rodar.
+ * Seção 3.6 do design system: sem bounce, sem mola, sem loop, sem brilho
+ * pulsante. Cada cena TOCA UMA VEZ e fica parada no estado final. O estado
+ * natural de cada elemento (sem animação) é o FINAL, e os keyframes só
+ * descrevem o caminho desde o começo: com movimento reduzido a cena aparece
+ * completa e imóvel sem código para esse caso.
  */
 
 /* ═══ Moldura do painel ═════════════════════════════════════════════════════ */
 
 .pf {
+  /* A faixa clara do topo, onde fica a barra de progresso. O app desenhado lê a
+     mesma variável para a linha de cima dele ter exatamente esta altura. */
+  --pf-faixa: 56px;
+  --pf-progresso-trilho: #e7e7e7;  /* --neutral-200 */
+  --pf-progresso-cheio: #128c69;   /* --accent-400, a cor da marca */
+
   position: relative;
-  display: flex;
-  flex-direction: column;
   width: 100%;
   height: 100%;
   overflow: hidden;
-  /* Os títulos e a descrição escalam pela largura do PAINEL, não da janela. */
-  container-type: inline-size;
-  background: var(--pf-superficie);
-  color: var(--pf-texto);
-  border: 1px solid var(--pf-borda);
+  container: painel / size;
+  border: 1px solid #e7e7e7;
   border-radius: var(--radius-modal);
+  background: #ffffff;
+  color: var(--pf-texto);
   isolation: isolate;
 }
 
-/* ── Segmentos de progresso ───────────────────────────────────────────────
+/* ── Segmentos de progresso, na faixa clara do topo ────────────────────────
    O botão tem 20px de altura para dar área de clique; o traço visível tem 3px. */
 .pf-progresso {
-  position: relative;
-  z-index: 2;
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 3;
   display: flex;
-  flex-shrink: 0;
+  align-items: center;
   gap: 0.5rem;
-  padding: 1.5rem 1.75rem 0;
+  height: var(--pf-faixa);
+  padding: 0 1.75rem;
 }
 
 .pf-seg {
@@ -88,7 +98,7 @@
   height: 3px;
   overflow: hidden;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--pf-texto) 24%, transparent);
+  background: var(--pf-progresso-trilho);
 }
 
 .pf-seg-enchimento {
@@ -96,7 +106,7 @@
   width: 100%;
   height: 100%;
   border-radius: 2px;
-  background: var(--pf-texto);
+  background: var(--pf-progresso-cheio);
   transform: scaleX(0);
   transform-origin: left center;
 }
@@ -117,66 +127,65 @@
   to   { transform: scaleX(1); }
 }
 
-/* ── Corpo e slides ───────────────────────────────────────────────────────── */
+/* ── Slides ───────────────────────────────────────────────────────────────── */
 
 .pf-corpo {
-  position: relative;
-  flex: 1 1 0;
-  min-height: 0;
+  position: absolute;
+  inset: 0;
 }
 
 .pf-slide {
   position: absolute;
   inset: 0;
-  display: flex;
-  flex-direction: column;
-  padding: 0.5rem 1.75rem 1.75rem;
 }
 
+/* Só opacidade, sem deslocamento: com a cena de borda a borda, qualquer
+   deslize mostraria uma fresta do slide de trás. */
 .pf-slide[data-estado="entrando"] {
-  animation: pf-entra var(--dur-slow) var(--ease-out) both;
+  animation: pf-surge var(--dur-slow) var(--ease-out) both;
 }
 
-/* A saída é mais curta que a entrada, e a duração tem que bater com SAIDA_MS
-   no componente: é quando o slide velho deixa de existir. */
+/* A saída tem que bater com SAIDA_MS no componente: é quando o slide velho
+   deixa de existir. */
 .pf-slide[data-estado="saindo"] {
-  animation: pf-sai var(--dur-normal) var(--ease-standard) both;
+  animation: pf-some var(--dur-normal) var(--ease-standard) both;
   pointer-events: none;
 }
 
-@keyframes pf-entra {
-  from { opacity: 0; transform: translateY(0.5rem); }
-  to   { opacity: 1; transform: none; }
+@keyframes pf-surge {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-@keyframes pf-sai {
+@keyframes pf-some {
   from { opacity: 1; }
   to   { opacity: 0; }
 }
 
-/* O palco é um container de TAMANHO (largura e altura): é daqui que a cena
-   tira o `em`. Ele não pode depender do conteúdo para ter tamanho, e não
-   depende: cresce com `flex: 1` e a altura vem do painel. */
-.pf-palco {
-  display: grid;
-  flex: 1 1 0;
-  min-height: 0;
-  place-items: center;
-  container-type: size;
-}
-
 .pf-cena {
-  /* Sem container query, a cena sai num tamanho fixo e legível. */
-  font-size: 12px;
-  /* 36em cabem na largura e 23em na altura; o 17px é o teto. */
-  font-size: min(2.75cqw, 4.3cqh, 17px);
+  position: absolute;
+  inset: 0;
 }
 
-/* ── Texto do destaque ────────────────────────────────────────────────────── */
-
+/* ── Texto do destaque, sobre o escurecimento ─────────────────────────────
+   O escurecimento é o FUNDO do próprio bloco de texto: começa transparente
+   9rem acima da tag e chega a 78% exatamente onde a tag começa. Assim ele
+   acompanha a altura do texto (que muda com o idioma e a largura) em vez de
+   cobrir uma fração fixa do painel. Com 78% de escuro por cima, o branco do
+   texto rende pelo menos 9:1 mesmo sobre a parte mais clara da cena. */
 .pf-texto {
-  flex: 0 0 auto;
-  padding-top: 1.25rem;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  padding: 9rem 1.75rem 1.75rem;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--pf-superficie) 0%, transparent) 0,
+    color-mix(in srgb, var(--pf-superficie) 78%, transparent) 9rem,
+    color-mix(in srgb, var(--pf-superficie) 95%, transparent) 100%
+  );
 }
 
 .pf-tag {
@@ -268,12 +277,13 @@
   animation-play-state: paused;
 }
 
-/* ═══ Janela do produto (a "tela" que cada cena mostra) ═════════════════════ */
+/* ═══ O app desenhado, de borda a borda ═════════════════════════════════════ */
 
-.pj-janela {
+.pj-app {
   /* Tema claro CONGELADO. Cada valor é o do token do sistema no claro. */
   --pj-fundo: #ffffff;           /* --neutral-0 */
   --pj-trilho: #f7f7f7;          /* --neutral-50 */
+  --pj-faixa: #fafafa;           /* --neutral-25 */
   --pj-borda: #e7e7e7;           /* --neutral-200 */
   --pj-borda-forte: #d5d5d5;     /* --neutral-300 */
   --pj-esqueleto: #ebebeb;       /* --neutral-150 */
@@ -288,26 +298,33 @@
   --pj-whatsapp: #29a71a;        /* selo de WhatsApp do card do funil */
   --pj-roxo-ia: #6b21a8;         /* --roxo-ia */
 
+  position: absolute;
+  inset: 0;
   display: grid;
-  grid-template-columns: 2.6em minmax(0, 1fr);
-  width: 36em;
-  height: 23em;
+  grid-template-columns: 2.9em minmax(0, 1fr);
+  grid-template-rows: var(--pf-faixa) minmax(0, 1fr);
   overflow: hidden;
-  border: 1px solid var(--pj-borda);
-  border-radius: 0.9em;
   background: var(--pj-fundo);
-  box-shadow: var(--shadow-elevated-3);
   color: var(--pj-tinta);
-  font-size: 1em;
+  /* O tamanho de tudo: acompanha a largura do painel, entre 11 e 16px. */
+  font-size: 12px;
+  font-size: clamp(11px, 1.9cqw, 16px);
   line-height: 1.3;
   text-align: left;
   /* É um desenho. Sem isto dá para selecionar o texto da réplica e arrastar a
      marca, o que denuncia que não é a tela de verdade. O mouse atravessa a
-     cena e cai no palco, que é do painel: passar por cima dela continua sendo
-     passar por cima do painel, e continua pausando. */
+     cena e cai no painel: passar por cima dela continua pausando. */
   pointer-events: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+/* A linha de cima, vazia de propósito: é onde a barra de progresso do painel
+   se apoia. */
+.pj-app-faixa {
+  grid-column: 1 / -1;
+  border-bottom: 1px solid var(--pj-borda);
+  background: var(--pj-faixa);
 }
 
 /* ── Barra lateral ────────────────────────────────────────────────────────── */
@@ -317,14 +334,14 @@
   flex-direction: column;
   align-items: center;
   gap: 0.3em;
-  padding: 0.7em 0;
+  padding: 0.8em 0;
   border-right: 1px solid var(--pj-borda);
 }
 
 .pj-marca {
-  width: 1.6em;
-  height: 1.6em;
-  margin-bottom: 0.45em;
+  width: 1.7em;
+  height: 1.7em;
+  margin-bottom: 0.5em;
   border-radius: 0.45em;
   object-fit: cover;
 }
@@ -332,9 +349,9 @@
 .pj-item {
   display: grid;
   place-items: center;
-  width: 1.85em;
-  height: 1.85em;
-  border-radius: 0.5em;
+  width: 2em;
+  height: 2em;
+  border-radius: 0.55em;
   color: var(--pj-suave);
 }
 
@@ -349,10 +366,10 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 0.7em;
+  gap: 0.8em;
   min-width: 0;
   min-height: 0;
-  padding: 0.9em 1em;
+  padding: 1em 1.2em;
 }
 
 /* Variante de duas colunas, sem respiro: a lista e o chat colam nas bordas. */
@@ -375,7 +392,7 @@
   display: flex;
   align-items: center;
   gap: 0.45em;
-  font-size: 1em;
+  font-size: 1.05em;
   font-weight: 600;
   line-height: 1.2;
   letter-spacing: -0.01em;
@@ -440,8 +457,8 @@
   display: grid;
   flex-shrink: 0;
   place-items: center;
-  width: 1.5em;
-  height: 1.5em;
+  width: 1.6em;
+  height: 1.6em;
   border-radius: 50%;
   background: var(--cor);
   color: #ffffff;
@@ -470,7 +487,7 @@
   border: 1px solid;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
   color: var(--pj-tinta);
-  font-size: 0.74em;
+  font-size: 0.78em;
   line-height: 1.4;
 }
 
@@ -506,7 +523,7 @@
   display: flex;
   align-items: center;
   gap: 0.5em;
-  font-size: 0.72em;
+  font-size: 0.74em;
   font-weight: 500;
 }
 
@@ -542,12 +559,59 @@
 
 /* ═══ Cena 1: funil de vendas ═══════════════════════════════════════════════ */
 
+.pj-ferramentas {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.pj-busca,
+.pj-filtro {
+  display: flex;
+  align-items: center;
+  gap: 0.45em;
+  height: 2.6em;
+  padding: 0 0.8em;
+  border: 1px solid var(--pj-borda);
+  border-radius: 0.6em;
+  color: var(--pj-suave);
+  font-size: 0.72em;
+  white-space: nowrap;
+}
+
+.pj-busca {
+  flex: 0 1 20em;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* As colunas. O número muda com a largura do painel: 3 por padrão, 2 quando
+   ele é estreito (a 3ª some) e 4 quando é largo (a 4ª aparece). A altura do
+   card mora numa variável porque a vaga onde o card pousa tem que ter
+   exatamente a mesma. */
 .pj-quadro {
+  --colunas: 3;
+  --pj-card-h: 5.4em;
   display: grid;
   flex: 1 1 0;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--colunas), minmax(0, 1fr));
   gap: 0.6em;
   min-height: 0;
+}
+
+.pj-coluna--4 {
+  display: none !important;
+}
+
+@container painel (min-width: 860px) {
+  .pj-quadro { --colunas: 4; }
+  .pj-coluna--4 { display: flex !important; }
+}
+
+@container painel (max-width: 560px) {
+  .pj-quadro { --colunas: 2; }
+  .pj-coluna--3 { display: none !important; }
 }
 
 .pj-coluna {
@@ -565,7 +629,7 @@
   display: flex;
   align-items: center;
   gap: 0.4em;
-  height: 1.5em;
+  height: 1.6em;
   padding: 0 0.1em;
   font-size: 0.78em;
   font-weight: 600;
@@ -597,8 +661,8 @@
   flex: 0 0 auto;
   flex-direction: column;
   justify-content: space-between;
-  height: 4.1em;
-  padding: 0.5em 0.6em;
+  height: var(--pj-card-h);
+  padding: 0.55em 0.65em;
   border: 1px solid var(--pj-borda);
   border-radius: 0.55em;
   background: var(--pj-fundo);
@@ -612,11 +676,20 @@
   min-width: 0;
 }
 
+/* Linha cinza no lugar da empresa do negócio: a cena mostra a forma do card,
+   não um dado inventado a mais. */
+.pj-card-barra {
+  width: 62%;
+  height: 0.5em;
+  border-radius: 999px;
+  background: var(--pj-esqueleto);
+}
+
 .pj-nome {
   flex: 1 1 0;
   min-width: 0;
   overflow: hidden;
-  font-size: 0.78em;
+  font-size: 0.8em;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -629,7 +702,7 @@
   border-radius: 999px;
   background: var(--cor);
   color: #ffffff;
-  font-size: 0.6em;
+  font-size: 0.62em;
   font-weight: 500;
   white-space: nowrap;
 }
@@ -639,7 +712,7 @@
 .pj-vaga {
   position: relative;
   flex: 0 0 auto;
-  height: 4.1em;
+  height: var(--pj-card-h);
 }
 
 .pj-vaga-contorno {
@@ -664,7 +737,8 @@
 
    O deslocamento é a largura do card (100%) mais o que separa uma coluna da
    outra: respiro das duas bordas da coluna (2 x 0.5em), as duas bordas de 1px
-   e o espaço entre colunas (0.6em), que dão 1.6em e 2px. */
+   e o espaço entre colunas (0.6em), que dão 1.6em e 2px. Vale para 2, 3 ou 4
+   colunas, porque o card só anda da primeira para a segunda. */
 .pj-card--viaja {
   position: absolute;
   inset: 0;
@@ -688,8 +762,8 @@
 
 .pj-aviso {
   position: absolute;
-  top: 0.8em;
-  right: 1em;
+  top: 0.9em;
+  right: 1.2em;
   z-index: 3;
   display: flex;
   align-items: center;
@@ -699,7 +773,7 @@
   border-radius: 0.6em;
   background: var(--pj-fundo);
   box-shadow: var(--shadow-elevated-2);
-  font-size: 0.74em;
+  font-size: 0.76em;
   font-weight: 500;
   animation: pj-sobe 380ms var(--ease-out) 3100ms both;
 }
@@ -718,26 +792,26 @@
 
 .pj-lista {
   display: flex;
-  flex: 0 0 11.2em;
+  flex: 0 0 clamp(11em, 34%, 17em);
   flex-direction: column;
   gap: 0.25em;
   min-width: 0;
-  padding: 0.8em 0.6em;
+  padding: 0.9em 0.6em;
   border-right: 1px solid var(--pj-borda);
 }
 
 .pj-lista-titulo {
-  padding: 0 0.3em 0.35em;
-  font-size: 0.8em;
+  padding: 0 0.3em 0.4em;
+  font-size: 0.84em;
   font-weight: 600;
 }
 
 .pj-conversa {
   display: flex;
   align-items: center;
-  gap: 0.5em;
+  gap: 0.55em;
   min-width: 0;
-  padding: 0.45em 0.4em;
+  padding: 0.55em 0.45em;
   border-radius: 0.55em;
 }
 
@@ -755,7 +829,7 @@
 
 .pj-linha-nome {
   overflow: hidden;
-  font-size: 0.74em;
+  font-size: 0.78em;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -764,7 +838,7 @@
 .pj-linha-previa {
   overflow: hidden;
   color: var(--pj-suave);
-  font-size: 0.64em;
+  font-size: 0.68em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -779,7 +853,7 @@
   border-radius: 999px;
   background: var(--pj-marca);
   color: #ffffff;
-  font-size: 0.6em;
+  font-size: 0.62em;
   font-weight: 600;
 }
 
@@ -795,7 +869,7 @@
   flex-shrink: 0;
   align-items: center;
   gap: 0.55em;
-  padding: 0.7em 0.9em;
+  padding: 0.8em 1em;
   border-bottom: 1px solid var(--pj-borda);
 }
 
@@ -814,7 +888,7 @@
 .pj-chat-nome {
   min-width: 0;
   overflow: hidden;
-  font-size: 0.78em;
+  font-size: 0.82em;
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -825,7 +899,7 @@
   align-items: center;
   gap: 0.35em;
   color: var(--pj-suave);
-  font-size: 0.64em;
+  font-size: 0.68em;
 }
 
 .pj-time {
@@ -842,13 +916,15 @@
   margin-left: -0.35em;
 }
 
+/* As mensagens começam no alto, e não coladas embaixo como num chat de
+   verdade: a parte de baixo do painel fica sob o texto do destaque. */
 .pj-mensagens {
   display: flex;
   flex: 1 1 0;
   flex-direction: column;
-  gap: 0.55em;
+  gap: 0.6em;
   min-height: 0;
-  padding: 0.9em 0.9em 0.5em;
+  padding: 1em 1em 0.5em;
 }
 
 .pj-entrada {
@@ -856,7 +932,7 @@
   flex-shrink: 0;
   align-items: center;
   gap: 0.5em;
-  margin: 0.4em 0.9em 0.9em;
+  margin: 0.4em 1em 1em;
   padding: 0.35em 0.35em 0.35em 0.8em;
   border: 1px solid var(--pj-borda);
   border-radius: 999px;
@@ -887,15 +963,19 @@
   flex: 0 0 auto;
   align-items: center;
   justify-content: center;
-  height: 8.6em;
+  height: 8em;
   padding: 0.8em;
   border: 1px solid var(--pj-borda);
   border-radius: 0.7em;
   background: var(--pj-trilho);
 }
 
+/* Os blocos dividem a largura do canvas, até um teto: em painel largo eles
+   param de crescer e o fluxo fica centrado. */
 .pj-no {
-  flex: 0 0 6em;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 9.5em;
   overflow: hidden;
   border: 1px solid var(--pj-borda);
   border-radius: 0.6em;
@@ -910,7 +990,7 @@
   padding: 0.4em 0.5em;
   background: color-mix(in srgb, var(--cor) 14%, #ffffff);
   color: var(--pj-tinta);
-  font-size: 0.66em;
+  font-size: 0.68em;
   font-weight: 600;
 }
 
@@ -922,7 +1002,7 @@
 .pj-no-corpo {
   padding: 0.55em 0.6em 0.7em;
   color: var(--pj-suave);
-  font-size: 0.66em;
+  font-size: 0.68em;
   line-height: 1.35;
 }
 
@@ -931,7 +1011,7 @@
    ela seria esticada junto durante o desenho. */
 .pj-liga {
   position: relative;
-  flex: 0 0 1.4em;
+  flex: 0 0 1.6em;
   height: 1px;
 }
 
@@ -966,26 +1046,27 @@
   flex-direction: column;
   gap: 0.3em;
   min-height: 0;
-  padding: 0.6em 0.7em;
+  padding: 0.7em 0.8em;
   border: 1px solid var(--pj-borda);
   border-radius: 0.7em;
 }
 
 .pj-log-titulo {
-  margin-bottom: 0.15em;
+  margin-bottom: 0.2em;
   color: var(--pj-suave);
-  font-size: 0.7em;
+  font-size: 0.72em;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .pj-log-linha {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 0.5em;
-  min-height: 2.3em;
+  min-height: 2.4em;
   padding: 0 0.1em;
-  font-size: 0.72em;
+  font-size: 0.76em;
 }
 
 .pj-log-nome {
@@ -1032,16 +1113,17 @@
 .pj-agente-corpo {
   display: flex;
   flex: 1 1 0;
-  gap: 0.8em;
+  gap: 0.9em;
   min-height: 0;
 }
 
 .pj-config {
   display: flex;
-  flex: 0 0 13.6em;
+  flex: 0 0 42%;
   flex-direction: column;
-  gap: 0.6em;
-  padding: 0.7em;
+  gap: 0.7em;
+  min-width: 0;
+  padding: 0.8em;
   border: 1px solid var(--pj-borda);
   border-radius: 0.7em;
   background: var(--pj-trilho);
@@ -1055,18 +1137,18 @@
 
 .pj-campo-rotulo {
   color: var(--pj-suave);
-  font-size: 0.6em;
+  font-size: 0.62em;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .pj-campo-valor {
-  padding: 0.5em 0.6em;
+  padding: 0.55em 0.65em;
   border: 1px solid var(--pj-borda);
   border-radius: 0.5em;
   background: var(--pj-fundo);
-  font-size: 0.7em;
+  font-size: 0.74em;
   line-height: 1.35;
 }
 
@@ -1074,7 +1156,7 @@
   display: flex;
   flex: 1 1 0;
   flex-direction: column;
-  gap: 0.55em;
+  gap: 0.6em;
   min-width: 0;
   padding-top: 0.2em;
 }

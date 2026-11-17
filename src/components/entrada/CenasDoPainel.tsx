@@ -1,19 +1,21 @@
 import { Fragment, type CSSProperties, type ReactNode } from "react";
 import {
-  Bot, BotMessageSquare, Check, Clock, Filter, House, MessageCircle, Network, Play, Send, UsersRound,
+  Bot, BotMessageSquare, Check, Clock, Filter, House, MessageCircle, Network, Play, Search, Send,
+  SlidersHorizontal, UsersRound,
 } from "lucide-react";
 import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
 
 /**
- * As quatro cenas do painel de destaques: cada uma é uma "tela" do produto que
- * se monta sozinha, uma vez, e fica parada no estado final.
+ * As quatro cenas do painel de destaques: cada uma é o app desenhado de borda
+ * a borda no painel, montando-se sozinho uma vez e parando no estado final.
  *
- * ─── Por que desenhadas, e não um print ─────────────────────────────────────
+ * ─── Por que desenhadas, e não um print ou uma foto ─────────────────────────
  *
- * Um print não se mexe, e o pedido era mostrar o produto em movimento. Também
- * não segue o idioma, o tema nem o tamanho do painel. Aqui a cena é HTML do
- * mesmo tipo do `FundoDoCrm` (réplica do board, com gente fictícia): a
- * estrutura é a do produto, as pessoas não são de ninguém.
+ * Um print não se mexe, e as fotos geradas foram reprovadas pelo dono
+ * (17/11/2026). Aqui a cena é HTML do mesmo tipo do `FundoDoCrm` (réplica do
+ * board, com gente fictícia): a estrutura é a do produto, as pessoas não são de
+ * ninguém. E, por ser HTML, ela se ajusta ao tamanho do painel, coisa que uma
+ * imagem só faz cortando.
  *
  * ─── O texto DENTRO das cenas não passa pelo dicionário ─────────────────────
  *
@@ -23,6 +25,13 @@ import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
  * traduz. O que é texto de VENDA (tag, título, descrição) mora no dicionário.
  * A cena toda é `aria-hidden`: quem lê por voz recebe o título e a descrição,
  * que dizem a mesma coisa sem as peças soltas.
+ *
+ * ─── Onde a ação acontece ───────────────────────────────────────────────────
+ *
+ * O texto do destaque cobre a parte de baixo do painel, então o que se mexe em
+ * cada cena fica na metade de cima. Abaixo disso o app continua (colunas,
+ * conversas, execuções), para o painel não ter buraco, mas nada importante
+ * acontece ali.
  *
  * ─── Como a coreografia funciona ────────────────────────────────────────────
  *
@@ -34,14 +43,14 @@ import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
  */
 
 /* ── Cores do próprio produto ─────────────────────────────────────────────────
-   Copiadas de onde o produto as define: as etapas de exemplo, de `FundoDoCrm`;
-   os blocos, de `NODE_META` em `AutomacoesPage`; a marca, do `--accent-400`.
-   Hex fixo, e não token, pela regra da superfície de venda: a janela é um print
-   e não segue o tema. */
-const ETAPA = { qualificado: "#F97316", reuniao: "#E24B4A", proposta: "#8B5CF6" } as const;
+   Copiadas de onde o produto as define: as etapas de exemplo, de `FundoDoCrm`
+   (e a verde, do print do funil); os blocos, de `NODE_META` em
+   `AutomacoesPage`; a marca, do `--accent-400`. Hex fixo, e não token, pela
+   regra da superfície de venda: a cena é um print e não segue o tema. */
+const ETAPA = { qualificado: "#F97316", reuniao: "#E24B4A", proposta: "#8B5CF6", negociacao: "#16A34A" } as const;
 const BLOCO = { inicio: "#16A34A", mensagem: "#0EA5E9", espera: "#3B82F6", ia: "#8B5CF6" } as const;
-const ETIQUETA = { meta: "#3B82F6", demo: "#128C69", cal: "#1D1D1D" } as const;
-const PESSOA = { cinza: "#7C8B99", laranja: "#F97316", azul: "#3B82F6", roxo: "#8B5CF6", marca: "#128C69", ceu: "#0EA5E9" } as const;
+const ETIQUETA = { meta: "#3B82F6", demo: "#128C69", cal: "#1D1D1D", indicacao: "#6D28D9" } as const;
+const PESSOA = { cinza: "#7C8B99", laranja: "#F97316", azul: "#3B82F6", roxo: "#8B5CF6", marca: "#128C69", ceu: "#0EA5E9", rosa: "#DB2777" } as const;
 
 /* Variáveis CSS que o estilo da cena lê. Cast, porque `CSSProperties` não
    conhece propriedade personalizada. */
@@ -53,7 +62,7 @@ const comAtrasoECor = (ms: number, hex: string) =>
 const iniciais = (nome: string) =>
   nome.split(" ").slice(0, 2).map(p => p[0]).join("").toUpperCase();
 
-/* ── Moldura: barra lateral + conteúdo ────────────────────────────────────── */
+/* ── O app: faixa de cima, barra lateral e conteúdo ───────────────────────── */
 
 /** Os ícones da barra, na ordem da navegação real (ver `AppSidebar`). */
 const TRILHO = [
@@ -67,14 +76,16 @@ const TRILHO = [
 
 type ItemDoTrilho = (typeof TRILHO)[number]["id"];
 
-function Janela({ ativo, duplo, children }: { ativo: ItemDoTrilho; duplo?: boolean; children: ReactNode }) {
+function App({ ativo, duplo, children }: { ativo: ItemDoTrilho; duplo?: boolean; children: ReactNode }) {
   return (
-    <div className="pj-janela" aria-hidden="true">
+    <div className="pj-app" aria-hidden="true">
+      {/* Vazia de propósito: a barra de progresso do painel se apoia nela. */}
+      <div className="pj-app-faixa" />
       <div className="pj-trilho">
         <img className="pj-marca" src="/favicon.png?v=5" alt="" />
         {TRILHO.map(({ id, Icone }) => (
           <span key={id} className="pj-item" data-ativo={id === ativo}>
-            <Icone size="1.05em" strokeWidth={id === ativo ? 2 : 1.75} />
+            <Icone size="1.1em" strokeWidth={id === ativo ? 2 : 1.75} />
           </span>
         ))}
       </div>
@@ -94,15 +105,17 @@ function Troca({ antes, depois, atrasoMs }: { antes: string; depois: string; atr
 }
 
 /* ═══ Cena 1: funil de vendas ═════════════════════════════════════════════════
-   Uma etapa abre o quadro, um negócio é levantado e atravessa para a etapa
-   seguinte, e o aviso confirma. Linha do tempo (ms):
+   As colunas sobem, um negócio é levantado na primeira e atravessa para a
+   segunda, e o aviso confirma. O card que viaja está na SEGUNDA posição das
+   duas colunas, para a viagem acontecer bem no alto do painel. Linha do tempo
+   (ms):
 
-        250-410   as três colunas sobem
+        250-490   as colunas sobem (2, 3 ou 4, conforme a largura)
         300       o negócio aparece na coluna de origem
        1400       o contorno da vaga surge na coluna de destino
        1476       o negócio é levantado (borda verde e sombra)
        1700-2540  atravessa
-       2500       os contadores trocam (3 para 2, 2 para 3)
+       2500       os contadores trocam (2 para 1, 3 para 4)
        3100       pousa, e o aviso aparece */
 
 interface CardDoFunil {
@@ -119,6 +132,7 @@ function Card({ nome, cor, etiqueta, viaja }: CardDoFunil) {
         <span className="pj-avatar" style={comCor(cor)}><span>{iniciais(nome)}</span></span>
         <span className="pj-nome">{nome}</span>
       </div>
+      <span className="pj-card-barra" />
       <div className="pj-card-linha">
         <span className="pj-etiqueta" style={comCor(etiqueta.cor)}>{etiqueta.texto}</span>
         <span className="pj-zap" style={{ marginLeft: "auto" }}>
@@ -130,11 +144,11 @@ function Card({ nome, cor, etiqueta, viaja }: CardDoFunil) {
 }
 
 function Coluna(
-  { cor, nome, atrasoMs, contador, children }:
-  { cor: string; nome: string; atrasoMs: number; contador: ReactNode; children: ReactNode },
+  { cor, nome, atrasoMs, contador, extra, children }:
+  { cor: string; nome: string; atrasoMs: number; contador: ReactNode; extra?: string; children: ReactNode },
 ) {
   return (
-    <div className="pj-coluna pj-sobe" style={comAtraso(atrasoMs)}>
+    <div className={`pj-coluna pj-sobe${extra ? ` ${extra}` : ""}`} style={comAtraso(atrasoMs)}>
       <div className="pj-coluna-topo">
         <span className="pj-bolinha" style={comCor(cor)} />
         <span className="pj-coluna-nome">{nome}</span>
@@ -147,7 +161,7 @@ function Coluna(
 
 export function CenaFunil() {
   return (
-    <Janela ativo="funil">
+    <App ativo="funil">
       <div className="pj-topo pj-surge" style={comAtraso(100)}>
         <div>
           <div className="pj-titulo">Pipeline Comercial</div>
@@ -155,36 +169,48 @@ export function CenaFunil() {
         </div>
       </div>
 
+      <div className="pj-ferramentas pj-surge" style={comAtraso(180)}>
+        <span className="pj-busca"><Search size="1.1em" />Buscar por nome, empresa, telefone</span>
+        <span className="pj-filtro"><SlidersHorizontal size="1.1em" />Filtros</span>
+      </div>
+
       <div className="pj-quadro">
         <Coluna
           cor={ETAPA.qualificado}
           nome="Qualificado"
           atrasoMs={250}
-          contador={<Troca antes="3" depois="2" atrasoMs={2500} />}
+          contador={<Troca antes="2" depois="1" atrasoMs={2500} />}
         >
           <Card nome="Patrícia R." cor={ETAPA.qualificado} etiqueta={{ texto: "Demonstração", cor: ETIQUETA.demo }} />
-          <Card nome="Vinícius S." cor={ETAPA.qualificado} etiqueta={{ texto: "Meta ads", cor: ETIQUETA.meta }} />
         </Coluna>
 
         <Coluna
           cor={ETAPA.reuniao}
           nome="Reunião Marcada"
           atrasoMs={330}
-          contador={<Troca antes="2" depois="3" atrasoMs={2500} />}
+          contador={<Troca antes="3" depois="4" atrasoMs={2500} />}
         >
           <Card nome="Gustavo P." cor={ETAPA.reuniao} etiqueta={{ texto: "Cal.com", cor: ETIQUETA.cal }} />
-          <Card nome="Sofia A." cor={ETAPA.reuniao} etiqueta={{ texto: "Demonstração", cor: ETIQUETA.demo }} />
           {/* A vaga segura o lugar na coluna nova; o card que viaja está solto
-              dentro dela, e o CSS o desloca de volta para a coluna de origem. */}
+              dentro dela, e o CSS o desloca de volta para a coluna de origem.
+              Os dois cards abaixo dela não se mexem. */}
           <div className="pj-vaga">
             <div className="pj-vaga-contorno" />
-            <Card viaja nome="Renata C." cor={ETAPA.reuniao} etiqueta={{ texto: "Cal.com", cor: ETIQUETA.cal }} />
+            <Card viaja nome="Renata C." cor={ETAPA.reuniao} etiqueta={{ texto: "Meta ads", cor: ETIQUETA.meta }} />
           </div>
+          <Card nome="Sofia A." cor={ETAPA.reuniao} etiqueta={{ texto: "Demonstração", cor: ETIQUETA.demo }} />
+          <Card nome="Leandro V." cor={ETAPA.reuniao} etiqueta={{ texto: "Indicação", cor: ETIQUETA.indicacao }} />
         </Coluna>
 
-        <Coluna cor={ETAPA.proposta} nome="Proposta Enviada" atrasoMs={410} contador="2">
+        <Coluna cor={ETAPA.proposta} nome="Proposta Enviada" atrasoMs={410} contador="3" extra="pj-coluna--3">
           <Card nome="Adriana B." cor={ETAPA.proposta} etiqueta={{ texto: "Demonstração", cor: ETIQUETA.demo }} />
           <Card nome="Henrique V." cor={ETAPA.proposta} etiqueta={{ texto: "Cal.com", cor: ETIQUETA.cal }} />
+          <Card nome="Tatiane M." cor={ETAPA.proposta} etiqueta={{ texto: "Meta ads", cor: ETIQUETA.meta }} />
+        </Coluna>
+
+        <Coluna cor={ETAPA.negociacao} nome="Negociação" atrasoMs={490} contador="2" extra="pj-coluna--4">
+          <Card nome="Bruno T." cor={ETAPA.negociacao} etiqueta={{ texto: "Indicação", cor: ETIQUETA.indicacao }} />
+          <Card nome="Marcela D." cor={ETAPA.negociacao} etiqueta={{ texto: "Demonstração", cor: ETIQUETA.demo }} />
         </Coluna>
       </div>
 
@@ -192,7 +218,7 @@ export function CenaFunil() {
         <span className="pj-aviso-icone"><Check size="1em" strokeWidth={2.5} /></span>
         Negócio movido para Reunião Marcada
       </div>
-    </Janela>
+    </App>
   );
 }
 
@@ -205,7 +231,9 @@ const CONVERSAS = [
   { nome: "Marina Costa", previa: "Oi! Vi o anúncio e queria saber como funciona.", cor: PESSOA.laranja, novas: 2 },
   { nome: "Rafael Lima", previa: "Pode me mandar a proposta?", cor: PESSOA.azul, novas: 0 },
   { nome: "Beatriz Nunes", previa: "Obrigada, combinado!", cor: PESSOA.roxo, novas: 0 },
-  { nome: "Diego Prado", previa: "Bom dia! Tudo certo por aí?", cor: PESSOA.marca, novas: 0 },
+  { nome: "Diego Prado", previa: "Bom dia! Tudo certo por aí?", cor: PESSOA.marca, novas: 1 },
+  { nome: "Camila Rocha", previa: "Consigo pagar no boleto?", cor: PESSOA.rosa, novas: 0 },
+  { nome: "Otávio Lima", previa: "Amanhã às 10h fica bom.", cor: PESSOA.ceu, novas: 0 },
 ] as const;
 
 const TIME = [
@@ -223,11 +251,11 @@ const MENSAGENS = [
 
 export function CenaAtendimento() {
   return (
-    <Janela ativo="atendimento" duplo>
+    <App ativo="atendimento" duplo>
       <div className="pj-lista">
         <div className="pj-lista-titulo pj-surge" style={comAtraso(150)}>Conversas</div>
         {CONVERSAS.map((c, i) => (
-          <div key={c.nome} className="pj-conversa pj-sobe" data-ativa={i === 0} style={comAtraso(250 + i * 80)}>
+          <div key={c.nome} className="pj-conversa pj-sobe" data-ativa={i === 0} style={comAtraso(250 + i * 70)}>
             <span className="pj-avatar" style={comCor(c.cor)}><span>{iniciais(c.nome)}</span></span>
             <span className="pj-conversa-texto">
               <span className="pj-linha-nome">{c.nome}</span>
@@ -272,7 +300,7 @@ export function CenaAtendimento() {
           <span className="pj-enviar"><Send size="0.9em" /></span>
         </div>
       </div>
-    </Janela>
+    </App>
   );
 }
 
@@ -283,7 +311,7 @@ export function CenaAtendimento() {
         300-2100   cada bloco entra (a cada 600), e a linha até o próximo
                    cresce logo depois (420 após o bloco)
        3000        a chave vira "Ativa"
-       3300-3900   as execuções entram, uma a cada 300 */
+       3300-4500   as execuções entram, uma a cada 300 */
 
 const NOS = [
   { cor: BLOCO.inicio, Icone: Play, titulo: "Início", texto: "Lead criado" },
@@ -296,11 +324,13 @@ const EXECUCOES = [
   { nome: "Beatriz Almeida", acao: "Boas-vindas enviadas", hora: "agora", ok: true },
   { nome: "Rafael Moura", acao: "Boas-vindas enviadas", hora: "há 2 min", ok: true },
   { nome: "Camila Nunes", acao: "Aguardando 1 dia", hora: "há 5 min", ok: false },
+  { nome: "Diego Prado", acao: "Interesse qualificado pela IA", hora: "há 1 h", ok: true },
+  { nome: "Letícia Barros", acao: "Aguardando 1 dia", hora: "há 3 h", ok: false },
 ] as const;
 
 export function CenaAutomacoes() {
   return (
-    <Janela ativo="automacoes">
+    <App ativo="automacoes">
       <div className="pj-topo pj-surge" style={comAtraso(100)}>
         <div>
           <div className="pj-titulo">Boas-vindas ao lead</div>
@@ -345,35 +375,36 @@ export function CenaAutomacoes() {
           </div>
         ))}
       </div>
-    </Janela>
+    </App>
   );
 }
 
 /* ═══ Cena 4: agentes de IA ═══════════════════════════════════════════════════
-   Os três campos do briefing são preenchidos (o que faz, o tom, até onde vai),
-   o agente é ligado, e a conversa mostra ele trabalhando. É a mesma frase da
-   descrição do destaque, desenhada. Linha do tempo (ms):
+   Os campos do briefing são preenchidos (o que faz, o tom, até onde vai, o
+   canal), o agente é ligado, e a conversa mostra ele trabalhando. É a mesma
+   frase da descrição do destaque, desenhada. Linha do tempo (ms):
 
-        400-1200  os três campos entram, um a cada 400
-       1700       a chave vira "Ligado"
-       2200-4600  a conversa, uma mensagem a cada 800 */
+        400-1600  os quatro campos entram, um a cada 400
+       1900       a chave vira "Ligado"
+       2300-4700  a conversa, uma mensagem a cada 800 */
 
 const CAMPOS = [
   { rotulo: "O que faz", valor: "Qualifica o lead e agenda a reunião", atrasoMs: 400 },
   { rotulo: "Tom de voz", valor: "Simpático e direto", atrasoMs: 800 },
   { rotulo: "Até onde vai", valor: "Passa para o time quando pedirem proposta", atrasoMs: 1200 },
+  { rotulo: "Canal", valor: "WhatsApp do comercial", atrasoMs: 1600 },
 ] as const;
 
 const CONVERSA_DO_AGENTE = [
-  { de: "cliente", ia: false, texto: "Oi, queria saber os planos.", atrasoMs: 2200 },
-  { de: "time", ia: true, texto: "Claro! Quantas pessoas tem no seu time comercial?", atrasoMs: 3000 },
-  { de: "cliente", ia: false, texto: "Somos 6.", atrasoMs: 3800 },
-  { de: "time", ia: true, texto: "Perfeito. Posso marcar uma conversa com o time amanhã?", atrasoMs: 4600 },
+  { de: "cliente", ia: false, texto: "Oi, queria saber os planos.", atrasoMs: 2300 },
+  { de: "time", ia: true, texto: "Claro! Quantas pessoas tem no seu time comercial?", atrasoMs: 3100 },
+  { de: "cliente", ia: false, texto: "Somos 6.", atrasoMs: 3900 },
+  { de: "time", ia: true, texto: "Perfeito. Posso marcar uma conversa com o time amanhã?", atrasoMs: 4700 },
 ] as const;
 
 export function CenaAgentes() {
   return (
-    <Janela ativo="agentes">
+    <App ativo="agentes">
       <div className="pj-topo pj-surge" style={comAtraso(100)}>
         <div>
           <div className="pj-titulo">
@@ -382,8 +413,8 @@ export function CenaAgentes() {
           </div>
           <div className="pj-sub">Agente de IA</div>
         </div>
-        <div className="pj-chave" style={comAtraso(1700)}>
-          <Troca antes="Desligado" depois="Ligado" atrasoMs={1700} />
+        <div className="pj-chave" style={comAtraso(1900)}>
+          <Troca antes="Desligado" depois="Ligado" atrasoMs={1900} />
           <span className="pj-chave-trilho"><span className="pj-chave-bola" /></span>
         </div>
       </div>
@@ -411,6 +442,6 @@ export function CenaAgentes() {
           ))}
         </div>
       </div>
-    </Janela>
+    </App>
   );
 }

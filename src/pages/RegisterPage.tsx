@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Eye, EyeOff, ArrowLeft } from "lucide-react";
+import { Eye, EyeOff, ArrowLeft, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { LayoutDeEntrada } from "@/components/entrada/LayoutDeEntrada";
 import { useIdioma } from "@/context/IdiomaContext";
@@ -103,9 +103,19 @@ export default function RegisterPage() {
     >
       <div className="mb-10"><MarcaRezult /></div>
 
-      <h1 className="text-[24px] font-semibold leading-[1.2] tracking-[-0.015em] text-foreground">{t("cadastro.titulo")}</h1>
-      <p className="text-[14px] text-muted-foreground mt-1" style={{ fontWeight: 400 }}>
-        {t("cadastro.subtitulo")}
+      <h1 className="text-[24px] font-bold leading-[1.2] tracking-[-0.015em] text-foreground">{t("cadastro.titulo")}</h1>
+      {/* Mesma formatação da frase do login (15px, peso 500, links na tinta
+          verde do sistema). "Recadastre sua senha" abre o login já na tela de
+          recuperação: o estado da navegação avisa o LoginPage qual tela abrir. */}
+      <p className="mt-3 text-[15px] font-medium text-muted-foreground">
+        {t("cadastro.jaTemConta")}{" "}
+        <Link to="/login" className="font-medium text-success-soft-foreground hover:underline">
+          {t("cadastro.entreAqui")}
+        </Link>{" "}
+        {t("cadastro.ou")}{" "}
+        <Link to="/login" state={{ recuperarSenha: true }} className="font-medium text-success-soft-foreground hover:underline">
+          {t("cadastro.recadastreSenha")}
+        </Link>
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4 mt-8">
@@ -182,29 +192,12 @@ export default function RegisterPage() {
           </div>
         </div>
 
-        {/* Consentimento pelo ato de criar a conta, sem caixa para marcar.
-            O texto é o aceite: quem clica no botão está concordando, e é
-            por isso que ele vem logo acima dele, e não perdido no meio do
-            formulário. */}
-        <p className="text-[12px] text-muted-foreground leading-snug">
-          {t("cadastro.consentimento")}{" "}
-          <a
-            href="https://www.rezultcrm.com/politica"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-primary hover:underline"
-          >
-            {t("cadastro.politica")}
-          </a>
-          .
-        </p>
-
         <Button
           type="submit"
           className="w-full h-[var(--control-h-lg)] font-semibold"
           disabled={loading || !fullName.trim() || !email.trim() || !password || !confirmPwd}
         >
-          {loading ? t("cadastro.criando") : t("cadastro.botao")}
+          {loading ? t("cadastro.criando") : <>{t("cadastro.botao")}<ArrowRight aria-hidden="true" /></>}
         </Button>
       </form>
     </LayoutDeEntrada>
