@@ -7305,6 +7305,13 @@ function CamposValueInput({ value, onChange, placeholder }: {
     return `[${key.slice(0, dot)}] ${key.slice(dot + 1)}`;
   };
 
+  // Nome de variável não tem espaço ("qual_está_sendo_sua_maior_dificuldade..."),
+  // então o navegador não acha onde quebrar e o chip estourava a caixa e o
+  // painel. <wbr> depois de cada "_" deixa quebrar ali primeiro; se ainda não
+  // couber, o overflowWrap do chip quebra onde precisar.
+  const comPontosDeQuebra = (texto: string): React.ReactNode[] =>
+    texto.split("_").flatMap((parte, i, partes) => (i < partes.length - 1 ? [parte, "_", <wbr key={i} />] : [parte]));
+
   const varColor = (key: string) => {
     if (key.startsWith("gatilho")) return "#22C55E";
     if (key.startsWith("campo_")) return "#F59E0B";
@@ -7338,11 +7345,19 @@ function CamposValueInput({ value, onChange, placeholder }: {
             <span style={{ color: "var(--text-muted)", fontSize: 12 }}>{placeholder ?? "Digite um valor ou use {} para inserir variável..."}</span>
           ) : tokens.map((t, i) =>
             t.type === "var" ? (
-              <span key={i} style={{ background: varColor(t.content), color: "#fff", borderRadius: 6, padding: "2px 8px", fontSize: 12, fontWeight: 600, lineHeight: "18px", display: "inline-flex", alignItems: "center" }}>
-                {varLabel(t.content)}
+              <span
+                key={i}
+                title={`{{${t.content}}}`}
+                style={{
+                  background: varColor(t.content), color: "#fff", borderRadius: 6, padding: "2px 8px",
+                  fontSize: 12, fontWeight: 600, lineHeight: "18px",
+                  display: "inline-block", maxWidth: "100%", boxSizing: "border-box", overflowWrap: "anywhere",
+                }}
+              >
+                {comPontosDeQuebra(varLabel(t.content))}
               </span>
             ) : (
-              <span key={i} style={{ fontSize: 12, whiteSpace: "pre-wrap", color: "var(--text-heading)", lineHeight: "22px" }}>{t.content}</span>
+              <span key={i} style={{ fontSize: 12, whiteSpace: "pre-wrap", overflowWrap: "anywhere", color: "var(--text-heading)", lineHeight: "22px" }}>{t.content}</span>
             )
           )}
         </div>
