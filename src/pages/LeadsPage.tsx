@@ -95,6 +95,9 @@ export default function LeadsPage() {
 
   // Seleção de leads
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  // Contatos sem negócio ficam num conjunto à parte: são outra tabela
+  // (`contacts`), e a exclusão de cada um segue outro caminho.
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   // Abre o drawer do lead vindo por URL (?lead=<id>), ex.: link do Multiatendimento.
@@ -255,9 +258,14 @@ export default function LeadsPage() {
     new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
 
   // Seleção
-  const selectedLeads = filtered.filter(l => selectedIds.has(l.id));
-  const allSelected   = filtered.length > 0 && filtered.every(l => selectedIds.has(l.id));
-  const someSelected  = filtered.some(l => selectedIds.has(l.id));
+  // Só conta o que está na tela: contato some da lista com filtro ativo, e a
+  // marcação dele não pode continuar valendo escondida.
+  const selectedLeads    = filtered.filter(l => selectedIds.has(l.id));
+  const selectedContacts = filteredContacts.filter(c => selectedContactIds.has(c.id));
+  const totalVisiveis    = filtered.length + filteredContacts.length;
+  const totalSelecionado = selectedLeads.length + selectedContacts.length;
+  const allSelected      = totalVisiveis > 0 && totalSelecionado === totalVisiveis;
+  const someSelected     = totalSelecionado > 0;
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -267,9 +275,22 @@ export default function LeadsPage() {
     });
   };
 
+  const toggleSelectContact = (id: string) => {
+    setSelectedContactIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
   const toggleSelectAll = () => {
-    if (allSelected) setSelectedIds(new Set());
-    else setSelectedIds(new Set(filtered.map(l => l.id)));
+    if (allSelected) {
+      setSelectedIds(new Set());
+      setSelectedContactIds(new Set());
+    } else {
+      setSelectedIds(new Set(filtered.map(l => l.id)));
+      setSelectedContactIds(new Set(filteredContacts.map(c => c.id)));
+    }
   };
 
   const exportSelected = () => {
@@ -284,17 +305,31 @@ export default function LeadsPage() {
       (l.tags || []).join("; "),
       l.created_at ? new Intl.DateTimeFormat("pt-BR").format(new Date(l.created_at)) : "",
     ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
-    const csv = [headers.join(","), ...rows].join("\n");
+    // Contato sem negócio não tem funil nem etapa: essas colunas vão vazias.
+    const contactRows = selectedContacts.map(c => [
+      c.name,
+      c.company || "",
+      c.phone || "",
+      c.email || "",
+      "",
+      "",
+      (c.tags || []).join("; "),
+      c.createdAt ? new Intl.DateTimeFormat("pt-BR").format(new Date(c.createdAt)) : "",
+    ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
+    const csv = [headers.join(","), ...rows, ...contactRows].join("\n");
     const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
     a.href = url; a.download = `leads-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
     URL.revokeObjectURL(url);
-    toast.success(`${selectedLeads.length} lead${selectedLeads.length > 1 ? "s" : ""} exportado${selectedLeads.length > 1 ? "s" : ""}.`);
+    toast.success(`${totalSelecionado} lead${totalSelecionado > 1 ? "s" : ""} exportado${totalSelecionado > 1 ? "s" : ""}.`);
   };
 
   const confirmBulkDelete = () => {
-    const count = selectedLeads.length;
+    // Defensivo, como na exclusão de um só: contato que ganhou negócio em outra
+    // aba entre a listagem e o clique não é apagado por aqui.
+    const contatosSoltos = selectedContacts.filter(c => !linkedPersonIds.has(c.id));
+    const count = selectedLeads.length + contatosSoltos.length;
 
     /*
      * A decisão de apagar cada contato é tomada ANTES de apagar qualquer
@@ -330,8 +365,10 @@ export default function LeadsPage() {
 
     selectedLeads.forEach(l => deleteLead(l.id));
     paraApagar.forEach(id => deleteContact(id));
+    contatosSoltos.forEach(c => deleteContact(c.id));
 
     setSelectedIds(new Set());
+    setSelectedContactIds(new Set());
     setBulkDeleteConfirm(false);
     setBulkDelWithContact(false);
     toast.success(`${count} lead${count > 1 ? "s" : ""} excluído${count > 1 ? "s" : ""}.`);
@@ -396,7 +433,7 @@ export default function LeadsPage() {
         <div className="flex items-center gap-2 ml-auto">
           {someSelected && (
             <span className="text-sm text-muted-foreground">
-              {selectedLeads.length} selecionado{selectedLeads.length > 1 ? "s" : ""}
+              {totalSelecionado} selecionado{totalSelecionado > 1 ? "s" : ""}
             </span>
           )}
 
@@ -502,11 +539,20 @@ export default function LeadsPage() {
               {rows.map(row => row.kind === "contact" ? (
                 <TableRow
                   key={`c-${row.contact.id}`}
+                  data-state={selectedContactIds.has(row.contact.id) ? "selected" : undefined}
                   className="border-card-border hover:bg-secondary/50 cursor-pointer"
                   onClick={() => openEditContact(row.contact)}
                 >
                   <TableCell className="font-medium text-foreground">
                     <div className="flex items-center gap-[10px] min-w-0">
+                      {/* Mesma caixa da linha de negócio: sem ela, contato solto
+                          só saía um por um, pelo menu da linha. */}
+                      <div onClick={e => e.stopPropagation()} className="shrink-0">
+                        <Checkbox
+                          checked={selectedContactIds.has(row.contact.id)}
+                          onCheckedChange={() => toggleSelectContact(row.contact.id)}
+                        />
+                      </div>
                       <div className="min-w-0" style={{ lineHeight: 1.1 }}>
                         <span className="truncate block text-[13px]">{row.contact.name}</span>
                       </div>
@@ -800,7 +846,7 @@ export default function LeadsPage() {
             <DialogTitle>Excluir leads selecionados</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Tem certeza que deseja excluir <strong>{selectedLeads.length} lead{selectedLeads.length > 1 ? "s" : ""}</strong>? Esta ação não pode ser desfeita.
+            Tem certeza que deseja excluir <strong>{totalSelecionado} lead{totalSelecionado > 1 ? "s" : ""}</strong>? Esta ação não pode ser desfeita.
           </p>
           {selectedLeads.some(l => l.personId) && (
             <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
@@ -915,7 +961,7 @@ export default function LeadsPage() {
       <CreateDisparoWizard
         open={disparoAberto}
         onOpenChange={setDisparoAberto}
-        leadsPreSelecionados={someSelected ? selectedLeads.map(l => l.id) : undefined}
+        leadsPreSelecionados={selectedLeads.length > 0 ? selectedLeads.map(l => l.id) : undefined}
         onCreated={id => {
           setDisparoAberto(false);
           toast.success("Disparo criado.");
