@@ -33,6 +33,14 @@ const buttonVariants = cva(
           "bg-secondary text-secondary-foreground hover:bg-[color:var(--neutral-100)] active:bg-[color:var(--neutral-150,#EBEBEB)]",
         ghost: "text-foreground hover:bg-[color:var(--neutral-100)] active:bg-[color:var(--neutral-150,#EBEBEB)]",
         link: "text-[color:var(--text-link)] underline-offset-4 hover:underline active:scale-100",
+        /* Preto com texto branco no tema claro, o inverso no escuro: é o par do
+           tooltip (--surface-inverse / --text-inverse). Hover e clique misturam
+           um pouco da tinta no fundo, então clareiam no claro e escurecem no
+           escuro sem precisar de uma cor por tema. */
+        inverse:
+          "bg-[color:var(--surface-inverse)] text-[color:var(--text-inverse)] " +
+          "hover:bg-[color:color-mix(in_srgb,var(--surface-inverse)_86%,var(--text-inverse))] " +
+          "active:bg-[color:color-mix(in_srgb,var(--surface-inverse)_78%,var(--text-inverse))]",
       },
       /* Alturas de controle da seção 3.3: 36 (sm), 40 (md, padrão) e 44 (lg),
          com o padding horizontal de 12/14/18 do sistema. */

@@ -282,11 +282,10 @@
     --surface-inverse:  var(--neutral-950);
 
     /* ── O item selecionado da barra lateral (dono, 07/10/2026) ──
-       MENTA desde 26/10/2026, o mesmo verde claro único do sistema
-       (--success-soft, #CFFAEB). Antes era cinza #EBEBEB. Continua NÃO sendo a
-       cor dos botões: a seleção diz ONDE a pessoa está, e não é uma ação para
-       clicar. Em verde cheio ela viraria o elemento mais pesado da tela.
-       A tinta segue #1D1D1D, que sobre o menta dá 14,9:1.
+       PRETO com ícone branco desde 19/11/2026 (dono): é o --surface-inverse com
+       o --text-inverse, o mesmo par do tooltip, então no tema escuro inverte
+       sozinho (pastilha clara, ícone escuro). Antes foi menta (26/10/2026,
+       --success-soft) e, antes disso, cinza #EBEBEB.
 
        Não sai do --surface-selected, que é o token irmão para "item escolhido"
        em tabela e dropdown, porque os dois divergem no tema ESCURO: lá a barra
@@ -296,13 +295,11 @@
        O hover continua cinza (#F7F7F7) porque os dois convivem na mesma barra
        branca: passar o mouse precisa pesar menos que estar ali.
 
-       A pastilha "IA" tem fundo próprio por morar DENTRO do item selecionado.
-       Era um cinza translúcido, escolhido para não somar dois verdes sobre o
-       emerald; sobre o cinza ele sumiria, então no claro ela fica branca
-       e se define pelo contraste, o que vale também sobre o menta. */
-    --selecao-barra:       hsl(var(--success-soft));
-    --selecao-barra-tinta: #1D1D1D;
-    --selecao-barra-badge: var(--neutral-0);
+       A pastilha "IA" tem fundo próprio por morar DENTRO do item selecionado:
+       sobre o preto, um branco translúcido, com a tinta branca do item. */
+    --selecao-barra:       var(--surface-inverse);
+    --selecao-barra-tinta: var(--text-inverse);
+    --selecao-barra-badge: rgba(255, 255, 255, .18);
 
     --text-heading:   var(--neutral-900);
     --text-body:      var(--neutral-800);
@@ -570,11 +567,11 @@
     --surface-selected: var(--accent-100);
     --ring-focus-color: rgba(1, 216, 164, .45);
 
-    /* A seleção da barra segue no emerald sólido com tinta escura, como era
-       antes da virada, e a pastilha volta ao cinza translúcido do material. */
-    --selecao-barra:       var(--accent-400);
-    --selecao-barra-tinta: #0C231D;
-    --selecao-barra-badge: rgba(45, 47, 51, .14);
+    /* A seleção da barra é o inverso do tema (19/11/2026): no escuro, pastilha
+       clara com ícone escuro, o espelho do preto com ícone branco do claro. */
+    --selecao-barra:       var(--surface-inverse);
+    --selecao-barra-tinta: var(--text-inverse);
+    --selecao-barra-badge: rgba(22, 24, 27, .12);
     /* A superfície "inversa" (tooltip, botão escuro do KPI) precisa continuar
        sendo o CONTRÁRIO do fundo. Sem estas duas linhas ela herdaria o
        neutral-950, que no escuro é o próprio canvas: o tooltip sumia, e o

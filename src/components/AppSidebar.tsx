@@ -97,10 +97,8 @@ const ITEM_BASE =
   "focus-visible:ring-[3px] focus-visible:ring-[color:var(--ring-focus-color)]";
 const ITEM_REPOUSO =
   "text-[color:var(--text-muted)] hover:bg-[color:var(--surface-hover)] hover:text-[color:var(--text-heading)]";
-/* Menta no tema claro (desde 26/10/2026, antes cinza), emerald no escuro. Não
-   é a cor cheia dos botões: em verde sólido a seleção viraria o elemento mais
-   pesado da tela, e ela diz ONDE a pessoa está, não é uma ação para clicar.
-   Ver --selecao-barra-* em src/index.css. */
+/* Preto com ícone branco no tema claro, o inverso no escuro (dono, 19/11/2026;
+   antes menta). Ver --selecao-barra-* em src/index.css. */
 const ITEM_ATIVO = "bg-[color:var(--selecao-barra)] text-[color:var(--selecao-barra-tinta)] font-medium";
 
 /**
