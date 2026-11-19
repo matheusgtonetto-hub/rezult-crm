@@ -948,10 +948,11 @@ export default function PipelinePage() {
           {/* Automação e Novo Lead — mesmos popups de /leads, agora entre o
               título da pipeline e o seletor "Visualizando como". */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Pretos com texto branco desde 19/11/2026 (dono; antes o verde da
-                marca). A cor vem do `variant="inverse"` do Button, e não escrita
-                aqui: uma fonte só para a aparência, que inverte sozinha no tema
-                escuro.
+            {/* Sem nenhum ajuste de cor: o `variant` padrão do Button já é o
+                verde da marca com texto branco, sem borda, e é exatamente o que
+                o "Novo Lead" ao lado usa. Escrever as cores à mão aqui só criaria
+                uma segunda fonte para a mesma aparência, que passaria a divergir
+                do vizinho no dia em que o tema mudasse.
 
                 Os dois ficam visualmente idênticos; o que os distingue é o
                 rótulo. O `+` da esquerda saiu a pedido do dono (26/10/2026).
@@ -977,14 +978,12 @@ export default function PipelinePage() {
 
                 11px e peso 500 a pedido do dono (26/10/2026). Era 12px e 600. */}
             <Button
-              variant="inverse"
               className="rounded-lg font-medium h-auto px-[10px] py-[6px] text-[11px] leading-4 gap-1"
               onClick={() => setAutomacaoAberta(true)}
             >
               Enviar Automação
             </Button>
             <Button
-              variant="inverse"
               className="rounded-lg font-medium h-auto px-[10px] py-[6px] text-[11px] leading-4 gap-1"
               onClick={() => setNovoLeadOpen(true)}
             >
