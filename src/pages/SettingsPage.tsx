@@ -3901,12 +3901,15 @@ function ConexoesSection() {
   // A D-API usa 1 API Key da conta + um sessionId que o CRM cria via API.
   // Mapeamento na tabela: provider='dapi', instance_id=sessionId, token=API Key.
   const DAPI_BASE = "https://api.d-api.cloud/api/v1";
-  // Query param "?v1" no final por recomendação do suporte da D-API: se o
-  // webhook retornar muitos erros seguidos (ex: durante o setup de uma sessão
-  // nova), a D-API bloqueia aquela URL exata. Um param sem função nenhuma
-  // torna a URL "nova" pro bloqueio deles, sem exigir nenhuma mudança no
-  // dapi-webhook (que lê tudo do corpo da requisição, não da query string).
-  const DAPI_WEBHOOK_URL = "https://adhjmwkgyxrpsohufqob.supabase.co/functions/v1/dapi-webhook?v1";
+  // Query param no final por recomendação do suporte da D-API: se o webhook
+  // retornar muitos erros seguidos (ex: durante o setup de uma sessão nova),
+  // a D-API bloqueia aquela URL exata. Um param sem função nenhuma torna a URL
+  // "nova" pro bloqueio deles, sem exigir nenhuma mudança no dapi-webhook (que
+  // lê tudo do corpo da requisição, não da query string).
+  // 19/11/2026: a "?v1" parou de receber (sessão nova conectada, zero chamadas
+  // nos logs) enquanto a "?v2" seguia entregando. Se acontecer de novo, a saída
+  // é a mesma: subir o número e reapontar as sessões existentes.
+  const DAPI_WEBHOOK_URL = "https://adhjmwkgyxrpsohufqob.supabase.co/functions/v1/dapi-webhook?v2";
   const dapiHeaders = (apiKey: string): HeadersInit => ({ "Content-Type": "application/json", "Authorization": apiKey });
 
   async function createDapiSession(apiKey: string, sessionId: string): Promise<boolean> {
@@ -3988,21 +3991,40 @@ function ConexoesSection() {
       return;
     }
     setStep("done");
-    toast.success("WhatsApp conectado com sucesso!");
     setEditingConnId(newConn.id);
     setManageProvider("dapi");
     setConnName(newConn.name);
     setEditForm({ instanceId: sessionId, token: apiKey, clientToken: "" });
-    // O webhook já é configurado na criação da sessão (webhookUrl), mas reforça
-    await fetch(`${DAPI_BASE}/sessions/${sessionId}/webhook`, {
-      method: "POST", headers: dapiHeaders(apiKey), body: JSON.stringify({ webhookUrl: DAPI_WEBHOOK_URL }),
-    }).catch(() => { /* ignore */ });
-    // A URL do webhook (acima) e a entrega por evento são configs separadas na D-API:
-    // sem habilitar o evento aqui, nenhuma mensagem é entregue mesmo com webhookUrl setada.
-    await fetch(`${DAPI_BASE}/sessions/${sessionId}/webhook-config`, {
-      method: "POST", headers: dapiHeaders(apiKey),
-      body: JSON.stringify({ enabled: true, type: "single", events: { "messages.received": { enabled: true } } }),
-    }).catch(() => { /* ignore */ });
+
+    // Recebimento de mensagens. O webhook já é configurado na criação da sessão
+    // (webhookUrl), mas sessão escolhida da lista pode ter vindo de outro lugar,
+    // então reaponta sempre. URL e entrega por evento são configs separadas na
+    // D-API: sem o evento habilitado, nada é entregue mesmo com a URL certa.
+    // Se qualquer uma falhar, a conexão parece ok e não recebe nada: avisa na
+    // hora em vez de engolir o erro.
+    const falhas: string[] = [];
+    const configurar = async (caminho: string, corpo: unknown, nome: string) => {
+      try {
+        const res = await fetch(`${DAPI_BASE}/sessions/${sessionId}/${caminho}`, {
+          method: "POST", headers: dapiHeaders(apiKey), body: JSON.stringify(corpo),
+        });
+        if (!res.ok) falhas.push(`${nome} (HTTP ${res.status})`);
+      } catch {
+        falhas.push(`${nome} (sem resposta)`);
+      }
+    };
+    await configurar("webhook", { webhookUrl: DAPI_WEBHOOK_URL }, "endereço do webhook");
+    await configurar("webhook-config", { enabled: true, type: "single", events: { "messages.received": { enabled: true } } }, "eventos de mensagem");
+
+    if (falhas.length === 0) {
+      toast.success("WhatsApp conectado com sucesso!");
+    } else {
+      toast.error(
+        `WhatsApp conectado, mas a D-API não aceitou a configuração de recebimento: ${falhas.join(" e ")}. ` +
+          "As mensagens recebidas podem não chegar ao Rezult. Desconecte e conecte de novo, ou fale com o suporte.",
+        { duration: 20000 },
+      );
+    }
   }
 
   function startPollDapi(apiKey: string, sessionId: string) {
