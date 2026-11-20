@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { assinarComRecuperacao } from "@/lib/realtime";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
 import { useCRM } from "@/context/CRMContext";
@@ -37,7 +38,8 @@ interface ConversaNaoLida {
  *
  * Realtime em `whatsapp_conversations`. Qualquer INSERT ou UPDATE refaz a
  * conta: mensagem nova chega com `read = false` e some do contador quando
- * alguém abre a conversa, sem precisar recarregar a página.
+ * alguém abre a conversa, sem precisar recarregar a página. Se a conexão do
+ * realtime cair, a conta é refeita quando ela volta (src/lib/realtime.ts).
  */
 export function useMensagensNaoLidas(): number {
   const { user } = useAuth();
@@ -95,13 +97,13 @@ export function useMensagensNaoLidas(): number {
 
   useEffect(() => {
     if (!companyId) return;
-    const canal = supabase
-      .channel(`nao-lidas-${companyId}`)
-      .on("postgres_changes",
+    return assinarComRecuperacao(supabase, {
+      nome: `nao-lidas-${companyId}`,
+      montar: canal => canal.on("postgres_changes",
         { event: "*", schema: "public", table: "whatsapp_conversations", filter: `company_id=eq.${companyId}` },
-        () => { recarregar(); })
-      .subscribe();
-    return () => { supabase.removeChannel(canal); };
+        () => { recarregar(); }),
+      recuperar: () => { recarregar(); },
+    });
   }, [companyId, recarregar]);
 
   if (!conversas.length) return 0;

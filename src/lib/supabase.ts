@@ -4,7 +4,15 @@ import { protegerConstrutor } from "@/lib/bloqueioDeEscrita";
 const url = import.meta.env.VITE_SUPABASE_URL as string;
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-const clienteBruto = createClient(url, key);
+/*
+ * `worker: true` manda o sinal de vida do realtime a partir de um Web Worker.
+ * Com a aba em segundo plano o navegador segura os timers da página, o sinal
+ * atrasa e a conexão cai; o timer de um worker não é segurado do mesmo jeito.
+ * Não cobre tudo (o navegador pode congelar a aba inteira), e por isso as
+ * telas também releem o que perderam quando a conexão volta: ver
+ * src/lib/realtime.ts.
+ */
+const clienteBruto = createClient(url, key, { realtime: { worker: true } });
 
 /**
  * O cliente do Supabase, com um filtro no `from()`.

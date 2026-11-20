@@ -1,5 +1,5 @@
 import { LEAD_ORIGINS } from "@/data/mockData";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import DOMPurify from "dompurify";
 import { toast } from "sonner";
 import Recorder from "opus-recorder";
@@ -12,6 +12,8 @@ import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
 import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
+import { assinarComRecuperacao } from "@/lib/realtime";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { ItensDoNegocio } from "@/components/ItensDoNegocio";
 import { TagPill } from "@/components/TagPill";
 import { conversaVisivelPara, departamentosQueAlcanco } from "@/lib/visibilidadeDeConversa";
@@ -1923,7 +1925,7 @@ export default function MultiatendimentoPage() {
   // ── carregar conversas do Supabase (carga inicial + botão atualizar) ─
   const [conversationsRefreshing, setConversationsRefreshing] = useState(false);
 
-  async function reloadConversations() {
+  async function reloadConversations({ mesclarEstados = false }: { mesclarEstados?: boolean } = {}) {
     if (!user || !tenantId) return;
 
     const mapRow = mapConvRow;
@@ -1950,9 +1952,20 @@ export default function MultiatendimentoPage() {
         const next: Record<string, ConvState> = { ...prev };
         existingRows.forEach(r => {
           if (!next[r.id]) next[r.id] = mapState(r); // não sobrescreve estado já em memória
+          // Na releitura depois de uma queda do realtime, o banco vale para
+          // tudo menos as mensagens já carregadas: lida, finalizada e
+          // responsável podem ter mudado com a conexão fora. Mesma mescla do
+          // waconv-global.
+          else if (mesclarEstados) next[r.id] = { ...next[r.id], ...mapConvState(r) };
         });
         return next;
       });
+      // A conversa aberta não volta como não lida: quem está com ela aberta
+      // está vendo as mensagens novas. Mesma regra do wamsg-global.
+      if (mesclarEstados) {
+        const aberta = existingRows.find(r => r.id === activeIdRef.current);
+        if (aberta?.read === false) updateCs(aberta.id, { read: true });
+      }
     }
 
     // Reconciliação: cria conversas para números que já mandaram mensagem mas
@@ -2069,6 +2082,28 @@ export default function MultiatendimentoPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [cs?.messages.length]);
+
+  // ── releitura depois de uma queda do realtime ───────────────────────
+  // Os três canais lá embaixo (mensagens, conversas e Instagram) reassinam
+  // juntos quando a conexão volta, e cada um avisa (ver src/lib/realtime.ts).
+  // Os avisos viram uma releitura só: a lista de conversas, com o estado de
+  // cada uma, e o histórico da conversa aberta, que é o que pode ter mudado
+  // enquanto a conexão estava fora.
+  const [recargaDoHistorico, setRecargaDoHistorico] = useState(0);
+  const relerDepoisDaQuedaRef = useRef<() => void>(() => {});
+  useEffect(() => {
+    relerDepoisDaQuedaRef.current = () => {
+      reloadConversations({ mesclarEstados: true })
+        .catch(err => console.error("Releitura das conversas depois da queda do realtime:", err));
+      setRecargaDoHistorico(n => n + 1);
+    };
+  });
+  const releituraAgendada = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pedirReleitura = useCallback(() => {
+    clearTimeout(releituraAgendada.current);
+    releituraAgendada.current = setTimeout(() => relerDepoisDaQuedaRef.current(), 300);
+  }, []);
+  useEffect(() => () => clearTimeout(releituraAgendada.current), []);
 
   // ── carregar histórico quando muda a conversa ───────────────────────
   useEffect(() => {
@@ -2191,7 +2226,7 @@ export default function MultiatendimentoPage() {
         updateCs(activeId, { messages: msgs });
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId, active?.phone, active?.instanceId, active?.channel, user?.id]);
+  }, [activeId, active?.phone, active?.instanceId, active?.channel, user?.id, recargaDoHistorico]);
 
   // Mantém a instância (número) da conversa ativa selecionada — ao reabrir a
   // conversa, volta a usar o mesmo número que estava sendo conversado.
@@ -2216,8 +2251,7 @@ export default function MultiatendimentoPage() {
   useEffect(() => {
     if (!user || !tenantId) return;
 
-    const ch = supabase
-      .channel("wamsg-global")
+    const montar = (canal: RealtimeChannel) => canal
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages" },
@@ -2344,10 +2378,9 @@ export default function MultiatendimentoPage() {
             });
           }
         }
-      )
-      .subscribe();
+      );
 
-    return () => { supabase.removeChannel(ch); };
+    return assinarComRecuperacao(supabase, { nome: "wamsg-global", montar, recuperar: pedirReleitura });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
 
@@ -2360,8 +2393,7 @@ export default function MultiatendimentoPage() {
   useEffect(() => {
     if (!user || !tenantId) return;
 
-    const ch = supabase
-      .channel("waconv-global")
+    const montar = (canal: RealtimeChannel) => canal
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "whatsapp_conversations" },
@@ -2391,18 +2423,16 @@ export default function MultiatendimentoPage() {
             return { ...prev, [r.id]: { ...cur, ...mapped } }; // preserva cur.messages
           });
         }
-      )
-      .subscribe();
+      );
 
-    return () => { supabase.removeChannel(ch); };
+    return assinarComRecuperacao(supabase, { nome: "waconv-global", montar, recuperar: pedirReleitura });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
 
   // ── realtime: mensagens Instagram (meta_messages) ─────────────────
   useEffect(() => {
     if (!tenantId) return;
-    const ch = supabase
-      .channel("ig-msg-global")
+    const montar = (canal: RealtimeChannel) => canal
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "meta_messages" },
@@ -2462,9 +2492,8 @@ export default function MultiatendimentoPage() {
               });
           }
         }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+      );
+    return assinarComRecuperacao(supabase, { nome: "ig-msg-global", montar, recuperar: pedirReleitura });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId]);
 

@@ -8,6 +8,8 @@ import {
   ActivityType, TaskStatus, CustomFieldGroup, CustomFieldItem, CustomFieldType,
 } from "@/data/mockData";
 import { supabase } from "@/lib/supabase";
+import { assinarComRecuperacao } from "@/lib/realtime";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useAuth } from "@/context/AuthContext";
 import { useCompany } from "@/context/CompanyContext";
 import { toast } from "sonner";
@@ -547,6 +549,10 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       tabela: string,
       colunas: string,
       ordem: { coluna: string; ascendente?: boolean }[],
+      // Na releitura depois de uma queda do realtime, metade da tabela não
+      // serve: ela SUBSTITUI o que está na tela, e uma página que falhou faria
+      // negócios sumirem do funil. Lá o erro interrompe em vez de seguir.
+      { lancarErro = false }: { lancarErro?: boolean } = {},
     ): Promise<Record<string, unknown>[]> {
       const todas: Record<string, unknown>[] = [];
       let inicio = 0;
@@ -560,7 +566,11 @@ export function CRMProvider({ children }: { children: ReactNode }) {
           .eq("company_id", companyId);
         for (const o of ordem) q = q.order(o.coluna, { ascending: o.ascendente ?? true });
         const { data, error, count } = await q.range(inicio, inicio + PAGINA - 1);
-        if (error) { console.error(`buscarTudo(${tabela}) erro:`, error.message); break; }
+        if (error) {
+          if (lancarErro) throw new Error(`buscarTudo(${tabela}): ${error.message}`);
+          console.error(`buscarTudo(${tabela}) erro:`, error.message);
+          break;
+        }
         if (count != null) totalNoBanco = count;
         if (data) todas.push(...(data as unknown as Record<string, unknown>[]));
         if (!data || data.length < PAGINA) break;
@@ -573,6 +583,74 @@ export function CRMProvider({ children }: { children: ReactNode }) {
         );
       }
       return todas;
+    }
+
+    /*
+      Montagem dos negócios, contatos e etapas a partir das linhas do banco.
+      Usada pela carga inicial e pela releitura depois de uma queda do
+      realtime, para as duas montarem exatamente igual.
+    */
+    function montarNegocios(
+      dbLeads: Record<string, unknown>[],
+      dbItens: Record<string, unknown>[],
+      dbActivities: Record<string, unknown>[],
+    ): Record<string, Lead> {
+      const actsByLead: Record<string, Activity[]> = {};
+      for (const a of dbActivities) {
+        const lid = a.lead_id as string;
+        if (!actsByLead[lid]) actsByLead[lid] = [];
+        actsByLead[lid].push(dbToActivity(a));
+      }
+
+      // Itens agrupados por negócio, na mesma ideia das atividades: um índice
+      // montado uma vez, em vez de um `filter` por lead dentro do laço (que em
+      // 3 mil negócios seria 3 mil varreduras da lista inteira).
+      const itensPorLead: Record<string, ItemDoNegocio[]> = {};
+      for (const i of dbItens) {
+        const lid = i.lead_id as string;
+        if (!itensPorLead[lid]) itensPorLead[lid] = [];
+        itensPorLead[lid].push({
+          id: i.id as string,
+          productId: i.product_id as string,
+          quantidade: Number(i.quantidade ?? 1),
+          valorUnitario: Number(i.valor_unitario ?? 0),
+          posicao: Number(i.posicao ?? 0),
+        });
+      }
+
+      const leadsMap: Record<string, Lead> = {};
+      for (const l of dbLeads) {
+        const id = l.id as string;
+        leadsMap[id] = dbToLead(l, actsByLead[id] ?? [], itensPorLead[id] ?? []);
+      }
+      return leadsMap;
+    }
+
+    function montarContatos(dbContacts: Record<string, unknown>[]): Record<string, Contact> {
+      const contactsMap: Record<string, Contact> = {};
+      for (const c of dbContacts) {
+        contactsMap[c.id as string] = dbToContact(c);
+      }
+      return contactsMap;
+    }
+
+    // Ids dos negócios de cada etapa, na ordem do funil. O critério é o de
+    // sempre: position, com nulo valendo 0. O sort é estável, então o empate
+    // fica na ordem em que o banco devolveu (position e id).
+    function idsPorEtapa(dbLeads: Record<string, unknown>[]): Map<string, string[]> {
+      const porEtapa = new Map<string, Record<string, unknown>[]>();
+      for (const l of dbLeads) {
+        const etapa = l.column_id as string | null;
+        if (!etapa) continue;
+        const lista = porEtapa.get(etapa);
+        if (lista) lista.push(l); else porEtapa.set(etapa, [l]);
+      }
+      const ids = new Map<string, string[]>();
+      for (const [etapa, linhas] of porEtapa) {
+        linhas.sort((a, b) => ((a.position as number) ?? 0) - ((b.position as number) ?? 0));
+        ids.set(etapa, linhas.map(l => l.id as string));
+      }
+      return ids;
     }
 
     async function loadAll() {
@@ -702,56 +780,16 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       });
       setCustomFieldGroups(deduped);
 
-      // Map activities by lead_id
-      const actsByLead: Record<string, Activity[]> = {};
-      for (const a of dbActivities) {
-        const lid = a.lead_id as string;
-        if (!actsByLead[lid]) actsByLead[lid] = [];
-        actsByLead[lid].push(dbToActivity(a));
-      }
-
-      // Itens agrupados por negócio, na mesma ideia das atividades: um índice
-      // montado uma vez, em vez de um `filter` por lead dentro do laço (que em
-      // 3 mil negócios seria 3 mil varreduras da lista inteira).
-      const itensPorLead: Record<string, ItemDoNegocio[]> = {};
-      for (const i of (dbItens ?? []) as Record<string, unknown>[]) {
-        const lid = i.lead_id as string;
-        if (!itensPorLead[lid]) itensPorLead[lid] = [];
-        itensPorLead[lid].push({
-          id: i.id as string,
-          productId: i.product_id as string,
-          quantidade: Number(i.quantidade ?? 1),
-          valorUnitario: Number(i.valor_unitario ?? 0),
-          posicao: Number(i.posicao ?? 0),
-        });
-      }
-
-      // Build leads map
-      const leadsMap: Record<string, Lead> = {};
-      for (const l of dbLeads) {
-        const id = l.id as string;
-        leadsMap[id] = dbToLead(l, actsByLead[id] ?? [], itensPorLead[id] ?? []);
-      }
-
-      // Build contacts map
-      const contactsMap: Record<string, Contact> = {};
-      for (const c of dbContacts) {
-        contactsMap[c.id as string] = dbToContact(c);
-      }
+      const leadsMap = montarNegocios(dbLeads, dbItens, dbActivities);
+      const contactsMap = montarContatos(dbContacts);
 
       // Build pipelines with columns and leadIds
+      const leadIdsPorEtapa = idsPorEtapa(dbLeads);
       const pipelinesArr: Pipeline[] = dbPipelines.map(p => {
         const pid = p.id as string;
         const cols = dbColumns
           .filter(c => c.pipeline_id === pid)
-          .map(c => {
-            const cid = c.id as string;
-            const leadIds = dbLeads
-              .filter(l => l.column_id === cid)
-              .sort((a, b) => ((a.position as number) ?? 0) - ((b.position as number) ?? 0))
-              .map(l => l.id as string);
-            return dbToColumn(c, leadIds);
-          });
+          .map(c => dbToColumn(c, leadIdsPorEtapa.get(c.id as string) ?? []));
         return dbToPipeline(p, cols);
       });
 
@@ -812,9 +850,68 @@ export function CRMProvider({ children }: { children: ReactNode }) {
       setCrmLoading(false);
     });
 
-    // Real-time subscription — keeps leads in sync when automations update them externally
-    const channel = supabase
-      .channel(`leads-rt-${companyId}`)
+    /*
+      Releitura depois de uma queda do realtime (ver src/lib/realtime.ts).
+
+      Relê o que o canal abaixo mantém ao vivo (negócios com a etapa de cada
+      um, itens, atividades e contatos) e substitui o que está na tela: é o
+      que o F5 faria com essas tabelas, sem refazer o resto do loadAll, que
+      não muda pelo realtime.
+
+      As anotações ficam as da tela, pelo mesmo motivo do UPDATE do realtime
+      logo abaixo: não atropelar quem está escrevendo.
+    */
+    let ativo = true;
+    let relendo = false;
+    let lerDeNovo = false;
+
+    async function relerUmaVez() {
+      const [dbLeads, dbItens, dbActivities, dbContacts] = await Promise.all([
+        buscarTudo("leads", "*", [{ coluna: "position" }, { coluna: "id" }], { lancarErro: true }),
+        buscarTudo("lead_products", "*", [{ coluna: "lead_id" }, { coluna: "posicao" }], { lancarErro: true }),
+        buscarTudo("activities", "*", [{ coluna: "date", ascendente: false }, { coluna: "id" }], { lancarErro: true }),
+        buscarTudo("contacts", "*", [{ coluna: "created_at" }, { coluna: "id" }], { lancarErro: true }),
+      ]);
+      if (!ativo) return;
+
+      const negocios = montarNegocios(dbLeads, dbItens, dbActivities);
+      const leadIdsPorEtapa = idsPorEtapa(dbLeads);
+      setLeads(prev => {
+        const comAnotacoes: Record<string, Lead> = {};
+        for (const id in negocios) {
+          comAnotacoes[id] = prev[id] ? { ...negocios[id], notes: prev[id].notes } : negocios[id];
+        }
+        return comAnotacoes;
+      });
+      setPipelines(prev => prev.map(p => ({
+        ...p,
+        columns: p.columns.map(c => ({ ...c, leadIds: leadIdsPorEtapa.get(c.id) ?? [] })),
+      })));
+      setContacts(montarContatos(dbContacts));
+    }
+
+    async function relerDepoisDaQueda() {
+      // Duas quedas seguidas não disparam duas leituras ao mesmo tempo: a que
+      // terminasse por último venceria, mesmo sendo a mais velha.
+      if (relendo) { lerDeNovo = true; return; }
+      relendo = true;
+      try {
+        do {
+          lerDeNovo = false;
+          try {
+            await relerUmaVez();
+          } catch (err) {
+            console.error("[CRMContext] releitura depois da queda do realtime falhou:", err);
+          }
+        } while (lerDeNovo && ativo);
+      } finally {
+        relendo = false;
+      }
+    }
+
+    // Tempo real: negócios, contatos e atividades mudados por automações,
+    // integrações e outros usuários aparecem sem recarregar a página.
+    const montarCanal = (canal: RealtimeChannel) => canal
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "leads", filter: `company_id=eq.${companyId}` },
@@ -930,10 +1027,18 @@ export function CRMProvider({ children }: { children: ReactNode }) {
             return { ...prev, [leadId]: { ...lead, activities: [...(lead.activities ?? []), act] } };
           });
         }
-      )
-      .subscribe();
+      );
 
-    return () => { supabase.removeChannel(channel); };
+    const pararTempoReal = assinarComRecuperacao(supabase, {
+      nome: `leads-rt-${companyId}`,
+      montar: montarCanal,
+      recuperar: () => { relerDepoisDaQueda(); },
+    });
+
+    return () => {
+      ativo = false;
+      pararTempoReal();
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, company?.id]);
 
