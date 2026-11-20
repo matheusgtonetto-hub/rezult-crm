@@ -16,6 +16,9 @@ import { useProfile } from "@/context/ProfileContext";
 import { ConvAvatar } from "@/components/ConvAvatar";
 import { corDoNome } from "@/lib/nomeColorido";
 import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
+import { conexaoParaFoto, linhaPadrao } from "@/lib/escolhaDeConexao";
+import { assinarComRecuperacao } from "@/lib/realtime";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { apagarMensagemWhatsapp } from "@/lib/apagarMensagemWhatsapp";
 import { MenuDaMensagem, menuAbreParaCima } from "@/components/MenuDaMensagem";
 import { Reply, Trash2, Copy, ChevronDown } from "lucide-react";
@@ -245,6 +248,8 @@ interface Props {
   leadId: string;
   index: number;
   total: number;
+  /** Linha escolhida no card do Pipeline. Vale só para contato sem conversa. */
+  linhaEscolhida?: string;
 }
 
 const WIDTH = 360;
@@ -254,7 +259,7 @@ const ALTURA_MAX_MENSAGEM = 110;
 const RAIL_WIDTH = 32;
 const RAIL_GAP = 8;
 
-export function FloatingChatWindow({ leadId, index }: Props) {
+export function FloatingChatWindow({ leadId, index, linhaEscolhida }: Props) {
   const { leads } = useCRM();
   const navigate = useNavigate();
   const { closeChat, minimizeChat, openChat, windows } = useFloatingChat();
@@ -334,19 +339,28 @@ export function FloatingChatWindow({ leadId, index }: Props) {
    * conversa. Lá a linha da conversa já é adotada ao abri-la
    * (MultiatendimentoPage.tsx, switchActiveInstance e o efeito que o antecede).
    *
-   * Fallback para a primeira ativa em dois casos, o mesmo critério da outra
-   * tela: enquanto a conversa ainda está sendo buscada, e quando a linha dela
+   * Fallback para a linha sem conversa (logo abaixo) em dois casos, o mesmo
+   * critério da outra tela: enquanto a conversa ainda está sendo buscada, e quando a linha dela
    * não existe mais para este usuário (removida, ou de outra empresa) -- aí
    * insistir nela deixaria a janela sem conexão nenhuma em vez de utilizável.
    */
-  const primeiraAtiva = whatsappConnections.find(c => c.connected && c.active);
+  // Contato sem conversa: a linha escolhida no card do Pipeline, se ainda
+  // estiver ativa; senão a linha padrão, a mesma regra do Multiatendimento
+  // (src/lib/escolhaDeConexao.ts). Antes era a primeira ativa, a mais antiga:
+  // com a API oficial criada primeiro, contato novo abria por ela e exigia
+  // modelo, e o seletor do card era ignorado.
+  const linhaSemConversa =
+    (linhaEscolhida
+      ? whatsappConnections.find(c => c.instanceId === linhaEscolhida && c.connected && c.active)
+      : undefined)
+    ?? linhaPadrao(whatsappConnections);
   // A linha da conversa mais recente que AINDA está ativa. Percorrer a lista em
   // vez de olhar só a primeira conversa é o que evita adotar uma linha desligada
   // e depois enviar por outra.
   const conexaoDaConversa = conversas
     ?.map(c => whatsappConnections.find(k => k.instanceId === c.instanceId && k.connected && k.active))
     .find(Boolean);
-  const conexaoAtiva = conexaoDaConversa ?? primeiraAtiva;
+  const conexaoAtiva = conexaoDaConversa ?? linhaSemConversa;
 
   /**
    * A conversa que corresponde à linha de envio. É ela que responde "o contato
@@ -406,7 +420,6 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     el.style.height = Math.min(el.scrollHeight, ALTURA_MAX_MENSAGEM) + "px";
   }, [draft]);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const realtimeRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(
     null
   );
@@ -426,19 +439,18 @@ export function FloatingChatWindow({ leadId, index }: Props) {
 
   // Foto do contato, mesma origem do Multiatendimento. A guarda de número
   // curto vive dentro de fetchWhatsappAvatar, então não precisa repetir aqui.
+  // Pela linha da conversa quando ela fornece foto; a API oficial não fornece,
+  // e aí a foto vem de outra linha.
+  const conexaoDaFoto = conexaoParaFoto(whatsappConnections, conexaoAtiva?.instanceId);
   useEffect(() => {
-    if (!conexaoAtiva?.token || !lead?.whatsapp) { setAvatarDoLead(undefined); return; }
+    if (!conexaoDaFoto?.token || !lead?.whatsapp) { setAvatarDoLead(undefined); return; }
     let cancelado = false;
-    fetchWhatsappAvatar(lead.whatsapp, conexaoAtiva).then(url => { if (!cancelado && url) setAvatarDoLead(url); });
+    fetchWhatsappAvatar(lead.whatsapp, conexaoDaFoto).then(url => { if (!cancelado && url) setAvatarDoLead(url); });
     return () => { cancelado = true; };
-  }, [lead?.whatsapp, conexaoAtiva]);
+  }, [lead?.whatsapp, conexaoDaFoto]);
 
   // Carregar histórico + Realtime ao abrir o chat
   useEffect(() => {
-    if (realtimeRef.current) {
-      supabase.removeChannel(realtimeRef.current);
-      realtimeRef.current = null;
-    }
     if (!lead || !user) return;
     const cleanPhone = (lead.whatsapp ?? "").replace(/\D/g, "");
     // Sem telefone não há conversa a procurar. Marcar como lista vazia (e não
@@ -449,51 +461,61 @@ export function FloatingChatWindow({ leadId, index }: Props) {
     setMessages([]);
     setConversas(undefined);
 
-    // Todas as conversas do contato, da mais recente para a mais antiga: o
-    // mesmo contato pode ter falado por mais de uma linha, e quem decide qual
-    // delas manda é a lista de conexões ativas, não a data.
-    supabase
-      .from("whatsapp_conversations")
-      .select("id, phone, instance_id")
-      .in("phone", variantesDeTelefone(lead.whatsapp))
-      .order("last_msg_at", { ascending: false, nullsFirst: false })
-      .limit(20)
-      .then(({ data, error }) => {
-        // Erro cai na mesma lista vazia de "não tem conversa" de propósito. Na
-        // Cloud API isso leva a janela para "fechada", ou seja, exige modelo:
-        // gastar um modelo à toa é mais barato que escrever uma mensagem
-        // inteira e receber a recusa da Meta depois de mandar.
-        if (error) { console.warn("conversas do contato:", error.message); setConversas([]); return; }
-        const linhas = (data ?? []) as { id: string; phone: string; instance_id: string | null }[];
-        setConversas(linhas.map(c => ({ id: c.id, phone: c.phone, instanceId: c.instance_id })));
-      });
+    // Resposta que chega depois de a janela trocar de lead ou fechar não
+    // escreve na tela.
+    let ativo = true;
 
-    supabase
-      .from("whatsapp_messages")
-      .select("*")
-      // Variantes, não igualdade exata. O telefone do lead vem do formulário
-      // ("+55 48 99115-2442" -> 5548991152442) e o das mensagens vem do canal,
-      // que grava com ou sem o 55 e com ou sem o nono dígito. Com `.eq` o chat
-      // flutuante abria vazio sempre que os dois formatos não coincidiam, que é
-      // o caso comum. Mesmo defeito já corrigido em LeadDrawer e LeadDetailPage.
-      .in("phone", variantesDeTelefone(lead.whatsapp))
-      // Descendente + inverter, pelo mesmo motivo do Multiatendimento: com
-      // `ascending: true` o limite trazia as 100 mensagens mais ANTIGAS, e a
-      // conversa congelava no centésimo recado. O corte tem que cair no começo
-      // do histórico, não no fim.
-      .order("created_at", { ascending: false })
-      .limit(2000)
-      .then(({ data }) => {
-        if (!data?.length) return;
-        setMessages([...data].reverse().map(m => montarMsg(m as LinhaDeMensagem, lead.name, nomeAtendente)));
-      });
+    // Lê conversas e histórico do banco. Roda ao abrir e de novo quando o
+    // realtime volta de uma queda (src/lib/realtime.ts): o que chegou com a
+    // conexão fora só aparece por aqui.
+    const carregar = () => {
+      // Todas as conversas do contato, da mais recente para a mais antiga: o
+      // mesmo contato pode ter falado por mais de uma linha, e quem decide qual
+      // delas manda é a lista de conexões ativas, não a data.
+      supabase
+        .from("whatsapp_conversations")
+        .select("id, phone, instance_id")
+        .in("phone", variantesDeTelefone(lead.whatsapp))
+        .order("last_msg_at", { ascending: false, nullsFirst: false })
+        .limit(20)
+        .then(({ data, error }) => {
+          // Erro cai na mesma lista vazia de "não tem conversa" de propósito. Na
+          // Cloud API isso leva a janela para "fechada", ou seja, exige modelo:
+          // gastar um modelo à toa é mais barato que escrever uma mensagem
+          // inteira e receber a recusa da Meta depois de mandar.
+          if (!ativo) return;
+          if (error) { console.warn("conversas do contato:", error.message); setConversas([]); return; }
+          const linhas = (data ?? []) as { id: string; phone: string; instance_id: string | null }[];
+          setConversas(linhas.map(c => ({ id: c.id, phone: c.phone, instanceId: c.instance_id })));
+        });
+
+      supabase
+        .from("whatsapp_messages")
+        .select("*")
+        // Variantes, não igualdade exata. O telefone do lead vem do formulário
+        // ("+55 48 99115-2442" -> 5548991152442) e o das mensagens vem do canal,
+        // que grava com ou sem o 55 e com ou sem o nono dígito. Com `.eq` o chat
+        // flutuante abria vazio sempre que os dois formatos não coincidiam, que é
+        // o caso comum. Mesmo defeito já corrigido em LeadDrawer e LeadDetailPage.
+        .in("phone", variantesDeTelefone(lead.whatsapp))
+        // Descendente + inverter, pelo mesmo motivo do Multiatendimento: com
+        // `ascending: true` o limite trazia as 100 mensagens mais ANTIGAS, e a
+        // conversa congelava no centésimo recado. O corte tem que cair no começo
+        // do histórico, não no fim.
+        .order("created_at", { ascending: false })
+        .limit(2000)
+        .then(({ data }) => {
+          if (!ativo || !data?.length) return;
+          setMessages([...data].reverse().map(m => montarMsg(m as LinhaDeMensagem, lead.name, nomeAtendente)));
+        });
+    };
+    carregar();
 
     // Mesmas variantes do histórico acima. Com `phone=eq.` o chat carregava o
     // histórico certo e depois ficava mudo: a mensagem nova chegava gravada em
     // outro formato e o filtro do realtime não a reconhecia.
     const variantes = variantesDeTelefone(lead.whatsapp);
-    const ch = supabase
-      .channel(`fchat-${cleanPhone}`)
+    const montar = (canal: RealtimeChannel) => canal
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages", filter: `phone=in.(${variantes.join(",")})` },
@@ -529,13 +551,13 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             return [...prev, nova];
           });
         }
-      )
-      .subscribe();
-    realtimeRef.current = ch;
+      );
+
+    const parar = assinarComRecuperacao(supabase, { nome: `fchat-${cleanPhone}`, montar, recuperar: carregar });
 
     return () => {
-      supabase.removeChannel(ch);
-      realtimeRef.current = null;
+      ativo = false;
+      parar();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leadId, user?.id]);
@@ -1202,8 +1224,8 @@ export function FloatingChatWindow({ leadId, index }: Props) {
             </div>
             {/* Qual número está falando com o contato. Com mais de uma linha
                 conectada, quem escreve daqui não tinha como saber por qual
-                delas a mensagem sairia -- e a escolha é feita em código (a 1ª
-                conexão ativa), não pelo atendente. */}
+                delas a mensagem sairia. A linha é a da conversa; sem conversa,
+                a escolhida no card do Pipeline ou a padrão. */}
             <div
               className="flex items-center gap-2 truncate"
               style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.2 }}
@@ -1220,11 +1242,18 @@ export function FloatingChatWindow({ leadId, index }: Props) {
               <button
                 onClick={e => {
                   e.stopPropagation();
-                  navigate("/multiatendimento", conversaParaAbrir ? { state: { openConvId: conversaParaAbrir.id } } : undefined);
+                  // Sem conversa ainda, o Multiatendimento inicia uma, pela
+                  // mesma linha desta janela, em vez de abrir sem nada
+                  // selecionado.
+                  navigate("/multiatendimento", {
+                    state: conversaParaAbrir
+                      ? { openConvId: conversaParaAbrir.id }
+                      : { iniciarComLeadId: leadId, linha: conexaoAtiva?.instanceId },
+                  });
                 }}
                 className="hover:underline shrink-0"
                 style={{ color: "var(--accent-700)", fontWeight: 500 }}
-                title={conversaParaAbrir ? "Abrir esta conversa no Multiatendimento" : "Abrir o Multiatendimento"}
+                title={conversaParaAbrir ? "Abrir esta conversa no Multiatendimento" : "Iniciar a conversa no Multiatendimento"}
               >
                 Multiatendimento →
               </button>

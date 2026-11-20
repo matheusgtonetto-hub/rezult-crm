@@ -23,7 +23,7 @@ export function FloatingChatManager() {
   return (
     <>
       {open.map((w, i) => (
-        <FloatingChatWindow key={w.leadId} leadId={w.leadId} index={i} total={open.length} />
+        <FloatingChatWindow key={w.leadId} leadId={w.leadId} linhaEscolhida={w.linha} index={i} total={open.length} />
       ))}
 
       {/* Minimized chips */}

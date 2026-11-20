@@ -58,6 +58,7 @@ import { toast } from "sonner";
 import { useFloatingChat } from "@/context/FloatingChatContext";
 import { supabase } from "@/lib/supabase";
 import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
+import { conexaoParaFoto, linhaPadrao } from "@/lib/escolhaDeConexao";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { normalizarTelefoneBr } from "@/lib/telefone";
 import { ExecutarAutomacaoWizard, leadParaAlvo } from "@/components/multiatendimento/ExecutarAutomacaoWizard";
@@ -251,6 +252,7 @@ export default function PipelinePage() {
       .filter(c => c.connected && c.active)
       .map(c => ({
         instanceId: c.instanceId,
+        provider: c.provider,
         // Só mostra o número quando ele acrescenta informação. A conexão costuma
         // ser batizada com o próprio número, e aí o rótulo saía repetido:
         // "554891152442 · 554891152442". Compara pelo núcleo para pegar também o
@@ -265,7 +267,8 @@ export default function PipelinePage() {
   useEffect(() => {
     if (zapiInstances.length === 0) { setSelectedZapiInstance(""); return; }
     if (!zapiInstances.some(i => i.instanceId === selectedZapiInstance)) {
-      setSelectedZapiInstance(zapiInstances[0].instanceId);
+      // A mesma linha padrão do chat flutuante e do Multiatendimento.
+      setSelectedZapiInstance((linhaPadrao(zapiInstances) ?? zapiInstances[0]).instanceId);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [zapiInstances]);
@@ -723,7 +726,10 @@ export default function PipelinePage() {
   const fetchCardAvatar = useCallback((phone: string | undefined, force = false) => {
     const p = normalizarTelefoneBr(phone);
     if (!p || fetchingAvatarsRef.current.has(p) || (!force && avatarUrlsRef.current[p])) return;
-    const inst = whatsappConnections.find(c => c.connected && c.active);
+    // Uma conexão que forneça foto. Era a primeira ativa: com a API oficial
+    // criada primeiro, nenhum card do board tinha foto, porque a oficial não
+    // fornece foto de contato (src/lib/escolhaDeConexao.ts).
+    const inst = conexaoParaFoto(whatsappConnections);
     if (!inst) return;
     fetchingAvatarsRef.current.add(p);
     fetchWhatsappAvatar(phone ?? "", inst, force)
@@ -740,7 +746,7 @@ export default function PipelinePage() {
   // Multiatendimento, pra não disparar uma rajada de chamadas à D-API/Z-API
   // num board com muitos negócios.
   useEffect(() => {
-    if (!whatsappConnections.some(c => c.connected && c.active)) return;
+    if (!conexaoParaFoto(whatsappConnections)) return;
     filteredColumns.forEach(col => {
       col.filteredIds.slice(0, 40).forEach(id => fetchCardAvatar(pegarLead(id)?.whatsapp));
     });
@@ -1619,12 +1625,15 @@ export default function PipelinePage() {
                                                             <span className="text-xs text-[color:var(--text-body)]">{inst.label}</span>
                                                           </label>
                                                         ))}
+                                                        <p className="text-[11px] text-[color:var(--text-muted)]">Se o contato já tem conversa, o chat segue a linha dela.</p>
                                                         <Button
                                                           size="sm"
                                                           className="w-full bg-[color:var(--surface-accent-strong)] hover:bg-[color:var(--surface-accent-strong)]/90 h-7 text-xs mt-1"
                                                           onClick={e => {
                                                             e.stopPropagation();
-                                                            openChat(leadId);
+                                                            // A linha marcada acima vai junto. Antes ficava aqui
+                                                            // e o chat abria pela primeira conexão ativa.
+                                                            openChat(leadId, selectedZapiInstance);
                                                             setWpPopoverLeadId(null);
                                                           }}
                                                         >

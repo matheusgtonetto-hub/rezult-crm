@@ -6,13 +6,13 @@ import Recorder from "opus-recorder";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useCRM } from "@/context/CRMContext";
-import { useFloatingChat } from "@/context/FloatingChatContext";
 import { useCompany } from "@/context/CompanyContext";
 import { CrmWhatsAppIcon } from "@/components/icons/CrmWhatsAppIcon";
 import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { usePermissions } from "@/hooks/usePermissions";
 import { supabase } from "@/lib/supabase";
 import { assinarComRecuperacao } from "@/lib/realtime";
+import { conexaoParaFoto, linhaPadrao } from "@/lib/escolhaDeConexao";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { ItensDoNegocio } from "@/components/ItensDoNegocio";
 import { TagPill } from "@/components/TagPill";
@@ -46,6 +46,7 @@ import { ExecutarAutomacaoWizard } from "@/components/multiatendimento/ExecutarA
 import { upsertContact, type Contact } from "@/lib/contacts";
 import { normalizarTelefoneBr, somenteDigitos, telefonesIguais, variantesDeTelefone } from "@/lib/telefone";
 import { previewLabelFor } from "@/lib/conversas";
+import { gravarMensagemVinculada } from "@/lib/gravarMensagem";
 import { EMOJIS } from "@/lib/emojis";
 import { enviarArquivoWhatsapp } from "@/lib/enviarArquivoWhatsapp";
 import { useTelaDeCelular } from "@/lib/telaDeCelular";
@@ -94,30 +95,14 @@ function textoDaMensagem(m: Msg): string {
   return "🎤 Mensagem de áudio";
 }
 
-// Insere mensagem já vinculada à conversa, sem nunca perder a mensagem.
-//
-// A tela gera o id da conversa no cliente (ver a reconciliação mais abaixo) e
-// grava com upsert + ignoreDuplicates. Numa corrida com o realtime, o navegador
-// pode acabar segurando um id que não existe em whatsapp_conversations -- e a
-// chave estrangeira recusaria o insert inteiro.
-//
-// Perder a mensagem para preservar o vínculo seria trocar o essencial pelo
-// acessório: a mensagem é o fato, o agrupamento é conveniência. Em erro de
-// chave estrangeira (23503) regrava sem o vínculo e avisa no console; o
-// backfill da migration recupera o vínculo depois.
-async function inserirMensagemVinculada(
+// Grava a mensagem vinculada a uma conversa que exista de fato, sem nunca
+// perder a mensagem. A regra mora em src/lib/gravarMensagem.ts.
+function inserirMensagemVinculada(
   payload: Record<string, unknown>,
   conversationId: string | null | undefined,
-): Promise<{ error: { message: string; code?: string } | null }> {
-  const { error } = await supabase
-    .from("whatsapp_messages")
-    .insert({ ...payload, conversation_id: conversationId ?? null });
-  if (!error) return { error: null };
-  if (error.code !== "23503" || !conversationId) return { error };
-  console.warn(
-    `[multiatendimento] conversa ${conversationId} não existe no banco; mensagem gravada sem vínculo.`,
-  );
-  return await supabase.from("whatsapp_messages").insert(payload);
+  nomeDoContato?: string | null,
+) {
+  return gravarMensagemVinculada(supabase, payload, conversationId, nomeDoContato);
 }
 
 /* ── types ────────────────────────────────────────────────────────────── */
@@ -630,7 +615,6 @@ export default function MultiatendimentoPage() {
   const { leads, pipelines, activePipeline, moveLead, crmTags, addLead, nextDealNumber, updateLead, crmLists, addLeadToList, removeLeadFromList, addActivity, teamMembers, memberEmails, memberAvatars, memberColors, memberUserIds, currentUserName, products, customFieldGroups, recalcularValorDoNegocio } = useCRM();
   const { can, isOwner: isCompanyOwner } = usePermissions();
   const isMuAdmin = isCompanyOwner || can("multiatendimento:admin");
-  const { openedLeadIds } = useFloatingChat();
 
   const [convList, setConvList] = useState<Conversation[]>([]);
   // Persistência de navegação (conversa aberta + aba de filtro selecionada),
@@ -850,8 +834,9 @@ export default function MultiatendimentoPage() {
   const avatarRetried = useRef<Set<string>>(new Set());
 
   async function fetchAvatar(phone: string, instanceId?: string, force = false) {
-    // Prefere a instância da própria conversa; cai para a primeira conectada.
-    const inst = (instanceId && instances.find(i => i.instanceId === instanceId)) || instances[0];
+    // Prefere a linha da própria conversa; se ela não fornece foto (a API
+    // oficial não fornece), usa outra linha que forneça.
+    const inst = conexaoParaFoto(instances, instanceId);
     if (!inst || !phone) return;
     const p = somenteDigitos(phone);
     if (!p || fetchingAvatars.current.has(p) || (!force && convAvatars[p])) return;
@@ -871,7 +856,7 @@ export default function MultiatendimentoPage() {
 
   // Fetch photos for visible conversations when instances load
   useEffect(() => {
-    if (!instances[0] || convList.length === 0) return;
+    if (!conexaoParaFoto(instances) || convList.length === 0) return;
     convList.slice(0, 40).forEach(c => { if (c.phone) fetchAvatar(c.phone, c.instanceId); });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instances.length, convList.length]);
@@ -898,12 +883,21 @@ export default function MultiatendimentoPage() {
   const activeIdRef    = useRef<string>(activeId);
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
 
-  // Abre conversa específica quando navegado a partir do drawer de leads
+  // Abre conversa específica quando navegado a partir do drawer de leads ou
+  // do chat flutuante.
+  //
+  // Uma vez por navegação. `window.history.replaceState` não limpa o
+  // `location.state` do roteador, então o efeito rodava de novo a cada
+  // conversa que entrava na lista e puxava a seleção de volta para a conversa
+  // da navegação, tirando o atendente da conversa que ele tinha aberto depois.
+  const navegacaoTratada = useRef<string | null>(null);
   useEffect(() => {
+    if (navegacaoTratada.current === location.key) return;
     const targetId = (location.state as { openConvId?: string } | null)?.openConvId;
     if (!targetId || convList.length === 0) return;
     const target = convList.find(c => c.id === targetId);
     if (target) {
+      navegacaoTratada.current = location.key;
       setActiveId(targetId);
       updateCs(targetId, { read: true });
       // Limpa o state para não reativar em navegações futuras
@@ -911,6 +905,21 @@ export default function MultiatendimentoPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.state, convList.length]);
+
+  // Chat flutuante de um lead que ainda não tem conversa: inicia uma de
+  // verdade, gravada, pela linha que a janela usava. Antes uma conversa
+  // provisória era montada na tela para cada chat flutuante aberto (ver
+  // startConversationWithLead).
+  useEffect(() => {
+    if (navegacaoTratada.current === location.key) return;
+    const pedido = location.state as { iniciarComLeadId?: string; linha?: string } | null;
+    const alvo = pedido?.iniciarComLeadId;
+    if (!alvo || !leads[alvo] || instances.length === 0) return;
+    navegacaoTratada.current = location.key;
+    window.history.replaceState({}, "");
+    startConversationWithLead(alvo, pedido?.linha);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, leads, instances.length]);
 
   // ── botões "+ Lead" / "+ Negócio" -- reaproveitam os mesmos popups de
   // /leads (LeadModal e o Dialog "Criar negócio" do menu (...) de cada linha,
@@ -979,20 +988,24 @@ export default function MultiatendimentoPage() {
 
       const idNoProvedor = await sendWa(inst as ZapiCreds, carga);
 
-      const { error } = await supabase.from("whatsapp_messages").insert({
+      // Pelo mesmo caminho dos outros envios: se a conversa de destino não
+      // estiver gravada, a mensagem vai para a conversa de verdade do contato.
+      const { error, conversationId: convGravada } = await inserirMensagemVinculada({
         owner_id: tenantId,
         company_id: company?.id ?? null,
         instance_id: inst.instanceId,
         phone: telefone,
         from_me: true,
         body: m.kind === "text" || m.kind === "system" ? m.text : m.kind === "file" ? m.filename : m.kind === "image" ? (m.caption ?? "") : m.duration,
-        type: m.kind === "system" ? "text" : m.kind,
+        // "document", e não "file": é o nome que o histórico e a prévia
+        // reconhecem. Com "file" o anexo encaminhado voltava como texto.
+        type: m.kind === "system" ? "text" : m.kind === "file" ? "document" : m.kind,
         media_url: m.kind === "image" ? m.src : m.kind === "file" ? m.url : m.kind === "audio" ? m.src : null,
         momment: Date.now(),
         sender_name: nomeAtendente,
         message_id: idNoProvedor,
-        conversation_id: destino.id,
-      });
+      }, destino.id, destino.name);
+      adotarConversaReal(destino.id, convGravada);
       if (error) {
         console.error("[encaminhar] insert:", error);
         toast.error("Encaminhada, mas não salva no histórico.");
@@ -2238,12 +2251,67 @@ export default function MultiatendimentoPage() {
     // disponível (removida, ou de outra empresa) deixava selectedInstance
     // apontando para o nada: o envio falhava com "número desconectado" e a tela
     // mandava escolher outra conexão, enquanto o cabeçalho já exibia uma
-    // conexão válida. Beco sem saída. Caindo na primeira conexão disponível, a
-    // conversa continua utilizável.
+    // conexão válida. Beco sem saída. Caindo na linha padrão, a conversa
+    // continua utilizável.
     const existe = instances.some(i => i.instanceId === active.instanceId);
-    setSelectedInstance(existe ? active.instanceId : (instances[0]?.instanceId ?? ""));
+    setSelectedInstance(existe ? active.instanceId : (linhaPadrao(instances)?.instanceId ?? ""));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeId, active?.instanceId, instances]);
+
+  // ── conversa do banco → lista e estado ───────────────────────────────
+  // Conversa nova entra no topo; conhecida é atualizada sem perder as
+  // mensagens já carregadas. Usada pelo realtime das conversas, pela mensagem
+  // que chega antes da própria conversa e pela "Nova conversa" que acha uma
+  // conversa que já existia.
+  function mesclarConversaDoBanco(r: DbConvRow) {
+    setConvList(prev => {
+      const idx = prev.findIndex(c => c.id === r.id);
+      const mapped = mapConvRow(r);
+      if (idx === -1) return [mapped, ...prev];
+      const next = [...prev];
+      next[idx] = { ...next[idx], ...mapped };
+      return next;
+    });
+    setConvStates(prev => {
+      const cur = prev[r.id];
+      const mapped = mapConvState(r);
+      if (!cur) return { ...prev, [r.id]: { messages: [], ...mapped } };
+      return { ...prev, [r.id]: { ...cur, ...mapped } }; // preserva cur.messages
+    });
+  }
+
+  // Conversa que existe no banco e ainda não está na lista: o aviso da
+  // mensagem pode chegar antes do aviso da conversa. Busca a linha em vez de
+  // criar outra; quando o aviso da conversa chegar, os dois casam pelo id.
+  function trazerConversaDoBanco(id: string) {
+    supabase.from("whatsapp_conversations").select("*").eq("id", id).maybeSingle()
+      .then(({ data, error }) => {
+        if (error) { console.warn("trazerConversaDoBanco:", error.message); return; }
+        const r = data as DbConvRow | null;
+        if (r && r.owner_id === tenantId) mesclarConversaDoBanco(r);
+      });
+  }
+
+  // A conversa da tela não existia no banco, e o envio achou (ou criou) a de
+  // verdade pelo telefone e pela linha (inserirMensagemVinculada). Troca o id
+  // local pelo real na lista, no estado e na seleção. Se a real já estava na
+  // lista, a local some e as mensagens dela passam para a real, sem repetir.
+  function adotarConversaReal(idLocal: string, idReal: string | null) {
+    if (!idReal || idReal === idLocal) return;
+    setConvList(prev => (prev.some(c => c.id === idReal)
+      ? prev.filter(c => c.id !== idLocal)
+      : prev.map(c => (c.id === idLocal ? { ...c, id: idReal } : c))));
+    setConvStates(prev => {
+      const local = prev[idLocal];
+      if (!local) return prev;
+      const { [idLocal]: _local, ...resto } = prev;
+      const real = resto[idReal];
+      if (!real) return { ...resto, [idReal]: local };
+      const novas = local.messages.filter(m => !real.messages.some(r => r.id === m.id));
+      return { ...resto, [idReal]: { ...real, messages: [...real.messages, ...novas] } };
+    });
+    setActiveId(prev => (prev === idLocal ? idReal : prev));
+  }
 
   // ── listener global de mensagens recebidas (sem filtro de telefone) ──
   // Trata tanto conversas existentes (phone mismatch de código de país)
@@ -2256,7 +2324,7 @@ export default function MultiatendimentoPage() {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "whatsapp_messages" },
         (payload) => {
-          const m = payload.new as { id?: string; owner_id?: string; instance_id?: string; from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; sent_by_agent?: boolean; momment?: number; created_at?: string; type?: string; media_url?: string };
+          const m = payload.new as { id?: string; owner_id?: string; instance_id?: string; from_me: boolean; phone?: string; body?: string; chat_name?: string; sender_name?: string; sent_by_agent?: boolean; momment?: number; created_at?: string; type?: string; media_url?: string; conversation_id?: string | null };
           // from_me também é processado: mensagens enviadas por AUTOMAÇÕES (ou por
           // outro membro/dispositivo) chegam só por aqui. Antes eram ignoradas, então
           // o áudio da automação não aparecia ao vivo e o preview da conversa nunca
@@ -2287,11 +2355,26 @@ export default function MultiatendimentoPage() {
             return; // nunca cria nova conversa para mensagem de sistema
           }
 
-          // Procura conversa pelo telefone E pela instância (cada número é uma conversa
-          // separada). Conversas legadas sem instância casam por telefone.
-          const existing = convListRef.current.find(c =>
-            telefonesIguais(c.phone ?? "", msgPhone) && (!c.instanceId || !msgInst || c.instanceId === msgInst)
-          );
+          // Pelo VÍNCULO primeiro. Toda mensagem gravada hoje nasce com a
+          // conversa (webhooks, chat flutuante e os envios desta tela). Casar
+          // por telefone errava quando a conversa ainda não estava na lista: o
+          // aviso da mensagem pode chegar antes do aviso da conversa, e esta
+          // tela criava uma segunda conversa para o mesmo contato, que só
+          // sumia depois do conflito no banco. Conversa que existe no banco e
+          // ainda não está na lista é buscada, nunca criada de novo.
+          const vinculo = m.conversation_id ?? null;
+          if (vinculo && !convListRef.current.some(c => c.id === vinculo)) {
+            trazerConversaDoBanco(vinculo);
+            return;
+          }
+          // Sem vínculo (mensagem antiga): pelo telefone E pela instância (cada
+          // número é uma conversa separada). Conversas legadas sem instância
+          // casam por telefone.
+          const existing = vinculo
+            ? convListRef.current.find(c => c.id === vinculo)
+            : convListRef.current.find(c =>
+                telefonesIguais(c.phone ?? "", msgPhone) && (!c.instanceId || !msgInst || c.instanceId === msgInst)
+              );
 
           const previewLabel = previewLabelFor(m.type, m.body);
           if (existing) {
@@ -2407,21 +2490,7 @@ export default function MultiatendimentoPage() {
           }
           const r = payload.new as DbConvRow;
           if (r.owner_id !== tenantId) return; // só conversas da empresa selecionada
-
-          setConvList(prev => {
-            const idx = prev.findIndex(c => c.id === r.id);
-            const mapped = mapConvRow(r);
-            if (idx === -1) return [mapped, ...prev];
-            const next = [...prev];
-            next[idx] = { ...next[idx], ...mapped };
-            return next;
-          });
-          setConvStates(prev => {
-            const cur = prev[r.id];
-            const mapped = mapConvState(r);
-            if (!cur) return { ...prev, [r.id]: { messages: [], ...mapped } };
-            return { ...prev, [r.id]: { ...cur, ...mapped } }; // preserva cur.messages
-          });
+          mesclarConversaDoBanco(r);
         }
       );
 
@@ -2511,70 +2580,16 @@ export default function MultiatendimentoPage() {
         wabaId:      c.wabaId ?? null,
       }));
     setInstances(insts);
+    // Sem seleção válida, a linha padrão: a mesma do chat flutuante e do card
+    // do Pipeline (src/lib/escolhaDeConexao.ts).
     setSelectedInstance(prev => {
       if (insts.find(i => i.instanceId === prev)) return prev;
-      return insts[0]?.instanceId ?? "";
+      return linhaPadrao(insts)?.instanceId ?? "";
     });
   }, [whatsappConnections]);
 
-  // ── sincroniza chats abertos pelo Pipeline → multi-atendimento ───────
-  useEffect(() => {
-    if (!openedLeadIds.length || !user) return;
-    const allPipelines = pipelines ?? [];
-    const toCreate: Array<{ conv: Conversation; cs: ConvState }> = [];
-
-    setConvList(prev => {
-      let updated = [...prev];
-      for (const leadId of openedLeadIds) {
-        if (updated.find(c => c.id === leadId)) continue;
-        const lead = leads[leadId];
-        if (!lead) continue;
-        const pipelineName = allPipelines.find(p => p.id === lead.pipelineId)?.name ?? "Pipeline Comercial";
-        const conv: Conversation = {
-          id: leadId,
-          name: lead.name,
-          preview: "Conversa iniciada pelo Pipeline",
-          time: "agora",
-          channel: "whatsapp" as const,
-          tags: lead.tags ?? [],
-          company: lead.company ?? "—",
-          email: lead.email ?? "—",
-          phone: lead.whatsapp ?? "—",
-          value: lead.value ?? 0,
-          pipeline: pipelineName,
-          dealNumber: `#${lead.dealNumber}`,
-          instanceId: selectedInstance || undefined,
-        };
-        const cs: ConvState = { messages: [], stageIdx: 1, meeting: null, notes: "", read: true, finished: false };
-        toCreate.push({ conv, cs });
-        updated = [conv, ...updated];
-      }
-      return updated;
-    });
-    setConvStates(prev => {
-      const next = { ...prev };
-      for (const { conv, cs } of toCreate) {
-        if (!next[conv.id]) next[conv.id] = cs;
-      }
-      return next;
-    });
-    // Persiste novas conversas no Supabase
-    for (const { conv, cs } of toCreate) {
-      supabase.from("whatsapp_conversations").upsert({
-        id: conv.id, owner_id: tenantId, company_id: company?.id ?? null, instance_id: conv.instanceId ?? null, name: conv.name, phone: conv.phone ?? null,
-        channel: conv.channel, tags: conv.tags, company_name: conv.company ?? null,
-        email: conv.email ?? null, pipeline: conv.pipeline ?? null,
-        deal_number: conv.dealNumber ?? null, value: conv.value ?? null,
-        preview: conv.preview, stage_idx: cs.stageIdx, notes: cs.notes,
-        read: cs.read, finished: cs.finished,
-      }, { onConflict: "id", ignoreDuplicates: true }).then(({ error }) => {
-        if (error) console.error("Erro ao persistir conversa (pipeline):", error);
-      });
-    }
-  }, [openedLeadIds, leads, pipelines, user?.id]);
-
   // ── nova conversa a partir de lead do pipeline ───────────────────────
-  function startConversationWithLead(leadId: string) {
+  async function startConversationWithLead(leadId: string, linha?: string) {
     const lead = leads[leadId];
     if (!lead) return;
 
@@ -2595,6 +2610,7 @@ export default function MultiatendimentoPage() {
       setLeadSearch("");
       return;
     }
+    if (!user || !tenantId) return;
 
     // encontra o nome da coluna (etapa) do lead
     const allPipelines = pipelines ?? [];
@@ -2619,6 +2635,10 @@ export default function MultiatendimentoPage() {
     // mensagem real chegando depois nunca encontrava esta linha e criava outra.
     const cleanLeadPhone = (lead.whatsapp ?? "").replace(/\D/g, "") || undefined;
 
+    // A linha pedida por quem abriu (o chat flutuante manda a dele), se ainda
+    // estiver ativa; senão a selecionada aqui.
+    const linhaDaConversa = linha && instances.some(i => i.instanceId === linha) ? linha : selectedInstance;
+
     const newConv: Conversation = {
       id: leadId,
       name: lead.name,
@@ -2632,27 +2652,57 @@ export default function MultiatendimentoPage() {
       value: lead.value ?? 0,
       pipeline: pipelineName,
       dealNumber: `#${lead.dealNumber}`,
-      instanceId: selectedInstance || undefined,
+      instanceId: linhaDaConversa || undefined,
     };
 
     const newCs: ConvState = { messages: [], stageIdx, meeting: null, notes: "", read: true, finished: false };
-    setConvList(prev => [newConv, ...prev]);
-    setConvStates(prev => ({ ...prev, [leadId]: newCs }));
+
+    // Confere no banco antes de criar. A lista da tela pode não ter carregado,
+    // e o número do cadastro (com o nono dígito) pode estar gravado de outro
+    // jeito na conversa que o WhatsApp abriu. A trava única do banco compara o
+    // texto exato e deixaria passar uma segunda conversa do mesmo contato.
+    const variantes = variantesDeTelefone(cleanLeadPhone ?? "");
+    if (variantes.length) {
+      const { data: achadas } = await supabase
+        .from("whatsapp_conversations")
+        .select("*")
+        .eq("owner_id", tenantId)
+        .eq("channel", "whatsapp")
+        .in("phone", variantes)
+        .order("last_msg_at", { ascending: false })
+        .limit(1);
+      const achada = (achadas?.[0] ?? null) as DbConvRow | null;
+      if (achada) {
+        mesclarConversaDoBanco(achada);
+        setActiveId(achada.id);
+        setNewConvOpen(false);
+        setLeadSearch("");
+        return;
+      }
+    }
+
+    // Grava ANTES de mostrar. Antes a conversa entrava na tela e a gravação
+    // seguia sem esperar: quando falhava, ela existia só na tela, a primeira
+    // mensagem perdia o vínculo e a resposta do contato abria outra conversa.
+    const { error } = await supabase.from("whatsapp_conversations").upsert({
+      id: leadId, owner_id: tenantId, company_id: company?.id ?? null, instance_id: newConv.instanceId ?? null, name: newConv.name, phone: newConv.phone ?? null,
+      channel: newConv.channel, tags: newConv.tags, company_name: newConv.company ?? null,
+      email: newConv.email ?? null, pipeline: newConv.pipeline ?? null,
+      deal_number: newConv.dealNumber ?? null, value: newConv.value ?? null,
+      preview: newConv.preview, stage_idx: stageIdx, notes: "", read: true, finished: false,
+    }, { onConflict: "id", ignoreDuplicates: true });
+    if (error) {
+      console.error("Erro ao gravar conversa (nova, via pipeline):", error);
+      toast.error("Não foi possível iniciar a conversa. Tente de novo.");
+      return;
+    }
+
+    setConvList(prev => (prev.some(c => c.id === leadId) ? prev : [newConv, ...prev]));
+    setConvStates(prev => ({ ...prev, [leadId]: prev[leadId] ?? newCs }));
     setActiveId(leadId);
     setNewConvOpen(false);
     setLeadSearch("");
     toast.success(`Conversa iniciada com ${lead.name}`);
-    if (user) {
-      supabase.from("whatsapp_conversations").upsert({
-        id: leadId, owner_id: tenantId, company_id: company?.id ?? null, instance_id: newConv.instanceId ?? null, name: newConv.name, phone: newConv.phone ?? null,
-        channel: newConv.channel, tags: newConv.tags, company_name: newConv.company ?? null,
-        email: newConv.email ?? null, pipeline: newConv.pipeline ?? null,
-        deal_number: newConv.dealNumber ?? null, value: newConv.value ?? null,
-        preview: newConv.preview, stage_idx: stageIdx, notes: "", read: true, finished: false,
-      }, { onConflict: "id", ignoreDuplicates: true }).then(({ error }) => {
-        if (error) console.error("Erro ao persistir conversa (nova, via pipeline):", error);
-      });
-    }
   }
 
   // ── toolbar helpers ──────────────────────────────────────────────────
@@ -2711,7 +2761,7 @@ export default function MultiatendimentoPage() {
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       bumpPreview(activeId, isImage ? "🖼️ Imagem" : `📎 ${file.name}`);
       // Persiste no banco para histórico futuro
-      const { error: insErr } = await inserirMensagemVinculada({
+      const { error: insErr, conversationId: convGravada } = await inserirMensagemVinculada({
         id:          msgId,
         owner_id:    tenantId,
         company_id:  company?.id ?? null,
@@ -2724,7 +2774,8 @@ export default function MultiatendimentoPage() {
         momment:     Date.now(),
         sender_name: nomeAtendente,
         message_id:  idNoProvedor,
-      }, activeId);
+      }, activeId, active?.name);
+      adotarConversaReal(activeId, convGravada);
       if (insErr) { console.error("[file] insert:", insErr); toast.error(`Arquivo enviado, mas não salvo no histórico: ${insErr.message}`); }
       toast.success("Arquivo enviado!", { id: "file-send" });
     } catch (err) {
@@ -2887,7 +2938,7 @@ export default function MultiatendimentoPage() {
       updateCs(activeId, { messages: [...(cs?.messages ?? []), newMsg] });
       bumpPreview(activeId, "🎤 Mensagem de áudio");
       // Persiste no banco para histórico futuro
-      const { error: insErr } = await inserirMensagemVinculada({
+      const { error: insErr, conversationId: convGravada } = await inserirMensagemVinculada({
         id:          msgId,
         owner_id:    tenantId,
         company_id:  company?.id ?? null,
@@ -2899,7 +2950,8 @@ export default function MultiatendimentoPage() {
         media_url:   mediaUrl,
         momment:     Date.now(),
         sender_name: nomeAtendente,
-      }, activeId);
+      }, activeId, active?.name);
+      adotarConversaReal(activeId, convGravada);
       if (insErr) { console.error("[audio] insert:", insErr); toast.error(`Áudio enviado, mas não salvo no histórico: ${insErr.message}`); }
       toast.success("Áudio enviado!", { id: "audio-send" });
     } catch (err) {
@@ -3460,7 +3512,7 @@ export default function MultiatendimentoPage() {
 
       // Persiste no banco para histórico futuro
       if (user) {
-        const { error: sendPersistError } = await inserirMensagemVinculada({
+        const { error: sendPersistError, conversationId: convGravada } = await inserirMensagemVinculada({
           id:          msgId,
           owner_id:    tenantId,
           company_id:  company?.id ?? null,
@@ -3476,7 +3528,7 @@ export default function MultiatendimentoPage() {
           // depender de a mensagem citada existir na base.
           reply_to_message_id: citada?.messageId ?? null,
           reply_to_preview: citada ? textoDaMensagem(citada).slice(0, 300) : null,
-        }, activeId);
+        }, activeId, active?.name);
         if (sendPersistError) {
           console.error("[Multiatendimento] Falha ao persistir mensagem enviada:", sendPersistError);
           toast.error("Mensagem enviada, mas houve erro ao salvar no histórico.");
@@ -3501,6 +3553,8 @@ export default function MultiatendimentoPage() {
             };
           });
         }
+        // Depois de pôr o id do provedor, para a troca levar a mensagem já com ele.
+        adotarConversaReal(activeId, convGravada);
       }
     }
   }
@@ -3561,13 +3615,14 @@ export default function MultiatendimentoPage() {
       bumpPreview(activeId, textoResolvido);
 
       if (user) {
-        const { error } = await inserirMensagemVinculada({
+        const { error, conversationId: convGravada } = await inserirMensagemVinculada({
           id: msgId, owner_id: tenantId, company_id: company?.id ?? null,
           instance_id: inst.instanceId, phone: cleanPhone, from_me: true,
           body: textoResolvido, type: "text", momment: Date.now(),
           sender_name: nomeAtendente,
           message_id: idNoProvedor,
-        }, activeId);
+        }, activeId, active?.name);
+        adotarConversaReal(activeId, convGravada);
         if (error) {
           console.error("[Multiatendimento] Falha ao persistir modelo enviado:", error);
           toast.error("Modelo enviado, mas houve erro ao salvar no histórico.");
@@ -7188,7 +7243,10 @@ export default function MultiatendimentoPage() {
       {/* ── DIALOG: follow up (agendar envio de mensagem) ─────────────── */}
       {showFollowupDialog && active && tenantId && company && (() => {
         const linkedLead = resolveLeadForConv(active);
-        const activeConn = whatsappConnections.find(c => c.connected && c.active);
+        // Pela linha da conversa. Era a primeira conexão ativa: com duas
+        // linhas, o follow-up de uma conversa saía pela outra.
+        const activeConn = whatsappConnections.find(c => c.instanceId === active.instanceId && c.connected && c.active)
+          ?? linhaPadrao(whatsappConnections);
         return (
           <FollowupScheduleDialog
             open={showFollowupDialog}

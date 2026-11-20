@@ -4,12 +4,17 @@ export interface FloatingChatState {
   leadId: string;
   minimized: boolean;
   unread?: boolean;
+  /**
+   * Linha escolhida ao abrir (o seletor "Enviar via WhatsApp" do card do
+   * Pipeline). Vale para contato SEM conversa; com conversa, manda a linha
+   * dela, igual ao Multiatendimento.
+   */
+  linha?: string;
 }
 
 interface FloatingChatContextType {
   windows: FloatingChatState[];
-  openedLeadIds: string[];
-  openChat: (leadId: string) => void;
+  openChat: (leadId: string, linha?: string) => void;
   closeChat: (leadId: string) => void;
   minimizeChat: (leadId: string) => void;
   restoreChat: (leadId: string) => void;
@@ -27,18 +32,16 @@ const MAX_WINDOWS = 3;
 
 export function FloatingChatProvider({ children }: { children: ReactNode }) {
   const [windows, setWindows] = useState<FloatingChatState[]>([]);
-  const [openedLeadIds, setOpenedLeadIds] = useState<string[]>([]);
 
-  const openChat = useCallback((leadId: string) => {
-    // Registra para o multi-atendimento criar a conversa
-    setOpenedLeadIds(prev => prev.includes(leadId) ? prev : [...prev, leadId]);
-
+  // Abrir o chat não cria conversa em lugar nenhum: ela nasce no primeiro envio
+  // (FloatingChatWindow, upsertConversationForMessage), como em qualquer canal.
+  const openChat = useCallback((leadId: string, linha?: string) => {
     setWindows(prev => {
       const exists = prev.find(w => w.leadId === leadId);
       const others = prev.filter(w => w.leadId !== leadId).map(w => ({ ...w, minimized: true }));
       const next = exists
-        ? [...others, { ...exists, minimized: false, unread: false }]
-        : [...others, { leadId, minimized: false }];
+        ? [...others, { ...exists, minimized: false, unread: false, ...(linha ? { linha } : {}) }]
+        : [...others, { leadId, minimized: false, linha }];
       if (next.length > MAX_WINDOWS) {
         const minimizedIdx = next.findIndex(w => w.minimized);
         if (minimizedIdx >= 0) next.splice(minimizedIdx, 1);
@@ -67,7 +70,7 @@ export function FloatingChatProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <FloatingChatContext.Provider value={{ windows, openedLeadIds, openChat, closeChat, minimizeChat, restoreChat }}>
+    <FloatingChatContext.Provider value={{ windows, openChat, closeChat, minimizeChat, restoreChat }}>
       {children}
     </FloatingChatContext.Provider>
   );

@@ -11,6 +11,7 @@ import { useCompany } from "@/context/CompanyContext";
 import { emitBillingBlocked } from "@/lib/billingBlockedEvent";
 import { supabase } from "@/lib/supabase";
 import { fetchWhatsappAvatar } from "@/lib/whatsappAvatar";
+import { conexaoParaFoto } from "@/lib/escolhaDeConexao";
 import { ProfileAvatar } from "@/components/ProfileAvatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -522,8 +523,9 @@ export default function LeadDetailPage() {
   const pipelinePerms = getPerms(pipeline?.id ?? "");
 
   // Avatar do lead: busca a foto real do WhatsApp na 1ª conexão ativa da
-  // empresa (leads não guardam qual instância/conversa os originou, então
-  // não tem como escolher uma instância mais específica que essa). Sem
+  // empresa que fornece foto (leads não guardam qual instância/conversa os
+  // originou, então não tem como escolher uma instância mais específica). A
+  // API oficial não fornece foto de contato e fica de fora. Sem
   // conexão ativa ou sem foto, LeadAvatar cai sozinho pras iniciais.
   const [leadAvatarUrl, setLeadAvatarUrl] = useState<string | undefined>(undefined);
   const leadAvatarRetried = useRef(false);
@@ -531,7 +533,7 @@ export default function LeadDetailPage() {
     setLeadAvatarUrl(undefined);
     leadAvatarRetried.current = false;
     if (!lead?.whatsapp) return;
-    const inst = whatsappConnections.find(c => c.connected && c.active);
+    const inst = conexaoParaFoto(whatsappConnections);
     if (!inst) return;
     let cancelled = false;
     fetchWhatsappAvatar(lead.whatsapp, inst).then(url => { if (!cancelled && url) setLeadAvatarUrl(url); });
@@ -541,7 +543,7 @@ export default function LeadDetailPage() {
   const refetchLeadAvatar = () => {
     if (leadAvatarRetried.current || !lead?.whatsapp) return;
     leadAvatarRetried.current = true;
-    const inst = whatsappConnections.find(c => c.connected && c.active);
+    const inst = conexaoParaFoto(whatsappConnections);
     if (!inst) return;
     setLeadAvatarUrl(undefined);
     fetchWhatsappAvatar(lead.whatsapp, inst).then(url => { if (url) setLeadAvatarUrl(url); });
