@@ -106,6 +106,19 @@ type SortKey = "recent" | "oldest" | "value" | "name";
 // StatusFilter mora no PipelineFilterPanel: os dois controles que escrevem
 // esse valor (o seletor da barra e o painel) precisam das mesmas opções.
 
+/**
+ * Confirmação ao avançar um negócio de etapa arrastando o card.
+ *
+ * Desligada a pedido do dono em 20/11/2026, que quer religar depois. O modal,
+ * o passo a passo por etapa e o handleConfirmAdvance continuam aqui, intactos:
+ * para voltar, basta trocar para `true`.
+ *
+ * Desligada, o avanço faz o mesmo caminho do recuo: o card vai direto para a
+ * etapa onde foi solto, com uma atividade "Movido de X para Y". As etapas do
+ * meio não são percorridas uma a uma, então as automações delas não disparam.
+ */
+const CONFIRMAR_AVANCO_DE_ETAPA = false;
+
 export default function PipelinePage() {
   const {
     pipelines,
@@ -435,7 +448,7 @@ export default function PipelinePage() {
       const fromIdx  = cols.findIndex(c => c.id === source.droppableId);
       const toIdx    = cols.findIndex(c => c.id === destination.droppableId);
       const isAdvance = toIdx > fromIdx;
-      if (isAdvance) {
+      if (isAdvance && CONFIRMAR_AVANCO_DE_ETAPA) {
         const steps = cols.slice(fromIdx, toIdx + 1).map(c => ({ colId: c.id, colTitle: c.title }));
         setPendingAdvance({
           leadId: draggableId,
@@ -446,7 +459,7 @@ export default function PipelinePage() {
         });
         return;
       }
-      // Mover para etapa anterior — executa sem confirmação
+      // Recuo, ou avanço com a confirmação desligada: executa direto
       addActivity(draggableId, {
         date: new Date().toISOString(),
         type: "stage_change",
